@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Home, FileText, Star, Megaphone, Beer, Calendar, Menu, User, MessageSquare, MessageCircle, Archive, ChevronDown, ChevronRight, BookOpen, Users, Compass } from 'lucide-react';
+import { Home, FileText, Star, Beer, Calendar, Menu, User, MessageCircle, Archive, ChevronDown, ChevronRight, BookOpen } from 'lucide-react';
 import { Button } from './ui/button';
 
 interface NavigationSidebarProps {
@@ -21,10 +21,6 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
 
   const menuItems = [
     { id: 'home', label: 'Home', icon: Home },
-    { id: 'feed', label: 'Feed', icon: MessageSquare },
-    { id: 'events', label: 'Events', icon: Megaphone },
-    { id: 'clubs', label: 'Clubs', icon: Users },
-    { id: 'explore', label: 'Explore', icon: Compass },
   ];
 
   const resourceItems = [

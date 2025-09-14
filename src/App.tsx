@@ -1,18 +1,13 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { FileText } from 'lucide-react';
 import { NavigationSidebar } from './components/NavigationSidebar';
 import { SearchSidebar } from './components/SearchSidebar';
 import { OutlineViewer } from './components/OutlineViewer';
 import { ReviewsPage } from './components/ReviewsPage';
 import { HomePage } from './components/HomePage';
-import { ClubsPage } from './components/ClubsPage';
-import { ClubPage } from './components/ClubPage';
-import { ExplorePage } from './components/ExplorePage';
 import { CoursePage } from './components/CoursePage';
 import { BarReviewPage } from './components/BarReviewPage';
 import { CalendarPage } from './components/CalendarPage';
-import { EventsPage } from './components/EventsPage';
-import { FeedPage } from './components/FeedPage';
 import { ProfilePage } from './components/ProfilePage';
 import { MessagingPage } from './components/MessagingPage';
 import { Toaster } from './components/ui/sonner';
@@ -1564,22 +1559,6 @@ interface CalendarEvent {
   description?: string;
 }
 
-// Campus Event Interface (from EventsPage)
-interface CampusEvent {
-  id: string;
-  title: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  type: 'school' | 'firm';
-  location?: string;
-  description?: string;
-  hasLunch: boolean;
-  organizer: string;
-  attendeeCount?: number;
-  maxAttendees?: number;
-  category: 'academic' | 'recruiting' | 'social' | 'workshop' | 'networking' | 'information';
-}
 
 export default function App() {
   const [selectedOutline, setSelectedOutline] = useState<Outline | null>(null);
@@ -1597,12 +1576,11 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [selectedCourseForSearch, setSelectedCourseForSearch] = useState<string>('');
   const [selectedStudent, setSelectedStudent] = useState<string>('');
-  const [selectedClub, setSelectedClub] = useState<string>('');
 
   const [sortBy, setSortBy] = useState('Highest Rated');
 
   // Shared calendar events state
-  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [calendarEvents] = useState<CalendarEvent[]>([]);
 
   const handleNavigateToOutlines = (courseName: string, outlineName: string) => {
     // Find the outline that matches the course and name
@@ -1657,15 +1635,6 @@ export default function App() {
     setActiveSection('course');
   };
 
-  const handleNavigateToClub = (clubId: string) => {
-    setSelectedClub(clubId);
-    setActiveSection('club');
-  };
-
-  const handleBackFromClub = () => {
-    setSelectedClub('');
-    setActiveSection('clubs');
-  };
 
   // Filter outlines based on search criteria
   const filteredOutlines = mockOutlines.filter(outline => {
@@ -1740,27 +1709,6 @@ export default function App() {
     setHiddenOutlines([]);
   };
 
-  // Function to add campus event to calendar
-  const handleAddEventToCalendar = (campusEvent: CampusEvent) => {
-    // Convert campus event to calendar event format
-    const newCalendarEvent: CalendarEvent = {
-      id: `imported_${campusEvent.id}`,
-      title: campusEvent.title,
-      date: campusEvent.date,
-      startTime: campusEvent.startTime,
-      endTime: campusEvent.endTime,
-      type: campusEvent.type === 'school' ? 'meeting' : 'personal',
-      location: campusEvent.location,
-      description: campusEvent.description
-    };
-
-    // Add to calendar events if not already exists
-    setCalendarEvents(prev => {
-      const exists = prev.some(event => event.id === newCalendarEvent.id);
-      if (exists) return prev;
-      return [...prev, newCalendarEvent];
-    });
-  };
 
   const handleSectionChange = (section: string) => {
     setActiveSection(section);
@@ -1902,21 +1850,8 @@ export default function App() {
               studentName={selectedStudent}
               onBack={handleBackFromStudentProfile}
             />
-          ) : activeSection === 'clubs' ? (
-            <ClubsPage onNavigateToClub={handleNavigateToClub} />
-          ) : activeSection === 'club' ? (
-            <ClubPage 
-              clubId={selectedClub}
-              onBack={handleBackFromClub}
-            />
-          ) : activeSection === 'explore' ? (
-            <ExplorePage />
-          ) : activeSection === 'feed' ? (
-            <FeedPage />
           ) : activeSection === 'calendar' ? (
             <CalendarPage additionalEvents={calendarEvents} />
-          ) : activeSection === 'events' ? (
-            <EventsPage onAddToCalendar={handleAddEventToCalendar} />
           ) : activeSection === 'barreview' ? (
             <BarReviewPage />
           ) : activeSection === 'profile' ? (

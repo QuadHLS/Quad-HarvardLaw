@@ -1787,10 +1787,10 @@ export default function App() {
         {/* Search Sidebar - Only show when in outlines or exams section */}
         {(activeSection === 'outlines' || activeSection === 'exams') && (
           <SearchSidebar
-          outlines={sortedOutlines}
-          allOutlines={mockOutlines}
+          outlines={filteredOutlines}
+          allOutlines={outlines}
           courses={courses}
-          instructors={mockInstructors}
+          instructors={instructors}
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
           selectedCourse={selectedCourseForSearch}
@@ -1817,6 +1817,8 @@ export default function App() {
           hiddenOutlines={hiddenOutlines}
           onHideOutline={handleHideOutline}
           onUnhideAllOutlines={handleUnhideAllOutlines}
+          loading={outlinesLoading}
+          error={outlinesError}
         />
         )}
         

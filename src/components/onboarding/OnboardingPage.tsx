@@ -21,7 +21,9 @@ const lawClasses: LawClass[] = [
     name: 'Civil Procedure (CivPro)',
     professors: [
       { id: '1', name: 'Professor Smith' },
-      { id: '2', name: 'Professor Johnson' }
+      { id: '2', name: 'Professor Johnson' },
+      { id: '73', name: 'Professor Williams' },
+      { id: '74', name: 'Professor Brown' }
     ]
   },
   {
@@ -29,7 +31,9 @@ const lawClasses: LawClass[] = [
     name: 'Constitutional Law (ConLaw)',
     professors: [
       { id: '3', name: 'Professor Brown' },
-      { id: '4', name: 'Professor Davis' }
+      { id: '4', name: 'Professor Davis' },
+      { id: '75', name: 'Professor Wilson' },
+      { id: '76', name: 'Professor Moore' }
     ]
   },
   {
@@ -37,7 +41,9 @@ const lawClasses: LawClass[] = [
     name: 'Contracts',
     professors: [
       { id: '5', name: 'Professor Wilson' },
-      { id: '6', name: 'Professor Miller' }
+      { id: '6', name: 'Professor Miller' },
+      { id: '77', name: 'Professor Taylor' },
+      { id: '78', name: 'Professor Anderson' }
     ]
   },
   {
@@ -159,6 +165,115 @@ const lawClasses: LawClass[] = [
     professors: [
       { id: '35', name: 'Professor Walker' },
       { id: '36', name: 'Professor Young' }
+    ]
+  },
+  // Additional 2L/3L courses
+  {
+    id: '19',
+    name: 'Advanced Constitutional Law',
+    professors: [
+      { id: '37', name: 'Professor Martinez' },
+      { id: '38', name: 'Professor Thompson' },
+      { id: '39', name: 'Professor Rodriguez' }
+    ]
+  },
+  {
+    id: '20',
+    name: 'Securities Regulation',
+    professors: [
+      { id: '40', name: 'Professor Clark' },
+      { id: '41', name: 'Professor Lewis' },
+      { id: '42', name: 'Professor Robinson' }
+    ]
+  },
+  {
+    id: '21',
+    name: 'International Law',
+    professors: [
+      { id: '43', name: 'Professor Wright' },
+      { id: '44', name: 'Professor Lopez' },
+      { id: '45', name: 'Professor Hill' }
+    ]
+  },
+  {
+    id: '22',
+    name: 'Environmental Law',
+    professors: [
+      { id: '46', name: 'Professor Green' },
+      { id: '47', name: 'Professor Adams' },
+      { id: '48', name: 'Professor Baker' }
+    ]
+  },
+  {
+    id: '23',
+    name: 'Intellectual Property',
+    professors: [
+      { id: '49', name: 'Professor Nelson' },
+      { id: '50', name: 'Professor Carter' },
+      { id: '51', name: 'Professor Mitchell' }
+    ]
+  },
+  {
+    id: '24',
+    name: 'Employment Law',
+    professors: [
+      { id: '52', name: 'Professor Perez' },
+      { id: '53', name: 'Professor Roberts' },
+      { id: '54', name: 'Professor Turner' }
+    ]
+  },
+  {
+    id: '25',
+    name: 'Health Law',
+    professors: [
+      { id: '55', name: 'Professor Phillips' },
+      { id: '56', name: 'Professor Campbell' },
+      { id: '57', name: 'Professor Parker' }
+    ]
+  },
+  {
+    id: '26',
+    name: 'Immigration Law',
+    professors: [
+      { id: '58', name: 'Professor Evans' },
+      { id: '59', name: 'Professor Edwards' },
+      { id: '60', name: 'Professor Collins' }
+    ]
+  },
+  {
+    id: '27',
+    name: 'Tax Law',
+    professors: [
+      { id: '61', name: 'Professor Stewart' },
+      { id: '62', name: 'Professor Sanchez' },
+      { id: '63', name: 'Professor Morris' }
+    ]
+  },
+  {
+    id: '28',
+    name: 'Family Law',
+    professors: [
+      { id: '64', name: 'Professor Rogers' },
+      { id: '65', name: 'Professor Reed' },
+      { id: '66', name: 'Professor Cook' }
+    ]
+  },
+  {
+    id: '29',
+    name: 'Real Estate Law',
+    professors: [
+      { id: '67', name: 'Professor Morgan' },
+      { id: '68', name: 'Professor Bell' },
+      { id: '69', name: 'Professor Murphy' }
+    ]
+  },
+  {
+    id: '30',
+    name: 'Estate Planning',
+    professors: [
+      { id: '70', name: 'Professor Bailey' },
+      { id: '71', name: 'Professor Rivera' },
+      { id: '72', name: 'Professor Cooper' }
     ]
   }
 ];

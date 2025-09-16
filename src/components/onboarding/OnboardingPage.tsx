@@ -368,7 +368,14 @@ const getAvailableClasses = (classYear: ClassYear, excludeIds: string[]): LawCla
   if (classYear === '1L') {
     // 1L: Show 1L required courses + elective courses, excluding already selected ones
     const requiredCourses = lawClasses.filter(lc => firstYearCourseIds.includes(lc.id) && !excludeIds.includes(lc.id));
-    const electiveCourses = lawClasses.filter(lc => lc.id >= '31' && lc.id <= '38' && !excludeIds.includes(lc.id));
+    const electiveCourses = lawClasses.filter(lc => {
+      const id = parseInt(lc.id);
+      const isElective = id >= 31 && id <= 38;
+      const notExcluded = !excludeIds.includes(lc.id);
+      console.log('Elective filter check:', { id: lc.id, parsedId: id, isElective, notExcluded, name: lc.name });
+      return isElective && notExcluded;
+    });
+    console.log('Elective courses found:', electiveCourses.map(c => ({ id: c.id, name: c.name, professors: c.professors.length })));
     return [...requiredCourses, ...electiveCourses];
   }
   // 2L/3L: Show all courses (allow duplicates)
@@ -387,6 +394,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
   // Auto-populate 1L courses when class year is selected
   useEffect(() => {
+    console.log('Class year changed to:', classYear);
     if (classYear === '1L') {
       // 1L: 8 required + 1 elective = 9 total
       const newSelectedClasses = Array(9).fill(null).map((_, index) => {
@@ -397,10 +405,20 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         }
         return { lawClass: null, professor: null };
       });
+      console.log('Setting 1L selectedClasses:', newSelectedClasses.map((sc, i) => ({
+        index: i,
+        hasClass: !!sc.lawClass,
+        className: sc.lawClass?.name
+      })));
       setSelectedClasses(newSelectedClasses);
     } else if (classYear === '2L' || classYear === '3L') {
-      // 2L/3L: 4 required + up to 6 more = 10 total maximum
+      // 2L/3L: 3 required + up to 7 more = 10 total maximum
       const newSelectedClasses = Array(10).fill(null).map(() => ({ lawClass: null, professor: null }));
+      console.log('Setting 2L/3L selectedClasses:', newSelectedClasses.map((sc, i) => ({
+        index: i,
+        hasClass: !!sc.lawClass,
+        className: sc.lawClass?.name
+      })));
       setSelectedClasses(newSelectedClasses);
     }
     // Clear section when class year changes
@@ -421,7 +439,15 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   };
 
   const handleClassChange = (index: number, lawClass: LawClass | null) => {
-    console.log('Class change:', { index, lawClass: lawClass?.name, classYear });
+    console.log('Class change:', { 
+      index, 
+      lawClass: lawClass?.name, 
+      lawClassId: lawClass?.id,
+      hasProfessors: lawClass?.professors?.length,
+      professorNames: lawClass?.professors?.map(p => p.name),
+      classYear,
+      fullLawClass: lawClass
+    });
     const newSelectedClasses = [...selectedClasses];
     newSelectedClasses[index] = { lawClass, professor: null };
     setSelectedClasses(newSelectedClasses);
@@ -429,6 +455,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       index: i,
       hasClass: !!sc.lawClass,
       className: sc.lawClass?.name,
+      hasProfessors: sc.lawClass?.professors?.length,
+      professorNames: sc.lawClass?.professors?.map(p => p.name),
       hasProfessor: !!sc.professor
     })));
   };
@@ -505,12 +533,12 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       });
       return isValid;
     } else if (classYear === '2L' || classYear === '3L') {
-      // 2L/3L: minimum 4, maximum 10
-      // First 4 must have both class and professor, rest can have just class
-      const requiredClasses = selectedClasses.slice(0, 4).filter(selected => 
+      // 2L/3L: minimum 3, maximum 10
+      // First 3 must have both class and professor, rest can have just class
+      const requiredClasses = selectedClasses.slice(0, 3).filter(selected => 
         selected.lawClass && selected.professor
       );
-      const optionalClasses = selectedClasses.slice(4).filter(selected => 
+      const optionalClasses = selectedClasses.slice(3).filter(selected => 
         selected.lawClass
       );
       const totalClasses = requiredClasses.length + optionalClasses.length;
@@ -527,7 +555,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         }))
       });
       
-      const isValid = requiredClasses.length === 4 && totalClasses >= 4 && totalClasses <= 10;
+      const isValid = requiredClasses.length === 3 && totalClasses >= 3 && totalClasses <= 10;
       console.log('2L/3L Validation result:', { 
         requiredClasses: requiredClasses.length, 
         totalClasses,
@@ -642,12 +670,13 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                             <SelectValue placeholder="Select your section" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="A">Section A</SelectItem>
-                            <SelectItem value="B">Section B</SelectItem>
-                            <SelectItem value="C">Section C</SelectItem>
-                            <SelectItem value="D">Section D</SelectItem>
-                            <SelectItem value="E">Section E</SelectItem>
-                            <SelectItem value="F">Section F</SelectItem>
+                            <SelectItem value="1">Section 1</SelectItem>
+                            <SelectItem value="2">Section 2</SelectItem>
+                            <SelectItem value="3">Section 3</SelectItem>
+                            <SelectItem value="4">Section 4</SelectItem>
+                            <SelectItem value="5">Section 5</SelectItem>
+                            <SelectItem value="6">Section 6</SelectItem>
+                            <SelectItem value="7">Section 7</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -687,6 +716,16 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
                     <div className="space-y-4">
                       {selectedClasses.map((selectedClass, index) => {
+                        // Debug logging for class slots
+                        if (index >= 8) {
+                          console.log(`Rendering class slot ${index} for ${classYear}:`, {
+                            hasClass: !!selectedClass.lawClass,
+                            className: selectedClass.lawClass?.name,
+                            hasProfessor: !!selectedClass.professor,
+                            professorName: selectedClass.professor?.name
+                          });
+                        }
+                        
                         // Get IDs of classes selected in other slots
                         const otherSelectedClassIds = selectedClasses
                           .map((sc, i) => i !== index && sc.lawClass ? sc.lawClass.id : null)
@@ -696,7 +735,18 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                         const availableClasses = getAvailableClassesForSlot(otherSelectedClassIds);
                         
                         // Determine if this slot is required
-                        const isRequired = classYear === '1L' ? index < 9 : index < 4;
+                        const isRequired = classYear === '1L' ? index < 9 : index < 3;
+                        
+                        // Debug logging for elective class
+                        if (index === 8) {
+                          console.log('Elective class debug:', {
+                            index,
+                            selectedClass: selectedClass.lawClass,
+                            hasProfessors: selectedClass.lawClass?.professors?.length,
+                            professorNames: selectedClass.lawClass?.professors?.map(p => p.name),
+                            isRequired
+                          });
+                        }
                         
                         return (
                           <ClassSelector
@@ -709,6 +759,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                             onProfessorChange={(professor) => handleProfessorChange(index, professor)}
                             isReadOnly={classYear === '1L' && index < 8}
                             isRequired={isRequired}
+                            classYear={classYear}
                           />
                         );
                       })}
@@ -730,8 +781,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                         </>
                       ) : (
                         <>
-                          Required: {selectedClasses.slice(0, 4).filter(selected => selected.lawClass && selected.professor).length}/4, 
-                          Optional: {selectedClasses.slice(4).filter(selected => selected.lawClass).length}/6
+                          Required: {selectedClasses.slice(0, 3).filter(selected => selected.lawClass && selected.professor).length}/3, 
+                          Optional: {selectedClasses.slice(3).filter(selected => selected.lawClass).length}/7
                         </>
                       )}
                     </span>

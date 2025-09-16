@@ -24,6 +24,7 @@ interface ClassSelectorProps {
   onProfessorChange: (professor: Professor | null) => void;
   isReadOnly?: boolean;
   isRequired?: boolean;
+  classYear?: string;
 }
 
 export function ClassSelector({
@@ -34,7 +35,8 @@ export function ClassSelector({
   onClassChange,
   onProfessorChange,
   isReadOnly = false,
-  isRequired = false
+  isRequired = false,
+  classYear = ''
 }: ClassSelectorProps) {
   console.log('ClassSelector props:', { 
     index, 
@@ -71,27 +73,52 @@ export function ClassSelector({
         lawClass.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredClasses(filtered);
+      
+      // Auto-select if there's an exact match
+      const exactMatch = availableClasses.find(c => c.name === searchTerm);
+      if (exactMatch && (!selectedClass || selectedClass.name !== searchTerm)) {
+        console.log('Auto-selecting exact match for index', index, ':', exactMatch);
+        onClassChange(exactMatch);
+      }
     }
     console.log('ClassSelector useEffect - filteredClasses:', filteredClasses.length);
-  }, [searchTerm, availableClasses]);
+  }, [searchTerm, availableClasses, selectedClass, onClassChange, index]);
 
   // Handle clicks outside dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      
+      // Check if click is outside the class dropdown
+      if (dropdownRef.current && !dropdownRef.current.contains(target)) {
         setShowDropdown(false);
-        setShowProfessorDropdown(false);
-        // Don't reset search term - keep the selected class visible
+      }
+      
+      // Check if click is outside the professor dropdown
+      // Don't close if clicking on the professor input itself
+      const professorInput = document.querySelector(`[data-professor-input="${index}"]`);
+      if (showProfessorDropdown && professorInput && !professorInput.contains(target)) {
+        // Also check if the click is not on any professor dropdown content
+        const professorDropdown = document.querySelector(`[data-professor-dropdown="${index}"]`);
+        if (!professorDropdown || !professorDropdown.contains(target)) {
+          setShowProfessorDropdown(false);
+        }
       }
     }
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [showProfessorDropdown, index]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    console.log('ClassSelector input change:', { value, availableClasses: availableClasses.length, selectedClass: selectedClass?.name });
+    console.log('ClassSelector input change for index', index, ':', { 
+      value, 
+      availableClasses: availableClasses.length, 
+      selectedClass: selectedClass?.name,
+      filteredClasses: filteredClasses.length,
+      exactMatch: availableClasses.find(c => c.name === value)
+    });
     setSearchTerm(value);
     setShowDropdown(true);
     
@@ -116,7 +143,14 @@ export function ClassSelector({
   };
 
   const handleClassSelect = (lawClass: LawClass) => {
-    console.log('ClassSelector class select:', { lawClass: lawClass.name, index });
+    console.log('ClassSelector class select:', { 
+      lawClass: lawClass.name, 
+      lawClassId: lawClass.id,
+      professors: lawClass.professors?.length,
+      professorNames: lawClass.professors?.map(p => p.name),
+      index,
+      fullLawClass: lawClass
+    });
     setSearchTerm(lawClass.name);
     setShowDropdown(false);
     onClassChange(lawClass);
@@ -137,7 +171,7 @@ export function ClassSelector({
       {/* Class Selection */}
       <div className="flex-1 relative" ref={dropdownRef}>
         <Label className="text-sm mb-2 block">
-          {index === 8 ? 'Elective' : `Class ${index + 1}`}
+          {index === 8 && classYear === '1L' ? 'Elective' : `Class ${index + 1}`}
           {isRequired && !isReadOnly && <span className="text-red-600 ml-1">*</span>}
           {isReadOnly && <span className="text-gray-500 ml-1">(Required)</span>}
           {!isRequired && !isReadOnly && <span className="text-gray-500 ml-1">(Optional)</span>}
@@ -185,11 +219,15 @@ export function ClassSelector({
         })}
         {showDropdown && !isReadOnly && filteredClasses.length > 0 && (
           <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+            {console.log('Rendering dropdown options for index', index, ':', filteredClasses.map(c => ({ id: c.id, name: c.name, hasProfessors: c.professors?.length })))}
             {filteredClasses.map((lawClass) => (
               <button
                 key={lawClass.id}
                 type="button"
-                onClick={() => handleClassSelect(lawClass)}
+                onClick={() => {
+                  console.log('Dropdown option clicked for index', index, ':', lawClass);
+                  handleClassSelect(lawClass);
+                }}
                 className="w-full px-3 py-2 text-left hover:bg-gray-50 text-sm border-b border-gray-100 last:border-b-0"
               >
                 {lawClass.name}
@@ -212,6 +250,7 @@ export function ClassSelector({
             value={selectedProfessor?.name || ""}
             placeholder={!selectedClass ? "Select class first" : "Select professor"}
             readOnly
+            data-professor-input={index}
             style={{ 
               backgroundColor: !selectedClass ? '#f5f5f5' : 'white',
               cursor: !selectedClass ? 'not-allowed' : 'pointer'
@@ -219,16 +258,18 @@ export function ClassSelector({
             onMouseDown={() => {
               console.log('Professor input mousedown:', { 
                 selectedClass: selectedClass?.name, 
+                selectedClassId: selectedClass?.id,
                 professors: selectedClass?.professors?.length,
                 professorNames: selectedClass?.professors?.map(p => p.name),
                 isRequired,
-                index
+                index,
+                fullSelectedClass: selectedClass
               });
               if (selectedClass && selectedClass.professors && selectedClass.professors.length > 0) {
                 console.log('Opening professor dropdown for:', selectedClass.name);
                 setShowProfessorDropdown(true);
               } else {
-                console.log('Cannot open professor dropdown - no professors available for:', selectedClass?.name);
+                console.log('Cannot open professor dropdown - no professors available for:', selectedClass?.name, 'professors array:', selectedClass?.professors);
               }
             }}
             className={`bg-input-background ${
@@ -265,6 +306,7 @@ export function ClassSelector({
           })}
           {showProfessorDropdown && selectedClass && selectedClass.professors && selectedClass.professors.length > 0 && (
             <div 
+              data-professor-dropdown={index}
               className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
               onClick={(e) => {
                 console.log('Professor dropdown container clicked:', e.target);

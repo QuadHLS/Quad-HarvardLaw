@@ -44,6 +44,7 @@ export function ClassSelector({
 
   // Update search term when selected class changes
   useEffect(() => {
+    console.log('ClassSelector - selectedClass changed:', selectedClass?.name);
     setSearchTerm(selectedClass?.name || '');
   }, [selectedClass]);
 
@@ -67,27 +68,30 @@ export function ClassSelector({
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowDropdown(false);
-        // Reset search term if no class is selected
-        if (!selectedClass) {
-          setSearchTerm('');
-        }
+        // Don't reset search term - keep the selected class visible
       }
     }
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [selectedClass]);
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    console.log('ClassSelector input change:', { value, availableClasses: availableClasses.length });
+    console.log('ClassSelector input change:', { value, availableClasses: availableClasses.length, selectedClass: selectedClass?.name });
     setSearchTerm(value);
     setShowDropdown(true);
     
-    // If input is cleared, clear the selected class
+    // Only clear the selected class if user manually deletes the text
+    // Don't clear if the input is just losing focus or being updated programmatically
     if (!value && selectedClass) {
-      onClassChange(null);
-      onProfessorChange(null);
+      // Check if this is a real user action (not programmatic)
+      const isUserAction = e.target === document.activeElement && e.nativeEvent.isTrusted;
+      if (isUserAction) {
+        console.log('ClassSelector - clearing selected class due to user input');
+        onClassChange(null);
+        onProfessorChange(null);
+      }
     }
   };
 

@@ -219,7 +219,16 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   }, [classYear]);
 
   const getAvailableClassesForSlot = (excludeIds: string[]): LawClass[] => {
-    return getAvailableClasses(classYear, excludeIds);
+    // For 2L/3L, don't exclude any classes (allow duplicates)
+    // For 1L, exclude already selected classes
+    if (classYear === '2L' || classYear === '3L') {
+      const classes = getAvailableClasses(classYear, []);
+      console.log('2L/3L available classes (no exclusions):', classes.length, classes.map(c => c.name));
+      return classes;
+    }
+    const classes = getAvailableClasses(classYear, excludeIds);
+    console.log('1L available classes (with exclusions):', classes.length, classes.map(c => c.name), 'excluded:', excludeIds);
+    return classes;
   };
 
   const handleClassChange = (index: number, lawClass: LawClass | null) => {

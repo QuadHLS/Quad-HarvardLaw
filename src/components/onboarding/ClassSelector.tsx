@@ -204,8 +204,11 @@ export function ClassSelector({
             readOnly
             onClick={() => {
               console.log('Professor input clicked:', { selectedClass: selectedClass?.name, professors: selectedClass?.professors?.length });
-              if (selectedClass && selectedClass.professors) {
-                setShowProfessorDropdown(!showProfessorDropdown);
+              if (selectedClass && selectedClass.professors && selectedClass.professors.length > 0) {
+                console.log('Opening professor dropdown');
+                setShowProfessorDropdown(true);
+              } else {
+                console.log('Cannot open professor dropdown - no professors available');
               }
             }}
             className={`bg-input-background ${
@@ -215,22 +218,22 @@ export function ClassSelector({
             }`}
             disabled={!selectedClass}
           />
-          <ChevronDown 
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" 
-          />
-          {/* Debug button - remove this later */}
-          {selectedClass && selectedClass.professors && (
-            <button
-              type="button"
-              onClick={() => {
-                console.log('Debug button clicked - toggling professor dropdown');
-                setShowProfessorDropdown(!showProfessorDropdown);
-              }}
-              className="absolute right-8 top-1/2 transform -translate-y-1/2 h-6 w-6 bg-red-500 text-white text-xs rounded"
-            >
-              D
-            </button>
-          )}
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            {selectedProfessor && (
+              <button
+                type="button"
+                onClick={() => {
+                  console.log('Clear professor clicked');
+                  onProfessorChange(null);
+                }}
+                className="p-1 hover:bg-red-100 rounded text-red-500 hover:text-red-700 border border-red-200"
+                title="Clear professor selection"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+            <ChevronDown className="h-4 w-4 text-gray-400 pointer-events-none" />
+          </div>
           
           {console.log('Professor dropdown render check:', {
             showProfessorDropdown,
@@ -238,9 +241,9 @@ export function ClassSelector({
             professors: selectedClass?.professors?.length,
             shouldShow: showProfessorDropdown && selectedClass && selectedClass.professors
           })}
-          {showProfessorDropdown && selectedClass && selectedClass.professors && (
-            <div className="absolute z-50 w-full mt-1 bg-white border-2 border-blue-500 rounded-lg shadow-xl max-h-48 overflow-y-auto">
-              <div className="p-2 text-xs text-gray-500 bg-blue-50">
+          {showProfessorDropdown && selectedClass && selectedClass.professors && selectedClass.professors.length > 0 && (
+            <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+              <div className="p-2 text-xs text-gray-500 bg-gray-50 border-b">
                 Professors for {selectedClass.name}:
               </div>
               {selectedClass.professors.map((professor) => {
@@ -254,7 +257,7 @@ export function ClassSelector({
                       onProfessorChange(professor);
                       setShowProfessorDropdown(false);
                     }}
-                    className="w-full px-3 py-2 text-left hover:bg-blue-50 text-sm border-b border-gray-100 last:border-b-0"
+                    className="w-full px-3 py-2 text-left hover:bg-gray-50 text-sm border-b border-gray-100 last:border-b-0"
                   >
                     {professor.name}
                   </button>

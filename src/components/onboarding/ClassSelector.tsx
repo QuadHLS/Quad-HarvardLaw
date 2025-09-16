@@ -239,10 +239,17 @@ export function ClassSelector({
             showProfessorDropdown,
             selectedClass: selectedClass?.name,
             professors: selectedClass?.professors?.length,
-            shouldShow: showProfessorDropdown && selectedClass && selectedClass.professors
+            professorNames: selectedClass?.professors?.map(p => p.name),
+            shouldShow: showProfessorDropdown && selectedClass && selectedClass.professors && selectedClass.professors.length > 0
           })}
           {showProfessorDropdown && selectedClass && selectedClass.professors && selectedClass.professors.length > 0 && (
-            <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+            <div 
+              className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+              onClick={(e) => {
+                console.log('Professor dropdown container clicked:', e.target);
+                e.stopPropagation();
+              }}
+            >
               <div className="p-2 text-xs text-gray-500 bg-gray-50 border-b">
                 Professors for {selectedClass.name}:
               </div>
@@ -252,12 +259,23 @@ export function ClassSelector({
                   <button
                     key={professor.id}
                     type="button"
-                    onClick={() => {
-                      console.log('Professor selected:', professor);
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('Professor button clicked:', { 
+                        professor, 
+                        index, 
+                        selectedClass: selectedClass?.name,
+                        event: e.type 
+                      });
                       onProfessorChange(professor);
                       setShowProfessorDropdown(false);
                     }}
-                    className="w-full px-3 py-2 text-left hover:bg-gray-50 text-sm border-b border-gray-100 last:border-b-0"
+                    onMouseDown={(e) => {
+                      console.log('Professor button mousedown:', { professor: professor.name, index });
+                    }}
+                    className="w-full px-3 py-2 text-left hover:bg-gray-50 text-sm border-b border-gray-100 last:border-b-0 cursor-pointer"
+                    style={{ pointerEvents: 'auto' }}
                   >
                     {professor.name}
                   </button>

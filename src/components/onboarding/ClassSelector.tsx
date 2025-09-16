@@ -36,6 +36,14 @@ export function ClassSelector({
   isReadOnly = false,
   isRequired = false
 }: ClassSelectorProps) {
+  console.log('ClassSelector props:', { 
+    index, 
+    selectedClass: selectedClass?.name, 
+    selectedProfessor: selectedProfessor?.name,
+    onProfessorChange: typeof onProfessorChange,
+    isReadOnly,
+    isRequired
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [showProfessorDropdown, setShowProfessorDropdown] = useState(false);
@@ -259,10 +267,10 @@ export function ClassSelector({
                   <button
                     key={professor.id}
                     type="button"
-                    onClick={(e) => {
+                    onMouseDown={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      console.log('Professor button clicked:', { 
+                      console.log('Professor button mousedown (using this instead of click):', { 
                         professor, 
                         index, 
                         selectedClass: selectedClass?.name,
@@ -271,8 +279,17 @@ export function ClassSelector({
                       onProfessorChange(professor);
                       setShowProfessorDropdown(false);
                     }}
-                    onMouseDown={(e) => {
-                      console.log('Professor button mousedown:', { professor: professor.name, index });
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('Professor button clicked (backup):', { 
+                        professor, 
+                        index, 
+                        selectedClass: selectedClass?.name,
+                        event: e.type 
+                      });
+                      onProfessorChange(professor);
+                      setShowProfessorDropdown(false);
                     }}
                     className="w-full px-3 py-2 text-left hover:bg-gray-50 text-sm border-b border-gray-100 last:border-b-0 cursor-pointer"
                     style={{ pointerEvents: 'auto' }}

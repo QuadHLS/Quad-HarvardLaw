@@ -187,9 +187,7 @@ const getAvailableClasses = (classYear: ClassYear, excludeIds: string[]): LawCla
 
 export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   const { user } = useAuth();
-  const [name, setName] = useState('');
   const [classYear, setClassYear] = useState<ClassYear | ''>('');
-  const [section, setSection] = useState<string>('');
   const [selectedClasses, setSelectedClasses] = useState<SelectedClass[]>(
     Array(10).fill(null).map(() => ({ lawClass: null, professor: null }))
   );
@@ -213,9 +211,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       const newSelectedClasses = Array(10).fill(null).map(() => ({ lawClass: null, professor: null }));
       setSelectedClasses(newSelectedClasses);
     }
-    
-    // Clear section when class year changes
-    setSection('');
   }, [classYear]);
 
   const getAvailableClassesForSlot = (excludeIds: string[]): LawClass[] => {
@@ -259,14 +254,9 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   };
 
   const isFormValid = () => {
-    if (!name.trim() || !classYear) {
-      console.log('Form invalid: missing name or class year', { name: name.trim(), classYear });
-      return false;
-    }
-    
-    // All students must select a section (or transfer)
-    if (!section || section.trim() === '') {
-      console.log('Form invalid: missing section', { section });
+    // Only require class year and class selection
+    if (!classYear) {
+      console.log('Form invalid: missing class year', { classYear });
       return false;
     }
     
@@ -340,9 +330,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       // TODO: Save to Supabase database
       const formData = {
         userId: user?.id,
-        name: name.trim(),
         classYear,
-        ...(classYear === '1L' && { section }),
         classes: selectedClasses
           .filter(selected => selected.lawClass && selected.professor)
           .map(selected => ({
@@ -386,21 +374,9 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
           
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-8">
-              {/* Personal Information */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name *</Label>
-                  <Input
-                    id="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Enter your full name"
-                    className="bg-input-background"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
+              {/* Class Year Selection */}
+              <div className="flex justify-center">
+                <div className="space-y-2 w-64">
                   <Label htmlFor="classYear">Class Year *</Label>
                   <Select value={classYear} onValueChange={(value: ClassYear) => setClassYear(value)}>
                     <SelectTrigger className="bg-input-background">
@@ -413,33 +389,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                     </SelectContent>
                   </Select>
                 </div>
-
-                {(classYear === '1L' || classYear === '2L' || classYear === '3L') && (
-                  <div className="space-y-2">
-                    <Label htmlFor="section">
-                      {classYear === '1L' ? 'What section are you in?' : 'What section were you in?'} *
-                    </Label>
-                    <Select value={section} onValueChange={setSection}>
-                      <SelectTrigger className="bg-input-background">
-                        <SelectValue placeholder={
-                          classYear === '1L' 
-                            ? "Select your section" 
-                            : "Select your previous section"
-                        } />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[1, 2, 3, 4, 5, 6, 7].map((num) => (
-                          <SelectItem key={num} value={num.toString()}>
-                            Section {num}
-                          </SelectItem>
-                        ))}
-                        {(classYear === '2L' || classYear === '3L') && (
-                          <SelectItem value="transfer">Transfer</SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
               </div>
 
               {/* Class Selection */}

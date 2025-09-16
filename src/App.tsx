@@ -1745,10 +1745,9 @@ function AppContent() {
   }
 
   // Show onboarding flow if user hasn't completed onboarding
-  // TEMPORARILY DISABLED FOR TESTING - uncomment the line below to re-enable
-  // if (!hasCompletedOnboarding) {
-  //   return <OnboardingFlow onComplete={() => setHasCompletedOnboarding(true)} />;
-  // }
+  if (!hasCompletedOnboarding) {
+    return <OnboardingFlow onComplete={() => setHasCompletedOnboarding(true)} />;
+  }
 
   return (
     <div className="h-screen bg-gray-100 flex">
@@ -1894,8 +1893,6 @@ function AppContent() {
             <ProfilePage />
           ) : activeSection === 'messaging' ? (
             <MessagingPage />
-          ) : activeSection === 'onboarding' ? (
-            <OnboardingFlow onComplete={() => setHasCompletedOnboarding(true)} />
           ) : (
             <div className="flex items-center justify-center h-full bg-gray-100">
               <div className="text-center p-8">

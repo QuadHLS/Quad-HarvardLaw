@@ -21,7 +21,6 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
 
   const menuItems = [
     { id: 'home', label: 'Home', icon: Home },
-    { id: 'onboarding', label: 'Onboarding (Test)', icon: User },
   ];
 
   const resourceItems = [

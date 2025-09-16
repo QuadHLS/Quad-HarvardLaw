@@ -203,7 +203,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-[#8B1538] text-white rounded-full mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-red-600 text-white rounded-full mb-4">
             <span className="text-2xl font-semibold">HLS</span>
           </div>
           <h1 className="text-3xl text-gray-900 mb-2">Welcome to Quad</h1>
@@ -311,7 +311,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                 <Button
                   type="submit"
                   disabled={!isFormValid() || loading}
-                  className="bg-[#8B1538] hover:bg-[#7A1330] text-white px-8 py-2 disabled:opacity-50"
+                  className="bg-red-600 hover:bg-red-700 text-white px-8 py-2 disabled:opacity-50 rounded-lg"
                 >
                   {loading ? 'Saving...' : 'Complete Setup'}
                 </Button>
@@ -323,7 +323,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         {/* Progress Indicator */}
         <div className="mt-8 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full border shadow-sm">
-            <div className="w-2 h-2 bg-[#8B1538] rounded-full"></div>
+            <div className="w-2 h-2 bg-red-600 rounded-full"></div>
             <span className="text-sm text-gray-600">Step 1 of 1 - Setup Complete</span>
           </div>
         </div>

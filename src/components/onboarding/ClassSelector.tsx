@@ -112,7 +112,7 @@ export function ClassSelector({
       <div className="flex-1 relative" ref={dropdownRef}>
         <Label className="text-sm mb-2 block">
           Class {index + 1}
-          {!isReadOnly && <span className="text-red-500 ml-1">*</span>}
+          {!isReadOnly && <span className="text-red-600 ml-1">*</span>}
         </Label>
         
         <div className="relative">
@@ -161,7 +161,7 @@ export function ClassSelector({
       {/* Professor Selection */}
       <div className="w-48">
         <Label className="text-sm mb-2 block">
-          Professor <span className="text-red-500">*</span>
+          Professor <span className="text-red-600">*</span>
         </Label>
         
         <Select

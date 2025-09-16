@@ -233,10 +233,16 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   };
 
   const isFormValid = () => {
-    if (!name.trim() || !classYear) return false;
+    if (!name.trim() || !classYear) {
+      console.log('Form invalid: missing name or class year', { name: name.trim(), classYear });
+      return false;
+    }
     
     // All students must select a section (or transfer)
-    if (!section) return false;
+    if (!section || section.trim() === '') {
+      console.log('Form invalid: missing section', { section });
+      return false;
+    }
     
     // Count selected classes with both class and professor
     const validClasses = selectedClasses.filter(selected => 
@@ -256,6 +262,18 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         selected.lawClass && selected.professor
       );
       const electiveClass = selectedClasses[8];
+      
+      // Debug logging
+      console.log('1L Validation:', {
+        requiredClasses: requiredClasses.length,
+        electiveClass: !!electiveClass?.lawClass,
+        selectedClasses: selectedClasses.map((sc, i) => ({
+          index: i,
+          hasClass: !!sc.lawClass,
+          hasProfessor: !!sc.professor
+        }))
+      });
+      
       return requiredClasses.length === 8 && electiveClass?.lawClass;
     } else if (classYear === '2L' || classYear === '3L') {
       // 2L/3L: minimum 4, maximum 10
@@ -266,7 +284,21 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       const optionalClasses = selectedClasses.slice(4).filter(selected => 
         selected.lawClass
       );
-      return requiredClasses.length === 4 && (requiredClasses.length + optionalClasses.length) <= 10;
+      const totalClasses = requiredClasses.length + optionalClasses.length;
+      
+      // Debug logging
+      console.log('2L/3L Validation:', {
+        requiredClasses: requiredClasses.length,
+        optionalClasses: optionalClasses.length,
+        totalClasses,
+        selectedClasses: selectedClasses.map((sc, i) => ({
+          index: i,
+          hasClass: !!sc.lawClass,
+          hasProfessor: !!sc.professor
+        }))
+      });
+      
+      return requiredClasses.length === 4 && totalClasses >= 4 && totalClasses <= 10;
     }
     
     return false;

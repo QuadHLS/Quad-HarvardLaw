@@ -696,7 +696,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                         const availableClasses = getAvailableClassesForSlot(otherSelectedClassIds);
                         
                         // Determine if this slot is required
-                        const isRequired = classYear === '1L' ? index < 8 : index < 4;
+                        const isRequired = classYear === '1L' ? index < 9 : index < 4;
                         
                         return (
                           <ClassSelector

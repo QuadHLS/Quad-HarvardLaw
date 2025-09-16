@@ -211,12 +211,18 @@ export function ClassSelector({
             placeholder={!selectedClass ? "Select class first" : "Select professor"}
             readOnly
             onClick={() => {
-              console.log('Professor input clicked:', { selectedClass: selectedClass?.name, professors: selectedClass?.professors?.length });
+              console.log('Professor input clicked:', { 
+                selectedClass: selectedClass?.name, 
+                professors: selectedClass?.professors?.length,
+                professorNames: selectedClass?.professors?.map(p => p.name),
+                isRequired,
+                index
+              });
               if (selectedClass && selectedClass.professors && selectedClass.professors.length > 0) {
-                console.log('Opening professor dropdown');
+                console.log('Opening professor dropdown for:', selectedClass.name);
                 setShowProfessorDropdown(true);
               } else {
-                console.log('Cannot open professor dropdown - no professors available');
+                console.log('Cannot open professor dropdown - no professors available for:', selectedClass?.name);
               }
             }}
             className={`bg-input-background ${

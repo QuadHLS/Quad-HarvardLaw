@@ -275,6 +275,79 @@ const lawClasses: LawClass[] = [
       { id: '71', name: 'Professor Rivera' },
       { id: '72', name: 'Professor Cooper' }
     ]
+  },
+  // 1L Elective Courses
+  {
+    id: '31',
+    name: 'Legal Writing Workshop',
+    professors: [
+      { id: '73', name: 'Professor Thompson' },
+      { id: '74', name: 'Professor Martinez' },
+      { id: '75', name: 'Professor Rodriguez' }
+    ]
+  },
+  {
+    id: '32',
+    name: 'Introduction to Legal Research',
+    professors: [
+      { id: '76', name: 'Professor Clark' },
+      { id: '77', name: 'Professor Lewis' },
+      { id: '78', name: 'Professor Robinson' }
+    ]
+  },
+  {
+    id: '33',
+    name: 'Moot Court',
+    professors: [
+      { id: '79', name: 'Professor Wright' },
+      { id: '80', name: 'Professor Lopez' },
+      { id: '81', name: 'Professor Hill' }
+    ]
+  },
+  {
+    id: '34',
+    name: 'Law and Society',
+    professors: [
+      { id: '82', name: 'Professor Green' },
+      { id: '83', name: 'Professor Adams' },
+      { id: '84', name: 'Professor Baker' }
+    ]
+  },
+  {
+    id: '35',
+    name: 'Legal Ethics',
+    professors: [
+      { id: '85', name: 'Professor Nelson' },
+      { id: '86', name: 'Professor Carter' },
+      { id: '87', name: 'Professor Mitchell' }
+    ]
+  },
+  {
+    id: '36',
+    name: 'Introduction to Public Interest Law',
+    professors: [
+      { id: '88', name: 'Professor Perez' },
+      { id: '89', name: 'Professor Roberts' },
+      { id: '90', name: 'Professor Turner' }
+    ]
+  },
+  {
+    id: '37',
+    name: 'Legal History',
+    professors: [
+      { id: '91', name: 'Professor Phillips' },
+      { id: '92', name: 'Professor Campbell' },
+      { id: '93', name: 'Professor Parker' }
+    ]
+  },
+  {
+    id: '38',
+    name: 'Introduction to International Law',
+    professors: [
+      { id: '94', name: 'Professor Evans' },
+      { id: '95', name: 'Professor Edwards' },
+      { id: '96', name: 'Professor Collins' }
+    ]
   }
 ];
 
@@ -293,8 +366,10 @@ interface Professor {
 
 const getAvailableClasses = (classYear: ClassYear, excludeIds: string[]): LawClass[] => {
   if (classYear === '1L') {
-    // 1L: Only show 1L courses and exclude already selected ones
-    return lawClasses.filter(lc => firstYearCourseIds.includes(lc.id) && !excludeIds.includes(lc.id));
+    // 1L: Show 1L required courses + elective courses, excluding already selected ones
+    const requiredCourses = lawClasses.filter(lc => firstYearCourseIds.includes(lc.id) && !excludeIds.includes(lc.id));
+    const electiveCourses = lawClasses.filter(lc => lc.id >= '31' && lc.id <= '38' && !excludeIds.includes(lc.id));
+    return [...requiredCourses, ...electiveCourses];
   }
   // 2L/3L: Show all courses (allow duplicates)
   return lawClasses;
@@ -590,7 +665,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                     </h3>
                     <p className="text-gray-600 mb-4">
                       {classYear === '1L' 
-                        ? 'Your eight required 1L courses have been automatically populated. Select professors for each required course and choose one elective course.'
+                        ? 'Your eight required 1L courses have been automatically populated. Select professors for each required course and choose one elective course (professor optional).'
                         : 'Select 4-10 courses and their corresponding professors.'
                       }
                     </p>
@@ -603,7 +678,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                       </div>
                       <div className="text-sm text-blue-800">
                         {classYear === '1L' ? (
-                          <span>8 required courses + 1 elective = 9 total courses</span>
+                          <span>8 required courses + 1 elective = 9 total courses (ALL REQUIRED)</span>
                         ) : (
                           <span>4-10 courses total (minimum 4, maximum 10)</span>
                         )}

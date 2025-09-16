@@ -165,7 +165,9 @@ export function ClassSelector({
       {/* Professor Selection */}
       <div className="w-48">
         <Label className="text-sm mb-2 block">
-          Professor <span className="text-red-600">*</span>
+          Professor
+          {isRequired && <span className="text-red-600 ml-1">*</span>}
+          {!isRequired && <span className="text-gray-500 ml-1">(Optional)</span>}
         </Label>
         
         <Select

@@ -243,13 +243,30 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       selected.lawClass && selected.professor
     );
     
+    // Count classes with just class selected (for optional slots)
+    const classesWithClassOnly = selectedClasses.filter(selected => 
+      selected.lawClass && !selected.professor
+    );
+    
     // Check minimum requirements based on class year
     if (classYear === '1L') {
       // 1L: 8 required + 1 elective = 9 total
-      return validClasses.length === 9;
+      // First 8 must have both class and professor, 9th can have just class
+      const requiredClasses = selectedClasses.slice(0, 8).filter(selected => 
+        selected.lawClass && selected.professor
+      );
+      const electiveClass = selectedClasses[8];
+      return requiredClasses.length === 8 && electiveClass?.lawClass;
     } else if (classYear === '2L' || classYear === '3L') {
       // 2L/3L: minimum 4, maximum 10
-      return validClasses.length >= 4 && validClasses.length <= 10;
+      // First 4 must have both class and professor, rest can have just class
+      const requiredClasses = selectedClasses.slice(0, 4).filter(selected => 
+        selected.lawClass && selected.professor
+      );
+      const optionalClasses = selectedClasses.slice(4).filter(selected => 
+        selected.lawClass
+      );
+      return requiredClasses.length === 4 && (requiredClasses.length + optionalClasses.length) <= 10;
     }
     
     return false;
@@ -434,9 +451,17 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                 <div className="mb-4 text-center">
                   <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-full">
                     <span className="text-sm text-gray-600">
-                      Selected: {selectedClasses.filter(selected => selected.lawClass && selected.professor).length} / {
-                        classYear === '1L' ? '9' : '10'
-                      } courses
+                      {classYear === '1L' ? (
+                        <>
+                          Required: {selectedClasses.slice(0, 8).filter(selected => selected.lawClass && selected.professor).length}/8, 
+                          Elective: {selectedClasses[8]?.lawClass ? '1' : '0'}/1
+                        </>
+                      ) : (
+                        <>
+                          Required: {selectedClasses.slice(0, 4).filter(selected => selected.lawClass && selected.professor).length}/4, 
+                          Optional: {selectedClasses.slice(4).filter(selected => selected.lawClass).length}/6
+                        </>
+                      )}
                     </span>
                   </div>
                 </div>

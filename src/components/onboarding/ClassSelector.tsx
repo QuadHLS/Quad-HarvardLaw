@@ -135,7 +135,7 @@ export function ClassSelector({
       {/* Class Selection */}
       <div className="flex-1 relative" ref={dropdownRef}>
         <Label className="text-sm mb-2 block">
-          Class {index + 1}
+          {index === 8 ? 'Elective' : `Class ${index + 1}`}
           {isRequired && !isReadOnly && <span className="text-red-600 ml-1">*</span>}
           {isReadOnly && <span className="text-gray-500 ml-1">(Required)</span>}
           {!isRequired && !isReadOnly && <span className="text-gray-500 ml-1">(Optional)</span>}
@@ -210,8 +210,8 @@ export function ClassSelector({
             value={selectedProfessor?.name || ""}
             placeholder={!selectedClass ? "Select class first" : "Select professor"}
             readOnly
-            onClick={() => {
-              console.log('Professor input clicked:', { 
+            onMouseDown={() => {
+              console.log('Professor input mousedown:', { 
                 selectedClass: selectedClass?.name, 
                 professors: selectedClass?.professors?.length,
                 professorNames: selectedClass?.professors?.map(p => p.name),

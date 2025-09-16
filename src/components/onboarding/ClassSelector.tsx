@@ -200,7 +200,22 @@ export function ClassSelector({
             }`}
             disabled={!selectedClass}
           />
-          <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+          <ChevronDown 
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" 
+          />
+          {/* Debug button - remove this later */}
+          {selectedClass && selectedClass.professors && (
+            <button
+              type="button"
+              onClick={() => {
+                console.log('Debug button clicked - toggling professor dropdown');
+                setShowProfessorDropdown(!showProfessorDropdown);
+              }}
+              className="absolute right-8 top-1/2 transform -translate-y-1/2 h-6 w-6 bg-red-500 text-white text-xs rounded"
+            >
+              D
+            </button>
+          )}
           
           {console.log('Professor dropdown render check:', {
             showProfessorDropdown,
@@ -209,7 +224,10 @@ export function ClassSelector({
             shouldShow: showProfessorDropdown && selectedClass && selectedClass.professors
           })}
           {showProfessorDropdown && selectedClass && selectedClass.professors && (
-            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+            <div className="absolute z-50 w-full mt-1 bg-white border-2 border-blue-500 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+              <div className="p-2 text-xs text-gray-500 bg-blue-50">
+                Professors for {selectedClass.name}:
+              </div>
               {selectedClass.professors.map((professor) => {
                 console.log('Rendering professor option:', professor);
                 return (
@@ -221,7 +239,7 @@ export function ClassSelector({
                       onProfessorChange(professor);
                       setShowProfessorDropdown(false);
                     }}
-                    className="w-full px-3 py-2 text-left hover:bg-gray-50 text-sm border-b border-gray-100 last:border-b-0"
+                    className="w-full px-3 py-2 text-left hover:bg-blue-50 text-sm border-b border-gray-100 last:border-b-0"
                   >
                     {professor.name}
                   </button>

@@ -383,7 +383,7 @@ const getAvailableClasses = (classYear: ClassYear, excludeIds: string[]): LawCla
 };
 
 export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [name, setName] = useState('');
   const [section, setSection] = useState<string>('');
   const [classYear, setClassYear] = useState<ClassYear | ''>('');
@@ -395,6 +395,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   // Auto-populate 1L courses when class year is selected
   useEffect(() => {
     console.log('Class year changed to:', classYear);
+    
     if (classYear === '1L') {
       // 1L: 8 required + 1 elective = 9 total
       const newSelectedClasses = Array(9).fill(null).map((_, index) => {
@@ -405,24 +406,15 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         }
         return { lawClass: null, professor: null };
       });
-      console.log('Setting 1L selectedClasses:', newSelectedClasses.map((sc, i) => ({
-        index: i,
-        hasClass: !!sc.lawClass,
-        className: sc.lawClass?.name
-      })));
       setSelectedClasses(newSelectedClasses);
     } else if (classYear === '2L' || classYear === '3L') {
       // 2L/3L: 3 required + up to 7 more = 10 total maximum
       const newSelectedClasses = Array(10).fill(null).map(() => ({ lawClass: null, professor: null }));
-      console.log('Setting 2L/3L selectedClasses:', newSelectedClasses.map((sc, i) => ({
-        index: i,
-        hasClass: !!sc.lawClass,
-        className: sc.lawClass?.name
-      })));
       setSelectedClasses(newSelectedClasses);
     }
     // Clear section when class year changes
     setSection('');
+    
   }, [classYear]);
 
   const getAvailableClassesForSlot = (excludeIds: string[]): LawClass[] => {
@@ -606,11 +598,22 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="min-h-screen bg-white py-8 px-4">
       <div className="max-w-4xl mx-auto">
+        {/* Clear Session Button */}
+        <div className="mb-4 flex justify-end">
+          <button
+            onClick={() => signOut()}
+            className="px-3 py-1 text-sm text-white rounded hover:opacity-90"
+            style={{ backgroundColor: '#752432' }}
+          >
+            Clear Session
+          </button>
+        </div>
+        
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-red-600 text-white rounded-full mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 text-white rounded-full mb-4" style={{ backgroundColor: '#752432' }}>
             <span className="text-2xl font-semibold">HLS</span>
           </div>
           <h1 className="text-3xl text-gray-900 mb-2">Academic Profile Setup</h1>
@@ -627,7 +630,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
               {/* Class Year Selection */}
               <div className="flex justify-center">
                 <div className="space-y-2 w-64">
-                  <Label htmlFor="classYear">Class Year *</Label>
+                  <Label htmlFor="classYear">Class Year<span style={{ color: '#752432' }}>*</span></Label>
                   <Select value={classYear} onValueChange={(value: ClassYear) => setClassYear(value)}>
                     <SelectTrigger className="bg-input-background">
                       <SelectValue placeholder="Select your class year" />
@@ -650,7 +653,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {/* Full Name */}
                       <div className="space-y-2">
-                        <Label htmlFor="name">Full Name *</Label>
+                        <Label htmlFor="name">Full Name<span style={{ color: '#752432' }}>*</span></Label>
                         <Input
                           id="name"
                           type="text"
@@ -664,7 +667,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
                       {/* Section */}
                       <div className="space-y-2">
-                        <Label htmlFor="section">Section *</Label>
+                        <Label htmlFor="section">Section<span style={{ color: '#752432' }}>*</span></Label>
                         <Select value={section} onValueChange={setSection}>
                           <SelectTrigger className="bg-input-background">
                             <SelectValue placeholder="Select your section" />
@@ -677,6 +680,9 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                             <SelectItem value="5">Section 5</SelectItem>
                             <SelectItem value="6">Section 6</SelectItem>
                             <SelectItem value="7">Section 7</SelectItem>
+                            {(classYear === '2L' || classYear === '3L') && (
+                              <SelectItem value="8">Section 8</SelectItem>
+                            )}
                           </SelectContent>
                         </Select>
                       </div>
@@ -694,8 +700,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                     </h3>
                     <p className="text-gray-600 mb-4">
                       {classYear === '1L' 
-                        ? 'Your eight required 1L courses have been automatically populated. Select professors for each required course. You may optionally choose one elective course.'
-                        : 'Select 4-10 courses and their corresponding professors.'
+                        ? ''
+                        : ''
                       }
                     </p>
                     
@@ -707,9 +713,9 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                       </div>
                       <div className="text-sm text-blue-800">
                         {classYear === '1L' ? (
-                          <span>8 required courses + 1 optional elective = 8-9 total courses</span>
+                          <span>8 required courses + 1 optional elective</span>
                         ) : (
-                          <span>4-10 courses total (minimum 4, maximum 10)</span>
+                          <span>Minimum 3, Maximum 10</span>
                         )}
                       </div>
                     </div>
@@ -750,7 +756,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                         
                         return (
                           <ClassSelector
-                            key={index}
+                            key={`${classYear}-${index}`}
                             index={index}
                             selectedClass={selectedClass.lawClass}
                             selectedProfessor={selectedClass.professor}
@@ -770,31 +776,36 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
               {/* Progress and Submit */}
               <div className="pt-6 border-t">
-                {/* Progress Counter */}
-                <div className="mb-4 text-center">
-                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-full">
-                    <span className="text-sm text-gray-600">
-                      {classYear === '1L' ? (
-                        <>
-                          Required: {selectedClasses.slice(0, 8).filter(selected => selected.lawClass && selected.professor).length}/8, 
-                          Optional: {selectedClasses[8]?.lawClass ? '1' : '0'}/1
-                        </>
-                      ) : (
-                        <>
-                          Required: {selectedClasses.slice(0, 3).filter(selected => selected.lawClass && selected.professor).length}/3, 
-                          Optional: {selectedClasses.slice(3).filter(selected => selected.lawClass).length}/7
-                        </>
-                      )}
-                    </span>
+                {/* Progress Counter - only show when class year is selected */}
+                {classYear && (
+                  <div className="mb-4 text-center">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-full">
+                      <span className="text-sm text-gray-600">
+                        {classYear === '1L' ? (
+                          <>
+                            Required: {selectedClasses.slice(0, 8).filter(selected => selected.lawClass && selected.professor).length}/8, 
+                            Optional: {selectedClasses[8]?.lawClass ? '1' : '0'}/1
+                          </>
+                        ) : (
+                          <>
+                            Required: {selectedClasses.slice(0, 3).filter(selected => selected.lawClass && selected.professor).length}/3, 
+                            Optional: {selectedClasses.slice(3).filter(selected => selected.lawClass).length}/7
+                          </>
+                        )}
+                      </span>
+                    </div>
                   </div>
-                </div>
+                )}
                 
                 {/* Submit Button */}
                 <div className="flex justify-end">
                   <Button
                     type="submit"
                     disabled={!isFormValid() || loading}
-                    className="bg-red-600 hover:bg-red-700 text-white px-8 py-2 disabled:opacity-50 rounded-lg"
+                    className="text-white px-8 py-2 disabled:opacity-50 rounded-lg"
+                    style={{ backgroundColor: '#752432' }}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = '#5a1a25'}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = '#752432'}
                   >
                     {loading ? 'Saving...' : 'Complete Setup'}
                   </Button>
@@ -804,13 +815,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
           </CardContent>
         </Card>
 
-        {/* Progress Indicator */}
-        <div className="mt-8 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full border shadow-sm">
-            <div className="w-2 h-2 bg-red-600 rounded-full"></div>
-            <span className="text-sm text-gray-600">Step 2 of 2 - Academic Setup</span>
-          </div>
-        </div>
       </div>
     </div>
   );

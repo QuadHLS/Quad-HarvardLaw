@@ -14,20 +14,28 @@ export const AuthPage: React.FC = () => {
   const handleBackToLogin = () => setAuthMode('login')
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {authMode === 'login' && (
-          <LoginForm
-            onSwitchToSignup={handleSwitchToSignup}
-            onForgotPassword={handleForgotPassword}
-          />
-        )}
-        {authMode === 'signup' && (
-          <SignupForm onSwitchToLogin={handleSwitchToLogin} />
-        )}
-        {authMode === 'forgot-password' && (
-          <ForgotPasswordForm onBackToLogin={handleBackToLogin} />
-        )}
+    <div className="min-h-screen bg-white relative">
+      <div className="absolute top-1/4 left-1/2 transform -translate-x-1/2 translate-y-40 w-full max-w-md px-4">
+        {/* App Title */}
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl text-gray-900 font-bold">Quad Database</h1>
+        </div>
+        
+        {/* Login/Signup form */}
+        <div>
+          {authMode === 'login' && (
+            <LoginForm
+              onSwitchToSignup={handleSwitchToSignup}
+              onForgotPassword={handleForgotPassword}
+            />
+          )}
+          {authMode === 'signup' && (
+            <SignupForm onSwitchToLogin={handleSwitchToLogin} />
+          )}
+          {authMode === 'forgot-password' && (
+            <ForgotPasswordForm onBackToLogin={handleBackToLogin} />
+          )}
+        </div>
       </div>
     </div>
   )

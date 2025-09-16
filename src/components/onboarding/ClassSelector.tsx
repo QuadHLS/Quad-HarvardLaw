@@ -46,7 +46,9 @@ export function ClassSelector({
     onProfessorChange: typeof onProfessorChange,
     isReadOnly,
     isRequired,
-    hasProfessors: selectedClass?.professors?.length
+    hasProfessors: selectedClass?.professors?.length,
+    professorInputValue: selectedProfessor?.name || "",
+    shouldShowPlaceholder: !selectedClass
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
@@ -157,13 +159,6 @@ export function ClassSelector({
     onProfessorChange(null); // Reset professor when class changes
   };
 
-  const handleClearClass = () => {
-    console.log('Clear class clicked:', { selectedClass: selectedClass?.name, index });
-    setSearchTerm('');
-    onClassChange(null);
-    onProfessorChange(null);
-    inputRef.current?.focus();
-  };
 
 
   return (
@@ -172,9 +167,8 @@ export function ClassSelector({
       <div className="flex-1 relative" ref={dropdownRef}>
         <Label className="text-sm mb-2 block">
           {index === 8 && classYear === '1L' ? 'Elective' : `Class ${index + 1}`}
-          {isRequired && !isReadOnly && <span className="text-red-600 ml-1">*</span>}
-          {isReadOnly && <span className="text-gray-500 ml-1">(Required)</span>}
-          {!isRequired && !isReadOnly && <span className="text-gray-500 ml-1">(Optional)</span>}
+          {isRequired && <span style={{ color: '#752432' }} className="ml-1">*</span>}
+          {!isRequired && !isReadOnly && classYear === '1L' && <span className="text-gray-500 ml-1">(Optional)</span>}
         </Label>
         
         <div className="relative">
@@ -183,29 +177,26 @@ export function ClassSelector({
             type="text"
             value={searchTerm}
             onChange={handleInputChange}
+            onClick={() => {
+              console.log('Input clicked:', { isReadOnly, selectedClass: selectedClass?.name });
+              if (!isReadOnly) {
+                setSearchTerm(''); // Clear search term to show all options
+                setShowDropdown(true);
+              }
+            }}
             onFocus={() => {
               console.log('Input focused:', { isReadOnly, selectedClass: selectedClass?.name });
               if (!isReadOnly) {
+                setSearchTerm(''); // Clear search term to show all options
                 setShowDropdown(true);
               }
             }}
             placeholder={isReadOnly ? "Course assigned" : "Search for a class..."}
-            className="pr-20 bg-input-background"
+            className="pr-10 bg-input-background cursor-pointer"
             readOnly={isReadOnly}
           />
           
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-            {console.log('Clear button render check:', { selectedClass: !!selectedClass, isReadOnly })}
-            {selectedClass && !isReadOnly && (
-              <button
-                type="button"
-                onClick={handleClearClass}
-                className="p-1 hover:bg-red-100 rounded text-red-500 hover:text-red-700 border border-red-200"
-                title="Clear class selection"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            )}
             {!isReadOnly && <ChevronDown className="h-4 w-4 text-gray-400" />}
           </div>
         </div>
@@ -241,7 +232,7 @@ export function ClassSelector({
       <div className="w-48 relative">
         <Label className="text-sm mb-2 block">
           Professor
-          {isRequired && <span className="text-red-600 ml-1">*</span>}
+          {isRequired && <span style={{ color: '#752432' }} className="ml-1">*</span>}
           {!isRequired && <span className="text-gray-500 ml-1">(Optional)</span>}
         </Label>
         
@@ -272,7 +263,7 @@ export function ClassSelector({
                 console.log('Cannot open professor dropdown - no professors available for:', selectedClass?.name, 'professors array:', selectedClass?.professors);
               }
             }}
-            className={`bg-input-background ${
+            className={`bg-input-background pr-10 ${
               !selectedClass 
                 ? 'cursor-not-allowed opacity-60' 
                 : 'cursor-pointer'
@@ -281,19 +272,6 @@ export function ClassSelector({
             title={!selectedClass ? "Select a class first" : "Click to select professor"}
           />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-            {selectedProfessor && (
-              <button
-                type="button"
-                onClick={() => {
-                  console.log('Clear professor clicked');
-                  onProfessorChange(null);
-                }}
-                className="p-1 hover:bg-red-100 rounded text-red-500 hover:text-red-700 border border-red-200"
-                title="Clear professor selection"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            )}
             <ChevronDown className="h-4 w-4 text-gray-400 pointer-events-none" />
           </div>
           
@@ -331,8 +309,12 @@ export function ClassSelector({
                         selectedClass: selectedClass?.name,
                         event: e.type 
                       });
-                      onProfessorChange(professor);
-                      setShowProfessorDropdown(false);
+                      try {
+                        onProfessorChange(professor);
+                        setShowProfessorDropdown(false);
+                      } catch (error) {
+                        console.error('Error in professor selection:', error);
+                      }
                     }}
                     onClick={(e) => {
                       e.preventDefault();
@@ -343,8 +325,12 @@ export function ClassSelector({
                         selectedClass: selectedClass?.name,
                         event: e.type 
                       });
-                      onProfessorChange(professor);
-                      setShowProfessorDropdown(false);
+                      try {
+                        onProfessorChange(professor);
+                        setShowProfessorDropdown(false);
+                      } catch (error) {
+                        console.error('Error in professor selection (click):', error);
+                      }
                     }}
                     className="w-full px-3 py-2 text-left hover:bg-gray-50 text-sm border-b border-gray-100 last:border-b-0 cursor-pointer"
                     style={{ pointerEvents: 'auto' }}

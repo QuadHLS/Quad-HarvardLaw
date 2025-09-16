@@ -1566,8 +1566,7 @@ interface CalendarEvent {
 
 
 // Main App Content Component
-function AppContent() {
-  // Skip authentication - no need for user or loading state
+function AppContent({ user, loading }: { user: any; loading: boolean }) {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [selectedOutline, setSelectedOutline] = useState<Outline | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -1727,7 +1726,26 @@ function AppContent() {
     setSidebarCollapsed(prev => !prev);
   };
 
-  // Skip authentication and go directly to onboarding
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 text-white rounded-full mb-4" style={{ backgroundColor: '#752432' }}>
+            <span className="text-2xl font-semibold">HLS</span>
+          </div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login page if user is not authenticated
+  if (!user) {
+    return <AuthPage />;
+  }
+
   // Show onboarding flow if user hasn't completed onboarding
   if (!hasCompletedOnboarding) {
     return <OnboardingFlow onComplete={() => setHasCompletedOnboarding(true)} />;
@@ -1901,7 +1919,14 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <AppWithAuth />
     </AuthProvider>
   );
+}
+
+// App component that uses AuthContext
+function AppWithAuth() {
+  const { user, loading } = useAuth();
+  
+  return <AppContent user={user} loading={loading} />;
 }

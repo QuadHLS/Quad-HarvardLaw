@@ -214,8 +214,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-red-600 text-white rounded-full mb-4">
             <span className="text-2xl font-semibold">HLS</span>
           </div>
-          <h1 className="text-3xl text-gray-900 mb-2">Welcome to Quad</h1>
-          <p className="text-gray-600">Set up your academic profile to get started</p>
+          <h1 className="text-3xl text-gray-900 mb-2">Academic Profile Setup</h1>
+          <p className="text-gray-600">Complete your academic information to finish setup</p>
         </div>
 
         <Card className="shadow-lg">
@@ -341,7 +341,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         <div className="mt-8 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full border shadow-sm">
             <div className="w-2 h-2 bg-red-600 rounded-full"></div>
-            <span className="text-sm text-gray-600">Step 1 of 1 - Setup Complete</span>
+            <span className="text-sm text-gray-600">Step 2 of 2 - Academic Setup</span>
           </div>
         </div>
       </div>

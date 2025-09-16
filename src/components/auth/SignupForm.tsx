@@ -254,7 +254,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
             </div>
           </div>
           
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Create Account
           </Button>

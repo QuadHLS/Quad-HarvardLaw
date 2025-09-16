@@ -15,7 +15,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/auth/AuthPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { UserProfile } from './components/auth/UserProfile';
-import { OnboardingPage } from './components/onboarding/OnboardingPage';
+import { OnboardingFlow } from './components/onboarding/OnboardingFlow';
 import type { Outline, Instructor } from './types';
 
 // Mock data
@@ -1744,9 +1744,9 @@ function AppContent() {
     return <AuthPage />;
   }
 
-  // Show onboarding page if user hasn't completed onboarding
+  // Show onboarding flow if user hasn't completed onboarding
   if (!hasCompletedOnboarding) {
-    return <OnboardingPage onComplete={() => setHasCompletedOnboarding(true)} />;
+    return <OnboardingFlow onComplete={() => setHasCompletedOnboarding(true)} />;
   }
 
   return (

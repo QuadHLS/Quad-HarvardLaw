@@ -49,6 +49,8 @@ export function ClassSelector({
 
   // Filter available classes based on search term
   useEffect(() => {
+    console.log('ClassSelector useEffect - availableClasses:', availableClasses.length, availableClasses.map(c => c.name));
+    console.log('ClassSelector useEffect - searchTerm:', searchTerm);
     if (!searchTerm) {
       setFilteredClasses(availableClasses);
     } else {
@@ -57,6 +59,7 @@ export function ClassSelector({
       );
       setFilteredClasses(filtered);
     }
+    console.log('ClassSelector useEffect - filteredClasses:', filteredClasses.length);
   }, [searchTerm, availableClasses]);
 
   // Handle clicks outside dropdown
@@ -77,6 +80,7 @@ export function ClassSelector({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
+    console.log('ClassSelector input change:', { value, availableClasses: availableClasses.length });
     setSearchTerm(value);
     setShowDropdown(true);
     
@@ -88,6 +92,7 @@ export function ClassSelector({
   };
 
   const handleClassSelect = (lawClass: LawClass) => {
+    console.log('ClassSelector class select:', { lawClass: lawClass.name, index });
     setSearchTerm(lawClass.name);
     setShowDropdown(false);
     onClassChange(lawClass);
@@ -152,6 +157,12 @@ export function ClassSelector({
         </div>
         
         {/* Dropdown */}
+        {console.log('Dropdown render check:', { 
+          showDropdown, 
+          isReadOnly, 
+          filteredClassesLength: filteredClasses.length,
+          filteredClasses: filteredClasses.map(c => c.name)
+        })}
         {showDropdown && !isReadOnly && filteredClasses.length > 0 && (
           <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
             {filteredClasses.map((lawClass) => (

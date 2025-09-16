@@ -196,7 +196,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   // Auto-populate 1L courses when class year is selected
   useEffect(() => {
     if (classYear === '1L') {
-      const newSelectedClasses = Array(10).fill(null).map((_, index) => {
+      // 1L: 8 required + 1 elective = 9 total
+      const newSelectedClasses = Array(9).fill(null).map((_, index) => {
         if (index < 8) {
           const courseId = firstYearCourseIds[index];
           const lawClass = lawClasses.find(lc => lc.id === courseId);
@@ -206,8 +207,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       });
       setSelectedClasses(newSelectedClasses);
     } else if (classYear === '2L' || classYear === '3L') {
-      // For 2L/3L, only show 4 slots
-      const newSelectedClasses = Array(4).fill(null).map(() => ({ lawClass: null, professor: null }));
+      // 2L/3L: 4 required + up to 6 more = 10 total maximum
+      const newSelectedClasses = Array(10).fill(null).map(() => ({ lawClass: null, professor: null }));
       setSelectedClasses(newSelectedClasses);
     }
     
@@ -245,10 +246,10 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     // Check minimum requirements based on class year
     if (classYear === '1L') {
       // 1L: 8 required + 1 elective = 9 total
-      return validClasses.length >= 9;
+      return validClasses.length === 9;
     } else if (classYear === '2L' || classYear === '3L') {
-      // 2L/3L: exactly 4 required
-      return validClasses.length === 4;
+      // 2L/3L: minimum 4, maximum 10
+      return validClasses.length >= 4 && validClasses.length <= 10;
     }
     
     return false;
@@ -376,7 +377,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                     <p className="text-gray-600 mb-4">
                       {classYear === '1L' 
                         ? 'Your eight required 1L courses have been automatically populated. Select professors for each required course and choose one elective course.'
-                        : 'Select 4 courses and their corresponding professors.'
+                        : 'Select 4-10 courses and their corresponding professors.'
                       }
                     </p>
                     
@@ -390,7 +391,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                         {classYear === '1L' ? (
                           <span>8 required courses + 1 elective = 9 total courses</span>
                         ) : (
-                          <span>4 courses total (exactly 4 required)</span>
+                          <span>4-10 courses total (minimum 4, maximum 10)</span>
                         )}
                       </div>
                     </div>
@@ -405,6 +406,9 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                         // Get available classes for this slot
                         const availableClasses = getAvailableClassesForSlot(otherSelectedClassIds);
                         
+                        // Determine if this slot is required
+                        const isRequired = classYear === '1L' ? index < 8 : index < 4;
+                        
                         return (
                           <ClassSelector
                             key={index}
@@ -415,6 +419,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                             onClassChange={(lawClass) => handleClassChange(index, lawClass)}
                             onProfessorChange={(professor) => handleProfessorChange(index, professor)}
                             isReadOnly={classYear === '1L' && index < 8}
+                            isRequired={isRequired}
                           />
                         );
                       })}
@@ -430,7 +435,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                   <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-full">
                     <span className="text-sm text-gray-600">
                       Selected: {selectedClasses.filter(selected => selected.lawClass && selected.professor).length} / {
-                        classYear === '1L' ? '9' : '4'
+                        classYear === '1L' ? '9' : '10'
                       } courses
                     </span>
                   </div>

@@ -79,6 +79,87 @@ const lawClasses: LawClass[] = [
       { id: '15', name: 'Professor Lee' },
       { id: '16', name: 'Professor Kim' }
     ]
+  },
+  // Elective courses for 1L students
+  {
+    id: '9',
+    name: 'Administrative Law',
+    professors: [
+      { id: '17', name: 'Professor Adams' },
+      { id: '18', name: 'Professor Baker' }
+    ]
+  },
+  {
+    id: '10',
+    name: 'Antitrust Law',
+    professors: [
+      { id: '19', name: 'Professor Carter' },
+      { id: '20', name: 'Professor Davis' }
+    ]
+  },
+  {
+    id: '11',
+    name: 'Bankruptcy',
+    professors: [
+      { id: '21', name: 'Professor Evans' },
+      { id: '22', name: 'Professor Foster' }
+    ]
+  },
+  {
+    id: '12',
+    name: 'Business Taxation',
+    professors: [
+      { id: '23', name: 'Professor Green' },
+      { id: '24', name: 'Professor Hall' }
+    ]
+  },
+  {
+    id: '13',
+    name: 'Civil Rights Law',
+    professors: [
+      { id: '25', name: 'Professor Jones' },
+      { id: '26', name: 'Professor King' }
+    ]
+  },
+  {
+    id: '14',
+    name: 'Commercial Law',
+    professors: [
+      { id: '27', name: 'Professor Lewis' },
+      { id: '28', name: 'Professor Moore' }
+    ]
+  },
+  {
+    id: '15',
+    name: 'Competition Law',
+    professors: [
+      { id: '29', name: 'Professor Nelson' },
+      { id: '30', name: 'Professor Parker' }
+    ]
+  },
+  {
+    id: '16',
+    name: 'Corporate Law',
+    professors: [
+      { id: '31', name: 'Professor Quinn' },
+      { id: '32', name: 'Professor Roberts' }
+    ]
+  },
+  {
+    id: '17',
+    name: 'Criminal Procedure',
+    professors: [
+      { id: '33', name: 'Professor Scott' },
+      { id: '34', name: 'Professor Turner' }
+    ]
+  },
+  {
+    id: '18',
+    name: 'Domestic Relations',
+    professors: [
+      { id: '35', name: 'Professor Walker' },
+      { id: '36', name: 'Professor Young' }
+    ]
   }
 ];
 
@@ -160,13 +241,21 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     // All students must select a section (or transfer)
     if (!section) return false;
     
-    // Check that all filled class slots have both class and professor selected
-    return selectedClasses.every(selected => {
-      if (selected.lawClass) {
-        return selected.professor !== null;
-      }
-      return true; // Empty slots are valid
-    });
+    // Count selected classes with both class and professor
+    const validClasses = selectedClasses.filter(selected => 
+      selected.lawClass && selected.professor
+    );
+    
+    // Check minimum requirements based on class year
+    if (classYear === '1L') {
+      // 1L: 8 required + 1 elective = 9 total
+      return validClasses.length >= 9;
+    } else if (classYear === '2L' || classYear === '3L') {
+      // 2L/3L: minimum 4, maximum 10
+      return validClasses.length >= 4 && validClasses.length <= 10;
+    }
+    
+    return false;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -286,14 +375,29 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                 <div className="space-y-6">
                   <div className="border-t pt-6">
                     <h3 className="text-xl text-gray-900 mb-2">
-                      {classYear === '1L' ? 'Required Courses' : 'Course Selection'}
+                      {classYear === '1L' ? 'Course Selection' : 'Course Selection'}
                     </h3>
-                    <p className="text-gray-600 mb-6">
+                    <p className="text-gray-600 mb-4">
                       {classYear === '1L' 
-                        ? 'Your eight required 1L courses have been automatically populated. Select professors for each course.'
-                        : 'Select up to 10 courses and their corresponding professors.'
+                        ? 'Your eight required 1L courses have been automatically populated. Select professors for each required course and choose one elective course.'
+                        : 'Select 4-10 courses and their corresponding professors.'
                       }
                     </p>
+                    
+                    {/* Requirements Summary */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span className="text-sm font-medium text-blue-900">Requirements:</span>
+                      </div>
+                      <div className="text-sm text-blue-800">
+                        {classYear === '1L' ? (
+                          <span>8 required courses + 1 elective = 9 total courses</span>
+                        ) : (
+                          <span>4-10 courses total (minimum 4, maximum 10)</span>
+                        )}
+                      </div>
+                    </div>
 
                     <div className="space-y-4">
                       {selectedClasses.map((selectedClass, index) => {
@@ -323,15 +427,29 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                 </div>
               )}
 
-              {/* Submit Button */}
-              <div className="flex justify-end pt-6 border-t">
-                <Button
-                  type="submit"
-                  disabled={!isFormValid() || loading}
-                  className="bg-red-600 hover:bg-red-700 text-white px-8 py-2 disabled:opacity-50 rounded-lg"
-                >
-                  {loading ? 'Saving...' : 'Complete Setup'}
-                </Button>
+              {/* Progress and Submit */}
+              <div className="pt-6 border-t">
+                {/* Progress Counter */}
+                <div className="mb-4 text-center">
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-full">
+                    <span className="text-sm text-gray-600">
+                      Selected: {selectedClasses.filter(selected => selected.lawClass && selected.professor).length} / {
+                        classYear === '1L' ? '9' : '10'
+                      } courses
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Submit Button */}
+                <div className="flex justify-end">
+                  <Button
+                    type="submit"
+                    disabled={!isFormValid() || loading}
+                    className="bg-red-600 hover:bg-red-700 text-white px-8 py-2 disabled:opacity-50 rounded-lg"
+                  >
+                    {loading ? 'Saving...' : 'Complete Setup'}
+                  </Button>
+                </div>
               </div>
             </form>
           </CardContent>

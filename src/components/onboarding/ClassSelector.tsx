@@ -113,6 +113,7 @@ export function ClassSelector({
         <Label className="text-sm mb-2 block">
           Class {index + 1}
           {!isReadOnly && <span className="text-red-600 ml-1">*</span>}
+          {isReadOnly && <span className="text-gray-500 ml-1">(Required)</span>}
         </Label>
         
         <div className="relative">

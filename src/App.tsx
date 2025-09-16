@@ -11,6 +11,10 @@ import { CalendarPage } from './components/CalendarPage';
 import { ProfilePage } from './components/ProfilePage';
 import { MessagingPage } from './components/MessagingPage';
 import { Toaster } from './components/ui/sonner';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthPage } from './components/auth/AuthPage';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { UserProfile } from './components/auth/UserProfile';
 import type { Outline, Instructor } from './types';
 
 // Mock data
@@ -1560,7 +1564,9 @@ interface CalendarEvent {
 }
 
 
-export default function App() {
+// Main App Content Component
+function AppContent() {
+  const { user, loading } = useAuth();
   const [selectedOutline, setSelectedOutline] = useState<Outline | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
@@ -1719,6 +1725,23 @@ export default function App() {
     setSidebarCollapsed(prev => !prev);
   };
 
+  // Show loading spinner while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show auth page if user is not authenticated
+  if (!user) {
+    return <AuthPage />;
+  }
+
   return (
     <div className="h-screen bg-gray-100 flex">
         {/* Navigation Sidebar */}
@@ -1728,6 +1751,11 @@ export default function App() {
           isCollapsed={sidebarCollapsed}
           onToggleCollapsed={handleToggleSidebar}
         />
+        
+        {/* User Profile - positioned in top right */}
+        <div className="absolute top-4 right-4 z-50">
+          <UserProfile />
+        </div>
         
         {/* Toast Notifications */}
         <Toaster position="top-right" />
@@ -1875,5 +1903,14 @@ export default function App() {
           )}
         </div>
     </div>
+  );
+}
+
+// Main App Component with AuthProvider
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

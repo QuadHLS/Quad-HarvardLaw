@@ -1728,23 +1728,21 @@ function AppContent() {
   };
 
   // Show loading spinner while checking authentication
-  // TEMPORARY: Bypass loading for debugging
-  // if (loading) {
-  //   return (
-  //     <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-  //       <div className="text-center">
-  //         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-  //         <p className="text-gray-600">Loading...</p>
-  //       </div>
-  //     </div>
-  //   );
-  // }
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Show auth page if user is not authenticated
-  // TEMPORARY: Bypass auth for debugging
-  // if (!user) {
-  //   return <AuthPage />;
-  // }
+  if (!user) {
+    return <AuthPage />;
+  }
 
   // Show onboarding flow if user hasn't completed onboarding
   if (!hasCompletedOnboarding) {

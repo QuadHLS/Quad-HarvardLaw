@@ -525,7 +525,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         }))
       });
       
-      const isValid = requiredClasses.length === 8 && electiveClass?.lawClass;
+      const isValid = requiredClasses.length === 8; // Elective is now optional
       console.log('1L Validation result:', { 
         requiredClasses: requiredClasses.length, 
         electiveClass: !!electiveClass?.lawClass,
@@ -694,7 +694,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                     </h3>
                     <p className="text-gray-600 mb-4">
                       {classYear === '1L' 
-                        ? 'Your eight required 1L courses have been automatically populated. Select professors for each required course and choose one elective course (professor optional).'
+                        ? 'Your eight required 1L courses have been automatically populated. Select professors for each required course. You may optionally choose one elective course.'
                         : 'Select 4-10 courses and their corresponding professors.'
                       }
                     </p>
@@ -707,7 +707,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                       </div>
                       <div className="text-sm text-blue-800">
                         {classYear === '1L' ? (
-                          <span>8 required courses + 1 elective = 9 total courses (ALL REQUIRED)</span>
+                          <span>8 required courses + 1 optional elective = 8-9 total courses</span>
                         ) : (
                           <span>4-10 courses total (minimum 4, maximum 10)</span>
                         )}
@@ -735,7 +735,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                         const availableClasses = getAvailableClassesForSlot(otherSelectedClassIds);
                         
                         // Determine if this slot is required
-                        const isRequired = classYear === '1L' ? index < 9 : index < 3;
+                        const isRequired = classYear === '1L' ? index < 8 : index < 3; // Elective (index 8) is optional for 1L
                         
                         // Debug logging for elective class
                         if (index === 8) {
@@ -777,7 +777,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                       {classYear === '1L' ? (
                         <>
                           Required: {selectedClasses.slice(0, 8).filter(selected => selected.lawClass && selected.professor).length}/8, 
-                          Elective: {selectedClasses[8]?.lawClass ? '1' : '0'}/1
+                          Optional: {selectedClasses[8]?.lawClass ? '1' : '0'}/1
                         </>
                       ) : (
                         <>

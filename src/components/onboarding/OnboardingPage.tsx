@@ -178,9 +178,11 @@ interface Professor {
 
 const getAvailableClasses = (classYear: ClassYear, excludeIds: string[]): LawClass[] => {
   if (classYear === '1L') {
+    // 1L: Only show 1L courses and exclude already selected ones
     return lawClasses.filter(lc => firstYearCourseIds.includes(lc.id) && !excludeIds.includes(lc.id));
   }
-  return lawClasses.filter(lc => !excludeIds.includes(lc.id));
+  // 2L/3L: Show all courses (allow duplicates)
+  return lawClasses;
 };
 
 export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
@@ -221,15 +223,30 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   };
 
   const handleClassChange = (index: number, lawClass: LawClass | null) => {
+    console.log('Class change:', { index, lawClass: lawClass?.name, classYear });
     const newSelectedClasses = [...selectedClasses];
     newSelectedClasses[index] = { lawClass, professor: null };
     setSelectedClasses(newSelectedClasses);
+    console.log('Updated selectedClasses:', newSelectedClasses.map((sc, i) => ({
+      index: i,
+      hasClass: !!sc.lawClass,
+      className: sc.lawClass?.name,
+      hasProfessor: !!sc.professor
+    })));
   };
 
   const handleProfessorChange = (index: number, professor: Professor | null) => {
+    console.log('Professor change:', { index, professor: professor?.name, classYear });
     const newSelectedClasses = [...selectedClasses];
     newSelectedClasses[index] = { ...newSelectedClasses[index], professor };
     setSelectedClasses(newSelectedClasses);
+    console.log('Updated selectedClasses after professor change:', newSelectedClasses.map((sc, i) => ({
+      index: i,
+      hasClass: !!sc.lawClass,
+      className: sc.lawClass?.name,
+      hasProfessor: !!sc.professor,
+      professorName: sc.professor?.name
+    })));
   };
 
   const isFormValid = () => {

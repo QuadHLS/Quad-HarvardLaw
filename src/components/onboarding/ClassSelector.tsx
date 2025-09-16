@@ -102,8 +102,14 @@ export function ClassSelector({
   };
 
   const handleProfessorChange = (professorId: string) => {
+    console.log('ClassSelector professor change:', { 
+      professorId, 
+      selectedClass: selectedClass?.name,
+      availableProfessors: selectedClass?.professors?.map(p => ({ id: p.id, name: p.name }))
+    });
     if (selectedClass) {
       const professor = selectedClass.professors.find(p => p.id === professorId) || null;
+      console.log('Found professor:', professor);
       onProfessorChange(professor);
     }
   };

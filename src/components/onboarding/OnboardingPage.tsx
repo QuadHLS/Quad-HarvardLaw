@@ -18,7 +18,7 @@ interface SelectedClass {
 const lawClasses: LawClass[] = [
   {
     id: '1',
-    name: 'Contracts',
+    name: 'Civil Procedure (CivPro)',
     professors: [
       { id: '1', name: 'Professor Smith' },
       { id: '2', name: 'Professor Johnson' }
@@ -26,7 +26,7 @@ const lawClasses: LawClass[] = [
   },
   {
     id: '2',
-    name: 'Torts',
+    name: 'Constitutional Law (ConLaw)',
     professors: [
       { id: '3', name: 'Professor Brown' },
       { id: '4', name: 'Professor Davis' }
@@ -34,7 +34,7 @@ const lawClasses: LawClass[] = [
   },
   {
     id: '3',
-    name: 'Criminal Law',
+    name: 'Contracts',
     professors: [
       { id: '5', name: 'Professor Wilson' },
       { id: '6', name: 'Professor Miller' }
@@ -42,7 +42,7 @@ const lawClasses: LawClass[] = [
   },
   {
     id: '4',
-    name: 'Constitutional Law',
+    name: 'Criminal Law (CrimLaw)',
     professors: [
       { id: '7', name: 'Professor Taylor' },
       { id: '8', name: 'Professor Anderson' }
@@ -50,7 +50,7 @@ const lawClasses: LawClass[] = [
   },
   {
     id: '5',
-    name: 'Property Law',
+    name: 'Legal Research and Writing (LRW)',
     professors: [
       { id: '9', name: 'Professor Thomas' },
       { id: '10', name: 'Professor Jackson' }
@@ -58,7 +58,7 @@ const lawClasses: LawClass[] = [
   },
   {
     id: '6',
-    name: 'Civil Procedure',
+    name: 'Property',
     professors: [
       { id: '11', name: 'Professor White' },
       { id: '12', name: 'Professor Harris' }
@@ -66,15 +66,23 @@ const lawClasses: LawClass[] = [
   },
   {
     id: '7',
-    name: 'Legal Research and Writing',
+    name: 'Torts',
     professors: [
       { id: '13', name: 'Professor Martin' },
       { id: '14', name: 'Professor Garcia' }
     ]
+  },
+  {
+    id: '8',
+    name: 'Legislation and Regulation (LegReg)',
+    professors: [
+      { id: '15', name: 'Professor Lee' },
+      { id: '16', name: 'Professor Kim' }
+    ]
   }
 ];
 
-const firstYearCourseIds = ['1', '2', '3', '4', '5', '6', '7'];
+const firstYearCourseIds = ['1', '2', '3', '4', '5', '6', '7', '8'];
 
 interface LawClass {
   id: string;
@@ -108,7 +116,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   useEffect(() => {
     if (classYear === '1L') {
       const newSelectedClasses = Array(10).fill(null).map((_, index) => {
-        if (index < 7) {
+        if (index < 8) {
           const courseId = firstYearCourseIds[index];
           const lawClass = lawClasses.find(lc => lc.id === courseId);
           return { lawClass: lawClass || null, professor: null };
@@ -149,8 +157,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   const isFormValid = () => {
     if (!name.trim() || !classYear) return false;
     
-    // 1L students must also select a section
-    if (classYear === '1L' && !section) return false;
+    // All students must select a section (or transfer)
+    if (!section) return false;
     
     // Check that all filled class slots have both class and professor selected
     return selectedClasses.every(selected => {
@@ -245,12 +253,18 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                   </Select>
                 </div>
 
-                {classYear === '1L' && (
+                {(classYear === '1L' || classYear === '2L' || classYear === '3L') && (
                   <div className="space-y-2">
-                    <Label htmlFor="section">Section *</Label>
+                    <Label htmlFor="section">
+                      {classYear === '1L' ? 'What section are you in?' : 'What section were you in?'} *
+                    </Label>
                     <Select value={section} onValueChange={setSection}>
                       <SelectTrigger className="bg-input-background">
-                        <SelectValue placeholder="Select your section" />
+                        <SelectValue placeholder={
+                          classYear === '1L' 
+                            ? "Select your section" 
+                            : "Select your previous section"
+                        } />
                       </SelectTrigger>
                       <SelectContent>
                         {[1, 2, 3, 4, 5, 6, 7].map((num) => (
@@ -258,6 +272,9 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                             Section {num}
                           </SelectItem>
                         ))}
+                        {(classYear === '2L' || classYear === '3L') && (
+                          <SelectItem value="transfer">Transfer</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -273,7 +290,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                     </h3>
                     <p className="text-gray-600 mb-6">
                       {classYear === '1L' 
-                        ? 'Your core courses have been automatically populated. Select professors for each course.'
+                        ? 'Your eight required 1L courses have been automatically populated. Select professors for each course.'
                         : 'Select up to 10 courses and their corresponding professors.'
                       }
                     </p>
@@ -297,7 +314,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                             availableClasses={availableClasses}
                             onClassChange={(lawClass) => handleClassChange(index, lawClass)}
                             onProfessorChange={(professor) => handleProfessorChange(index, professor)}
-                            isReadOnly={classYear === '1L' && index < 7}
+                            isReadOnly={classYear === '1L' && index < 8}
                           />
                         );
                       })}

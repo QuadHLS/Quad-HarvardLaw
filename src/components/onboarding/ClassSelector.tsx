@@ -39,10 +39,12 @@ export function ClassSelector({
   console.log('ClassSelector props:', { 
     index, 
     selectedClass: selectedClass?.name, 
+    selectedClassId: selectedClass?.id,
     selectedProfessor: selectedProfessor?.name,
     onProfessorChange: typeof onProfessorChange,
     isReadOnly,
-    isRequired
+    isRequired,
+    hasProfessors: selectedClass?.professors?.length
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
@@ -210,6 +212,10 @@ export function ClassSelector({
             value={selectedProfessor?.name || ""}
             placeholder={!selectedClass ? "Select class first" : "Select professor"}
             readOnly
+            style={{ 
+              backgroundColor: !selectedClass ? '#f5f5f5' : 'white',
+              cursor: !selectedClass ? 'not-allowed' : 'pointer'
+            }}
             onMouseDown={() => {
               console.log('Professor input mousedown:', { 
                 selectedClass: selectedClass?.name, 
@@ -231,6 +237,7 @@ export function ClassSelector({
                 : 'cursor-pointer'
             }`}
             disabled={!selectedClass}
+            title={!selectedClass ? "Select a class first" : "Click to select professor"}
           />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
             {selectedProfessor && (

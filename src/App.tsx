@@ -15,6 +15,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/auth/AuthPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { UserProfile } from './components/auth/UserProfile';
+import { OnboardingPage } from './components/onboarding/OnboardingPage';
 import type { Outline, Instructor } from './types';
 
 // Mock data
@@ -1567,6 +1568,7 @@ interface CalendarEvent {
 // Main App Content Component
 function AppContent() {
   const { user, loading } = useAuth();
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [selectedOutline, setSelectedOutline] = useState<Outline | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
@@ -1740,6 +1742,11 @@ function AppContent() {
   // Show auth page if user is not authenticated
   if (!user) {
     return <AuthPage />;
+  }
+
+  // Show onboarding page if user hasn't completed onboarding
+  if (!hasCompletedOnboarding) {
+    return <OnboardingPage onComplete={() => setHasCompletedOnboarding(true)} />;
   }
 
   return (

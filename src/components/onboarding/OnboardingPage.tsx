@@ -373,6 +373,9 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   };
 
   const isFormValid = () => {
+    console.log('=== FORM VALIDATION START ===');
+    console.log('Form data:', { name, section, classYear, selectedClassesLength: selectedClasses.length });
+    
     // Require name, section, class year, and class selection
     if (!name.trim()) {
       console.log('Form invalid: missing name', { name });
@@ -419,7 +422,13 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         }))
       });
       
-      return requiredClasses.length === 8 && electiveClass?.lawClass;
+      const isValid = requiredClasses.length === 8 && electiveClass?.lawClass;
+      console.log('1L Validation result:', { 
+        requiredClasses: requiredClasses.length, 
+        electiveClass: !!electiveClass?.lawClass,
+        isValid 
+      });
+      return isValid;
     } else if (classYear === '2L' || classYear === '3L') {
       // 2L/3L: minimum 4, maximum 10
       // First 4 must have both class and professor, rest can have just class
@@ -443,9 +452,16 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         }))
       });
       
-      return requiredClasses.length === 4 && totalClasses >= 4 && totalClasses <= 10;
+      const isValid = requiredClasses.length === 4 && totalClasses >= 4 && totalClasses <= 10;
+      console.log('2L/3L Validation result:', { 
+        requiredClasses: requiredClasses.length, 
+        totalClasses,
+        isValid 
+      });
+      return isValid;
     }
     
+    console.log('Form invalid: unknown class year', { classYear });
     return false;
   };
 

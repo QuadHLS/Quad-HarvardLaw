@@ -1567,7 +1567,7 @@ interface CalendarEvent {
 
 // Main App Content Component
 function AppContent() {
-  const { user, loading } = useAuth();
+  // Skip authentication - no need for user or loading state
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [selectedOutline, setSelectedOutline] = useState<Outline | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -1727,23 +1727,7 @@ function AppContent() {
     setSidebarCollapsed(prev => !prev);
   };
 
-  // Show loading spinner while checking authentication
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show auth page if user is not authenticated
-  if (!user) {
-    return <AuthPage />;
-  }
-
+  // Skip authentication and go directly to onboarding
   // Show onboarding flow if user hasn't completed onboarding
   if (!hasCompletedOnboarding) {
     return <OnboardingFlow onComplete={() => setHasCompletedOnboarding(true)} />;

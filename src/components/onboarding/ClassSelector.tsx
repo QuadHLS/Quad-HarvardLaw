@@ -38,6 +38,7 @@ export function ClassSelector({
 }: ClassSelectorProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showProfessorDropdown, setShowProfessorDropdown] = useState(false);
   const [filteredClasses, setFilteredClasses] = useState<LawClass[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -68,6 +69,7 @@ export function ClassSelector({
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowDropdown(false);
+        setShowProfessorDropdown(false);
         // Don't reset search term - keep the selected class visible
       }
     }
@@ -110,18 +112,6 @@ export function ClassSelector({
     inputRef.current?.focus();
   };
 
-  const handleProfessorChange = (professorId: string) => {
-    console.log('ClassSelector professor change:', { 
-      professorId, 
-      selectedClass: selectedClass?.name,
-      availableProfessors: selectedClass?.professors?.map(p => ({ id: p.id, name: p.name }))
-    });
-    if (selectedClass) {
-      const professor = selectedClass.professors.find(p => p.id === professorId) || null;
-      console.log('Found professor:', professor);
-      onProfessorChange(professor);
-    }
-  };
 
   return (
     <div className="flex gap-4 items-start">
@@ -184,42 +174,50 @@ export function ClassSelector({
       </div>
 
       {/* Professor Selection */}
-      <div className="w-48">
+      <div className="w-48 relative">
         <Label className="text-sm mb-2 block">
           Professor
           {isRequired && <span className="text-red-600 ml-1">*</span>}
           {!isRequired && <span className="text-gray-500 ml-1">(Optional)</span>}
         </Label>
         
-        <Select
-          value={selectedProfessor?.id || ""}
-          onValueChange={handleProfessorChange}
-          disabled={!selectedClass}
-        >
-          <SelectTrigger 
-            className={`bg-input-background ${
+        <div className="relative">
+          <Input
+            value={selectedProfessor?.name || ""}
+            placeholder={!selectedClass ? "Select class first" : "Select professor"}
+            readOnly
+            onClick={() => setShowProfessorDropdown(!showProfessorDropdown)}
+            className={`bg-input-background cursor-pointer ${
               !selectedClass 
                 ? 'cursor-not-allowed opacity-60' 
                 : 'cursor-pointer'
             }`}
-          >
-            <SelectValue 
-              placeholder={
-                !selectedClass 
-                  ? "Select class first" 
-                  : "Select professor"
-              } 
-            />
-          </SelectTrigger>
+            disabled={!selectedClass}
+          />
+          <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
           
-          <SelectContent>
-            {selectedClass?.professors?.map((professor) => (
-              <SelectItem key={professor.id} value={professor.id}>
-                {professor.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          {showProfessorDropdown && selectedClass && selectedClass.professors && (
+            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+              {selectedClass.professors.map((professor) => {
+                console.log('Rendering professor option:', professor);
+                return (
+                  <button
+                    key={professor.id}
+                    type="button"
+                    onClick={() => {
+                      console.log('Professor selected:', professor);
+                      onProfessorChange(professor);
+                      setShowProfessorDropdown(false);
+                    }}
+                    className="w-full px-3 py-2 text-left hover:bg-gray-50 text-sm border-b border-gray-100 last:border-b-0"
+                  >
+                    {professor.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

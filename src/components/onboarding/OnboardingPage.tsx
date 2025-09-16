@@ -302,6 +302,8 @@ const getAvailableClasses = (classYear: ClassYear, excludeIds: string[]): LawCla
 
 export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   const { user } = useAuth();
+  const [name, setName] = useState('');
+  const [section, setSection] = useState<string>('');
   const [classYear, setClassYear] = useState<ClassYear | ''>('');
   const [selectedClasses, setSelectedClasses] = useState<SelectedClass[]>(
     Array(10).fill(null).map(() => ({ lawClass: null, professor: null }))
@@ -326,6 +328,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       const newSelectedClasses = Array(10).fill(null).map(() => ({ lawClass: null, professor: null }));
       setSelectedClasses(newSelectedClasses);
     }
+    // Clear section when class year changes
+    setSection('');
   }, [classYear]);
 
   const getAvailableClassesForSlot = (excludeIds: string[]): LawClass[] => {
@@ -369,7 +373,17 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   };
 
   const isFormValid = () => {
-    // Only require class year and class selection
+    // Require name, section, class year, and class selection
+    if (!name.trim()) {
+      console.log('Form invalid: missing name', { name });
+      return false;
+    }
+    
+    if (!section) {
+      console.log('Form invalid: missing section', { section });
+      return false;
+    }
+    
     if (!classYear) {
       console.log('Form invalid: missing class year', { classYear });
       return false;
@@ -445,6 +459,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       // TODO: Save to Supabase database
       const formData = {
         userId: user?.id,
+        name: name.trim(),
+        section,
         classYear,
         classes: selectedClasses
           .filter(selected => selected.lawClass && selected.professor)
@@ -505,6 +521,49 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                   </Select>
                 </div>
               </div>
+
+              {/* Name and Section */}
+              {classYear && (
+                <div className="space-y-6">
+                  <div className="border-t pt-6">
+                    <h3 className="text-xl text-gray-900 mb-4">Personal Information</h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Full Name */}
+                      <div className="space-y-2">
+                        <Label htmlFor="name">Full Name *</Label>
+                        <Input
+                          id="name"
+                          type="text"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          placeholder="Enter your full name"
+                          className="bg-input-background"
+                          required
+                        />
+                      </div>
+
+                      {/* Section */}
+                      <div className="space-y-2">
+                        <Label htmlFor="section">Section *</Label>
+                        <Select value={section} onValueChange={setSection}>
+                          <SelectTrigger className="bg-input-background">
+                            <SelectValue placeholder="Select your section" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="A">Section A</SelectItem>
+                            <SelectItem value="B">Section B</SelectItem>
+                            <SelectItem value="C">Section C</SelectItem>
+                            <SelectItem value="D">Section D</SelectItem>
+                            <SelectItem value="E">Section E</SelectItem>
+                            <SelectItem value="F">Section F</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Class Selection */}
               {classYear && (

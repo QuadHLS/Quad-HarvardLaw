@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { CheckCircle2, Circle, X, Plus, Calendar, Clock, Tag } from 'lucide-react';
 import { Card } from './ui/card';
@@ -447,7 +448,7 @@ export function HomePage({ onNavigateToOutlines, onNavigateToCourse }: HomePageP
         <div className="flex gap-6">
           {/* Left Content - Extended */}
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-medium text-gray-900 mb-6">Welcome, Justin!</h1>
+            <h1 className="text-2xl font-medium text-gray-900 mb-6">Welcome, Luke!</h1>
             
             {/* Interactive To-Do List */}
             <div className="mb-8">

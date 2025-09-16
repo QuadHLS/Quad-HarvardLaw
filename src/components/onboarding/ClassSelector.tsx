@@ -47,6 +47,7 @@ export function ClassSelector({
   useEffect(() => {
     console.log('ClassSelector - selectedClass changed:', selectedClass?.name);
     setSearchTerm(selectedClass?.name || '');
+    setShowProfessorDropdown(false); // Close professor dropdown when class changes
   }, [selectedClass]);
 
   // Filter available classes based on search term
@@ -186,8 +187,13 @@ export function ClassSelector({
             value={selectedProfessor?.name || ""}
             placeholder={!selectedClass ? "Select class first" : "Select professor"}
             readOnly
-            onClick={() => setShowProfessorDropdown(!showProfessorDropdown)}
-            className={`bg-input-background cursor-pointer ${
+            onClick={() => {
+              console.log('Professor input clicked:', { selectedClass: selectedClass?.name, professors: selectedClass?.professors?.length });
+              if (selectedClass && selectedClass.professors) {
+                setShowProfessorDropdown(!showProfessorDropdown);
+              }
+            }}
+            className={`bg-input-background ${
               !selectedClass 
                 ? 'cursor-not-allowed opacity-60' 
                 : 'cursor-pointer'
@@ -196,6 +202,12 @@ export function ClassSelector({
           />
           <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
           
+          {console.log('Professor dropdown render check:', {
+            showProfessorDropdown,
+            selectedClass: selectedClass?.name,
+            professors: selectedClass?.professors?.length,
+            shouldShow: showProfessorDropdown && selectedClass && selectedClass.professors
+          })}
           {showProfessorDropdown && selectedClass && selectedClass.professors && (
             <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
               {selectedClass.professors.map((professor) => {

@@ -85,6 +85,13 @@ export function ClassSelector({
     setSearchTerm(value);
     setShowDropdown(true);
     
+    // If user starts typing and there's a selected class, clear it to allow new selection
+    if (value && selectedClass && value !== selectedClass.name) {
+      console.log('ClassSelector - clearing selected class because user is typing new text');
+      onClassChange(null);
+      onProfessorChange(null);
+    }
+    
     // Only clear the selected class if user manually deletes the text
     // Don't clear if the input is just losing focus or being updated programmatically
     if (!value && selectedClass) {
@@ -107,6 +114,7 @@ export function ClassSelector({
   };
 
   const handleClearClass = () => {
+    console.log('Clear class clicked:', { selectedClass: selectedClass?.name, index });
     setSearchTerm('');
     onClassChange(null);
     onProfessorChange(null);
@@ -131,18 +139,25 @@ export function ClassSelector({
             type="text"
             value={searchTerm}
             onChange={handleInputChange}
-            onFocus={() => !isReadOnly && setShowDropdown(true)}
+            onFocus={() => {
+              console.log('Input focused:', { isReadOnly, selectedClass: selectedClass?.name });
+              if (!isReadOnly) {
+                setShowDropdown(true);
+              }
+            }}
             placeholder={isReadOnly ? "Course assigned" : "Search for a class..."}
             className="pr-20 bg-input-background"
             readOnly={isReadOnly}
           />
           
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            {console.log('Clear button render check:', { selectedClass: !!selectedClass, isReadOnly })}
             {selectedClass && !isReadOnly && (
               <button
                 type="button"
                 onClick={handleClearClass}
-                className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-700"
+                className="p-1 hover:bg-red-100 rounded text-red-500 hover:text-red-700 border border-red-200"
+                title="Clear class selection"
               >
                 <X className="h-3 w-3" />
               </button>

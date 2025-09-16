@@ -206,13 +206,9 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       });
       setSelectedClasses(newSelectedClasses);
     } else if (classYear === '2L' || classYear === '3L') {
-      // Clear any 1L courses when switching to 2L/3L
-      setSelectedClasses(prev => prev.map(selected => {
-        if (selected.lawClass && firstYearCourseIds.includes(selected.lawClass.id)) {
-          return { lawClass: null, professor: null };
-        }
-        return selected;
-      }));
+      // For 2L/3L, only show 4 slots
+      const newSelectedClasses = Array(4).fill(null).map(() => ({ lawClass: null, professor: null }));
+      setSelectedClasses(newSelectedClasses);
     }
     
     // Clear section when class year changes
@@ -251,8 +247,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       // 1L: 8 required + 1 elective = 9 total
       return validClasses.length >= 9;
     } else if (classYear === '2L' || classYear === '3L') {
-      // 2L/3L: minimum 4, maximum 10
-      return validClasses.length >= 4 && validClasses.length <= 10;
+      // 2L/3L: exactly 4 required
+      return validClasses.length === 4;
     }
     
     return false;
@@ -380,7 +376,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                     <p className="text-gray-600 mb-4">
                       {classYear === '1L' 
                         ? 'Your eight required 1L courses have been automatically populated. Select professors for each required course and choose one elective course.'
-                        : 'Select 4-10 courses and their corresponding professors.'
+                        : 'Select 4 courses and their corresponding professors.'
                       }
                     </p>
                     
@@ -394,7 +390,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                         {classYear === '1L' ? (
                           <span>8 required courses + 1 elective = 9 total courses</span>
                         ) : (
-                          <span>4-10 courses total (minimum 4, maximum 10)</span>
+                          <span>4 courses total (exactly 4 required)</span>
                         )}
                       </div>
                     </div>
@@ -434,7 +430,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                   <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-full">
                     <span className="text-sm text-gray-600">
                       Selected: {selectedClasses.filter(selected => selected.lawClass && selected.professor).length} / {
-                        classYear === '1L' ? '9' : '10'
+                        classYear === '1L' ? '9' : '4'
                       } courses
                     </span>
                   </div>

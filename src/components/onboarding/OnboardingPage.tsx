@@ -418,6 +418,11 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   }, [classYear]);
 
   const getAvailableClassesForSlot = (excludeIds: string[]): LawClass[] => {
+    // Return empty array if no class year is selected
+    if (!classYear) {
+      return [];
+    }
+    
     // For 2L/3L, don't exclude any classes (allow duplicates)
     // For 1L, exclude already selected classes
     if (classYear === '2L' || classYear === '3L') {
@@ -804,8 +809,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                     disabled={!isFormValid() || loading}
                     className="text-white px-8 py-2 disabled:opacity-50 rounded-lg"
                     style={{ backgroundColor: '#752432' }}
-                    onMouseEnter={(e) => e.target.style.backgroundColor = '#5a1a25'}
-                    onMouseLeave={(e) => e.target.style.backgroundColor = '#752432'}
+                    onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = '#5a1a25'}
+                    onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = '#752432'}
                   >
                     {loading ? 'Saving...' : 'Complete Setup'}
                   </Button>

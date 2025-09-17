@@ -4,7 +4,7 @@ import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Alert, AlertDescription } from '../ui/alert'
 import { useAuth } from '../../contexts/AuthContext'
-import { Loader2, Eye, EyeOff, Mail, Lock, ArrowRight, Key, Send } from 'lucide-react'
+import { Loader2, Eye, EyeOff, Mail, ArrowRight } from 'lucide-react'
 
 interface LoginFormProps {
   onSwitchToSignup: () => void
@@ -14,34 +14,11 @@ interface LoginFormProps {
 export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onForgotPassword }) => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [accessCode, setAccessCode] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [sendingCode, setSendingCode] = useState(false)
-  const [codeSent, setCodeSent] = useState(false)
   const [error, setError] = useState('')
   const { signIn } = useAuth()
 
-  const handleSendAccessCode = async () => {
-    if (!email) {
-      setError('Please enter your email address first')
-      return
-    }
-
-    setSendingCode(true)
-    setError('')
-    
-    try {
-      // TODO: Implement actual access code sending logic
-      // For now, we'll simulate it
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      setCodeSent(true)
-    } catch (err) {
-      setError('Failed to send access code. Please try again.')
-    } finally {
-      setSendingCode(false)
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -122,48 +99,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onForgot
           </div>
         </div>
         
-        {/* Access Code Section */}
-        <div className="space-y-1">
-          <Label htmlFor="accessCode" className="text-white/80 text-xs font-medium">
-            Access Code (Optional)
-          </Label>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Input
-                id="accessCode"
-                type="text"
-                placeholder="Enter access code"
-                value={accessCode}
-                onChange={(e) => setAccessCode(e.target.value)}
-                disabled={loading || sendingCode}
-                className="pr-10 h-9 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-red-600 focus:ring-red-600/20 rounded-lg backdrop-blur-sm text-sm"
-              />
-              <Key className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            </div>
-            <Button
-              type="button"
-              onClick={handleSendAccessCode}
-              disabled={!email || loading || sendingCode}
-              className="h-9 px-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium rounded-lg shadow-lg hover:shadow-blue-500/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-            >
-              {sendingCode ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : codeSent ? (
-                <span className="text-green-400 text-xs">✓ Sent</span>
-              ) : (
-                <>
-                  <Send className="h-3 w-3 mr-1" />
-                  Send
-                </>
-              )}
-            </Button>
-          </div>
-          {codeSent && (
-            <p className="text-green-400 text-xs">
-              Access code sent to {email}
-            </p>
-          )}
-        </div>
         
         <div className="flex justify-end">
           <Button

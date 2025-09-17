@@ -13,6 +13,7 @@ import { MessagingPage } from './components/MessagingPage';
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/auth/AuthPage';
+import { AccessCodePage } from './components/auth/AccessCodePage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { UserProfile } from './components/auth/UserProfile';
 import { OnboardingFlow } from './components/onboarding/OnboardingFlow';
@@ -1568,6 +1569,7 @@ interface CalendarEvent {
 // Main App Content Component
 function AppContent({ user, loading }: { user: any; loading: boolean }) {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const [hasEnteredAccessCode, setHasEnteredAccessCode] = useState(false);
   const [selectedOutline, setSelectedOutline] = useState<Outline | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
@@ -1744,6 +1746,11 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
   // Show login page if user is not authenticated
   if (!user) {
     return <AuthPage />;
+  }
+
+  // Show access code page if user is authenticated but hasn't entered access code
+  if (!hasEnteredAccessCode) {
+    return <AccessCodePage onComplete={() => setHasEnteredAccessCode(true)} />;
   }
 
   // Show onboarding flow if user hasn't completed onboarding

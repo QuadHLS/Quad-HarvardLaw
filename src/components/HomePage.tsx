@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { CheckCircle2, Circle, X, Plus, Calendar, Clock, Tag } from 'lucide-react';
+import { CheckCircle2, Circle, X, Plus, Clock } from 'lucide-react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -279,11 +279,10 @@ function CourseCard({ title, instructor, nextEvent, onCourseClick }: CourseCardP
 }
 
 interface HomePageProps {
-  onNavigateToOutlines?: (courseName: string, outlineName: string) => void;
   onNavigateToCourse?: (courseName: string) => void;
 }
 
-export function HomePage({ onNavigateToOutlines, onNavigateToCourse }: HomePageProps) {
+export function HomePage({ onNavigateToCourse }: HomePageProps) {
   const [todos, setTodos] = useState<TodoItem[]>([
     { id: '1', text: 'Review Torts outlines for tomorrow', completed: false, course: 'Torts', section: 'today' },
     { id: '2', text: 'Submit Property Law assignment', completed: true, course: 'Property Law', section: 'today' },
@@ -402,7 +401,6 @@ export function HomePage({ onNavigateToOutlines, onNavigateToCourse }: HomePageP
 
   const currentDate = new Date();
   const currentTime = currentDate.getHours() * 60 + currentDate.getMinutes(); // Current time in minutes since midnight
-  const today = currentDate.getDate();
 
   // Generate calendar days for September 2025
   const generateCalendarDays = () => {
@@ -425,13 +423,6 @@ export function HomePage({ onNavigateToOutlines, onNavigateToCourse }: HomePageP
 
   const calendarDays = generateCalendarDays();
   const weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-
-  // Schedule events with time in minutes since midnight
-  const scheduleEvents = [
-    { name: 'Torts', time: '9:00am - 10:30am', startTime: 9 * 60, endTime: 10.5 * 60 },
-    { name: 'Property', time: '11:30am - 12:30pm', startTime: 11.5 * 60, endTime: 12.5 * 60 },
-    { name: 'Nuand Meeting', time: '2pm - 3pm', startTime: 14 * 60, endTime: 15 * 60 },
-  ];
 
   const getCurrentTimePosition = () => {
     // Calculate position based on 6 AM to 5 PM timeframe (11 hours = 660 minutes)

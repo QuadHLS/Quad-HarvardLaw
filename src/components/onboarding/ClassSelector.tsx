@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Input } from '../ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Label } from '../ui/label';
-import { ChevronDown, X } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 
 interface LawClass {
   id: string;
@@ -202,15 +201,21 @@ export function ClassSelector({
         </div>
         
         {/* Dropdown */}
-        {console.log('Dropdown render check:', { 
-          showDropdown, 
-          isReadOnly, 
-          filteredClassesLength: filteredClasses.length,
-          filteredClasses: filteredClasses.map(c => c.name)
-        })}
+        {(() => {
+          console.log('Dropdown render check:', { 
+            showDropdown, 
+            isReadOnly, 
+            filteredClassesLength: filteredClasses.length,
+            filteredClasses: filteredClasses.map(c => c.name)
+          });
+          return null;
+        })()}
         {showDropdown && !isReadOnly && filteredClasses.length > 0 && (
           <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-            {console.log('Rendering dropdown options for index', index, ':', filteredClasses.map(c => ({ id: c.id, name: c.name, hasProfessors: c.professors?.length })))}
+            {(() => {
+              console.log('Rendering dropdown options for index', index, ':', filteredClasses.map(c => ({ id: c.id, name: c.name, hasProfessors: c.professors?.length })));
+              return null;
+            })()}
             {filteredClasses.map((lawClass) => (
               <button
                 key={lawClass.id}
@@ -275,13 +280,16 @@ export function ClassSelector({
             <ChevronDown className="h-4 w-4 text-gray-400 pointer-events-none" />
           </div>
           
-          {console.log('Professor dropdown render check:', {
-            showProfessorDropdown,
-            selectedClass: selectedClass?.name,
-            professors: selectedClass?.professors?.length,
-            professorNames: selectedClass?.professors?.map(p => p.name),
-            shouldShow: showProfessorDropdown && selectedClass && selectedClass.professors && selectedClass.professors.length > 0
-          })}
+          {(() => {
+            console.log('Professor dropdown render check:', {
+              showProfessorDropdown,
+              selectedClass: selectedClass?.name,
+              professors: selectedClass?.professors?.length,
+              professorNames: selectedClass?.professors?.map(p => p.name),
+              shouldShow: showProfessorDropdown && selectedClass && selectedClass.professors && selectedClass.professors.length > 0
+            });
+            return null;
+          })()}
           {showProfessorDropdown && selectedClass && selectedClass.professors && selectedClass.professors.length > 0 && (
             <div 
               data-professor-dropdown={index}

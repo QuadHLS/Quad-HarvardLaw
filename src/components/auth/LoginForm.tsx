@@ -4,7 +4,7 @@ import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Alert, AlertDescription } from '../ui/alert'
 import { useAuth } from '../../contexts/AuthContext'
-import { Loader2, Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react'
+import { Loader2, Eye, EyeOff, Mail, Lock, ArrowRight, Key, Send } from 'lucide-react'
 
 interface LoginFormProps {
   onSwitchToSignup: () => void
@@ -14,10 +14,34 @@ interface LoginFormProps {
 export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onForgotPassword }) => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [accessCode, setAccessCode] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [sendingCode, setSendingCode] = useState(false)
+  const [codeSent, setCodeSent] = useState(false)
   const [error, setError] = useState('')
   const { signIn } = useAuth()
+
+  const handleSendAccessCode = async () => {
+    if (!email) {
+      setError('Please enter your email address first')
+      return
+    }
+
+    setSendingCode(true)
+    setError('')
+    
+    try {
+      // TODO: Implement actual access code sending logic
+      // For now, we'll simulate it
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      setCodeSent(true)
+    } catch (err) {
+      setError('Failed to send access code. Please try again.')
+    } finally {
+      setSendingCode(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,19 +58,19 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onForgot
   }
 
   return (
-    <div className="w-full">
-      <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-white mb-2">Welcome Back</h2>
-        <p className="text-gray-400">Sign in to continue your journey</p>
+    <div className="w-full max-w-md mx-auto">
+      <div className="text-center mb-6">
+        <h2 className="text-2xl font-bold text-white mb-1">Welcome Back</h2>
+        <p className="text-gray-400 text-sm">Sign in to continue your journey</p>
       </div>
 
       {error && (
-        <Alert className="mb-6 bg-red-500/10 border-red-500/20 text-red-400">
-          <AlertDescription>{error}</AlertDescription>
+        <Alert className="mb-4 bg-red-500/10 border-red-500/20 text-red-400">
+          <AlertDescription className="text-sm">{error}</AlertDescription>
         </Alert>
       )}
       
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="email" className="text-white/80 text-sm font-medium">
             Email Address
@@ -60,7 +84,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onForgot
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={loading}
-              className="pr-12 h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-red-600 focus:ring-red-600/20 rounded-xl backdrop-blur-sm"
+              className="pr-12 h-10 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-red-600 focus:ring-red-600/20 rounded-lg backdrop-blur-sm text-sm"
             />
             <Mail className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
           </div>
@@ -79,7 +103,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onForgot
               onChange={(e) => setPassword(e.target.value)}
               required
               disabled={loading}
-              className="pr-12 h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-red-600 focus:ring-red-600/20 rounded-xl backdrop-blur-sm"
+              className="pr-12 h-10 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-red-600 focus:ring-red-600/20 rounded-lg backdrop-blur-sm text-sm"
             />
             <Button
               type="button"
@@ -98,6 +122,49 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onForgot
           </div>
         </div>
         
+        {/* Access Code Section */}
+        <div className="space-y-1">
+          <Label htmlFor="accessCode" className="text-white/80 text-xs font-medium">
+            Access Code (Optional)
+          </Label>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Input
+                id="accessCode"
+                type="text"
+                placeholder="Enter access code"
+                value={accessCode}
+                onChange={(e) => setAccessCode(e.target.value)}
+                disabled={loading || sendingCode}
+                className="pr-10 h-9 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-red-600 focus:ring-red-600/20 rounded-lg backdrop-blur-sm text-sm"
+              />
+              <Key className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            </div>
+            <Button
+              type="button"
+              onClick={handleSendAccessCode}
+              disabled={!email || loading || sendingCode}
+              className="h-9 px-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium rounded-lg shadow-lg hover:shadow-blue-500/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              {sendingCode ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : codeSent ? (
+                <span className="text-green-400 text-xs">✓ Sent</span>
+              ) : (
+                <>
+                  <Send className="h-3 w-3 mr-1" />
+                  Send
+                </>
+              )}
+            </Button>
+          </div>
+          {codeSent && (
+            <p className="text-green-400 text-xs">
+              Access code sent to {email}
+            </p>
+          )}
+        </div>
+        
         <div className="flex justify-end">
           <Button
             type="button"
@@ -112,7 +179,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onForgot
         
         <Button 
           type="submit" 
-          className="w-full h-12 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-red-500/25 transition-all duration-300 group disabled:opacity-50" 
+          className="w-full h-10 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold rounded-lg shadow-lg hover:shadow-red-500/25 transition-all duration-300 group disabled:opacity-50 text-sm" 
           disabled={loading}
         >
           {loading ? (
@@ -127,7 +194,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onForgot
       </form>
       
       {/* Social Login Options */}
-      <div className="mt-6">
+      <div className="mt-4">
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
             <span className="w-full border-t border-white/10" />
@@ -137,14 +204,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onForgot
           </div>
         </div>
         
-        <div className="mt-6 grid grid-cols-2 gap-3">
+        <div className="mt-4">
           <Button
             type="button"
             variant="outline"
-            className="w-full h-12 bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20 rounded-xl backdrop-blur-sm transition-all duration-300"
+            className="w-full h-9 bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20 rounded-lg backdrop-blur-sm transition-all duration-300 text-sm"
             disabled={loading}
           >
-            <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
               <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
               <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
               <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -152,22 +219,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onForgot
             </svg>
             Google
           </Button>
-          
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full h-12 bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20 rounded-xl backdrop-blur-sm transition-all duration-300"
-            disabled={loading}
-          >
-            <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-              <path fill="currentColor" d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zM24 11.4H12.6V0H24v11.4z"/>
-            </svg>
-            Microsoft
-          </Button>
         </div>
       </div>
       
-      <div className="text-center mt-8">
+      <div className="text-center mt-6">
         <p className="text-white/80 text-sm">
           Don't have an account?{' '}
           <Button

@@ -14,42 +14,132 @@ export const AuthPage: React.FC = () => {
   const handleBackToLogin = () => setAuthMode('login')
 
   return (
-    <div className="min-h-screen bg-black relative overflow-hidden">
-      {/* Animated Background Elements */}
+    <div 
+      className="h-screen bg-gradient-to-br from-gray-900 via-black to-purple-900 relative overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, #0f0f0f 0%, #000000 70%, #1a0a0a 100%)',
+        minHeight: '100vh'
+      }}
+    >
+      <style jsx>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px) scale(1); }
+          50% { transform: translateY(-20px) scale(1.05); }
+        }
+        @keyframes slideIn {
+          0% { opacity: 0; transform: translateX(-50%) rotate(15deg) translateX(-100px); }
+          50% { opacity: 1; }
+          100% { opacity: 0; transform: translateX(-50%) rotate(15deg) translateX(100px); }
+        }
+      `}</style>
       <div className="absolute inset-0">
-        {/* Gradient Orbs */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-pink-500/20 rounded-full blur-3xl animate-pulse delay-2000"></div>
+        {/* Awesome landing page background */}
+        {/* Animated gradient orbs */}
+        <div 
+          className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl animate-pulse"
+          style={{ 
+            background: 'radial-gradient(circle, rgba(59, 130, 246, 0.3) 0%, rgba(147, 51, 234, 0.2) 50%, transparent 100%)',
+            animation: 'float 6s ease-in-out infinite'
+          }}
+        ></div>
+        <div 
+          className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full blur-3xl animate-pulse delay-2000"
+          style={{ 
+            background: 'radial-gradient(circle, rgba(236, 72, 153, 0.3) 0%, rgba(168, 85, 247, 0.2) 50%, transparent 100%)',
+            animation: 'float 8s ease-in-out infinite reverse'
+          }}
+        ></div>
+        <div 
+          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full blur-2xl animate-pulse delay-4000"
+          style={{ 
+            background: 'radial-gradient(circle, rgba(34, 197, 94, 0.2) 0%, rgba(59, 130, 246, 0.1) 50%, transparent 100%)',
+            animation: 'float 10s ease-in-out infinite'
+          }}
+        ></div>
         
-        {/* Floating Particles */}
-        <div className="absolute top-20 left-20 w-2 h-2 bg-white/30 rounded-full animate-bounce delay-300"></div>
-        <div className="absolute top-40 right-32 w-1 h-1 bg-blue-400/50 rounded-full animate-bounce delay-700"></div>
-        <div className="absolute bottom-32 left-40 w-1.5 h-1.5 bg-purple-400/40 rounded-full animate-bounce delay-1000"></div>
-        <div className="absolute bottom-20 right-20 w-2 h-2 bg-pink-400/30 rounded-full animate-bounce delay-500"></div>
+        {/* Floating particles removed */}
         
-        {/* Grid Pattern */}
-        <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
+        {/* Subtle grid pattern */}
+        <div 
+          className="absolute inset-0 opacity-10"
+          style={{
+            backgroundImage: `
+              linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px)
+            `,
+            backgroundSize: '50px 50px'
+          }}
+        ></div>
+        
+        {/* Animated lines */}
+        <div 
+          className="absolute top-1/4 left-1/2 w-32 h-px bg-gradient-to-r from-transparent via-blue-400/30 to-transparent animate-pulse delay-2000"
+          style={{ 
+            transform: 'translateX(-50%) rotate(15deg)',
+            animation: 'slideIn 3s ease-in-out infinite'
+          }}
+        ></div>
+        <div 
+          className="absolute bottom-1/4 right-1/2 w-24 h-px bg-gradient-to-l from-transparent via-pink-400/30 to-transparent animate-pulse delay-4000"
+          style={{ 
+            transform: 'translateX(50%) rotate(-25deg)',
+            animation: 'slideIn 4s ease-in-out infinite reverse'
+          }}
+        ></div>
       </div>
 
-      {/* Main Content */}
-      <div className="relative z-10 min-h-screen flex items-center justify-center px-4">
-        <div className="w-full max-w-md">
-          {/* App Logo and Title */}
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 mb-6 shadow-2xl">
-              <span className="text-2xl font-bold text-white">HLS</span>
-            </div>
-            <h1 className="text-4xl font-bold text-white mb-2 bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-              Quad Database
-            </h1>
-            <p className="text-gray-400 text-lg">
-              Your gateway to law school excellence
-            </p>
-          </div>
+      {/* Main content container */}
+      <div className="relative z-10 h-full flex flex-col items-center justify-center px-4">
+        {/* Header section */}
+        <div className="text-center mb-16">
+          <h1 
+            className="font-bold mb-4"
+            style={{
+              fontSize: '2.5rem',
+              lineHeight: '1.2',
+              background: 'linear-gradient(90deg, #a51c30, #dc2626)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              textShadow: '0 0 20px rgba(165, 28, 48, 0.5), 0 0 40px rgba(220, 38, 38, 0.3)'
+            }}
+          >
+            Harvard Law School
+          </h1>
+          <h2 
+            className="font-bold mb-6"
+            style={{
+              fontSize: '2rem',
+              lineHeight: '1.2',
+              background: 'linear-gradient(90deg, #a51c30, #dc2626)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              textShadow: '0 0 15px rgba(165, 28, 48, 0.4), 0 0 30px rgba(220, 38, 38, 0.2)'
+            }}
+          >
+            Quad
+          </h2>
+          <p 
+            className="text-lg font-medium"
+            style={{ color: '#ffffff' }}
+          >
+            Your gateway to law school excellence
+          </p>
+        </div>
+
+        {/* Form section */}
+        <div className="w-full max-w-xs mt-8">
           
-          {/* Auth Form Container */}
-          <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-2xl p-8 shadow-2xl">
+          <div 
+            className="backdrop-blur-xl rounded-2xl p-3 shadow-2xl"
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(20px)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(165, 28, 48, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+            }}
+          >
             {authMode === 'login' && (
               <LoginForm
                 onSwitchToSignup={handleSwitchToSignup}

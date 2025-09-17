@@ -43,13 +43,14 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onBackTo
           </div>
           <h3 className="text-2xl font-bold text-white mb-2">Check your email</h3>
           <p className="text-gray-400">
-            We've sent you a password reset link to <span className="text-purple-400">{email}</span>
+            We've sent you a password reset link to <span className="text-red-400">{email}</span>
           </p>
         </div>
         <Button
           onClick={onBackToLogin}
-          className="w-full h-12 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-purple-500/25 transition-all duration-300"
+          className="w-full h-12 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-red-500/25 transition-all duration-300"
         >
+          <ArrowLeft className="mr-2 h-5 w-5" />
           Back to Sign In
         </Button>
       </div>
@@ -79,7 +80,6 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onBackTo
             Email Address
           </Label>
           <div className="relative">
-            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <Input
               id="email"
               type="email"
@@ -88,15 +88,16 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onBackTo
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={loading}
-              className="pl-12 h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl backdrop-blur-sm"
+              className="pr-12 h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-red-600 focus:ring-red-600/20 rounded-xl backdrop-blur-sm"
             />
+            <Mail className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
           </div>
         </div>
         
         {/* Submit Button */}
         <Button 
           type="submit" 
-          className="w-full h-12 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-purple-500/25 transition-all duration-300 group disabled:opacity-50" 
+          className="w-full h-12 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-red-500/25 transition-all duration-300 group disabled:opacity-50" 
           disabled={loading}
         >
           {loading ? (
@@ -114,7 +115,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onBackTo
       <div className="text-center mt-8">
         <Button
           variant="link"
-          className="p-0 h-auto font-normal text-purple-400 hover:text-purple-300 underline-offset-4"
+            className="p-0 h-auto font-normal text-white/80 hover:text-gray-300 underline-offset-4"
           onClick={onBackToLogin}
           disabled={loading}
         >

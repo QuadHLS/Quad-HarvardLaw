@@ -66,7 +66,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
         </div>
         <Button
           onClick={onSwitchToLogin}
-          className="w-full h-12 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-purple-500/25 transition-all duration-300"
+          className="w-full h-12 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-red-500/25 transition-all duration-300"
         >
           Back to Sign In
         </Button>
@@ -97,7 +97,6 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
             Email Address
           </Label>
           <div className="relative">
-            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <Input
               id="email"
               type="email"
@@ -106,8 +105,9 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={loading}
-              className="pl-12 h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl backdrop-blur-sm"
+              className="pr-12 h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-red-600 focus:ring-red-600/20 rounded-xl backdrop-blur-sm"
             />
+            <Mail className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
           </div>
         </div>
         
@@ -117,7 +117,6 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
             Password
           </Label>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <Input
               id="password"
               type={showPassword ? 'text' : 'password'}
@@ -126,7 +125,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
               onChange={(e) => setPassword(e.target.value)}
               required
               disabled={loading}
-              className="pl-12 pr-12 h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl backdrop-blur-sm"
+              className="pr-12 h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-red-600 focus:ring-red-600/20 rounded-xl backdrop-blur-sm"
             />
             <Button
               type="button"
@@ -151,7 +150,6 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
             Confirm Password
           </Label>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <Input
               id="confirmPassword"
               type={showConfirmPassword ? 'text' : 'password'}
@@ -160,7 +158,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
               disabled={loading}
-              className="pl-12 pr-12 h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl backdrop-blur-sm"
+              className="pr-12 h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-red-600 focus:ring-red-600/20 rounded-xl backdrop-blur-sm"
             />
             <Button
               type="button"
@@ -182,7 +180,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
         {/* Submit Button */}
         <Button 
           type="submit" 
-          className="w-full h-12 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-purple-500/25 transition-all duration-300 group disabled:opacity-50" 
+          className="w-full h-12 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-red-500/25 transition-all duration-300 group disabled:opacity-50" 
           disabled={loading}
         >
           {loading ? (
@@ -199,11 +197,11 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
       
       {/* Sign In Link */}
       <div className="text-center mt-8">
-        <p className="text-gray-400">
+        <p className="text-white/80 text-sm">
           Already have an account?{' '}
           <Button
             variant="link"
-            className="p-0 h-auto font-normal text-purple-400 hover:text-purple-300 underline-offset-4"
+            className="p-0 h-auto font-normal text-red-400 hover:text-red-300 underline-offset-4 text-sm"
             onClick={onSwitchToLogin}
             disabled={loading}
           >

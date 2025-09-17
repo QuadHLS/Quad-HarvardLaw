@@ -1877,16 +1877,17 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
   }
 
   // Show access code verification page if user hasn't verified their access code
-  if (!isVerified) {
-    return (
-      <AccessCodeVerification
-        onVerified={async () => {
-          // Mark verified locally; server-side already updated profile
-          setIsVerified(true);
-        }}
-      />
-    );
-  }
+  // TEMPORARILY DISABLED - Access code verification is not required for now
+  // if (!isVerified) {
+  //   return (
+  //     <AccessCodeVerification
+  //       onVerified={async () => {
+  //         // Mark verified locally; server-side already updated profile
+  //         setIsVerified(true);
+  //       }}
+  //     />
+  //   );
+  // }
 
   // Show onboarding flow if user hasn't completed onboarding
   if (!hasCompletedOnboarding) {

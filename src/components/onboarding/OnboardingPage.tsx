@@ -6,6 +6,7 @@ import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { ClassSelector } from './ClassSelector';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 
 type ClassYear = '1L' | '2L' | '3L';
 
@@ -385,6 +386,7 @@ const getAvailableClasses = (classYear: ClassYear, excludeIds: string[]): LawCla
 export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   const { user, signOut } = useAuth();
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [section, setSection] = useState<string>('');
   const [classYear, setClassYear] = useState<ClassYear | ''>('');
   const [selectedClasses, setSelectedClasses] = useState<SelectedClass[]>(
@@ -474,11 +476,16 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
   const isFormValid = () => {
     console.log('=== FORM VALIDATION START ===');
-    console.log('Form data:', { name, section, classYear, selectedClassesLength: selectedClasses.length });
+    console.log('Form data:', { name, phone, section, classYear, selectedClassesLength: selectedClasses.length });
     
-    // Require name, section, class year, and class selection
+    // Require name, phone, section, class year, and class selection
     if (!name.trim()) {
       console.log('Form invalid: missing name', { name });
+      return false;
+    }
+    
+    if (!phone.trim()) {
+      console.log('Form invalid: missing phone', { phone });
       return false;
     }
     
@@ -572,24 +579,44 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     setLoading(true);
     
     try {
-      // TODO: Save to Supabase database
-      const formData = {
-        userId: user?.id,
-        name: name.trim(),
-        section,
-        classYear,
-        classes: selectedClasses
-          .filter(selected => selected.lawClass && selected.professor)
-          .map(selected => ({
-            class: selected.lawClass!.name,
-            professor: selected.professor!.name
-          }))
-      };
-      
-      console.log('Onboarding data:', formData);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+
+      // Update user's phone number in Supabase auth.users table
+      const { error: phoneError } = await supabase.auth.updateUser({
+        data: { phone: phone.trim() }
+      });
+
+      if (phoneError) {
+        console.error('Error updating phone number:', phoneError);
+        throw phoneError;
+      }
+
+      // Save profile data to Supabase profiles table
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          name: name.trim(),
+          phone: phone.trim(),
+          section,
+          class_year: classYear,
+          classes: selectedClasses
+            .filter(selected => selected.lawClass && selected.professor)
+            .map(selected => ({
+              class: selected.lawClass!.name,
+              professor: selected.professor!.name
+            })),
+          updated_at: new Date().toISOString()
+        });
+
+      if (profileError) {
+        console.error('Error saving profile data:', profileError);
+        throw profileError;
+      }
+
+      console.log('Onboarding data saved successfully');
       
       // Complete onboarding
       onComplete();
@@ -670,6 +697,22 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                         />
                       </div>
 
+                      {/* Phone Number */}
+                      <div className="space-y-2">
+                        <Label htmlFor="phone">Phone Number<span style={{ color: '#752432' }}>*</span></Label>
+                        <Input
+                          id="phone"
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="Enter your phone number"
+                          className="bg-input-background"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                       {/* Section */}
                       <div className="space-y-2">
                         <Label htmlFor="section">Section<span style={{ color: '#752432' }}>*</span></Label>

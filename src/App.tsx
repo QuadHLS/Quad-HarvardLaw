@@ -1761,10 +1761,6 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
           onToggleCollapsed={handleToggleSidebar}
         />
         
-        {/* User Profile - positioned in top right */}
-        <div className="absolute top-4 right-4 z-50">
-          <UserProfile />
-        </div>
         
         {/* Toast Notifications */}
         <Toaster position="top-right" />

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Home, FileText, Star, Beer, Calendar, Menu, User, MessageCircle, Archive, ChevronDown, ChevronRight, BookOpen } from 'lucide-react';
+import { Home, FileText, Star, Beer, Calendar, Menu, User, MessageCircle, Archive, ChevronDown, ChevronRight, BookOpen, LogOut } from 'lucide-react';
 import { Button } from './ui/button';
+import { useAuth } from '../contexts/AuthContext';
 
 interface NavigationSidebarProps {
   activeSection: string;
@@ -11,6 +12,14 @@ interface NavigationSidebarProps {
 
 export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed, onToggleCollapsed }: NavigationSidebarProps) {
   const [isResourcesExpanded, setIsResourcesExpanded] = useState(false);
+  const { signOut } = useAuth();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    await signOut();
+    setIsSigningOut(false);
+  };
 
   // Auto-expand resources section when any resource sub-item is active
   React.useEffect(() => {
@@ -319,6 +328,22 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
         )}
       </div>
 
+      {/* Sign Out Button - Bottom */}
+      <div className={`${!isCollapsed ? "border-t border-gray-200 p-4" : "p-3"}`}>
+        <Button
+          onClick={handleSignOut}
+          disabled={isSigningOut}
+          variant="ghost"
+          className={`w-full ${!isCollapsed ? "justify-start" : "justify-center"} text-gray-600 hover:text-red-600 hover:bg-red-50 transition-colors`}
+        >
+          <LogOut className={`${!isCollapsed ? "w-5 h-5 mr-3" : "w-4 h-4"}`} />
+          {!isCollapsed && (
+            <span className="font-medium">
+              {isSigningOut ? 'Signing out...' : 'Sign Out'}
+            </span>
+          )}
+        </Button>
+      </div>
 
     </div>
   );

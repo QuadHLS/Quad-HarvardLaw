@@ -1,56 +1,94 @@
-import React, { useState } from 'react'
-import { Button } from '../ui/button'
-import { Input } from '../ui/input'
-import { Label } from '../ui/label'
-import { Alert, AlertDescription } from '../ui/alert'
-import { useAuth } from '../../contexts/AuthContext'
-import { Loader2, Eye, EyeOff, CheckCircle, Mail, Lock, UserPlus, ArrowRight } from 'lucide-react'
+import React, { useState } from 'react';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Alert, AlertDescription } from '../ui/alert';
+import { useAuth } from '../../contexts/AuthContext';
+import {
+  Loader2,
+  Eye,
+  EyeOff,
+  CheckCircle,
+  Mail,
+  Lock,
+  UserPlus,
+  ArrowRight,
+} from 'lucide-react';
 
 interface SignupFormProps {
-  onSwitchToLogin: () => void
+  onSwitchToLogin: () => void;
 }
 
 export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState(false)
-  const { signUp } = useAuth()
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+  const { signUp } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
-    setSuccess(false)
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setSuccess(false);
 
     // Validate passwords match
     if (password !== confirmPassword) {
-      setError('Passwords do not match')
-      setLoading(false)
-      return
+      setError('Passwords do not match');
+      setLoading(false);
+      return;
     }
 
     // Validate password strength
     if (password.length < 6) {
-      setError('Password must be at least 6 characters long')
-      setLoading(false)
-      return
+      setError('Password must be at least 6 characters long');
+      setLoading(false);
+      return;
     }
 
-    const { error } = await signUp(email, password)
-    
-    if (error) {
-      setError(error.message)
-    } else {
-      setSuccess(true)
+    // Validate Harvard email before signup
+    try {
+      const response = await fetch(
+        'https://ujsnnvdbujguiejhxuds.supabase.co/functions/v1/validate-harvard-email',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({ email }),
+        }
+      );
+
+      const validation = await response.json();
+
+      if (!validation.valid) {
+        setError(
+          validation.error || 'Please use your Harvard Law School email address'
+        );
+        setLoading(false);
+        return;
+      }
+    } catch (err) {
+      setError('Unable to validate email address. Please try again.');
+      setLoading(false);
+      return;
     }
-    
-    setLoading(false)
-  }
+
+    const { error } = await signUp(email, password);
+
+    if (error) {
+      setError(error.message);
+    } else {
+      setSuccess(true);
+    }
+
+    setLoading(false);
+  };
 
   if (success) {
     return (
@@ -59,7 +97,9 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-500/20 mb-6">
             <CheckCircle className="h-10 w-10 text-green-400" />
           </div>
-          <h3 className="text-2xl font-bold text-white mb-2">Check your email</h3>
+          <h3 className="text-2xl font-bold text-white mb-2">
+            Check your email
+          </h3>
           <p className="text-gray-400">
             We've sent you a confirmation link to verify your account.
           </p>
@@ -71,7 +111,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
           Back to Sign In
         </Button>
       </div>
-    )
+    );
   }
 
   return (
@@ -88,7 +128,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-      
+
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Email Field */}
@@ -110,10 +150,13 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
             <Mail className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
           </div>
         </div>
-        
+
         {/* Password Field */}
         <div className="space-y-2">
-          <Label htmlFor="password" className="text-white/80 text-sm font-medium">
+          <Label
+            htmlFor="password"
+            className="text-white/80 text-sm font-medium"
+          >
             Password
           </Label>
           <div className="relative">
@@ -143,10 +186,13 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
             </Button>
           </div>
         </div>
-        
+
         {/* Confirm Password Field */}
         <div className="space-y-2">
-          <Label htmlFor="confirmPassword" className="text-white/80 text-sm font-medium">
+          <Label
+            htmlFor="confirmPassword"
+            className="text-white/80 text-sm font-medium"
+          >
             Confirm Password
           </Label>
           <div className="relative">
@@ -176,11 +222,11 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
             </Button>
           </div>
         </div>
-        
+
         {/* Submit Button */}
-        <Button 
-          type="submit" 
-          className="w-full h-12 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-red-500/25 transition-all duration-300 group disabled:opacity-50" 
+        <Button
+          type="submit"
+          className="w-full h-12 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-red-500/25 transition-all duration-300 group disabled:opacity-50"
           disabled={loading}
         >
           {loading ? (
@@ -194,7 +240,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
           )}
         </Button>
       </form>
-      
+
       {/* Sign In Link */}
       <div className="text-center mt-8">
         <p className="text-white/80 text-sm">
@@ -210,5 +256,5 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
         </p>
       </div>
     </div>
-  )
-}
+  );
+};

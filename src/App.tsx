@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FileText } from 'lucide-react';
 import { NavigationSidebar } from './components/NavigationSidebar';
 import { SearchSidebar } from './components/SearchSidebar';
@@ -13,10 +13,9 @@ import { MessagingPage } from './components/MessagingPage';
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/auth/AuthPage';
-import { AccessCodePage } from './components/auth/AccessCodePage';
-import { ProtectedRoute } from './components/auth/ProtectedRoute';
-import { UserProfile } from './components/auth/UserProfile';
+import AccessCodeVerification from './components/AccessCodeVerification';
 import { OnboardingFlow } from './components/onboarding/OnboardingFlow';
+import { supabase } from './lib/supabase';
 import type { Outline, Instructor } from './types';
 
 // Mock data
@@ -33,7 +32,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Abel',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 127
+    pages: 127,
   },
   {
     id: '2',
@@ -46,22 +45,22 @@ const mockOutlines: Outline[] = [
     instructor: 'Barnes',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 89
+    pages: 89,
   },
-  
+
   // Advanced Constitutional Law
   {
-    id: '3', 
+    id: '3',
     title: 'PeacefulNice',
     year: '2023',
     type: 'H',
     rating: 5,
     ratingCount: 521,
     course: 'Advanced Constitutional Law',
-    instructor: 'Di\'Angelo',
+    instructor: "Di'Angelo",
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 156
+    pages: 156,
   },
   {
     id: '4',
@@ -74,9 +73,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Foster',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 203
+    pages: 203,
   },
-  
+
   // Antitrust Law
   {
     id: '5',
@@ -89,7 +88,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Clark',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 67
+    pages: 67,
   },
   {
     id: '6',
@@ -102,9 +101,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Kim',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 112
+    pages: 112,
   },
-  
+
   // Bankruptcy
   {
     id: '7',
@@ -117,7 +116,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Zachariah',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 185
+    pages: 185,
   },
   {
     id: '8',
@@ -130,9 +129,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Mitchell',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 97
+    pages: 97,
   },
-  
+
   // Business Taxation
   {
     id: '9',
@@ -145,7 +144,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Abel',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 240
+    pages: 240,
   },
   {
     id: '10',
@@ -158,9 +157,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Perez',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 78
+    pages: 78,
   },
-  
+
   // Civil Rights Law
   {
     id: '11',
@@ -173,7 +172,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Rodriguez',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 134
+    pages: 134,
   },
   {
     id: '12',
@@ -186,9 +185,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Foster',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 167
+    pages: 167,
   },
-  
+
   // Commercial Law
   {
     id: '13',
@@ -201,7 +200,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Chen',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 45
+    pages: 45,
   },
   {
     id: '14',
@@ -214,9 +213,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Lee',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 192
+    pages: 192,
   },
-  
+
   // Competition Law
   {
     id: '15',
@@ -229,7 +228,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Garcia',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 73
+    pages: 73,
   },
   {
     id: '16',
@@ -242,9 +241,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Clark',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 158
+    pages: 158,
   },
-  
+
   // Constitutional Law
   {
     id: '17',
@@ -257,7 +256,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Rodriguez',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 91
+    pages: 91,
   },
   {
     id: '18',
@@ -270,9 +269,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Morris',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 198
+    pages: 198,
   },
-  
+
   // Contract Law
   {
     id: '19',
@@ -285,7 +284,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Chen',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 145
+    pages: 145,
   },
   {
     id: '20',
@@ -298,9 +297,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Edwards',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 87
+    pages: 87,
   },
-  
+
   // Corporate Law
   {
     id: '21',
@@ -313,7 +312,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Zachariah',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 123
+    pages: 123,
   },
   {
     id: '22',
@@ -326,9 +325,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Collins',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 176
+    pages: 176,
   },
-  
+
   // Criminal Law
   {
     id: '23',
@@ -341,7 +340,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Thompson',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 62
+    pages: 62,
   },
   {
     id: '24',
@@ -354,9 +353,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Turner',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 154
+    pages: 154,
   },
-  
+
   // Criminal Procedure
   {
     id: '25',
@@ -369,7 +368,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Thompson',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 95
+    pages: 95,
   },
   {
     id: '26',
@@ -382,9 +381,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Brown',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 138
+    pages: 138,
   },
-  
+
   // Domestic Relations
   {
     id: '27',
@@ -397,7 +396,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Johnson',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 76
+    pages: 76,
   },
   {
     id: '28',
@@ -410,9 +409,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Wright',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 115
+    pages: 115,
   },
-  
+
   // Employment Law
   {
     id: '29',
@@ -425,7 +424,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Miller',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 167
+    pages: 167,
   },
   {
     id: '30',
@@ -438,9 +437,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Lopez',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 118
+    pages: 118,
   },
-  
+
   // Energy Law
   {
     id: '31',
@@ -453,7 +452,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Williams',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 141
+    pages: 141,
   },
   {
     id: '32',
@@ -466,9 +465,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Hall',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 69
+    pages: 69,
   },
-  
+
   // Environmental Law
   {
     id: '33',
@@ -481,7 +480,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Williams',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 189
+    pages: 189,
   },
   {
     id: '34',
@@ -494,9 +493,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Phillips',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 102
+    pages: 102,
   },
-  
+
   // Estate Planning
   {
     id: '35',
@@ -509,7 +508,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Wilson',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 84
+    pages: 84,
   },
   {
     id: '36',
@@ -522,9 +521,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Allen',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 132
+    pages: 132,
   },
-  
+
   // Evidence
   {
     id: '37',
@@ -537,7 +536,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Taylor',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 159
+    pages: 159,
   },
   {
     id: '38',
@@ -550,9 +549,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Brown',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 174
+    pages: 174,
   },
-  
+
   // Family Law
   {
     id: '39',
@@ -565,7 +564,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Johnson',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 122
+    pages: 122,
   },
   {
     id: '40',
@@ -578,9 +577,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Wright',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 93
+    pages: 93,
   },
-  
+
   // Financial Regulation
   {
     id: '41',
@@ -593,7 +592,7 @@ const mockOutlines: Outline[] = [
     instructor: 'White',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 147
+    pages: 147,
   },
   {
     id: '42',
@@ -606,9 +605,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Young',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 71
+    pages: 71,
   },
-  
+
   // Health Law
   {
     id: '43',
@@ -621,7 +620,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Harris',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 183
+    pages: 183,
   },
   {
     id: '44',
@@ -634,9 +633,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Campbell',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 85
+    pages: 85,
   },
-  
+
   // Immigration Law
   {
     id: '45',
@@ -649,7 +648,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Jackson',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 108
+    pages: 108,
   },
   {
     id: '46',
@@ -662,9 +661,9 @@ const mockOutlines: Outline[] = [
     instructor: 'King',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 161
+    pages: 161,
   },
-  
+
   // Intellectual Property Law
   {
     id: '47',
@@ -677,7 +676,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Davis',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 194
+    pages: 194,
   },
   {
     id: '48',
@@ -690,9 +689,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Green',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 99
+    pages: 99,
   },
-  
+
   // International Law
   {
     id: '49',
@@ -705,7 +704,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Jackson',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 149
+    pages: 149,
   },
   {
     id: '50',
@@ -718,9 +717,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Sanchez',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 207
+    pages: 207,
   },
-  
+
   // Labor Law
   {
     id: '51',
@@ -733,7 +732,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Miller',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 111
+    pages: 111,
   },
   {
     id: '52',
@@ -746,9 +745,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Lopez',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 179
+    pages: 179,
   },
-  
+
   // Medical Malpractice
   {
     id: '53',
@@ -761,7 +760,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Harris',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 105
+    pages: 105,
   },
   {
     id: '54',
@@ -774,9 +773,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Scott',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 136
+    pages: 136,
   },
-  
+
   // Patent Law
   {
     id: '55',
@@ -789,7 +788,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Davis',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 81
+    pages: 81,
   },
   {
     id: '56',
@@ -802,9 +801,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Green',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 129
+    pages: 129,
   },
-  
+
   // Personal Injury Law
   {
     id: '57',
@@ -817,7 +816,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Moore',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 214
+    pages: 214,
   },
   {
     id: '58',
@@ -830,9 +829,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Adams',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 56
+    pages: 56,
   },
-  
+
   // Property Law
   {
     id: '59',
@@ -845,7 +844,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Anderson',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 172
+    pages: 172,
   },
   {
     id: '60',
@@ -858,9 +857,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Stewart',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 288
+    pages: 288,
   },
-  
+
   // Real Estate Law
   {
     id: '61',
@@ -873,7 +872,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Anderson',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 143
+    pages: 143,
   },
   {
     id: '62',
@@ -886,9 +885,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Baker',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 327
+    pages: 327,
   },
-  
+
   // Securities Law
   {
     id: '63',
@@ -901,7 +900,7 @@ const mockOutlines: Outline[] = [
     instructor: 'White',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 89
+    pages: 89,
   },
   {
     id: '64',
@@ -914,9 +913,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Martinez',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 256
+    pages: 256,
   },
-  
+
   // Tax Law
   {
     id: '65',
@@ -929,7 +928,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Wilson',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 467
+    pages: 467,
   },
   {
     id: '66',
@@ -942,9 +941,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Parker',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 112
+    pages: 112,
   },
-  
+
   // Torts
   {
     id: '67',
@@ -957,7 +956,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Moore',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 378
+    pages: 378,
   },
   {
     id: '68',
@@ -970,9 +969,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Evans',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 234
+    pages: 234,
   },
-  
+
   // Trial Advocacy
   {
     id: '69',
@@ -985,7 +984,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Taylor',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 1
+    pages: 1,
   },
   {
     id: '70',
@@ -998,9 +997,9 @@ const mockOutlines: Outline[] = [
     instructor: 'Nelson',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 500
+    pages: 500,
   },
-  
+
   // Additional Attack Outlines (25 pages or less) - One per course
   {
     id: '71',
@@ -1013,7 +1012,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Carter',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 18
+    pages: 18,
   },
   {
     id: '72',
@@ -1026,7 +1025,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Foster',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 22
+    pages: 22,
   },
   {
     id: '73',
@@ -1039,7 +1038,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Clark',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 16
+    pages: 16,
   },
   {
     id: '74',
@@ -1052,7 +1051,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Mitchell',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 20
+    pages: 20,
   },
   {
     id: '75',
@@ -1065,7 +1064,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Perez',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 25
+    pages: 25,
   },
   {
     id: '76',
@@ -1078,7 +1077,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Rodriguez',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 19
+    pages: 19,
   },
   {
     id: '77',
@@ -1091,7 +1090,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Lee',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 14
+    pages: 14,
   },
   {
     id: '78',
@@ -1104,7 +1103,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Garcia',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 21
+    pages: 21,
   },
   {
     id: '79',
@@ -1117,7 +1116,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Morris',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 17
+    pages: 17,
   },
   {
     id: '80',
@@ -1130,7 +1129,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Edwards',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 23
+    pages: 23,
   },
   {
     id: '81',
@@ -1143,7 +1142,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Collins',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 15
+    pages: 15,
   },
   {
     id: '82',
@@ -1156,7 +1155,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Turner',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 24
+    pages: 24,
   },
   {
     id: '83',
@@ -1169,7 +1168,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Brown',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 18
+    pages: 18,
   },
   {
     id: '84',
@@ -1182,7 +1181,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Wright',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 13
+    pages: 13,
   },
   {
     id: '85',
@@ -1195,7 +1194,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Lopez',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 22
+    pages: 22,
   },
   {
     id: '86',
@@ -1208,7 +1207,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Hall',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 16
+    pages: 16,
   },
   {
     id: '87',
@@ -1221,7 +1220,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Phillips',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 20
+    pages: 20,
   },
   {
     id: '88',
@@ -1234,7 +1233,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Allen',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 19
+    pages: 19,
   },
   {
     id: '89',
@@ -1247,7 +1246,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Nelson',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 25
+    pages: 25,
   },
   {
     id: '90',
@@ -1260,7 +1259,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Johnson',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 17
+    pages: 17,
   },
   {
     id: '91',
@@ -1273,7 +1272,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Young',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 21
+    pages: 21,
   },
   {
     id: '92',
@@ -1286,7 +1285,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Campbell',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 14
+    pages: 14,
   },
   {
     id: '93',
@@ -1299,7 +1298,7 @@ const mockOutlines: Outline[] = [
     instructor: 'King',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 23
+    pages: 23,
   },
   {
     id: '94',
@@ -1312,7 +1311,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Green',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 18
+    pages: 18,
   },
   {
     id: '95',
@@ -1325,7 +1324,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Sanchez',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 25
+    pages: 25,
   },
   {
     id: '96',
@@ -1338,7 +1337,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Miller',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 15
+    pages: 15,
   },
   {
     id: '97',
@@ -1351,7 +1350,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Scott',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 22
+    pages: 22,
   },
   {
     id: '98',
@@ -1364,7 +1363,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Davis',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 19
+    pages: 19,
   },
   {
     id: '99',
@@ -1377,7 +1376,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Adams',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 16
+    pages: 16,
   },
   {
     id: '100',
@@ -1390,7 +1389,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Stewart',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 24
+    pages: 24,
   },
   {
     id: '101',
@@ -1403,7 +1402,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Baker',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 21
+    pages: 21,
   },
   {
     id: '102',
@@ -1416,7 +1415,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Martinez',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 17
+    pages: 17,
   },
   {
     id: '103',
@@ -1429,7 +1428,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Parker',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 20
+    pages: 20,
   },
   {
     id: '104',
@@ -1442,7 +1441,7 @@ const mockOutlines: Outline[] = [
     instructor: 'Evans',
     fileType: 'PDF',
     fileUrl: '/sample-outline.pdf',
-    pages: 13
+    pages: 13,
   },
   {
     id: '105',
@@ -1455,33 +1454,65 @@ const mockOutlines: Outline[] = [
     instructor: 'Taylor',
     fileType: 'DOC',
     fileUrl: '/sample-outline.doc',
-    pages: 12
-  }
+    pages: 12,
+  },
 ];
 
 const mockInstructors: Instructor[] = [
-  { id: '1', name: 'Abel', courses: ['Administrative Law', 'Business Taxation'] },
-  { id: '2', name: 'Di\'Angelo', courses: ['Advanced Constitutional Law'] },
+  {
+    id: '1',
+    name: 'Abel',
+    courses: ['Administrative Law', 'Business Taxation'],
+  },
+  { id: '2', name: "Di'Angelo", courses: ['Advanced Constitutional Law'] },
   { id: '3', name: 'Zachariah', courses: ['Bankruptcy', 'Corporate Law'] },
-  { id: '4', name: 'Rodriguez', courses: ['Constitutional Law', 'Civil Rights Law'] },
+  {
+    id: '4',
+    name: 'Rodriguez',
+    courses: ['Constitutional Law', 'Civil Rights Law'],
+  },
   { id: '5', name: 'Chen', courses: ['Contract Law', 'Commercial Law'] },
-  { id: '6', name: 'Thompson', courses: ['Criminal Law', 'Criminal Procedure'] },
+  {
+    id: '6',
+    name: 'Thompson',
+    courses: ['Criminal Law', 'Criminal Procedure'],
+  },
   { id: '7', name: 'Williams', courses: ['Environmental Law', 'Energy Law'] },
   { id: '8', name: 'Johnson', courses: ['Family Law', 'Domestic Relations'] },
-  { id: '9', name: 'Davis', courses: ['Intellectual Property Law', 'Patent Law'] },
+  {
+    id: '9',
+    name: 'Davis',
+    courses: ['Intellectual Property Law', 'Patent Law'],
+  },
   { id: '10', name: 'Miller', courses: ['Labor Law', 'Employment Law'] },
   { id: '11', name: 'Wilson', courses: ['Tax Law', 'Estate Planning'] },
   { id: '12', name: 'Moore', courses: ['Torts', 'Personal Injury Law'] },
   { id: '13', name: 'Taylor', courses: ['Evidence', 'Trial Advocacy'] },
   { id: '14', name: 'Anderson', courses: ['Real Estate Law', 'Property Law'] },
-  { id: '15', name: 'Jackson', courses: ['International Law', 'Immigration Law'] },
-  { id: '16', name: 'White', courses: ['Securities Law', 'Financial Regulation'] },
+  {
+    id: '15',
+    name: 'Jackson',
+    courses: ['International Law', 'Immigration Law'],
+  },
+  {
+    id: '16',
+    name: 'White',
+    courses: ['Securities Law', 'Financial Regulation'],
+  },
   { id: '17', name: 'Harris', courses: ['Health Law', 'Medical Malpractice'] },
   { id: '18', name: 'Clark', courses: ['Antitrust Law', 'Competition Law'] },
-  
+
   // Additional professors for comprehensive coverage
-  { id: '19', name: 'Barnes', courses: ['Administrative Law', 'Constitutional Law'] },
-  { id: '20', name: 'Foster', courses: ['Advanced Constitutional Law', 'Civil Rights Law'] },
+  {
+    id: '19',
+    name: 'Barnes',
+    courses: ['Administrative Law', 'Constitutional Law'],
+  },
+  {
+    id: '20',
+    name: 'Foster',
+    courses: ['Advanced Constitutional Law', 'Civil Rights Law'],
+  },
   { id: '21', name: 'Kim', courses: ['Antitrust Law', 'Securities Law'] },
   { id: '22', name: 'Roberts', courses: ['Bankruptcy', 'Business Taxation'] },
   { id: '23', name: 'Lee', courses: ['Commercial Law', 'Contract Law'] },
@@ -1492,10 +1523,18 @@ const mockInstructors: Instructor[] = [
   { id: '28', name: 'Lopez', courses: ['Employment Law', 'Labor Law'] },
   { id: '29', name: 'Hall', courses: ['Energy Law', 'Environmental Law'] },
   { id: '30', name: 'Allen', courses: ['Estate Planning', 'Tax Law'] },
-  { id: '31', name: 'Young', courses: ['Financial Regulation', 'Securities Law'] },
+  {
+    id: '31',
+    name: 'Young',
+    courses: ['Financial Regulation', 'Securities Law'],
+  },
   { id: '32', name: 'King', courses: ['Immigration Law', 'International Law'] },
   { id: '33', name: 'Scott', courses: ['Medical Malpractice', 'Health Law'] },
-  { id: '34', name: 'Green', courses: ['Patent Law', 'Intellectual Property Law'] },
+  {
+    id: '34',
+    name: 'Green',
+    courses: ['Patent Law', 'Intellectual Property Law'],
+  },
   { id: '35', name: 'Adams', courses: ['Personal Injury Law', 'Torts'] },
   { id: '36', name: 'Baker', courses: ['Property Law', 'Real Estate Law'] },
   { id: '37', name: 'Nelson', courses: ['Trial Advocacy', 'Evidence'] },
@@ -1511,12 +1550,12 @@ const mockInstructors: Instructor[] = [
   { id: '47', name: 'Collins', courses: ['Corporate Law'] },
   { id: '48', name: 'Stewart', courses: ['Property Law'] },
   { id: '49', name: 'Sanchez', courses: ['International Law'] },
-  { id: '50', name: 'Morris', courses: ['Constitutional Law'] }
+  { id: '50', name: 'Morris', courses: ['Constitutional Law'] },
 ];
 
 const courses = [
   'Administrative Law',
-  'Advanced Constitutional Law', 
+  'Advanced Constitutional Law',
   'Antitrust Law',
   'Bankruptcy',
   'Business Taxation',
@@ -1549,7 +1588,7 @@ const courses = [
   'Securities Law',
   'Tax Law',
   'Torts',
-  'Trial Advocacy'
+  'Trial Advocacy',
 ];
 
 // Calendar Event Interface
@@ -1565,25 +1604,93 @@ interface CalendarEvent {
   description?: string;
 }
 
-
 // Main App Content Component
 function AppContent({ user, loading }: { user: any; loading: boolean }) {
+  // Local auth state: remove authGuard and check directly here
+  const [authLoading, setAuthLoading] = useState(true);
+  const [isVerified, setIsVerified] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const checkAuthAndProfile = async () => {
+      try {
+        // Determine current user
+        let currentUser = user;
+        if (!currentUser) {
+          const { data } = await supabase.auth.getSession();
+          currentUser = data.session?.user ?? null;
+        }
+
+        if (!currentUser) {
+          if (isMounted) {
+            setIsVerified(false);
+            setAuthLoading(false);
+          }
+          return;
+        }
+
+        // Fetch profile verification flag
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('access_code_verified')
+          .eq('id', currentUser.id)
+          .single();
+
+        if (error) {
+          // Treat errors or missing profile as unverified
+          if (isMounted) {
+            setIsVerified(false);
+            setAuthLoading(false);
+          }
+          return;
+        }
+
+        if (isMounted) {
+          setIsVerified(profile?.access_code_verified === true);
+          setAuthLoading(false);
+        }
+      } catch (_err) {
+        if (isMounted) {
+          setIsVerified(false);
+          setAuthLoading(false);
+        }
+      }
+    };
+
+    checkAuthAndProfile();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(() => {
+      checkAuthAndProfile();
+    });
+
+    return () => {
+      isMounted = false;
+      listener.subscription.unsubscribe();
+    };
+  }, [user]);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
-  const [hasEnteredAccessCode, setHasEnteredAccessCode] = useState(false);
   const [selectedOutline, setSelectedOutline] = useState<Outline | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
   const [selectedInstructor, setSelectedInstructor] = useState('');
-  const [selectedGrade, setSelectedGrade] = useState<string | undefined>(undefined);
-  const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
+  const [selectedGrade, setSelectedGrade] = useState<string | undefined>(
+    undefined
+  );
+  const [selectedYear, setSelectedYear] = useState<string | undefined>(
+    undefined
+  );
   const [showOutlines, setShowOutlines] = useState(true);
   const [showAttacks, setShowAttacks] = useState(true);
-  const [activeTab, setActiveTab] = useState<'search' | 'saved' | 'upload'>('search');
+  const [activeTab, setActiveTab] = useState<'search' | 'saved' | 'upload'>(
+    'search'
+  );
   const [savedOutlines, setSavedOutlines] = useState<Outline[]>([]);
   const [hiddenOutlines, setHiddenOutlines] = useState<string[]>([]);
   const [activeSection, setActiveSection] = useState('home');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
-  const [selectedCourseForSearch, setSelectedCourseForSearch] = useState<string>('');
+  const [selectedCourseForSearch, setSelectedCourseForSearch] =
+    useState<string>('');
   const [selectedStudent, setSelectedStudent] = useState<string>('');
 
   const [sortBy, setSortBy] = useState('Highest Rated');
@@ -1591,18 +1698,21 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
   // Shared calendar events state
   const [calendarEvents] = useState<CalendarEvent[]>([]);
 
-  const handleNavigateToOutlines = (courseName: string, outlineName: string) => {
+  const handleNavigateToOutlines = (
+    courseName: string,
+    outlineName: string
+  ) => {
     // Find the outline that matches the course and name
-    const outline = mockOutlines.find(o => 
-      o.course === courseName && o.title === outlineName
+    const outline = mockOutlines.find(
+      (o) => o.course === courseName && o.title === outlineName
     );
-    
+
     if (outline) {
       // Set the course and instructor to show the outline
       setSelectedCourseForSearch(courseName);
       setSelectedInstructor(outline.instructor);
       setSelectedOutline(outline);
-      
+
       // Switch to outlines section
       setActiveSection('outlines');
       setActiveTab('search');
@@ -1623,7 +1733,7 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
     // Set the course for the outlines search but don't select a specific outline
     setSelectedCourseForSearch(courseName);
     // Get any instructor for this course to enable the outline display
-    const courseInstructors = mockInstructors.filter(instructor => 
+    const courseInstructors = mockInstructors.filter((instructor) =>
       instructor.courses.includes(courseName)
     );
     if (courseInstructors.length > 0) {
@@ -1644,34 +1754,42 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
     setActiveSection('course');
   };
 
-
   // Filter outlines based on search criteria
-  const filteredOutlines = mockOutlines.filter(outline => {
+  const filteredOutlines = mockOutlines.filter((outline) => {
     // Don't show any outlines unless BOTH a course AND instructor are selected
     if (selectedCourseForSearch === '' || selectedInstructor === '') {
       return false;
     }
-    
+
     // Exclude hidden outlines
     if (hiddenOutlines.includes(outline.id)) {
       return false;
     }
-    
-    const matchesSearch = searchTerm === '' || 
+
+    const matchesSearch =
+      searchTerm === '' ||
       outline.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       outline.course.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesCourse = outline.course === selectedCourseForSearch;
     const matchesInstructor = outline.instructor === selectedInstructor;
     const matchesGrade = !selectedGrade || outline.type === selectedGrade;
     const matchesYear = !selectedYear || outline.year === selectedYear;
-    
+
     // Filter by Outline/Attack type based on page count
     const isAttack = outline.pages <= 25;
     const isOutline = outline.pages > 25;
-    const matchesType = (isAttack && showAttacks) || (isOutline && showOutlines);
-    
-    return matchesSearch && matchesCourse && matchesInstructor && matchesGrade && matchesYear && matchesType;
+    const matchesType =
+      (isAttack && showAttacks) || (isOutline && showOutlines);
+
+    return (
+      matchesSearch &&
+      matchesCourse &&
+      matchesInstructor &&
+      matchesGrade &&
+      matchesYear &&
+      matchesType
+    );
   });
 
   // Sort outlines
@@ -1686,9 +1804,9 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
   });
 
   const handleSaveOutline = (outline: Outline) => {
-    setSavedOutlines(prev => {
+    setSavedOutlines((prev) => {
       // Check if outline is already saved
-      if (prev.some(saved => saved.id === outline.id)) {
+      if (prev.some((saved) => saved.id === outline.id)) {
         return prev; // Don't add duplicates
       }
       return [...prev, outline];
@@ -1696,14 +1814,16 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
   };
 
   const handleRemoveSavedOutline = (outlineId: string) => {
-    setSavedOutlines(prev => prev.filter(outline => outline.id !== outlineId));
+    setSavedOutlines((prev) =>
+      prev.filter((outline) => outline.id !== outlineId)
+    );
   };
 
   const handleToggleSaveOutline = (outline: Outline) => {
-    setSavedOutlines(prev => {
-      const isAlreadySaved = prev.some(saved => saved.id === outline.id);
+    setSavedOutlines((prev) => {
+      const isAlreadySaved = prev.some((saved) => saved.id === outline.id);
       if (isAlreadySaved) {
-        return prev.filter(saved => saved.id !== outline.id);
+        return prev.filter((saved) => saved.id !== outline.id);
       } else {
         return [...prev, outline];
       }
@@ -1711,13 +1831,12 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
   };
 
   const handleHideOutline = (outlineId: string) => {
-    setHiddenOutlines(prev => [...prev, outlineId]);
+    setHiddenOutlines((prev) => [...prev, outlineId]);
   };
 
   const handleUnhideAllOutlines = () => {
     setHiddenOutlines([]);
   };
-
 
   const handleSectionChange = (section: string) => {
     setActiveSection(section);
@@ -1725,15 +1844,24 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
   };
 
   const handleToggleSidebar = () => {
-    setSidebarCollapsed(prev => !prev);
+    setSidebarCollapsed((prev) => !prev);
   };
 
   // Show loading state while checking authentication
-  if (loading) {
+  console.log('App state:', {
+    loading,
+    authLoading,
+    isVerified,
+    user,
+  });
+  if (loading || authLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 text-white rounded-full mb-4" style={{ backgroundColor: '#752432' }}>
+          <div
+            className="inline-flex items-center justify-center w-16 h-16 text-white rounded-full mb-4"
+            style={{ backgroundColor: '#752432' }}
+          >
             <span className="text-2xl font-semibold">HLS</span>
           </div>
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
@@ -1748,33 +1876,41 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
     return <AuthPage />;
   }
 
-  // Show access code page if user is authenticated but hasn't entered access code
-  if (!hasEnteredAccessCode) {
-    return <AccessCodePage onComplete={() => setHasEnteredAccessCode(true)} />;
+  // Show access code verification page if user hasn't verified their access code
+  if (!isVerified) {
+    return (
+      <AccessCodeVerification
+        onVerified={async () => {
+          // Mark verified locally; server-side already updated profile
+          setIsVerified(true);
+        }}
+      />
+    );
   }
 
   // Show onboarding flow if user hasn't completed onboarding
   if (!hasCompletedOnboarding) {
-    return <OnboardingFlow onComplete={() => setHasCompletedOnboarding(true)} />;
+    return (
+      <OnboardingFlow onComplete={() => setHasCompletedOnboarding(true)} />
+    );
   }
 
   return (
     <div className="h-screen bg-gray-100 flex">
-        {/* Navigation Sidebar */}
-        <NavigationSidebar
-          activeSection={activeSection}
-          onSectionChange={handleSectionChange}
-          isCollapsed={sidebarCollapsed}
-          onToggleCollapsed={handleToggleSidebar}
-        />
-        
-        
-        {/* Toast Notifications */}
-        <Toaster position="top-right" />
-        
-        {/* Search Sidebar - Only show when in outlines or exams section */}
-        {(activeSection === 'outlines' || activeSection === 'exams') && (
-          <SearchSidebar
+      {/* Navigation Sidebar */}
+      <NavigationSidebar
+        activeSection={activeSection}
+        onSectionChange={handleSectionChange}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapsed={handleToggleSidebar}
+      />
+
+      {/* Toast Notifications */}
+      <Toaster position="top-right" />
+
+      {/* Search Sidebar - Only show when in outlines or exams section */}
+      {(activeSection === 'outlines' || activeSection === 'exams') && (
+        <SearchSidebar
           outlines={sortedOutlines}
           allOutlines={mockOutlines}
           courses={courses}
@@ -1806,114 +1942,136 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
           onHideOutline={handleHideOutline}
           onUnhideAllOutlines={handleUnhideAllOutlines}
         />
-        )}
-        
-        {/* Main Content */}
-        <div className="flex-1">
-          {activeSection === 'outlines' ? (
-            activeTab === 'upload' ? (
-              <div className="flex items-center justify-center h-full bg-gray-100">
-                <div className="text-center p-8">
-                  <FileText className="w-24 h-24 text-gray-400 mx-auto mb-4" />
-                  <h2 className="text-2xl font-medium text-gray-700 mb-4">
-                    Upload Your Outline
-                  </h2>
-                  <p className="text-gray-600 mb-6 max-w-md">
-                    Use the upload form in the sidebar to share your study materials with the community.
-                  </p>
-                  <div className="bg-white rounded-lg shadow-sm p-6 max-w-lg mx-auto">
-                    <h3 className="font-medium text-gray-800 mb-3">Upload Guidelines:</h3>
-                    <ul className="text-sm text-gray-600 space-y-2 text-left">
-                      <li>• Accepted formats: PDF, DOC, DOCX</li>
-                      <li>• Maximum file size: 50MB</li>
-                      <li>• Only upload your original work</li>
-                      <li>• Include accurate course and instructor information</li>
-                      <li>• Use descriptive titles for better discoverability</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <OutlineViewer 
-                outline={selectedOutline} 
-                onSaveOutline={handleSaveOutline}
-                isSaved={selectedOutline ? savedOutlines.some(saved => saved.id === selectedOutline.id) : false}
-              />
-            )
-          ) : activeSection === 'exams' ? (
-            activeTab === 'upload' ? (
-              <div className="flex items-center justify-center h-full bg-gray-100">
-                <div className="text-center p-8">
-                  <FileText className="w-24 h-24 text-gray-400 mx-auto mb-4" />
-                  <h2 className="text-2xl font-medium text-gray-700 mb-4">
-                    Upload Your Exam
-                  </h2>
-                  <p className="text-gray-600 mb-6 max-w-md">
-                    Use the upload form in the sidebar to share your exam materials with the community.
-                  </p>
-                  <div className="bg-white rounded-lg shadow-sm p-6 max-w-lg mx-auto">
-                    <h3 className="font-medium text-gray-800 mb-3">Upload Guidelines:</h3>
-                    <ul className="text-sm text-gray-600 space-y-2 text-left">
-                      <li>• Accepted formats: PDF, DOC, DOCX</li>
-                      <li>• Maximum file size: 50MB</li>
-                      <li>• Only upload your original work</li>
-                      <li>• Include accurate course and instructor information</li>
-                      <li>• Use descriptive titles for better discoverability</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <OutlineViewer 
-                outline={selectedOutline} 
-                onSaveOutline={handleSaveOutline}
-                isSaved={selectedOutline ? savedOutlines.some(saved => saved.id === selectedOutline.id) : false}
-              />
-            )
-          ) : activeSection === 'reviews' ? (
-            <ReviewsPage />
-          ) : activeSection === 'home' ? (
-            <HomePage 
-              onNavigateToOutlines={handleNavigateToOutlines}
-              onNavigateToCourse={handleNavigateToCourse}
-            />
-          ) : activeSection === 'course' ? (
-            <CoursePage 
-              courseName={selectedCourse}
-              onBack={handleBackFromCourse}
-              onNavigateToOutlines={handleNavigateToOutlines}
-              onNavigateToOutlinesPage={handleNavigateToOutlinesPage}
-              onNavigateToStudentProfile={handleNavigateToStudentProfile}
-            />
-          ) : activeSection === 'student-profile' ? (
-            <ProfilePage 
-              studentName={selectedStudent}
-              onBack={handleBackFromStudentProfile}
-            />
-          ) : activeSection === 'calendar' ? (
-            <CalendarPage additionalEvents={calendarEvents} />
-          ) : activeSection === 'barreview' ? (
-            <BarReviewPage />
-          ) : activeSection === 'profile' ? (
-            <ProfilePage />
-          ) : activeSection === 'messaging' ? (
-            <MessagingPage />
-          ) : (
+      )}
+
+      {/* Main Content */}
+      <div className="flex-1">
+        {activeSection === 'outlines' ? (
+          activeTab === 'upload' ? (
             <div className="flex items-center justify-center h-full bg-gray-100">
               <div className="text-center p-8">
-                <div className="w-24 h-24 bg-gray-300 rounded-full mx-auto mb-4 flex items-center justify-center">
-                  <span className="text-2xl text-gray-600">📄</span>
-                </div>
+                <FileText className="w-24 h-24 text-gray-400 mx-auto mb-4" />
                 <h2 className="text-2xl font-medium text-gray-700 mb-4">
-                  Coming Soon
+                  Upload Your Outline
                 </h2>
-                <p className="text-gray-600 max-w-md">
-                  This section is currently under development.
+                <p className="text-gray-600 mb-6 max-w-md">
+                  Use the upload form in the sidebar to share your study
+                  materials with the community.
                 </p>
+                <div className="bg-white rounded-lg shadow-sm p-6 max-w-lg mx-auto">
+                  <h3 className="font-medium text-gray-800 mb-3">
+                    Upload Guidelines:
+                  </h3>
+                  <ul className="text-sm text-gray-600 space-y-2 text-left">
+                    <li>• Accepted formats: PDF, DOC, DOCX</li>
+                    <li>• Maximum file size: 50MB</li>
+                    <li>• Only upload your original work</li>
+                    <li>
+                      • Include accurate course and instructor information
+                    </li>
+                    <li>• Use descriptive titles for better discoverability</li>
+                  </ul>
+                </div>
               </div>
             </div>
-          )}
-        </div>
+          ) : (
+            <OutlineViewer
+              outline={selectedOutline}
+              onSaveOutline={handleSaveOutline}
+              isSaved={
+                selectedOutline
+                  ? savedOutlines.some(
+                      (saved) => saved.id === selectedOutline.id
+                    )
+                  : false
+              }
+            />
+          )
+        ) : activeSection === 'exams' ? (
+          activeTab === 'upload' ? (
+            <div className="flex items-center justify-center h-full bg-gray-100">
+              <div className="text-center p-8">
+                <FileText className="w-24 h-24 text-gray-400 mx-auto mb-4" />
+                <h2 className="text-2xl font-medium text-gray-700 mb-4">
+                  Upload Your Exam
+                </h2>
+                <p className="text-gray-600 mb-6 max-w-md">
+                  Use the upload form in the sidebar to share your exam
+                  materials with the community.
+                </p>
+                <div className="bg-white rounded-lg shadow-sm p-6 max-w-lg mx-auto">
+                  <h3 className="font-medium text-gray-800 mb-3">
+                    Upload Guidelines:
+                  </h3>
+                  <ul className="text-sm text-gray-600 space-y-2 text-left">
+                    <li>• Accepted formats: PDF, DOC, DOCX</li>
+                    <li>• Maximum file size: 50MB</li>
+                    <li>• Only upload your original work</li>
+                    <li>
+                      • Include accurate course and instructor information
+                    </li>
+                    <li>• Use descriptive titles for better discoverability</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <OutlineViewer
+              outline={selectedOutline}
+              onSaveOutline={handleSaveOutline}
+              isSaved={
+                selectedOutline
+                  ? savedOutlines.some(
+                      (saved) => saved.id === selectedOutline.id
+                    )
+                  : false
+              }
+            />
+          )
+        ) : activeSection === 'reviews' ? (
+          <ReviewsPage />
+        ) : activeSection === 'home' ? (
+          <HomePage
+            onNavigateToOutlines={handleNavigateToOutlines}
+            onNavigateToCourse={handleNavigateToCourse}
+          />
+        ) : activeSection === 'course' ? (
+          <CoursePage
+            courseName={selectedCourse}
+            onBack={handleBackFromCourse}
+            onNavigateToOutlines={handleNavigateToOutlines}
+            onNavigateToOutlinesPage={handleNavigateToOutlinesPage}
+            onNavigateToStudentProfile={handleNavigateToStudentProfile}
+          />
+        ) : activeSection === 'student-profile' ? (
+          <ProfilePage
+            studentName={selectedStudent}
+            onBack={handleBackFromStudentProfile}
+          />
+        ) : activeSection === 'calendar' ? (
+          <CalendarPage additionalEvents={calendarEvents} />
+        ) : activeSection === 'barreview' ? (
+          <BarReviewPage />
+        ) : activeSection === 'profile' ? (
+          <ProfilePage />
+        ) : activeSection === 'messaging' ? (
+          <MessagingPage />
+        ) : (
+          <div className="flex items-center justify-center h-full bg-gray-100">
+            <div className="text-center p-8">
+              <div className="w-24 h-24 bg-gray-300 rounded-full mx-auto mb-4 flex items-center justify-center">
+                <span className="text-2xl text-gray-600">📄</span>
+              </div>
+              <h2 className="text-2xl font-medium text-gray-700 mb-4">
+                Coming Soon
+              </h2>
+              <p className="text-gray-600 max-w-md">
+                This section is currently under development.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -1930,6 +2088,6 @@ export default function App() {
 // App component that uses AuthContext
 function AppWithAuth() {
   const { user, loading } = useAuth();
-  
+
   return <AppContent user={user} loading={loading} />;
 }

@@ -44,12 +44,41 @@ export function AccountCreation({ onComplete }: AccountCreationProps) {
       return;
     }
 
+    // Validate Harvard email before signup
+    try {
+      const response = await fetch(
+        'https://ujsnnvdbujguiejhxuds.supabase.co/functions/v1/validate-harvard-email',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({ email }),
+        }
+      );
+
+      const validation = await response.json();
+
+      if (!validation.valid) {
+        setError(
+          validation.error || 'Please use your Harvard Law School email address'
+        );
+        setLoading(false);
+        return;
+      }
+    } catch (err) {
+      setError('Unable to validate email address. Please try again.');
+      setLoading(false);
+      return;
+    }
+
     try {
       const { error } = await signUp(email, password, {
         first_name: firstName,
-        last_name: lastName
+        last_name: lastName,
       });
-      
+
       if (error) {
         setError(error.message);
       } else {
@@ -62,7 +91,7 @@ export function AccountCreation({ onComplete }: AccountCreationProps) {
     } catch (err) {
       setError('An unexpected error occurred');
     }
-    
+
     setLoading(false);
   };
 
@@ -77,7 +106,8 @@ export function AccountCreation({ onComplete }: AccountCreationProps) {
                 <div>
                   <h3 className="text-lg font-semibold">Account Created!</h3>
                   <p className="text-sm text-muted-foreground">
-                    Please check your email to verify your account, then we'll set up your academic profile.
+                    Please check your email to verify your account, then we'll
+                    set up your academic profile.
                   </p>
                 </div>
                 <div className="text-sm text-gray-600">
@@ -105,16 +135,18 @@ export function AccountCreation({ onComplete }: AccountCreationProps) {
 
         <Card className="shadow-lg">
           <CardHeader className="pb-6">
-            <CardTitle className="text-2xl text-center text-gray-900">Create Account</CardTitle>
+            <CardTitle className="text-2xl text-center text-gray-900">
+              Create Account
+            </CardTitle>
           </CardHeader>
-          
+
           <CardContent>
             {error && (
               <Alert variant="destructive" className="mb-4">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -142,7 +174,7 @@ export function AccountCreation({ onComplete }: AccountCreationProps) {
                   />
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="email">Email *</Label>
                 <Input
@@ -155,7 +187,7 @@ export function AccountCreation({ onComplete }: AccountCreationProps) {
                   disabled={loading}
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="password">Password *</Label>
                 <div className="relative">
@@ -184,7 +216,7 @@ export function AccountCreation({ onComplete }: AccountCreationProps) {
                   </Button>
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm Password *</Label>
                 <div className="relative">
@@ -213,8 +245,12 @@ export function AccountCreation({ onComplete }: AccountCreationProps) {
                   </Button>
                 </div>
               </div>
-              
-              <Button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white" disabled={loading}>
+
+              <Button
+                type="submit"
+                className="w-full bg-red-600 hover:bg-red-700 text-white"
+                disabled={loading}
+              >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Account
               </Button>
@@ -226,7 +262,9 @@ export function AccountCreation({ onComplete }: AccountCreationProps) {
         <div className="mt-8 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full border shadow-sm">
             <div className="w-2 h-2 bg-red-600 rounded-full"></div>
-            <span className="text-sm text-gray-600">Step 1 of 2 - Account Creation</span>
+            <span className="text-sm text-gray-600">
+              Step 1 of 2 - Account Creation
+            </span>
           </div>
         </div>
       </div>

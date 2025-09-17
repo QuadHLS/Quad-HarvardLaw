@@ -583,23 +583,41 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         throw new Error('User not authenticated');
       }
 
+      // Test Supabase connection first
+      console.log('Testing Supabase connection...');
+      const { data: testData, error: testError } = await supabase
+        .from('profiles')
+        .select('id')
+        .limit(1);
+
+      if (testError) {
+        console.error('Supabase connection test failed:', testError);
+        throw new Error(`Database connection failed: ${testError.message}`);
+      }
+
+      console.log('Supabase connection successful');
+
       // Save profile data to Supabase profiles table (including phone number)
+      const profileData = {
+        id: user.id,
+        name: name.trim(),
+        phone: phone.trim(),
+        section,
+        class_year: classYear,
+        classes: selectedClasses
+          .filter(selected => selected.lawClass && selected.professor)
+          .map(selected => ({
+            class: selected.lawClass!.name,
+            professor: selected.professor!.name
+          })),
+        updated_at: new Date().toISOString()
+      };
+
+      console.log('Attempting to save profile data:', profileData);
+
       const { error: profileError } = await supabase
         .from('profiles')
-        .upsert({
-          id: user.id,
-          name: name.trim(),
-          phone: phone.trim(),
-          section,
-          class_year: classYear,
-          classes: selectedClasses
-            .filter(selected => selected.lawClass && selected.professor)
-            .map(selected => ({
-              class: selected.lawClass!.name,
-              professor: selected.professor!.name
-            })),
-          updated_at: new Date().toISOString()
-        });
+        .upsert(profileData);
 
       if (profileError) {
         console.error('Error saving profile data:', profileError);

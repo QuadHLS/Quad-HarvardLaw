@@ -583,17 +583,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         throw new Error('User not authenticated');
       }
 
-      // Update user's phone number in Supabase auth.users table
-      const { error: phoneError } = await supabase.auth.updateUser({
-        data: { phone: phone.trim() }
-      });
-
-      if (phoneError) {
-        console.error('Error updating phone number:', phoneError);
-        throw phoneError;
-      }
-
-      // Save profile data to Supabase profiles table
+      // Save profile data to Supabase profiles table (including phone number)
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -623,7 +613,13 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       
     } catch (error) {
       console.error('Error saving onboarding data:', error);
-      alert('Error saving your profile. Please try again.');
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        user: user?.id,
+        phone: phone,
+        name: name
+      });
+      alert(`Error saving your profile: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
     } finally {
       setLoading(false);
     }

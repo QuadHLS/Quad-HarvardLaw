@@ -598,14 +598,9 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       selectedClassesLength: selectedClasses.length,
     });
 
-    // Require name, phone, section, class year, and class selection
+    // Require name, section, class year, and class selection
     if (!name.trim()) {
       console.log('Form invalid: missing name', { name });
-      return false;
-    }
-
-    if (!phone.trim()) {
-      console.log('Form invalid: missing phone', { phone });
       return false;
     }
 
@@ -718,7 +713,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         id: user.id,
         email: user.email || '', // Include email from authenticated user
         name: name.trim(),
-        phone: phone.trim(),
+        phone: phone.trim() || null, // Allow null for optional phone
         section,
         class_year: classYear,
         classes: selectedClasses
@@ -862,7 +857,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                       <div className="space-y-2">
                         <Label htmlFor="phone">
                           Phone Number
-                          <span style={{ color: '#752432' }}>*</span>
                         </Label>
                         <Input
                           id="phone"
@@ -871,7 +865,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                           onChange={(e) => setPhone(e.target.value)}
                           placeholder="Enter your phone number"
                           className="bg-input-background"
-                          required
                         />
                       </div>
                     </div>

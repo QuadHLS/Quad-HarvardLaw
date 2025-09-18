@@ -21,15 +21,28 @@ interface Professor {
   name: string;
 }
 
+interface CourseSchedule {
+  course_number: number;
+  course_name: string;
+  semester: string;
+  instructor: string;
+  credits: number;
+  days: string;
+  times: string;
+  location: string;
+}
+
 interface ClassSelectorProps {
   index: number;
   selectedClass: LawClass | null;
   selectedProfessor: Professor | null;
-  selectedSemester?: string;
+  selectedSchedule?: CourseSchedule | null;
   availableClasses: LawClass[];
+  scheduleOptions?: CourseSchedule[];
+  scheduleLoading?: boolean;
   onClassChange: (lawClass: LawClass | null) => void;
   onProfessorChange: (professor: Professor | null) => void;
-  onSemesterChange?: (semester: string) => void;
+  onScheduleChange?: (schedule: CourseSchedule | null) => void;
   isReadOnly?: boolean;
   isRequired?: boolean;
   classYear?: string;
@@ -39,11 +52,13 @@ export function ClassSelector({
   index,
   selectedClass,
   selectedProfessor,
-  selectedSemester = '',
+  selectedSchedule = null,
   availableClasses,
+  scheduleOptions = [],
+  scheduleLoading = false,
   onClassChange,
   onProfessorChange,
-  onSemesterChange,
+  onScheduleChange,
   isReadOnly = false,
   isRequired = false,
   classYear = '',
@@ -456,31 +471,96 @@ export function ClassSelector({
         </div>
       </div>
 
-      {/* Semester Selection */}
-      <div className="w-32">
-        <Label className="text-sm mb-2 block">
-          Semester
-          {isRequired && (
-            <span style={{ color: '#752432' }} className="ml-1">
-              *
-            </span>
+      {/* Schedule Selection - Always visible for all class years */}
+      {classYear && (
+        <div className="w-48">
+          <Label className="text-sm mb-2 block">
+            Schedule
+            {isRequired && (
+              <span style={{ color: '#752432' }} className="ml-1">
+                *
+              </span>
+            )}
+          </Label>
+
+          {scheduleLoading ? (
+            <div className="flex items-center text-sm text-gray-500 h-10 px-3 border rounded-md bg-input-background">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900 mr-2"></div>
+              Loading...
+            </div>
+          ) : (
+            <Select
+              value={
+                selectedSchedule
+                  ? `${selectedSchedule.course_number}|${selectedSchedule.semester}|${selectedSchedule.days}|${selectedSchedule.times}`
+                  : ''
+              }
+              onValueChange={(value) => {
+                console.log('Schedule selection changed:', {
+                  value,
+                  scheduleOptions,
+                });
+                const [courseNumber, semester, days, times] = value.split('|');
+                console.log('Parsed values:', {
+                  courseNumber,
+                  semester,
+                  days,
+                  times,
+                });
+                const schedule = scheduleOptions?.find(
+                  (opt) =>
+                    opt.course_number.toString() === courseNumber &&
+                    opt.semester === semester &&
+                    opt.days === days &&
+                    opt.times === times
+                );
+                console.log('Found schedule:', schedule);
+                if (onScheduleChange) {
+                  onScheduleChange(schedule || null);
+                }
+              }}
+              disabled={
+                !selectedClass ||
+                !selectedProfessor ||
+                !scheduleOptions ||
+                scheduleOptions.length === 0
+              }
+            >
+              <SelectTrigger className="bg-input-background">
+                <SelectValue
+                  placeholder={
+                    !selectedClass
+                      ? 'Select class first'
+                      : !selectedProfessor
+                      ? 'Select professor first'
+                      : !scheduleOptions || scheduleOptions.length === 0
+                      ? 'Loading schedules...'
+                      : 'Select schedule...'
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {scheduleOptions?.map((schedule, index) => (
+                  <SelectItem
+                    key={`${schedule.course_number}|${schedule.semester}|${schedule.days}|${schedule.times}|${index}`}
+                    value={`${schedule.course_number}|${schedule.semester}|${schedule.days}|${schedule.times}`}
+                  >
+                    <div className="flex flex-col">
+                      <div className="font-medium">
+                        {schedule.days || 'TBD'} • {schedule.times || 'TBD'}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {schedule.location || 'Location TBD'} •{' '}
+                        {schedule.semester} • {schedule.credits} credits
+                      </div>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
-        </Label>
-        <Select
-          value={selectedSemester}
-          onValueChange={(value) => onSemesterChange?.(value)}
-          disabled={!selectedClass && classYear !== '1L'}
-        >
-          <SelectTrigger className="bg-input-background">
-            <SelectValue placeholder="Select..." />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="FA">Fall (FA)</SelectItem>
-            <SelectItem value="WS">Winter (WS)</SelectItem>
-            <SelectItem value="SP">Spring (SP)</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

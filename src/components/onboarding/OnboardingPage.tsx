@@ -20,7 +20,18 @@ type ClassYear = '1L' | '2L' | '3L';
 interface SelectedClass {
   lawClass: LawClass | null;
   professor: Professor | null;
+  scheduleOption: CourseSchedule | null;
+}
+
+interface CourseSchedule {
+  course_number: number;
+  course_name: string;
   semester: string;
+  instructor: string;
+  credits: number;
+  days: string;
+  times: string;
+  location: string;
 }
 
 // Mock data - this should eventually come from your Supabase database
@@ -406,8 +417,8 @@ const getAvailableClasses = (
     );
     return [...requiredCourses, ...electiveCourses];
   }
-  // 2L/3L: Use API data if available, otherwise fall back to hardcoded data
-  return apiData.length > 0 ? apiData : lawClasses;
+  // 2L/3L: Use only API data from the Courses table
+  return apiData;
 };
 
 export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
@@ -419,11 +430,22 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   const [selectedClasses, setSelectedClasses] = useState<SelectedClass[]>(
     Array(10)
       .fill(null)
-      .map(() => ({ lawClass: null, professor: null, semester: '' }))
+      .map(() => ({
+        lawClass: null,
+        professor: null,
+        scheduleOption: null,
+      }))
   );
   const [loading, setLoading] = useState(false);
   const [apiCourses, setApiCourses] = useState<LawClass[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(false);
+  const [scheduleOptionsBySlot, setScheduleOptionsBySlot] = useState<{
+    [key: number]: CourseSchedule[];
+  }>({});
+  const [scheduleLoadingBySlot, setScheduleLoadingBySlot] = useState<{
+    [key: number]: boolean;
+  }>({});
+  const [allCourseData, setAllCourseData] = useState<any[]>([]);
 
   // Fetch courses from API for 2L/3L students
   useEffect(() => {
@@ -431,32 +453,92 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       if (classYear === '2L' || classYear === '3L') {
         setCoursesLoading(true);
         try {
-          const { data: session } = await supabase.auth.getSession();
-          if (!session?.session) return;
-
-          const response = await fetch(
-            `${
-              import.meta.env.VITE_SUPABASE_URL
-            }/functions/v1/get-courses?year_level=${classYear}`,
-            {
-              headers: {
-                Authorization: `Bearer ${session.session.access_token}`,
-                'Content-Type': 'application/json',
-              },
-            }
+          console.log(
+            'Fetching all courses from API for',
+            classYear,
+            'students...'
           );
 
-          if (!response.ok) throw new Error('Failed to fetch courses');
+          // Query Supabase directly for ALL course data including schedule details
+          console.log('Making Supabase query...');
+          const { data: courses, error } = await supabase
+            .from('Courses')
+            .select(
+              'course_number, course_name, instructor, credits, days, times, location, semester'
+            )
+            .order('course_name');
 
-          const data = await response.json();
-          setApiCourses(data.courses || []);
+          console.log('Supabase query completed:', { courses, error });
+
+          if (error) {
+            console.error('Supabase error:', error);
+            throw error;
+          }
+
+          console.log('Raw courses from API:', {
+            count: courses?.length || 0,
+            courses: courses,
+            firstFew: courses?.slice(0, 3),
+          });
+
+          // Store the full course data for later use
+          setAllCourseData(courses || []);
+
+          // Transform the data to match the expected format for the frontend
+          // Group courses by name and collect unique instructors as "professors"
+          const courseMap = new Map();
+
+          courses?.forEach((course: any) => {
+            const courseName = course.course_name;
+
+            if (!courseMap.has(courseName)) {
+              courseMap.set(courseName, {
+                id: course.course_number.toString(),
+                name: courseName,
+                professors: [],
+              });
+            }
+
+            // Add instructor(s) as professor(s) - handle multiple professors separated by semicolons
+            const courseData = courseMap.get(courseName);
+            if (course.instructor) {
+              // Split on semicolon and trim whitespace
+              const instructors = course.instructor
+                .split(';')
+                .map((inst: string) => inst.trim());
+
+              instructors.forEach((instructor: string) => {
+                if (
+                  instructor &&
+                  !courseData.professors.find((p: any) => p.name === instructor)
+                ) {
+                  courseData.professors.push({
+                    id: `${course.course_number}-${instructor}`,
+                    name: instructor,
+                  });
+                }
+              });
+            }
+          });
+
+          const transformedCourses = Array.from(courseMap.values());
+          console.log(
+            'Transformed courses for dropdown:',
+            transformedCourses.length,
+            transformedCourses.map((c) => c.name)
+          );
+          setApiCourses(transformedCourses);
         } catch (error) {
           console.error('Error fetching courses:', error);
-          // Fall back to hardcoded data on error
-          setApiCourses(lawClasses);
+          setApiCourses([]);
+          setAllCourseData([]);
         } finally {
           setCoursesLoading(false);
         }
+      } else {
+        // Clear courses when not 2L/3L
+        setApiCourses([]);
+        setAllCourseData([]);
       }
     };
 
@@ -478,17 +560,25 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
             return {
               lawClass: lawClass || null,
               professor: null,
-              semester: '',
+              scheduleOption: null,
             };
           }
-          return { lawClass: null, professor: null, semester: '' };
+          return {
+            lawClass: null,
+            professor: null,
+            scheduleOption: null,
+          };
         });
       setSelectedClasses(newSelectedClasses);
     } else if (classYear === '2L' || classYear === '3L') {
       // 2L/3L: 3 required + up to 7 more = 10 total maximum
       const newSelectedClasses = Array(10)
         .fill(null)
-        .map(() => ({ lawClass: null, professor: null, semester: '' }));
+        .map(() => ({
+          lawClass: null,
+          professor: null,
+          scheduleOption: null,
+        }));
       setSelectedClasses(newSelectedClasses);
     }
     // Clear section when class year changes
@@ -501,16 +591,16 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       return [];
     }
 
-    // For 2L/3L, don't exclude any classes (allow duplicates)
+    // For 2L/3L, return all fetched courses (no exclusions, allow duplicates)
     // For 1L, exclude already selected classes
     if (classYear === '2L' || classYear === '3L') {
-      const classes = getAvailableClasses(classYear, [], apiCourses);
-      console.log(
-        '2L/3L available classes (no exclusions):',
-        classes.length,
-        classes.map((c) => c.name)
-      );
-      return classes;
+      console.log('Getting available classes for 2L/3L:', {
+        classYear,
+        apiCoursesCount: apiCourses.length,
+        apiCourseNames: apiCourses.map((c) => c.name),
+        coursesLoading,
+      });
+      return apiCourses; // Return the fetched courses directly
     }
     const classes = getAvailableClasses(classYear, excludeIds);
     console.log(
@@ -521,6 +611,155 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       excludeIds
     );
     return classes;
+  };
+
+  // Get course schedule details from the already fetched data (no API call needed)
+  const fetchCourseDetails = async (
+    courseName: string,
+    instructor: string,
+    slotIndex: number
+  ) => {
+    console.log('Getting schedule details for:', {
+      courseName,
+      instructor,
+      classYear,
+      slotIndex,
+    });
+
+    // Set loading state for this specific slot
+    setScheduleLoadingBySlot((prev) => ({ ...prev, [slotIndex]: true }));
+
+    try {
+      let matchingCourses = [];
+
+      if (classYear === '1L') {
+        // For 1L students, create realistic schedule data based on course type
+        const getScheduleForCourse = (courseName: string) => {
+          // Different schedule patterns for different 1L courses
+          const scheduleOptions = [
+            {
+              days: 'Mon; Wed',
+              times: '10:15AM - 12:15PM',
+              location: 'WCC1015',
+            },
+            { days: 'Tue; Thu', times: '1:30PM - 3:30PM', location: 'WCC2004' },
+            { days: 'Mon; Wed', times: '1:30PM - 3:30PM', location: 'WCC1010' },
+            {
+              days: 'Thu; Fri',
+              times: '10:15AM - 12:15PM',
+              location: 'PND100',
+            },
+            {
+              days: 'Wed; Thu; Fri',
+              times: '8:30AM - 9:50AM',
+              location: 'WCC1023',
+            },
+          ];
+
+          // Use course name to consistently pick same schedule
+          const index = courseName.length % scheduleOptions.length;
+          return scheduleOptions[index];
+        };
+
+        const schedule = getScheduleForCourse(courseName);
+        // Generate consistent course number based on course name and instructor
+        const courseNumber =
+          1000 + (((courseName + instructor).length * 17) % 8000);
+
+        matchingCourses = [
+          {
+            course_number: courseNumber,
+            course_name: courseName,
+            semester: '2025FA',
+            instructor: instructor,
+            credits: courseName.includes('LRW') ? 2.0 : 4.0, // LRW courses are typically 2 credits
+            days: schedule.days,
+            times: schedule.times,
+            location: schedule.location,
+          },
+        ];
+      } else {
+        // For 2L/3L students, filter from the already fetched course data
+        matchingCourses = allCourseData.filter(
+          (course) =>
+            course.course_name === courseName &&
+            course.instructor === instructor
+        );
+      }
+
+      console.log(
+        'Found matching schedules from stored data:',
+        matchingCourses
+      );
+
+      // Create individual schedule options for each day-time combination
+      const scheduleOptions: CourseSchedule[] = [];
+
+      matchingCourses.forEach((course: any) => {
+        if (course.days && course.times) {
+          const days = course.days
+            .split(';')
+            .map((d: string) => d.trim())
+            .filter(Boolean);
+          const times = course.times
+            .split(';')
+            .map((t: string) => t.trim())
+            .filter(Boolean);
+
+          // Create a schedule option for each day-time pair
+          days.forEach((day: string, dayIndex: number) => {
+            const time = times[dayIndex] || times[0] || 'TBD'; // Use corresponding time or fallback
+
+            scheduleOptions.push({
+              course_number: course.course_number,
+              course_name: course.course_name,
+              semester: course.semester,
+              instructor: course.instructor,
+              credits: course.credits,
+              days: day,
+              times: time,
+              location: course.location,
+            });
+          });
+        } else {
+          // If no days/times, create a single schedule option
+          scheduleOptions.push({
+            course_number: course.course_number,
+            course_name: course.course_name,
+            semester: course.semester,
+            instructor: course.instructor,
+            credits: course.credits,
+            days: course.days || 'TBD',
+            times: course.times || 'TBD',
+            location: course.location,
+          });
+        }
+      });
+
+      console.log(
+        'Processed schedule options for slot',
+        slotIndex,
+        ':',
+        scheduleOptions
+      );
+
+      // Store schedule options for this specific slot
+      setScheduleOptionsBySlot((prev) => ({
+        ...prev,
+        [slotIndex]: scheduleOptions,
+      }));
+
+      // Simulate brief delay for UX
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      return scheduleOptions;
+    } catch (error) {
+      console.error('Error getting course details:', error);
+      setScheduleOptionsBySlot((prev) => ({ ...prev, [slotIndex]: [] }));
+      return [];
+    } finally {
+      setScheduleLoadingBySlot((prev) => ({ ...prev, [slotIndex]: false }));
+    }
   };
 
   const handleClassChange = (index: number, lawClass: LawClass | null) => {
@@ -537,9 +776,12 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     newSelectedClasses[index] = {
       lawClass,
       professor: null,
-      semester: newSelectedClasses[index].semester, // Preserve semester
+      scheduleOption: null,
     };
     setSelectedClasses(newSelectedClasses);
+
+    // Clear schedule options when class changes
+    setScheduleOptionsBySlot((prev) => ({ ...prev, [index]: [] }));
     console.log(
       'Updated selectedClasses:',
       newSelectedClasses.map((sc, i) => ({
@@ -553,7 +795,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     );
   };
 
-  const handleProfessorChange = (
+  const handleProfessorChange = async (
     index: number,
     professor: Professor | null
   ) => {
@@ -563,8 +805,25 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       classYear,
     });
     const newSelectedClasses = [...selectedClasses];
-    newSelectedClasses[index] = { ...newSelectedClasses[index], professor };
+    newSelectedClasses[index] = {
+      ...newSelectedClasses[index],
+      professor,
+      scheduleOption: null,
+    };
     setSelectedClasses(newSelectedClasses);
+
+    // For all students, fetch course schedule options after professor selection
+    if (professor && newSelectedClasses[index].lawClass) {
+      await fetchCourseDetails(
+        newSelectedClasses[index].lawClass!.name,
+        professor.name,
+        index
+      );
+    } else {
+      // Clear schedule options when professor is deselected
+      setScheduleOptionsBySlot((prev) => ({ ...prev, [index]: [] }));
+    }
+
     console.log(
       'Updated selectedClasses after professor change:',
       newSelectedClasses.map((sc, i) => ({
@@ -577,14 +836,20 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     );
   };
 
-  const handleSemesterChange = (index: number, semester: string) => {
-    console.log('Semester change:', {
+  const handleScheduleChange = (
+    index: number,
+    scheduleOption: CourseSchedule | null
+  ) => {
+    console.log('Schedule change:', {
       index,
-      semester,
+      scheduleOption,
       classYear,
     });
     const newSelectedClasses = [...selectedClasses];
-    newSelectedClasses[index] = { ...newSelectedClasses[index], semester };
+    newSelectedClasses[index] = {
+      ...newSelectedClasses[index],
+      scheduleOption,
+    };
     setSelectedClasses(newSelectedClasses);
   };
 
@@ -613,16 +878,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       console.log('Form invalid: missing class year', { classYear });
       return false;
     }
-
-    // Count selected classes with both class and professor
-    const validClasses = selectedClasses.filter(
-      (selected) => selected.lawClass && selected.professor
-    );
-
-    // Count classes with just class selected (for optional slots)
-    const classesWithClassOnly = selectedClasses.filter(
-      (selected) => selected.lawClass && !selected.professor
-    );
 
     // Check minimum requirements based on class year
     if (classYear === '1L') {
@@ -721,7 +976,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
           .map((selected) => ({
             class: selected.lawClass!.name,
             professor: selected.professor!.name,
-            semester: selected.semester,
+            schedule: selected.scheduleOption,
           })),
         classes_filled: true, // Mark that classes have been filled
         updated_at: new Date().toISOString(),
@@ -990,17 +1245,21 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                             index={index}
                             selectedClass={selectedClass.lawClass}
                             selectedProfessor={selectedClass.professor}
-                            selectedSemester={selectedClass.semester}
+                            selectedSchedule={selectedClass.scheduleOption}
                             availableClasses={availableClasses}
+                            scheduleOptions={scheduleOptionsBySlot[index] || []}
+                            scheduleLoading={
+                              scheduleLoadingBySlot[index] || false
+                            }
                             onClassChange={(lawClass) =>
                               handleClassChange(index, lawClass)
                             }
                             onProfessorChange={(professor) =>
                               handleProfessorChange(index, professor)
                             }
-                            onSemesterChange={(semester) =>
-                              handleSemesterChange(index, semester)
-                            }
+                            onScheduleChange={(
+                              schedule: CourseSchedule | null
+                            ) => handleScheduleChange(index, schedule)}
                             isReadOnly={classYear === '1L' && index < 8}
                             isRequired={isRequired}
                             classYear={classYear}

@@ -1630,24 +1630,10 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
           return;
         }
 
-        // Fetch profile verification flag
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('access_code_verified')
-          .eq('id', currentUser.id)
-          .single();
-
-        if (error) {
-          // Treat errors or missing profile as unverified
-          if (isMounted) {
-            setIsVerified(false);
-            setAuthLoading(false);
-          }
-          return;
-        }
-
+        // Always require access code verification on login
+        // Reset verification state when user changes
         if (isMounted) {
-          setIsVerified(profile?.access_code_verified === true);
+          setIsVerified(false);
           setAuthLoading(false);
         }
       } catch (_err) {
@@ -1876,8 +1862,7 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
     return <AuthPage />;
   }
 
-  // Show access code verification page if user hasn't verified their access code
-  // TEMPORARILY DISABLED - Access code verification is not required for now
+  // Show access code verification page - required every time user logs in
   if (!isVerified) {
     return (
       <AccessCodeVerification
@@ -2035,6 +2020,7 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
           <HomePage
             onNavigateToOutlines={handleNavigateToOutlines}
             onNavigateToCourse={handleNavigateToCourse}
+            user={user}
           />
         ) : activeSection === 'course' ? (
           <CoursePage

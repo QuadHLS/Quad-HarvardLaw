@@ -712,7 +712,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       const profileData = {
         id: user.id,
         email: user.email || '', // Include email from authenticated user
-        name: name.trim(),
+        full_name: name.trim(),
         phone: phone.trim() || null, // Allow null for optional phone
         section,
         class_year: classYear,

@@ -1,10 +1,11 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CheckCircle2, Circle, X, Plus, Clock } from 'lucide-react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { supabase } from '../lib/supabase';
 
 interface TodoItem {
   id: string;
@@ -280,9 +281,10 @@ function CourseCard({ title, instructor, nextEvent, onCourseClick }: CourseCardP
 
 interface HomePageProps {
   onNavigateToCourse?: (courseName: string) => void;
+  user?: any;
 }
 
-export function HomePage({ onNavigateToCourse }: HomePageProps) {
+export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
   const [todos, setTodos] = useState<TodoItem[]>([
     { id: '1', text: 'Review Torts outlines for tomorrow', completed: false, course: 'Torts', section: 'today' },
     { id: '2', text: 'Submit Property Law assignment', completed: true, course: 'Property Law', section: 'today' },
@@ -298,6 +300,43 @@ export function HomePage({ onNavigateToCourse }: HomePageProps) {
   const [addingToSection, setAddingToSection] = useState<'today' | 'thisWeek'>('today');
   const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
+  const [firstName, setFirstName] = useState<string>('');
+
+  // Function to extract first name from full name
+  const getFirstName = (fullName: string | null): string => {
+    if (!fullName) return '';
+    const trimmed = fullName.trim();
+    if (!trimmed) return '';
+    const firstSpaceIndex = trimmed.indexOf(' ');
+    return firstSpaceIndex === -1 ? trimmed : trimmed.substring(0, firstSpaceIndex);
+  };
+
+  // Fetch user's first name from profile
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user?.id) return;
+      
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching profile:', error);
+          return;
+        }
+
+        const first = getFirstName(profile?.full_name);
+        setFirstName(first);
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+
+    fetchUserProfile();
+  }, [user]);
   
   const toggleTodo = (id: string) => {
     setTodos(prev => prev.map(todo => 
@@ -439,7 +478,9 @@ export function HomePage({ onNavigateToCourse }: HomePageProps) {
         <div className="flex gap-6">
           {/* Left Content - Extended */}
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-medium text-gray-900 mb-6">Welcome, Luke!</h1>
+            <h1 className="text-2xl font-medium text-gray-900 mb-6">
+              Welcome{firstName ? `, ${firstName}` : ''}!
+            </h1>
             
             {/* Interactive To-Do List */}
             <div className="mb-8">

@@ -2,6 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { ChevronDown } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select';
 
 interface LawClass {
   id: string;
@@ -18,9 +25,11 @@ interface ClassSelectorProps {
   index: number;
   selectedClass: LawClass | null;
   selectedProfessor: Professor | null;
+  selectedSemester?: string;
   availableClasses: LawClass[];
   onClassChange: (lawClass: LawClass | null) => void;
   onProfessorChange: (professor: Professor | null) => void;
+  onSemesterChange?: (semester: string) => void;
   isReadOnly?: boolean;
   isRequired?: boolean;
   classYear?: string;
@@ -30,24 +39,26 @@ export function ClassSelector({
   index,
   selectedClass,
   selectedProfessor,
+  selectedSemester = '',
   availableClasses,
   onClassChange,
   onProfessorChange,
+  onSemesterChange,
   isReadOnly = false,
   isRequired = false,
-  classYear = ''
+  classYear = '',
 }: ClassSelectorProps) {
-  console.log('ClassSelector props:', { 
-    index, 
-    selectedClass: selectedClass?.name, 
+  console.log('ClassSelector props:', {
+    index,
+    selectedClass: selectedClass?.name,
     selectedClassId: selectedClass?.id,
     selectedProfessor: selectedProfessor?.name,
     onProfessorChange: typeof onProfessorChange,
     isReadOnly,
     isRequired,
     hasProfessors: selectedClass?.professors?.length,
-    professorInputValue: selectedProfessor?.name || "",
-    shouldShowPlaceholder: !selectedClass
+    professorInputValue: selectedProfessor?.name || '',
+    shouldShowPlaceholder: !selectedClass,
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
@@ -65,42 +76,62 @@ export function ClassSelector({
 
   // Filter available classes based on search term
   useEffect(() => {
-    console.log('ClassSelector useEffect - availableClasses:', availableClasses.length, availableClasses.map(c => c.name));
+    console.log(
+      'ClassSelector useEffect - availableClasses:',
+      availableClasses.length,
+      availableClasses.map((c) => c.name)
+    );
     console.log('ClassSelector useEffect - searchTerm:', searchTerm);
     if (!searchTerm) {
       setFilteredClasses(availableClasses);
     } else {
-      const filtered = availableClasses.filter(lawClass =>
+      const filtered = availableClasses.filter((lawClass) =>
         lawClass.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredClasses(filtered);
-      
+
       // Auto-select if there's an exact match
-      const exactMatch = availableClasses.find(c => c.name === searchTerm);
+      const exactMatch = availableClasses.find((c) => c.name === searchTerm);
       if (exactMatch && (!selectedClass || selectedClass.name !== searchTerm)) {
-        console.log('Auto-selecting exact match for index', index, ':', exactMatch);
+        console.log(
+          'Auto-selecting exact match for index',
+          index,
+          ':',
+          exactMatch
+        );
         onClassChange(exactMatch);
       }
     }
-    console.log('ClassSelector useEffect - filteredClasses:', filteredClasses.length);
+    console.log(
+      'ClassSelector useEffect - filteredClasses:',
+      filteredClasses.length
+    );
   }, [searchTerm, availableClasses, selectedClass, onClassChange, index]);
 
   // Handle clicks outside dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node;
-      
+
       // Check if click is outside the class dropdown
       if (dropdownRef.current && !dropdownRef.current.contains(target)) {
         setShowDropdown(false);
       }
-      
+
       // Check if click is outside the professor dropdown
       // Don't close if clicking on the professor input itself
-      const professorInput = document.querySelector(`[data-professor-input="${index}"]`);
-      if (showProfessorDropdown && professorInput && !professorInput.contains(target)) {
+      const professorInput = document.querySelector(
+        `[data-professor-input="${index}"]`
+      );
+      if (
+        showProfessorDropdown &&
+        professorInput &&
+        !professorInput.contains(target)
+      ) {
         // Also check if the click is not on any professor dropdown content
-        const professorDropdown = document.querySelector(`[data-professor-dropdown="${index}"]`);
+        const professorDropdown = document.querySelector(
+          `[data-professor-dropdown="${index}"]`
+        );
         if (!professorDropdown || !professorDropdown.contains(target)) {
           setShowProfessorDropdown(false);
         }
@@ -113,30 +144,35 @@ export function ClassSelector({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    console.log('ClassSelector input change for index', index, ':', { 
-      value, 
-      availableClasses: availableClasses.length, 
+    console.log('ClassSelector input change for index', index, ':', {
+      value,
+      availableClasses: availableClasses.length,
       selectedClass: selectedClass?.name,
       filteredClasses: filteredClasses.length,
-      exactMatch: availableClasses.find(c => c.name === value)
+      exactMatch: availableClasses.find((c) => c.name === value),
     });
     setSearchTerm(value);
     setShowDropdown(true);
-    
+
     // If user starts typing and there's a selected class, clear it to allow new selection
     if (value && selectedClass && value !== selectedClass.name) {
-      console.log('ClassSelector - clearing selected class because user is typing new text');
+      console.log(
+        'ClassSelector - clearing selected class because user is typing new text'
+      );
       onClassChange(null);
       onProfessorChange(null);
     }
-    
+
     // Only clear the selected class if user manually deletes the text
     // Don't clear if the input is just losing focus or being updated programmatically
     if (!value && selectedClass) {
       // Check if this is a real user action (not programmatic)
-      const isUserAction = e.target === document.activeElement && e.nativeEvent.isTrusted;
+      const isUserAction =
+        e.target === document.activeElement && e.nativeEvent.isTrusted;
       if (isUserAction) {
-        console.log('ClassSelector - clearing selected class due to user input');
+        console.log(
+          'ClassSelector - clearing selected class due to user input'
+        );
         onClassChange(null);
         onProfessorChange(null);
       }
@@ -144,13 +180,13 @@ export function ClassSelector({
   };
 
   const handleClassSelect = (lawClass: LawClass) => {
-    console.log('ClassSelector class select:', { 
-      lawClass: lawClass.name, 
+    console.log('ClassSelector class select:', {
+      lawClass: lawClass.name,
       lawClassId: lawClass.id,
       professors: lawClass.professors?.length,
-      professorNames: lawClass.professors?.map(p => p.name),
+      professorNames: lawClass.professors?.map((p) => p.name),
       index,
-      fullLawClass: lawClass
+      fullLawClass: lawClass,
     });
     setSearchTerm(lawClass.name);
     setShowDropdown(false);
@@ -158,18 +194,24 @@ export function ClassSelector({
     onProfessorChange(null); // Reset professor when class changes
   };
 
-
-
   return (
     <div className="flex gap-4 items-start">
       {/* Class Selection */}
-      <div className="flex-1 relative" ref={dropdownRef}>
+      <div className="relative" ref={dropdownRef} style={{ width: '450px' }}>
         <Label className="text-sm mb-2 block">
-          {index === 8 && classYear === '1L' ? 'Elective' : `Class ${index + 1}`}
-          {isRequired && <span style={{ color: '#752432' }} className="ml-1">*</span>}
-          {!isRequired && !isReadOnly && classYear === '1L' && <span className="text-gray-500 ml-1">(Optional)</span>}
+          {index === 8 && classYear === '1L'
+            ? 'Elective'
+            : `Class ${index + 1}`}
+          {isRequired && (
+            <span style={{ color: '#752432' }} className="ml-1">
+              *
+            </span>
+          )}
+          {!isRequired && !isReadOnly && classYear === '1L' && (
+            <span className="text-gray-500 ml-1">(Optional)</span>
+          )}
         </Label>
-        
+
         <div className="relative">
           <Input
             ref={inputRef}
@@ -177,43 +219,60 @@ export function ClassSelector({
             value={searchTerm}
             onChange={handleInputChange}
             onClick={() => {
-              console.log('Input clicked:', { isReadOnly, selectedClass: selectedClass?.name });
+              console.log('Input clicked:', {
+                isReadOnly,
+                selectedClass: selectedClass?.name,
+              });
               if (!isReadOnly) {
                 setSearchTerm(''); // Clear search term to show all options
                 setShowDropdown(true);
               }
             }}
             onFocus={() => {
-              console.log('Input focused:', { isReadOnly, selectedClass: selectedClass?.name });
+              console.log('Input focused:', {
+                isReadOnly,
+                selectedClass: selectedClass?.name,
+              });
               if (!isReadOnly) {
                 setSearchTerm(''); // Clear search term to show all options
                 setShowDropdown(true);
               }
             }}
-            placeholder={isReadOnly ? "Course assigned" : "Search for a class..."}
+            placeholder={
+              isReadOnly ? 'Course assigned' : 'Search for a class...'
+            }
             className="pr-10 bg-input-background cursor-pointer"
             readOnly={isReadOnly}
           />
-          
+
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
             {!isReadOnly && <ChevronDown className="h-4 w-4 text-gray-400" />}
           </div>
         </div>
-        
+
         {/* Dropdown */}
         {(() => {
-          console.log('Dropdown render check:', { 
-            showDropdown, 
-            isReadOnly, 
+          console.log('Dropdown render check:', {
+            showDropdown,
+            isReadOnly,
             filteredClassesLength: filteredClasses.length,
-            filteredClasses: filteredClasses.map(c => c.name)
+            filteredClasses: filteredClasses.map((c) => c.name),
           });
           return null;
         })()}
         {showDropdown && !isReadOnly && filteredClasses.length > 0 && (
           <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
             {(() => {
-              console.log('Rendering dropdown options for index', index, ':', filteredClasses.map(c => ({ id: c.id, name: c.name, hasProfessors: c.professors?.length })));
+              console.log(
+                'Rendering dropdown options for index',
+                index,
+                ':',
+                filteredClasses.map((c) => ({
+                  id: c.id,
+                  name: c.name,
+                  hasProfessors: c.professors?.length,
+                }))
+              );
               return null;
             })()}
             {filteredClasses.map((lawClass) => (
@@ -221,7 +280,12 @@ export function ClassSelector({
                 key={lawClass.id}
                 type="button"
                 onClick={() => {
-                  console.log('Dropdown option clicked for index', index, ':', lawClass);
+                  console.log(
+                    'Dropdown option clicked for index',
+                    index,
+                    ':',
+                    lawClass
+                  );
                   handleClassSelect(lawClass);
                 }}
                 className="w-full px-3 py-2 text-left hover:bg-gray-50 text-sm border-b border-gray-100 last:border-b-0"
@@ -237,119 +301,185 @@ export function ClassSelector({
       <div className="w-48 relative">
         <Label className="text-sm mb-2 block">
           Professor
-          {isRequired && <span style={{ color: '#752432' }} className="ml-1">*</span>}
-          {!isRequired && <span className="text-gray-500 ml-1">(Optional)</span>}
+          {isRequired && (
+            <span style={{ color: '#752432' }} className="ml-1">
+              *
+            </span>
+          )}
+          {!isRequired && (
+            <span className="text-gray-500 ml-1">(Optional)</span>
+          )}
         </Label>
-        
+
         <div className="relative">
           <Input
-            value={selectedProfessor?.name || ""}
-            placeholder={!selectedClass ? "Select class first" : "Select professor"}
+            value={selectedProfessor?.name || ''}
+            placeholder={
+              !selectedClass ? 'Select class first' : 'Select professor'
+            }
             readOnly
             data-professor-input={index}
-            style={{ 
+            style={{
               backgroundColor: !selectedClass ? '#f5f5f5' : 'white',
-              cursor: !selectedClass ? 'not-allowed' : 'pointer'
+              cursor: !selectedClass ? 'not-allowed' : 'pointer',
             }}
             onMouseDown={() => {
-              console.log('Professor input mousedown:', { 
-                selectedClass: selectedClass?.name, 
+              console.log('Professor input mousedown:', {
+                selectedClass: selectedClass?.name,
                 selectedClassId: selectedClass?.id,
                 professors: selectedClass?.professors?.length,
-                professorNames: selectedClass?.professors?.map(p => p.name),
+                professorNames: selectedClass?.professors?.map((p) => p.name),
                 isRequired,
                 index,
-                fullSelectedClass: selectedClass
+                fullSelectedClass: selectedClass,
               });
-              if (selectedClass && selectedClass.professors && selectedClass.professors.length > 0) {
-                console.log('Opening professor dropdown for:', selectedClass.name);
+              if (
+                selectedClass &&
+                selectedClass.professors &&
+                selectedClass.professors.length > 0
+              ) {
+                console.log(
+                  'Opening professor dropdown for:',
+                  selectedClass.name
+                );
                 setShowProfessorDropdown(true);
               } else {
-                console.log('Cannot open professor dropdown - no professors available for:', selectedClass?.name, 'professors array:', selectedClass?.professors);
+                console.log(
+                  'Cannot open professor dropdown - no professors available for:',
+                  selectedClass?.name,
+                  'professors array:',
+                  selectedClass?.professors
+                );
               }
             }}
             className={`bg-input-background pr-10 ${
-              !selectedClass 
-                ? 'cursor-not-allowed opacity-60' 
+              !selectedClass
+                ? 'cursor-not-allowed opacity-60'
                 : 'cursor-pointer'
             }`}
             disabled={!selectedClass}
-            title={!selectedClass ? "Select a class first" : "Click to select professor"}
+            title={
+              !selectedClass
+                ? 'Select a class first'
+                : 'Click to select professor'
+            }
           />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
             <ChevronDown className="h-4 w-4 text-gray-400 pointer-events-none" />
           </div>
-          
+
           {(() => {
             console.log('Professor dropdown render check:', {
               showProfessorDropdown,
               selectedClass: selectedClass?.name,
               professors: selectedClass?.professors?.length,
-              professorNames: selectedClass?.professors?.map(p => p.name),
-              shouldShow: showProfessorDropdown && selectedClass && selectedClass.professors && selectedClass.professors.length > 0
+              professorNames: selectedClass?.professors?.map((p) => p.name),
+              shouldShow:
+                showProfessorDropdown &&
+                selectedClass &&
+                selectedClass.professors &&
+                selectedClass.professors.length > 0,
             });
             return null;
           })()}
-          {showProfessorDropdown && selectedClass && selectedClass.professors && selectedClass.professors.length > 0 && (
-            <div 
-              data-professor-dropdown={index}
-              className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
-              onClick={(e) => {
-                console.log('Professor dropdown container clicked:', e.target);
-                e.stopPropagation();
-              }}
-            >
-              <div className="p-2 text-xs text-gray-500 bg-gray-50 border-b">
-                Professors for {selectedClass.name}:
+          {showProfessorDropdown &&
+            selectedClass &&
+            selectedClass.professors &&
+            selectedClass.professors.length > 0 && (
+              <div
+                data-professor-dropdown={index}
+                className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                onClick={(e) => {
+                  console.log(
+                    'Professor dropdown container clicked:',
+                    e.target
+                  );
+                  e.stopPropagation();
+                }}
+              >
+                <div className="p-2 text-xs text-gray-500 bg-gray-50 border-b">
+                  Professors for {selectedClass.name}:
+                </div>
+                {selectedClass.professors.map((professor) => {
+                  console.log('Rendering professor option:', professor);
+                  return (
+                    <button
+                      key={professor.id}
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log(
+                          'Professor button mousedown (using this instead of click):',
+                          {
+                            professor,
+                            index,
+                            selectedClass: selectedClass?.name,
+                            event: e.type,
+                          }
+                        );
+                        try {
+                          onProfessorChange(professor);
+                          setShowProfessorDropdown(false);
+                        } catch (error) {
+                          console.error('Error in professor selection:', error);
+                        }
+                      }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Professor button clicked (backup):', {
+                          professor,
+                          index,
+                          selectedClass: selectedClass?.name,
+                          event: e.type,
+                        });
+                        try {
+                          onProfessorChange(professor);
+                          setShowProfessorDropdown(false);
+                        } catch (error) {
+                          console.error(
+                            'Error in professor selection (click):',
+                            error
+                          );
+                        }
+                      }}
+                      className="w-full px-3 py-2 text-left hover:bg-gray-50 text-sm border-b border-gray-100 last:border-b-0 cursor-pointer"
+                      style={{ pointerEvents: 'auto' }}
+                    >
+                      {professor.name}
+                    </button>
+                  );
+                })}
               </div>
-              {selectedClass.professors.map((professor) => {
-                console.log('Rendering professor option:', professor);
-                return (
-                  <button
-                    key={professor.id}
-                    type="button"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      console.log('Professor button mousedown (using this instead of click):', { 
-                        professor, 
-                        index, 
-                        selectedClass: selectedClass?.name,
-                        event: e.type 
-                      });
-                      try {
-                        onProfessorChange(professor);
-                        setShowProfessorDropdown(false);
-                      } catch (error) {
-                        console.error('Error in professor selection:', error);
-                      }
-                    }}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      console.log('Professor button clicked (backup):', { 
-                        professor, 
-                        index, 
-                        selectedClass: selectedClass?.name,
-                        event: e.type 
-                      });
-                      try {
-                        onProfessorChange(professor);
-                        setShowProfessorDropdown(false);
-                      } catch (error) {
-                        console.error('Error in professor selection (click):', error);
-                      }
-                    }}
-                    className="w-full px-3 py-2 text-left hover:bg-gray-50 text-sm border-b border-gray-100 last:border-b-0 cursor-pointer"
-                    style={{ pointerEvents: 'auto' }}
-                  >
-                    {professor.name}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+            )}
         </div>
+      </div>
+
+      {/* Semester Selection */}
+      <div className="w-32">
+        <Label className="text-sm mb-2 block">
+          Semester
+          {isRequired && (
+            <span style={{ color: '#752432' }} className="ml-1">
+              *
+            </span>
+          )}
+        </Label>
+        <Select
+          value={selectedSemester}
+          onValueChange={(value) => onSemesterChange?.(value)}
+          disabled={!selectedClass && classYear !== '1L'}
+        >
+          <SelectTrigger className="bg-input-background">
+            <SelectValue placeholder="Select..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="FA">Fall (FA)</SelectItem>
+            <SelectItem value="WS">Winter (WS)</SelectItem>
+            <SelectItem value="SP">Spring (SP)</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );

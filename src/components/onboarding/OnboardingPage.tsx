@@ -20,6 +20,7 @@ type ClassYear = '1L' | '2L' | '3L';
 interface SelectedClass {
   lawClass: LawClass | null;
   professor: Professor | null;
+  semester: string;
 }
 
 // Mock data - this should eventually come from your Supabase database
@@ -418,7 +419,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   const [selectedClasses, setSelectedClasses] = useState<SelectedClass[]>(
     Array(10)
       .fill(null)
-      .map(() => ({ lawClass: null, professor: null }))
+      .map(() => ({ lawClass: null, professor: null, semester: '' }))
   );
   const [loading, setLoading] = useState(false);
   const [apiCourses, setApiCourses] = useState<LawClass[]>([]);
@@ -474,16 +475,20 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
           if (index < 8) {
             const courseId = firstYearCourseIds[index];
             const lawClass = lawClasses.find((lc) => lc.id === courseId);
-            return { lawClass: lawClass || null, professor: null };
+            return {
+              lawClass: lawClass || null,
+              professor: null,
+              semester: '',
+            };
           }
-          return { lawClass: null, professor: null };
+          return { lawClass: null, professor: null, semester: '' };
         });
       setSelectedClasses(newSelectedClasses);
     } else if (classYear === '2L' || classYear === '3L') {
       // 2L/3L: 3 required + up to 7 more = 10 total maximum
       const newSelectedClasses = Array(10)
         .fill(null)
-        .map(() => ({ lawClass: null, professor: null }));
+        .map(() => ({ lawClass: null, professor: null, semester: '' }));
       setSelectedClasses(newSelectedClasses);
     }
     // Clear section when class year changes
@@ -529,7 +534,11 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       fullLawClass: lawClass,
     });
     const newSelectedClasses = [...selectedClasses];
-    newSelectedClasses[index] = { lawClass, professor: null };
+    newSelectedClasses[index] = {
+      lawClass,
+      professor: null,
+      semester: newSelectedClasses[index].semester, // Preserve semester
+    };
     setSelectedClasses(newSelectedClasses);
     console.log(
       'Updated selectedClasses:',
@@ -566,6 +575,17 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         professorName: sc.professor?.name,
       }))
     );
+  };
+
+  const handleSemesterChange = (index: number, semester: string) => {
+    console.log('Semester change:', {
+      index,
+      semester,
+      classYear,
+    });
+    const newSelectedClasses = [...selectedClasses];
+    newSelectedClasses[index] = { ...newSelectedClasses[index], semester };
+    setSelectedClasses(newSelectedClasses);
   };
 
   const isFormValid = () => {
@@ -706,6 +726,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
           .map((selected) => ({
             class: selected.lawClass!.name,
             professor: selected.professor!.name,
+            semester: selected.semester,
           })),
         updated_at: new Date().toISOString(),
       };
@@ -977,12 +998,16 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                             index={index}
                             selectedClass={selectedClass.lawClass}
                             selectedProfessor={selectedClass.professor}
+                            selectedSemester={selectedClass.semester}
                             availableClasses={availableClasses}
                             onClassChange={(lawClass) =>
                               handleClassChange(index, lawClass)
                             }
                             onProfessorChange={(professor) =>
                               handleProfessorChange(index, professor)
+                            }
+                            onSemesterChange={(semester) =>
+                              handleSemesterChange(index, semester)
                             }
                             isReadOnly={classYear === '1L' && index < 8}
                             isRequired={isRequired}

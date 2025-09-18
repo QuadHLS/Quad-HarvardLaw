@@ -1626,8 +1626,29 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
           if (isMounted) {
             setIsVerified(false);
             setAuthLoading(false);
+            setHasCompletedOnboarding(false);
           }
           return;
+        }
+
+        // Check if user has completed onboarding by looking at classes_filled column
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('classes_filled')
+          .eq('id', currentUser.id)
+          .single();
+
+        if (profileError) {
+          console.error('Error fetching profile:', profileError);
+          // If profile doesn't exist or error, assume onboarding not completed
+          if (isMounted) {
+            setHasCompletedOnboarding(false);
+          }
+        } else {
+          // Set onboarding completion based on classes_filled column
+          if (isMounted) {
+            setHasCompletedOnboarding(profile?.classes_filled || false);
+          }
         }
 
         // Always require access code verification on login
@@ -1640,6 +1661,7 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
         if (isMounted) {
           setIsVerified(false);
           setAuthLoading(false);
+          setHasCompletedOnboarding(false);
         }
       }
     };

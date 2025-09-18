@@ -723,6 +723,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
             professor: selected.professor!.name,
             semester: selected.semester,
           })),
+        classes_filled: true, // Mark that classes have been filled
         updated_at: new Date().toISOString(),
       };
 
@@ -855,9 +856,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
                       {/* Phone Number */}
                       <div className="space-y-2">
-                        <Label htmlFor="phone">
-                          Phone Number
-                        </Label>
+                        <Label htmlFor="phone">Phone Number</Label>
                         <Input
                           id="phone"
                           type="tel"

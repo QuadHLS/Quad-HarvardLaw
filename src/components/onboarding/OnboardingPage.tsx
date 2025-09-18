@@ -13,6 +13,7 @@ import {
 import { ClassSelector } from './ClassSelector';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { Loader2 } from 'lucide-react';
 
 type ClassYear = '1L' | '2L' | '3L';
 
@@ -373,7 +374,8 @@ interface Professor {
 
 const getAvailableClasses = (
   classYear: ClassYear,
-  excludeIds: string[]
+  excludeIds: string[],
+  apiData: LawClass[] = []
 ): LawClass[] => {
   if (classYear === '1L') {
     // 1L: Show 1L required courses + elective courses, excluding already selected ones
@@ -403,8 +405,8 @@ const getAvailableClasses = (
     );
     return [...requiredCourses, ...electiveCourses];
   }
-  // 2L/3L: Show all courses (allow duplicates)
-  return lawClasses;
+  // 2L/3L: Use API data if available, otherwise fall back to hardcoded data
+  return apiData.length > 0 ? apiData : lawClasses;
 };
 
 export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
@@ -419,6 +421,46 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       .map(() => ({ lawClass: null, professor: null }))
   );
   const [loading, setLoading] = useState(false);
+  const [apiCourses, setApiCourses] = useState<LawClass[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+
+  // Fetch courses from API for 2L/3L students
+  useEffect(() => {
+    const fetchCourses = async () => {
+      if (classYear === '2L' || classYear === '3L') {
+        setCoursesLoading(true);
+        try {
+          const { data: session } = await supabase.auth.getSession();
+          if (!session?.session) return;
+
+          const response = await fetch(
+            `${
+              import.meta.env.VITE_SUPABASE_URL
+            }/functions/v1/get-courses?year_level=${classYear}`,
+            {
+              headers: {
+                Authorization: `Bearer ${session.session.access_token}`,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+
+          if (!response.ok) throw new Error('Failed to fetch courses');
+
+          const data = await response.json();
+          setApiCourses(data.courses || []);
+        } catch (error) {
+          console.error('Error fetching courses:', error);
+          // Fall back to hardcoded data on error
+          setApiCourses(lawClasses);
+        } finally {
+          setCoursesLoading(false);
+        }
+      }
+    };
+
+    fetchCourses();
+  }, [classYear]);
 
   // Auto-populate 1L courses when class year is selected
   useEffect(() => {
@@ -457,7 +499,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     // For 2L/3L, don't exclude any classes (allow duplicates)
     // For 1L, exclude already selected classes
     if (classYear === '2L' || classYear === '3L') {
-      const classes = getAvailableClasses(classYear, []);
+      const classes = getAvailableClasses(classYear, [], apiCourses);
       console.log(
         '2L/3L available classes (no exclusions):',
         classes.length,
@@ -918,7 +960,18 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                           });
                         }
 
-                        return (
+                        return coursesLoading &&
+                          (classYear === '2L' || classYear === '3L') ? (
+                          <div
+                            key={`${classYear}-${index}`}
+                            className="flex items-center justify-center p-4"
+                          >
+                            <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+                            <span className="ml-2 text-gray-500">
+                              Loading courses...
+                            </span>
+                          </div>
+                        ) : (
                           <ClassSelector
                             key={`${classYear}-${index}`}
                             index={index}

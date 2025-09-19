@@ -2,13 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { ChevronDown } from 'lucide-react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../ui/select';
+// Removed Select imports since schedule is now display-only
 
 interface LawClass {
   id: string;
@@ -42,7 +36,6 @@ interface ClassSelectorProps {
   scheduleLoading?: boolean;
   onClassChange: (lawClass: LawClass | null) => void;
   onProfessorChange: (professor: Professor | null) => void;
-  onScheduleChange?: (schedule: CourseSchedule | null) => void;
   isReadOnly?: boolean;
   isRequired?: boolean;
   classYear?: string;
@@ -58,7 +51,6 @@ export function ClassSelector({
   scheduleLoading = false,
   onClassChange,
   onProfessorChange,
-  onScheduleChange,
   isReadOnly = false,
   isRequired = false,
   classYear = '',
@@ -482,76 +474,22 @@ export function ClassSelector({
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900 mr-2"></div>
               Loading...
             </div>
+          ) : scheduleOptions && scheduleOptions.length > 0 ? (
+            <div className="min-h-[40px] px-3 py-2 border rounded-md bg-input-background">
+              <div className="font-medium text-sm leading-tight">
+                {scheduleOptions[0].days || 'TBD'} • {scheduleOptions[0].times || 'TBD'}
+              </div>
+              <div className="text-xs text-gray-500 mt-1 leading-tight">
+                {scheduleOptions[0].location || 'Location TBD'} •{' '}
+                {scheduleOptions[0].semester} • {scheduleOptions[0].credits} credits
+              </div>
+            </div>
           ) : (
-            <Select
-              value={
-                selectedSchedule
-                  ? `${selectedSchedule.course_number}|${selectedSchedule.semester}|${selectedSchedule.days}|${selectedSchedule.times}`
-                  : ''
-              }
-              onValueChange={(value) => {
-                console.log('Schedule selection changed:', {
-                  value,
-                  scheduleOptions,
-                });
-                const [courseNumber, semester, days, times] = value.split('|');
-                console.log('Parsed values:', {
-                  courseNumber,
-                  semester,
-                  days,
-                  times,
-                });
-                const schedule = scheduleOptions?.find(
-                  (opt) =>
-                    opt.course_number.toString() === courseNumber &&
-                    opt.semester === semester &&
-                    opt.days === days &&
-                    opt.times === times
-                );
-                console.log('Found schedule:', schedule);
-                if (onScheduleChange) {
-                  onScheduleChange(schedule || null);
-                }
-              }}
-              disabled={
-                !selectedClass ||
-                !selectedProfessor ||
-                !scheduleOptions ||
-                scheduleOptions.length === 0
-              }
-            >
-              <SelectTrigger className="bg-input-background">
-                <SelectValue
-                  placeholder={
-                    !selectedClass
-                      ? 'Select class first'
-                      : !selectedProfessor
-                      ? 'Select professor first'
-                      : !scheduleOptions || scheduleOptions.length === 0
-                      ? 'Loading schedules...'
-                      : 'Select schedule...'
-                  }
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {scheduleOptions?.map((schedule, index) => (
-                  <SelectItem
-                    key={`${schedule.course_number}|${schedule.semester}|${schedule.days}|${schedule.times}|${index}`}
-                    value={`${schedule.course_number}|${schedule.semester}|${schedule.days}|${schedule.times}`}
-                  >
-                    <div className="flex flex-col">
-                      <div className="font-medium">
-                        {schedule.days || 'TBD'} • {schedule.times || 'TBD'}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {schedule.location || 'Location TBD'} •{' '}
-                        {schedule.semester} • {schedule.credits} credits
-                      </div>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="h-10 px-3 border rounded-md bg-input-background flex items-center text-sm text-gray-500">
+              {!selectedClass ? 'Select class first' : 
+               !selectedProfessor ? 'Select professor first' : 
+               'No schedule available'}
+            </div>
           )}
         </div>
       )}

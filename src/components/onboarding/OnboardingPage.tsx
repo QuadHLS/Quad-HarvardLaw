@@ -547,25 +547,17 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
               });
             }
 
-            // Add instructor(s) as professor(s) - handle multiple professors separated by semicolons
+            // Add instructor(s) as professor(s) - treat semicolon-separated professors as one team
             const courseData = courseMap.get(courseName);
             if (course.instructor) {
-              // Split on semicolon and trim whitespace
-              const instructors = course.instructor
-                .split(';')
-                .map((inst: string) => inst.trim());
-
-              instructors.forEach((instructor: string) => {
-                if (
-                  instructor &&
-                  !courseData.professors.find((p: any) => p.name === instructor)
-                ) {
-                  courseData.professors.push({
-                    id: `${course.course_number}-${instructor}`,
-                    name: instructor,
-                  });
-                }
-              });
+              const instructor = course.instructor.trim();
+              
+              if (instructor && !courseData.professors.find((p: any) => p.name === instructor)) {
+                courseData.professors.push({
+                  id: `${course.course_number}-${instructor}`,
+                  name: instructor, // Keep semicolons to match database format
+                });
+              }
             }
           });
 
@@ -750,11 +742,20 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         }
       } else {
         // For 2L/3L students, filter from the already fetched course data
+        console.log('2L/3L Schedule matching:', {
+          courseName,
+          instructor, // Display name (keeps semicolons)
+          allCourseDataCount: allCourseData.length,
+          sampleInstructors: allCourseData.slice(0, 3).map(c => ({ name: c.course_name, instructor: c.instructor }))
+        });
+        
         matchingCourses = allCourseData.filter(
           (course) =>
             course.course_name === courseName &&
             course.instructor === instructor
         );
+        
+        console.log('Matching courses found:', matchingCourses.length, matchingCourses);
       }
 
       console.log(
@@ -762,7 +763,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         matchingCourses
       );
 
-      // Create individual schedule options for each day-time combination
+      // Create combined schedule options - combine multiple days/times into single display
       const scheduleOptions: CourseSchedule[] = [];
 
       matchingCourses.forEach((course: any) => {
@@ -776,20 +777,19 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
             .map((t: string) => t.trim())
             .filter(Boolean);
 
-          // Create a schedule option for each day-time pair
-          days.forEach((day: string, dayIndex: number) => {
-            const time = times[dayIndex] || times[0] || 'TBD'; // Use corresponding time or fallback
+          // Combine all days and use the first time (assuming same time for all days)
+          const combinedDays = days.join(' • ');
+          const time = times[0] || 'TBD';
 
-            scheduleOptions.push({
-              course_number: course.course_number,
-              course_name: course.course_name,
-              semester: course.semester,
-              instructor: course.instructor,
-              credits: course.credits,
-              days: day,
-              times: time,
-              location: course.location,
-            });
+          scheduleOptions.push({
+            course_number: course.course_number,
+            course_name: course.course_name,
+            semester: course.semester,
+            instructor: course.instructor,
+            credits: course.credits,
+            days: combinedDays, // "Mon • Wed" instead of separate entries
+            times: time,
+            location: course.location,
           });
         } else {
           // If no days/times, create a single schedule option
@@ -906,22 +906,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     );
   };
 
-  const handleScheduleChange = (
-    index: number,
-    scheduleOption: CourseSchedule | null
-  ) => {
-    console.log('Schedule change:', {
-      index,
-      scheduleOption,
-      classYear,
-    });
-    const newSelectedClasses = [...selectedClasses];
-    newSelectedClasses[index] = {
-      ...newSelectedClasses[index],
-      scheduleOption,
-    };
-    setSelectedClasses(newSelectedClasses);
-  };
+  // Removed handleScheduleChange since schedule is now display-only
 
   const isFormValid = () => {
     console.log('=== FORM VALIDATION START ===');
@@ -1329,9 +1314,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                             onProfessorChange={(professor) =>
                               handleProfessorChange(index, professor)
                             }
-                            onScheduleChange={(
-                              schedule: CourseSchedule | null
-                            ) => handleScheduleChange(index, schedule)}
                             isReadOnly={classYear === '1L' && index < 7}
                             isRequired={isRequired}
                             classYear={classYear}

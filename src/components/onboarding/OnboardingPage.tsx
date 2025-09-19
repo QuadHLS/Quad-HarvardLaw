@@ -373,6 +373,54 @@ const lawClasses: LawClass[] = [
 
 const firstYearCourseIds = ['1', '2', '3', '4', '5', '6', '7', '8'];
 
+// Section 1L data based on actual course assignments
+const getSection1LData = (section: string) => {
+  if (section === '1') {
+    return [
+      {
+        id: '1',
+        name: 'Civil Procedure 1',
+        professors: [{ id: '1', name: 'Greiner, D. James' }]
+      },
+      {
+        id: '2', 
+        name: 'Contracts 1',
+        professors: [{ id: '2', name: 'Okediji, Ruth' }]
+      },
+      {
+        id: '3',
+        name: 'Criminal Law 1', 
+        professors: [{ id: '3', name: 'Lewis, Christopher' }]
+      },
+      {
+        id: '4',
+        name: 'Torts 1',
+        professors: [
+          { id: '4', name: 'Goldberg, John' },
+          { id: '5', name: 'Blum, Gabriella' }
+        ]
+      },
+      {
+        id: '5',
+        name: 'Constitutional Law 1',
+        professors: [{ id: '6', name: 'Klarman, Michael' }]
+      },
+      {
+        id: '6',
+        name: 'Property 1',
+        professors: [{ id: '7', name: 'Fisher, William' }]
+      },
+      {
+        id: '7',
+        name: 'Legislation and Regulation 1',
+        professors: [{ id: '8', name: 'Renan, Daphna' }]
+      }
+    ];
+  }
+  // Add other sections here as needed
+  return [];
+};
+
 interface LawClass {
   id: string;
   name: string;
@@ -545,24 +593,32 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     fetchCourses();
   }, [classYear]);
 
-  // Auto-populate 1L courses when class year is selected
+  // Auto-populate 1L courses when section is selected
   useEffect(() => {
-    console.log('Class year changed to:', classYear);
+    console.log('Section changed to:', section, 'Class year:', classYear);
 
-    if (classYear === '1L') {
-      // 1L: 8 required + 1 elective = 9 total
-      const newSelectedClasses = Array(9)
+    if (classYear === '1L' && section) {
+      // 1L: 7 required + 1 elective = 8 total
+      const newSelectedClasses = Array(8)
         .fill(null)
         .map((_, index) => {
-          if (index < 8) {
-            const courseId = firstYearCourseIds[index];
-            const lawClass = lawClasses.find((lc) => lc.id === courseId);
-            return {
-              lawClass: lawClass || null,
-              professor: null,
-              scheduleOption: null,
-            };
+          if (index < 7) {
+            // Get the course and professor for this section
+            const sectionData = getSection1LData(section);
+            if (sectionData && sectionData[index]) {
+              const courseData = sectionData[index];
+              return {
+                lawClass: {
+                  id: courseData.id,
+                  name: courseData.name,
+                  professors: courseData.professors
+                },
+                professor: courseData.professors[0], // Auto-select first professor
+                scheduleOption: null,
+              };
+            }
           }
+          // Index 7 is the elective slot - leave empty for student to choose
           return {
             lawClass: null,
             professor: null,
@@ -570,7 +626,14 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
           };
         });
       setSelectedClasses(newSelectedClasses);
-    } else if (classYear === '2L' || classYear === '3L') {
+    }
+  }, [section]);
+
+  // Handle class year changes
+  useEffect(() => {
+    console.log('Class year changed to:', classYear);
+
+    if (classYear === '2L' || classYear === '3L') {
       // 2L/3L: 3 required + up to 7 more = 10 total maximum
       const newSelectedClasses = Array(10)
         .fill(null)
@@ -633,51 +696,58 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       let matchingCourses = [];
 
       if (classYear === '1L') {
-        // For 1L students, create realistic schedule data based on course type
-        const getScheduleForCourse = (courseName: string) => {
-          // Different schedule patterns for different 1L courses
-          const scheduleOptions = [
-            {
-              days: 'Mon; Wed',
-              times: '10:15AM - 12:15PM',
-              location: 'WCC1015',
-            },
-            { days: 'Tue; Thu', times: '1:30PM - 3:30PM', location: 'WCC2004' },
-            { days: 'Mon; Wed', times: '1:30PM - 3:30PM', location: 'WCC1010' },
-            {
-              days: 'Thu; Fri',
-              times: '10:15AM - 12:15PM',
-              location: 'PND100',
-            },
-            {
-              days: 'Wed; Thu; Fri',
-              times: '8:30AM - 9:50AM',
-              location: 'WCC1023',
-            },
-          ];
+        // For 1L students, fetch real schedule data from Supabase
+        try {
+          const { data: courses, error } = await supabase
+            .from('Courses')
+            .select('course_number, course_name, instructor, credits, days, times, location, semester')
+            .eq('course_name', courseName)
+            .eq('instructor', instructor);
 
-          // Use course name to consistently pick same schedule
-          const index = courseName.length % scheduleOptions.length;
-          return scheduleOptions[index];
-        };
-
-        const schedule = getScheduleForCourse(courseName);
-        // Generate consistent course number based on course name and instructor
-        const courseNumber =
-          1000 + (((courseName + instructor).length * 17) % 8000);
-
-        matchingCourses = [
-          {
-            course_number: courseNumber,
-            course_name: courseName,
-            semester: '2025FA',
-            instructor: instructor,
-            credits: courseName.includes('LRW') ? 2.0 : 4.0, // LRW courses are typically 2 credits
-            days: schedule.days,
-            times: schedule.times,
-            location: schedule.location,
-          },
-        ];
+          if (error) {
+            console.error('Error fetching 1L schedule data:', error);
+            // Fallback to hardcoded data if Supabase fails
+            const getScheduleForCourse = (courseName: string) => {
+              const scheduleOptions = [
+                { days: 'Mon; Wed', times: '10:15AM - 12:15PM', location: 'WCC1015' },
+                { days: 'Tue; Thu', times: '1:30PM - 3:30PM', location: 'WCC2004' },
+                { days: 'Mon; Wed', times: '1:30PM - 3:30PM', location: 'WCC1010' },
+                { days: 'Thu; Fri', times: '10:15AM - 12:15PM', location: 'PND100' },
+                { days: 'Wed; Thu; Fri', times: '8:30AM - 9:50AM', location: 'WCC1023' },
+              ];
+              const index = courseName.length % scheduleOptions.length;
+              return scheduleOptions[index];
+            };
+            const schedule = getScheduleForCourse(courseName);
+            const courseNumber = 1000 + (((courseName + instructor).length * 17) % 8000);
+            matchingCourses = [{
+              course_number: courseNumber,
+              course_name: courseName,
+              semester: '2025FA',
+              instructor: instructor,
+              credits: courseName.includes('LRW') ? 2.0 : 4.0,
+              days: schedule.days,
+              times: schedule.times,
+              location: schedule.location,
+            }];
+          } else {
+            // Use real data from Supabase
+            matchingCourses = courses?.map(course => ({
+              course_number: course.course_number,
+              course_name: course.course_name,
+              semester: course.semester,
+              instructor: course.instructor,
+              credits: course.credits,
+              days: course.days,
+              times: course.times,
+              location: course.location || 'Location TBD', // Handle null location
+            })) || [];
+          }
+        } catch (err) {
+          console.error('Unexpected error fetching 1L schedule:', err);
+          // Fallback to empty array
+          matchingCourses = [];
+        }
       } else {
         // For 2L/3L students, filter from the already fetched course data
         matchingCourses = allCourseData.filter(
@@ -881,12 +951,12 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
     // Check minimum requirements based on class year
     if (classYear === '1L') {
-      // 1L: 8 required + 1 elective = 9 total
-      // First 8 must have both class and professor, 9th can have just class
+      // 1L: 7 required + 1 elective = 8 total
+      // First 7 must have both class and professor, 8th can have just class
       const requiredClasses = selectedClasses
-        .slice(0, 8)
+        .slice(0, 7)
         .filter((selected) => selected.lawClass && selected.professor);
-      const electiveClass = selectedClasses[8];
+      const electiveClass = selectedClasses[7];
 
       // Debug logging
       console.log('1L Validation:', {
@@ -899,7 +969,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         })),
       });
 
-      const isValid = requiredClasses.length === 8; // Elective is now optional
+      const isValid = requiredClasses.length === 7; // Elective is now optional
       console.log('1L Validation result:', {
         requiredClasses: requiredClasses.length,
         electiveClass: !!electiveClass?.lawClass,
@@ -1175,7 +1245,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                       </div>
                       <div className="text-sm text-blue-800">
                         {classYear === '1L' ? (
-                          <span>8 required courses + 1 optional elective</span>
+                          <span>7 required courses + 1 elective</span>
                         ) : (
                           <span>Minimum 3, Maximum 10</span>
                         )}
@@ -1183,7 +1253,9 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                     </div>
 
                     <div className="space-y-4">
-                      {selectedClasses.map((selectedClass, index) => {
+                      {selectedClasses
+                        .slice(0, classYear === '1L' ? 8 : 10)
+                        .map((selectedClass, index) => {
                         // Debug logging for class slots
                         if (index >= 8) {
                           console.log(
@@ -1211,10 +1283,10 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
                         // Determine if this slot is required
                         const isRequired =
-                          classYear === '1L' ? index < 8 : index < 3; // Elective (index 8) is optional for 1L
+                          classYear === '1L' ? index < 7 : index < 3; // Elective (index 7) is optional for 1L
 
                         // Debug logging for elective class
-                        if (index === 8) {
+                        if (index === 7) {
                           console.log('Elective class debug:', {
                             index,
                             selectedClass: selectedClass.lawClass,
@@ -1260,7 +1332,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                             onScheduleChange={(
                               schedule: CourseSchedule | null
                             ) => handleScheduleChange(index, schedule)}
-                            isReadOnly={classYear === '1L' && index < 8}
+                            isReadOnly={classYear === '1L' && index < 7}
                             isRequired={isRequired}
                             classYear={classYear}
                           />
@@ -1283,14 +1355,14 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                             Required:{' '}
                             {
                               selectedClasses
-                                .slice(0, 8)
+                                .slice(0, 7)
                                 .filter(
                                   (selected) =>
                                     selected.lawClass && selected.professor
                                 ).length
                             }
-                            /8, Optional:{' '}
-                            {selectedClasses[8]?.lawClass ? '1' : '0'}/1
+                            /7, Optional:{' '}
+                            {selectedClasses[7]?.lawClass ? '1' : '0'}/1
                           </>
                         ) : (
                           <>

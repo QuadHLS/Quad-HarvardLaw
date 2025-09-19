@@ -214,16 +214,13 @@ export function ClassSelector({
       {/* Class Selection */}
       <div className="relative" ref={dropdownRef} style={{ width: '450px' }}>
         <Label className="text-sm mb-2 block">
-          {index === 8 && classYear === '1L'
+          {index === 7 && classYear === '1L'
             ? 'Elective'
             : `Class ${index + 1}`}
           {isRequired && (
             <span style={{ color: '#752432' }} className="ml-1">
               *
             </span>
-          )}
-          {!isRequired && !isReadOnly && classYear === '1L' && (
-            <span className="text-gray-500 ml-1">(Optional)</span>
           )}
         </Label>
 
@@ -320,9 +317,6 @@ export function ClassSelector({
             <span style={{ color: '#752432' }} className="ml-1">
               *
             </span>
-          )}
-          {!isRequired && (
-            <span className="text-gray-500 ml-1">(Optional)</span>
           )}
         </Label>
 

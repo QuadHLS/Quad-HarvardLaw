@@ -1869,17 +1869,17 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
     return <AuthPage />;
   }
 
-  // Show access code verification page - required every time user logs in
-  if (!isVerified) {
-    return (
-      <AccessCodeVerification
-        onVerified={async () => {
-          // Mark verified locally; server-side already updated profile
-          setIsVerified(true);
-        }}
-      />
-    );
-  }
+  // Skip access code verification for testing
+  // if (!isVerified) {
+  //   return (
+  //     <AccessCodeVerification
+  //       onVerified={async () => {
+  //         // Mark verified locally; server-side already updated profile
+  //         setIsVerified(true);
+  //       }}
+  //     />
+  //   );
+  // }
 
   // Show onboarding flow if user hasn't completed onboarding
   if (!hasCompletedOnboarding) {

@@ -34,7 +34,8 @@ interface CourseSchedule {
   location: string;
 }
 
-// Mock data - this should eventually come from your Supabase database
+// All course data now comes from Supabase - no hardcoded data needed
+/*
 const lawClasses: LawClass[] = [
   {
     id: '1',
@@ -370,56 +371,9 @@ const lawClasses: LawClass[] = [
     ],
   },
 ];
+*/
 
-const firstYearCourseIds = ['1', '2', '3', '4', '5', '6', '7', '8'];
-
-// Section 1L data based on actual course assignments
-const getSection1LData = (section: string) => {
-  if (section === '1') {
-    return [
-      {
-        id: '1',
-        name: 'Civil Procedure 1',
-        professors: [{ id: '1', name: 'Greiner, D. James' }]
-      },
-      {
-        id: '2', 
-        name: 'Contracts 1',
-        professors: [{ id: '2', name: 'Okediji, Ruth' }]
-      },
-      {
-        id: '3',
-        name: 'Criminal Law 1', 
-        professors: [{ id: '3', name: 'Lewis, Christopher' }]
-      },
-      {
-        id: '4',
-        name: 'Torts 1',
-        professors: [
-          { id: '4', name: 'Goldberg, John' },
-          { id: '5', name: 'Blum, Gabriella' }
-        ]
-      },
-      {
-        id: '5',
-        name: 'Constitutional Law 1',
-        professors: [{ id: '6', name: 'Klarman, Michael' }]
-      },
-      {
-        id: '6',
-        name: 'Property 1',
-        professors: [{ id: '7', name: 'Fisher, William' }]
-      },
-      {
-        id: '7',
-        name: 'Legislation and Regulation 1',
-        professors: [{ id: '8', name: 'Renan, Daphna' }]
-      }
-    ];
-  }
-  // Add other sections here as needed
-  return [];
-};
+// No hardcoded data needed - all comes from Supabase
 
 interface LawClass {
   id: string;
@@ -437,35 +391,7 @@ const getAvailableClasses = (
   excludeIds: string[],
   apiData: LawClass[] = []
 ): LawClass[] => {
-  if (classYear === '1L') {
-    // 1L: Show 1L required courses + elective courses, excluding already selected ones
-    const requiredCourses = lawClasses.filter(
-      (lc) => firstYearCourseIds.includes(lc.id) && !excludeIds.includes(lc.id)
-    );
-    const electiveCourses = lawClasses.filter((lc) => {
-      const id = parseInt(lc.id);
-      const isElective = id >= 31 && id <= 38;
-      const notExcluded = !excludeIds.includes(lc.id);
-      console.log('Elective filter check:', {
-        id: lc.id,
-        parsedId: id,
-        isElective,
-        notExcluded,
-        name: lc.name,
-      });
-      return isElective && notExcluded;
-    });
-    console.log(
-      'Elective courses found:',
-      electiveCourses.map((c) => ({
-        id: c.id,
-        name: c.name,
-        professors: c.professors.length,
-      }))
-    );
-    return [...requiredCourses, ...electiveCourses];
-  }
-  // 2L/3L: Use only API data from the Courses table
+  // All class years (1L, 2L, 3L): Use only API data from the Courses table
   return apiData;
 };
 
@@ -495,10 +421,10 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   }>({});
   const [allCourseData, setAllCourseData] = useState<any[]>([]);
 
-  // Fetch courses from API for 2L/3L students
+  // Fetch courses from API for all students (1L, 2L, 3L)
   useEffect(() => {
     const fetchCourses = async () => {
-      if (classYear === '2L' || classYear === '3L') {
+      if (classYear === '1L' || classYear === '2L' || classYear === '3L') {
         setCoursesLoading(true);
         try {
           console.log(
@@ -585,47 +511,24 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     fetchCourses();
   }, [classYear]);
 
-  // Auto-populate 1L courses when section is selected
-  useEffect(() => {
-    console.log('Section changed to:', section, 'Class year:', classYear);
-
-    if (classYear === '1L' && section) {
-      // 1L: 7 required + 1 elective = 8 total
-      const newSelectedClasses = Array(8)
-        .fill(null)
-        .map((_, index) => {
-          if (index < 7) {
-            // Get the course and professor for this section
-            const sectionData = getSection1LData(section);
-            if (sectionData && sectionData[index]) {
-              const courseData = sectionData[index];
-              return {
-                lawClass: {
-                  id: courseData.id,
-                  name: courseData.name,
-                  professors: courseData.professors
-                },
-                professor: courseData.professors[0], // Auto-select first professor
-                scheduleOption: null,
-              };
-            }
-          }
-          // Index 7 is the elective slot - leave empty for student to choose
-          return {
-            lawClass: null,
-            professor: null,
-            scheduleOption: null,
-          };
-        });
-      setSelectedClasses(newSelectedClasses);
-    }
-  }, [section]);
+  // No auto-population - all students (1L, 2L, 3L) select courses manually
 
   // Handle class year changes
   useEffect(() => {
     console.log('Class year changed to:', classYear);
 
-    if (classYear === '2L' || classYear === '3L') {
+    // Reset all course selection state when class year changes
+    if (classYear === '1L') {
+      // 1L: 7 required + 1 optional = 8 total
+      const newSelectedClasses = Array(8)
+        .fill(null)
+        .map(() => ({
+          lawClass: null,
+          professor: null,
+          scheduleOption: null,
+        }));
+      setSelectedClasses(newSelectedClasses);
+    } else if (classYear === '2L' || classYear === '3L') {
       // 2L/3L: 3 required + up to 7 more = 10 total maximum
       const newSelectedClasses = Array(10)
         .fill(null)
@@ -635,9 +538,17 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
           scheduleOption: null,
         }));
       setSelectedClasses(newSelectedClasses);
+    } else {
+      // No class year selected - reset to empty state
+      setSelectedClasses([]);
     }
-    // Clear section when class year changes
+
+    // Clear all related state when class year changes
     setSection('');
+    setScheduleOptionsBySlot({});
+    setScheduleLoadingBySlot({});
+    
+    console.log('Reset all course selection state for class year:', classYear);
   }, [classYear]);
 
   const getAvailableClassesForSlot = (excludeIds: string[]): LawClass[] => {
@@ -646,26 +557,14 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       return [];
     }
 
-    // For 2L/3L, return all fetched courses (no exclusions, allow duplicates)
-    // For 1L, exclude already selected classes
-    if (classYear === '2L' || classYear === '3L') {
-      console.log('Getting available classes for 2L/3L:', {
-        classYear,
-        apiCoursesCount: apiCourses.length,
-        apiCourseNames: apiCourses.map((c) => c.name),
-        coursesLoading,
-      });
-      return apiCourses; // Return the fetched courses directly
-    }
-    const classes = getAvailableClasses(classYear, excludeIds);
-    console.log(
-      '1L available classes (with exclusions):',
-      classes.length,
-      classes.map((c) => c.name),
-      'excluded:',
-      excludeIds
-    );
-    return classes;
+    // All class years (1L, 2L, 3L): Use API data from Supabase
+    console.log('Getting available classes for', classYear, ':', {
+      classYear,
+      apiCoursesCount: apiCourses.length,
+      apiCourseNames: apiCourses.map((c) => c.name),
+      coursesLoading,
+    });
+    return apiCourses; // Return the fetched courses directly
   };
 
   // Get course schedule details from the already fetched data (no API call needed)
@@ -685,78 +584,21 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     setScheduleLoadingBySlot((prev) => ({ ...prev, [slotIndex]: true }));
 
     try {
-      let matchingCourses = [];
-
-      if (classYear === '1L') {
-        // For 1L students, fetch real schedule data from Supabase
-        try {
-          const { data: courses, error } = await supabase
-            .from('Courses')
-            .select('course_number, course_name, instructor, credits, days, times, location, semester')
-            .eq('course_name', courseName)
-            .eq('instructor', instructor);
-
-          if (error) {
-            console.error('Error fetching 1L schedule data:', error);
-            // Fallback to hardcoded data if Supabase fails
-            const getScheduleForCourse = (courseName: string) => {
-              const scheduleOptions = [
-                { days: 'Mon; Wed', times: '10:15AM - 12:15PM', location: 'WCC1015' },
-                { days: 'Tue; Thu', times: '1:30PM - 3:30PM', location: 'WCC2004' },
-                { days: 'Mon; Wed', times: '1:30PM - 3:30PM', location: 'WCC1010' },
-                { days: 'Thu; Fri', times: '10:15AM - 12:15PM', location: 'PND100' },
-                { days: 'Wed; Thu; Fri', times: '8:30AM - 9:50AM', location: 'WCC1023' },
-              ];
-              const index = courseName.length % scheduleOptions.length;
-              return scheduleOptions[index];
-            };
-            const schedule = getScheduleForCourse(courseName);
-            const courseNumber = 1000 + (((courseName + instructor).length * 17) % 8000);
-            matchingCourses = [{
-              course_number: courseNumber,
-              course_name: courseName,
-              semester: '2025FA',
-              instructor: instructor,
-              credits: courseName.includes('LRW') ? 2.0 : 4.0,
-              days: schedule.days,
-              times: schedule.times,
-              location: schedule.location,
-            }];
-          } else {
-            // Use real data from Supabase
-            matchingCourses = courses?.map(course => ({
-              course_number: course.course_number,
-              course_name: course.course_name,
-              semester: course.semester,
-              instructor: course.instructor,
-              credits: course.credits,
-              days: course.days,
-              times: course.times,
-              location: course.location || 'Location TBD', // Handle null location
-            })) || [];
-          }
-        } catch (err) {
-          console.error('Unexpected error fetching 1L schedule:', err);
-          // Fallback to empty array
-          matchingCourses = [];
-        }
-      } else {
-        // For 2L/3L students, filter from the already fetched course data
-        console.log('2L/3L Schedule matching:', {
-          courseName,
-          instructor, // Display name (keeps semicolons)
-          allCourseDataCount: allCourseData.length,
-          sampleInstructors: allCourseData.slice(0, 3).map(c => ({ name: c.course_name, instructor: c.instructor }))
-        });
-        
-        matchingCourses = allCourseData.filter(
-          (course) =>
-            course.course_name === courseName &&
-            course.instructor === instructor
-        );
-        
-        console.log('Matching courses found:', matchingCourses.length, matchingCourses);
-      }
+      // All class years (1L, 2L, 3L): Filter from the already fetched course data
+      console.log('Schedule matching for', classYear, ':', {
+        courseName,
+        instructor, // Display name (keeps semicolons)
+        allCourseDataCount: allCourseData.length,
+        sampleInstructors: allCourseData.slice(0, 3).map(c => ({ name: c.course_name, instructor: c.instructor }))
+      });
+      
+      const matchingCourses = allCourseData.filter(
+        (course) =>
+          course.course_name === courseName &&
+          course.instructor === instructor
+      );
+      
+      console.log('Matching courses found:', matchingCourses.length, matchingCourses);
 
       console.log(
         'Found matching schedules from stored data:',
@@ -832,7 +674,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     }
   };
 
-  const handleClassChange = (index: number, lawClass: LawClass | null) => {
+  const handleClassChange = async (index: number, lawClass: LawClass | null) => {
     console.log('Class change:', {
       index,
       lawClass: lawClass?.name,
@@ -843,15 +685,30 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       fullLawClass: lawClass,
     });
     const newSelectedClasses = [...selectedClasses];
+    
+    // Auto-select first professor for all class years (1L, 2L, 3L)
+    let selectedProfessor = null;
+    if (lawClass && lawClass.professors && lawClass.professors.length > 0) {
+      selectedProfessor = lawClass.professors[0];
+      console.log('Auto-selecting first professor for', classYear, ':', selectedProfessor.name);
+    }
+    
     newSelectedClasses[index] = {
       lawClass,
-      professor: null,
+      professor: selectedProfessor,
       scheduleOption: null,
     };
     setSelectedClasses(newSelectedClasses);
 
     // Clear schedule options when class changes
     setScheduleOptionsBySlot((prev) => ({ ...prev, [index]: [] }));
+    
+    // Auto-fetch schedule for all class years after auto-selecting professor
+    if (lawClass && selectedProfessor) {
+      console.log('Auto-fetching schedule for', classYear, 'class:', lawClass.name, 'with professor:', selectedProfessor.name);
+      await fetchCourseDetails(lawClass.name, selectedProfessor.name, index);
+    }
+    
     console.log(
       'Updated selectedClasses:',
       newSelectedClasses.map((sc, i) => ({
@@ -861,6 +718,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         hasProfessors: sc.lawClass?.professors?.length,
         professorNames: sc.lawClass?.professors?.map((p) => p.name),
         hasProfessor: !!sc.professor,
+        professorName: sc.professor?.name,
       }))
     );
   };
@@ -934,19 +792,19 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       return false;
     }
 
-    // Check minimum requirements based on class year
+    // Different requirements for 1L vs 2L/3L
     if (classYear === '1L') {
-      // 1L: 7 required + 1 elective = 8 total
-      // First 7 must have both class and professor, 8th can have just class
+      // 1L: 7 required + 1 optional = 8 total
       const requiredClasses = selectedClasses
         .slice(0, 7)
         .filter((selected) => selected.lawClass && selected.professor);
-      const electiveClass = selectedClasses[7];
+      const optionalClass = selectedClasses[7];
+      const totalClasses = requiredClasses.length + (optionalClass?.lawClass ? 1 : 0);
 
-      // Debug logging
       console.log('1L Validation:', {
         requiredClasses: requiredClasses.length,
-        electiveClass: !!electiveClass?.lawClass,
+        optionalClass: !!optionalClass?.lawClass,
+        totalClasses,
         selectedClasses: selectedClasses.map((sc, i) => ({
           index: i,
           hasClass: !!sc.lawClass,
@@ -954,16 +812,16 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         })),
       });
 
-      const isValid = requiredClasses.length === 7; // Elective is now optional
+      const isValid = requiredClasses.length === 7; // Optional class is truly optional
       console.log('1L Validation result:', {
         requiredClasses: requiredClasses.length,
-        electiveClass: !!electiveClass?.lawClass,
+        optionalClass: !!optionalClass?.lawClass,
+        totalClasses,
         isValid,
       });
       return isValid;
-    } else if (classYear === '2L' || classYear === '3L') {
+    } else {
       // 2L/3L: minimum 3, maximum 10
-      // First 3 must have both class and professor, rest can have just class
       const requiredClasses = selectedClasses
         .slice(0, 3)
         .filter((selected) => selected.lawClass && selected.professor);
@@ -972,8 +830,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         .filter((selected) => selected.lawClass);
       const totalClasses = requiredClasses.length + optionalClasses.length;
 
-      // Debug logging
-      console.log('2L/3L Validation:', {
+      console.log(classYear, 'Validation:', {
         requiredClasses: requiredClasses.length,
         optionalClasses: optionalClasses.length,
         totalClasses,
@@ -986,7 +843,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
       const isValid =
         requiredClasses.length === 3 && totalClasses >= 3 && totalClasses <= 10;
-      console.log('2L/3L Validation result:', {
+      console.log(classYear, 'Validation result:', {
         requiredClasses: requiredClasses.length,
         totalClasses,
         isValid,
@@ -1314,7 +1171,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                             onProfessorChange={(professor) =>
                               handleProfessorChange(index, professor)
                             }
-                            isReadOnly={classYear === '1L' && index < 7}
+                            isReadOnly={false}
                             isRequired={isRequired}
                             classYear={classYear}
                           />
@@ -1348,22 +1205,12 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                           </>
                         ) : (
                           <>
-                            Required:{' '}
+                            Classes Selected:{' '}
                             {
                               selectedClasses
-                                .slice(0, 3)
-                                .filter(
-                                  (selected) =>
-                                    selected.lawClass && selected.professor
-                                ).length
-                            }
-                            /3, Optional:{' '}
-                            {
-                              selectedClasses
-                                .slice(3)
                                 .filter((selected) => selected.lawClass).length
                             }
-                            /7
+                            /10
                           </>
                         )}
                       </span>

@@ -74,6 +74,15 @@ export function ClassSelector({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Reset internal state when class year changes
+  useEffect(() => {
+    console.log('ClassSelector - classYear changed:', classYear);
+    setSearchTerm('');
+    setShowDropdown(false);
+    setShowProfessorDropdown(false);
+    setFilteredClasses(availableClasses);
+  }, [classYear, availableClasses]);
+
   // Update search term when selected class changes
   useEffect(() => {
     console.log('ClassSelector - selectedClass changed:', selectedClass?.name);
@@ -206,9 +215,7 @@ export function ClassSelector({
       {/* Class Selection */}
       <div className="relative" ref={dropdownRef} style={{ width: '450px' }}>
         <Label className="text-sm mb-2 block">
-          {index === 7 && classYear === '1L'
-            ? 'Elective'
-            : `Class ${index + 1}`}
+          {index === 7 && classYear === '1L' ? 'Elective' : `Class ${index + 1}`}
           {isRequired && (
             <span style={{ color: '#752432' }} className="ml-1">
               *
@@ -312,81 +319,92 @@ export function ClassSelector({
           )}
         </Label>
 
-        <div className="relative">
-          <Input
-            value={selectedProfessor?.name || ''}
-            placeholder={
-              !selectedClass ? 'Select class first' : 'Select professor'
-            }
-            readOnly
-            data-professor-input={index}
-            style={{
-              backgroundColor: !selectedClass ? '#f5f5f5' : 'white',
-              cursor: !selectedClass ? 'not-allowed' : 'pointer',
-            }}
-            onMouseDown={() => {
-              console.log('Professor input mousedown:', {
-                selectedClass: selectedClass?.name,
-                selectedClassId: selectedClass?.id,
-                professors: selectedClass?.professors?.length,
-                professorNames: selectedClass?.professors?.map((p) => p.name),
-                isRequired,
-                index,
-                fullSelectedClass: selectedClass,
-              });
-              if (
-                selectedClass &&
-                selectedClass.professors &&
-                selectedClass.professors.length > 0
-              ) {
-                console.log(
-                  'Opening professor dropdown for:',
-                  selectedClass.name
-                );
-                setShowProfessorDropdown(true);
-              } else {
-                console.log(
-                  'Cannot open professor dropdown - no professors available for:',
-                  selectedClass?.name,
-                  'professors array:',
-                  selectedClass?.professors
-                );
-              }
-            }}
-            className={`bg-input-background pr-10 ${
-              !selectedClass
-                ? 'cursor-not-allowed opacity-60'
-                : 'cursor-pointer'
-            }`}
-            disabled={!selectedClass}
-            title={
-              !selectedClass
-                ? 'Select a class first'
-                : 'Click to select professor'
-            }
-          />
-          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-            <ChevronDown className="h-4 w-4 text-gray-400 pointer-events-none" />
+        {/* Display-only professor for all class years (1L, 2L, 3L) */}
+        {true ? (
+          <div className="min-h-[40px] py-2 px-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-700 leading-tight mt-1">
+            {selectedProfessor?.name || (selectedClass ? 'Loading...' : 'Select class first')}
           </div>
+        ) : (
+          <div className="relative">
+            <Input
+              value={selectedProfessor?.name || ''}
+              placeholder={
+                !selectedClass ? 'Select class first' : 'Select professor'
+              }
+              readOnly
+              data-professor-input={index}
+              style={{
+                backgroundColor: !selectedClass ? '#f5f5f5' : 'white',
+                cursor: !selectedClass ? 'not-allowed' : 'pointer',
+              }}
+              onMouseDown={() => {
+                console.log('Professor input mousedown:', {
+                  selectedClass: selectedClass?.name,
+                  selectedClassId: selectedClass?.id,
+                  professors: selectedClass?.professors?.length,
+                  professorNames: selectedClass?.professors?.map((p) => p.name),
+                  isRequired,
+                  index,
+                  fullSelectedClass: selectedClass,
+                });
+                if (
+                  selectedClass &&
+                  selectedClass.professors &&
+                  selectedClass.professors.length > 0
+                ) {
+                  console.log(
+                    'Opening professor dropdown for:',
+                    selectedClass.name
+                  );
+                  setShowProfessorDropdown(true);
+                } else {
+                  console.log(
+                    'Cannot open professor dropdown - no professors available for:',
+                    selectedClass?.name,
+                    'professors array:',
+                    selectedClass?.professors
+                  );
+                }
+              }}
+              className={`bg-input-background pr-10 ${
+                !selectedClass
+                  ? 'cursor-not-allowed opacity-60'
+                  : 'cursor-pointer'
+              }`}
+              disabled={!selectedClass}
+              title={
+                !selectedClass
+                  ? 'Select a class first'
+                  : 'Click to select professor'
+              }
+            />
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              <ChevronDown className="h-4 w-4 text-gray-400 pointer-events-none" />
+            </div>
+          </div>
+        )}
 
-          {(() => {
-            console.log('Professor dropdown render check:', {
-              showProfessorDropdown,
-              selectedClass: selectedClass?.name,
-              professors: selectedClass?.professors?.length,
-              professorNames: selectedClass?.professors?.map((p) => p.name),
-              shouldShow:
-                showProfessorDropdown &&
+          {/* Professor dropdown disabled for all class years */}
+          {false && (
+            <>
+              {(() => {
+                console.log('Professor dropdown render check:', {
+                  showProfessorDropdown,
+                  selectedClass: selectedClass?.name,
+                  professors: selectedClass?.professors?.length,
+                  professorNames: selectedClass?.professors?.map((p) => p.name),
+                  shouldShow:
+                    showProfessorDropdown &&
+                    selectedClass &&
+                    selectedClass.professors &&
+                    selectedClass.professors.length > 0,
+                });
+                return null;
+              })()}
+              {showProfessorDropdown &&
                 selectedClass &&
                 selectedClass.professors &&
-                selectedClass.professors.length > 0,
-            });
-            return null;
-          })()}
-          {showProfessorDropdown &&
-            selectedClass &&
-            selectedClass.professors &&
-            selectedClass.professors.length > 0 && (
+                selectedClass.professors.length > 0 && (
               <div
                 data-professor-dropdown={index}
                 className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
@@ -454,7 +472,8 @@ export function ClassSelector({
                 })}
               </div>
             )}
-        </div>
+            </>
+          )}
       </div>
 
       {/* Schedule Selection - Always visible for all class years */}

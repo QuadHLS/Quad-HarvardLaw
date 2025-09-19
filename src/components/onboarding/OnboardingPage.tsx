@@ -511,7 +511,124 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     fetchCourses();
   }, [classYear]);
 
-  // No auto-population - all students (1L, 2L, 3L) select courses manually
+  // Auto-populate 1L required courses when section is selected
+  useEffect(() => {
+    let isMounted = true;
+    
+    const autoPopulate1L = () => {
+      if (classYear === '1L' && section && allCourseData.length > 0 && isMounted) {
+        console.log('Auto-populating 1L Section', section, 'courses...');
+        
+        // Define the 7 required courses with dynamic section number
+        const sectionNumber = section;
+        const requiredCourses = [
+          `Civil Procedure ${sectionNumber}`,
+          `Contracts ${sectionNumber}`, 
+          `Criminal Law ${sectionNumber}`,
+          `Torts ${sectionNumber}`,
+          `Constitutional Law ${sectionNumber}`,
+          `Property ${sectionNumber}`,
+          `Legislation and Regulation ${sectionNumber}`
+        ];
+
+        // Create new selected classes array
+        const newSelectedClasses = Array(8)
+          .fill(null)
+          .map(() => ({
+            lawClass: null,
+            professor: null,
+            scheduleOption: null,
+          }));
+
+        // Auto-populate the first 7 slots with required courses
+        for (let i = 0; i < 7; i++) {
+          const courseName = requiredCourses[i];
+          
+          console.log(`Processing slot ${i}: ${courseName}`);
+          
+          // Find matching course in the Courses table
+          const matchingCourses = allCourseData.filter(
+            (course) => course.course_name === courseName
+          );
+
+          console.log(`Found ${matchingCourses.length} matches for ${courseName}:`, matchingCourses);
+
+          if (matchingCourses.length > 0) {
+            const course = matchingCourses[0];
+            
+            // Create LawClass object
+            const lawClass: LawClass = {
+              id: course.course_number?.toString() || courseName,
+              name: course.course_name,
+              professors: [{
+                id: course.instructor,
+                name: course.instructor
+              }]
+            };
+
+            // Auto-select the professor
+            const professor: Professor = {
+              id: course.instructor,
+              name: course.instructor
+            };
+
+            // Create schedule directly from course data (synchronous)
+            const scheduleOption = course.days && course.times ? {
+              course_number: course.course_number,
+              course_name: course.course_name,
+              semester: course.semester,
+              instructor: course.instructor,
+              credits: course.credits,
+              days: course.days.split(';').map((d: string) => d.trim()).join(' • '),
+              times: course.times.split(';').map((t: string) => t.trim())[0] || 'TBD',
+              location: course.location || 'Location TBD'
+            } : null;
+
+            newSelectedClasses[i] = {
+              lawClass,
+              professor,
+              scheduleOption
+            };
+
+            console.log(`✅ Auto-populated slot ${i} (${courseName}):`, {
+              course: courseName,
+              professor: course.instructor,
+              schedule: scheduleOption ? `${scheduleOption.days} • ${scheduleOption.times}` : 'No schedule',
+              fullData: newSelectedClasses[i]
+            });
+          } else {
+            console.log(`❌ No matches found for ${courseName}`);
+          }
+        }
+
+        // Only update state if component is still mounted and section hasn't changed
+        if (isMounted && section === sectionNumber) {
+          console.log('Setting state for section', section, 'with classes:', newSelectedClasses.map((c, i) => ({
+            slot: i,
+            course: c.lawClass?.name,
+            professor: c.professor?.name,
+            hasSchedule: !!c.scheduleOption
+          })));
+          
+          // Set all state at once to prevent any glitching
+          setSelectedClasses([...newSelectedClasses]);
+          setScheduleOptionsBySlot({});
+          setScheduleLoadingBySlot({});
+          
+          console.log('1L Section', section, 'auto-population complete');
+        } else {
+          console.log('Skipping state update - isMounted:', isMounted, 'section match:', section === sectionNumber);
+        }
+      }
+    };
+
+    autoPopulate1L();
+    
+    // Cleanup function to prevent state updates after component unmounts or section changes
+    return () => {
+      isMounted = false;
+    };
+  }, [classYear, section, allCourseData]);
 
   // Handle class year changes
   useEffect(() => {
@@ -684,8 +801,15 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       classYear,
       fullLawClass: lawClass,
     });
-    const newSelectedClasses = [...selectedClasses];
     
+    // Skip handling for 1L required courses (slots 0-6) as they are auto-populated
+    if (classYear === '1L' && index < 7) {
+      console.log('Skipping handleClassChange for 1L required course slot', index);
+      return;
+    }
+    
+    const newSelectedClasses = [...selectedClasses];
+
     // Auto-select first professor for all class years (1L, 2L, 3L)
     let selectedProfessor = null;
     if (lawClass && lawClass.professors && lawClass.professors.length > 0) {
@@ -732,6 +856,13 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       professor: professor?.name,
       classYear,
     });
+    
+    // Skip handling for 1L required courses (slots 0-6) as they are auto-populated
+    if (classYear === '1L' && index < 7) {
+      console.log('Skipping handleProfessorChange for 1L required course slot', index);
+      return;
+    }
+    
     const newSelectedClasses = [...selectedClasses];
     newSelectedClasses[index] = {
       ...newSelectedClasses[index],
@@ -1171,7 +1302,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                             onProfessorChange={(professor) =>
                               handleProfessorChange(index, professor)
                             }
-                            isReadOnly={false}
+                            isReadOnly={classYear === '1L' && index < 7}
                             isRequired={isRequired}
                             classYear={classYear}
                           />

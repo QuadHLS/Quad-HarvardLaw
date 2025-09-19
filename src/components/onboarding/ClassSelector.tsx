@@ -396,15 +396,15 @@ export function ClassSelector({
                   shouldShow:
                     showProfessorDropdown &&
                     selectedClass &&
-                    selectedClass.professors &&
-                    selectedClass.professors.length > 0,
+                    selectedClass?.professors &&
+                    (selectedClass?.professors?.length ?? 0) > 0,
                 });
                 return null;
               })()}
               {showProfessorDropdown &&
                 selectedClass &&
-                selectedClass.professors &&
-                selectedClass.professors.length > 0 && (
+                selectedClass?.professors &&
+                (selectedClass?.professors?.length ?? 0) > 0 && (
               <div
                 data-professor-dropdown={index}
                 className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
@@ -417,9 +417,9 @@ export function ClassSelector({
                 }}
               >
                 <div className="p-2 text-xs text-gray-500 bg-gray-50 border-b">
-                  Professors for {selectedClass.name}:
+                  Professors for {selectedClass?.name}:
                 </div>
-                {selectedClass.professors.map((professor) => {
+                {selectedClass?.professors?.map((professor) => {
                   console.log('Rendering professor option:', professor);
                   return (
                     <button
@@ -492,6 +492,16 @@ export function ClassSelector({
             <div className="flex items-center text-sm text-gray-500 h-10 px-3 border rounded-md bg-input-background">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900 mr-2"></div>
               Loading...
+            </div>
+          ) : selectedSchedule ? (
+            <div className="min-h-[40px] px-3 py-2 border rounded-md bg-input-background">
+              <div className="font-medium text-sm leading-tight">
+                {selectedSchedule.days || 'TBD'} • {selectedSchedule.times || 'TBD'}
+              </div>
+              <div className="text-xs text-gray-500 mt-1 leading-tight">
+                {selectedSchedule.location || 'Location TBD'} •{' '}
+                {selectedSchedule.semester} • {selectedSchedule.credits} credits
+              </div>
             </div>
           ) : scheduleOptions && scheduleOptions.length > 0 ? (
             <div className="min-h-[40px] px-3 py-2 border rounded-md bg-input-background">

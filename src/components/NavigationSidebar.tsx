@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Home, FileText, Star, Beer, Calendar, Menu, User, MessageCircle, Archive, ChevronDown, ChevronRight, BookOpen, LogOut } from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 
 interface NavigationSidebarProps {
   activeSection: string;
@@ -12,8 +13,41 @@ interface NavigationSidebarProps {
 
 export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed, onToggleCollapsed }: NavigationSidebarProps) {
   const [isResourcesExpanded, setIsResourcesExpanded] = useState(false);
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [userName, setUserName] = useState('User');
+
+  // Fetch user's name from profiles table
+  useEffect(() => {
+    const fetchUserName = async () => {
+      if (!user?.id) return;
+
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching user name:', error);
+          return;
+        }
+
+        if (profile?.full_name) {
+          // Extract first name and last initial
+          const nameParts = profile.full_name.split(' ');
+          const firstName = nameParts[0];
+          const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1][0] : '';
+          setUserName(`${firstName} ${lastInitial}.`);
+        }
+      } catch (error) {
+        console.error('Error fetching user name:', error);
+      }
+    };
+
+    fetchUserName();
+  }, [user]);
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -267,7 +301,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
                 className="w-5 h-5 mr-3" 
                 style={{ color: '#752432' }}
               />
-              <span className="font-medium">Justin A.</span>
+              <span className="font-medium">{userName}</span>
             </button>
           </>
         ) : (

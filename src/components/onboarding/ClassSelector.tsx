@@ -250,6 +250,7 @@ export function ClassSelector({
               }
             }}
             placeholder={
+              isReadOnly && classYear === '1L' && index < 7 ? 'Choose section' : 
               isReadOnly ? 'Course assigned' : 'Search for a class...'
             }
             className="pr-10 bg-input-background cursor-pointer"
@@ -321,8 +322,8 @@ export function ClassSelector({
 
         {/* Display-only professor for all class years (1L, 2L, 3L) */}
         {true ? (
-          <div className="min-h-[40px] py-2 px-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-700 leading-tight mt-1">
-            {selectedProfessor?.name || (selectedClass ? 'Loading...' : 'Select class first')}
+          <div className="min-h-[40px] py-2 px-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-500 leading-tight mt-1">
+            {selectedProfessor?.name || (selectedClass ? 'Loading...' : (classYear === '1L' && index < 7 ? 'Choose section' : 'Select class first'))}
           </div>
         ) : (
           <div className="relative">
@@ -515,7 +516,7 @@ export function ClassSelector({
             </div>
           ) : (
             <div className="h-10 px-3 border rounded-md bg-input-background flex items-center text-sm text-gray-500">
-              {!selectedClass ? 'Select class first' : 
+              {!selectedClass ? (classYear === '1L' && index < 7 ? 'Choose section' : 'Select class first') : 
                !selectedProfessor ? 'Select professor first' : 
                'No schedule available'}
             </div>

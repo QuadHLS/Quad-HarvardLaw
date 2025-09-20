@@ -14,7 +14,7 @@ export const AuthPage: React.FC = () => {
   const handleBackToLogin = () => setAuthMode('login')
 
   return (
-    <div className="min-h-screen flex flex-col items-center relative" style={{ backgroundColor: '#f9f5f0', minHeight: '100vh' }}>
+    <div className="min-h-screen flex flex-col items-center relative" style={{ backgroundColor: 'var(--background-color, #f9f5f0)', minHeight: '100vh' }}>
       {/* Logo at the top */}
       <div className="pt-16 pb-20">
         <div className="leading-none" style={{ fontSize: '7rem', letterSpacing: '0.02em', fontWeight: '500', fontFamily: 'system-ui, -apple-system, sans-serif', marginLeft: '-0.2rem' }}>

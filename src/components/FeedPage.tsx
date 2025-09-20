@@ -412,7 +412,7 @@ export function FeedPage() {
   );
 
   return (
-    <div className="flex h-full" style={{ backgroundColor: '#f9f5f0' }}>
+    <div className="flex h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
       {/* Main Feed */}
       <div className="flex-1 p-6 overflow-y-auto">
         <div className="max-w-4xl mx-auto">
@@ -425,7 +425,7 @@ export function FeedPage() {
               </div>
               
               {/* Feed Type Toggle */}
-              <div className="flex items-center gap-3 rounded-lg p-3 shadow-sm border" style={{ backgroundColor: '#f9f5f0' }}>
+              <div className="flex items-center gap-3 rounded-lg p-3 shadow-sm border" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
                 <span className={`text-sm font-medium transition-colors ${feedType === 'campus' ? 'text-red-800' : 'text-gray-500'}`}>
                   Campus
                 </span>
@@ -646,7 +646,7 @@ export function FeedPage() {
       </div>
 
       {/* Pinned Threads Sidebar */}
-      <div className="w-80 border-l border-gray-200 p-6 overflow-y-auto" style={{ backgroundColor: '#f9f5f0' }}>
+      <div className="w-80 border-l border-gray-200 p-6 overflow-y-auto" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
         <div className="space-y-6">
           {/* Quick Actions */}
           <div>
@@ -727,7 +727,7 @@ export function FeedPage() {
       {/* Create Post Modal */}
       {showCreatePost && (
         <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="rounded-xl shadow-2xl w-full max-w-3xl max-h-screen overflow-y-auto border border-gray-200" style={{ backgroundColor: '#f9f5f0' }}>
+          <div className="rounded-xl shadow-2xl w-full max-w-3xl max-h-screen overflow-y-auto border border-gray-200" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
               <div className="flex items-center gap-3">
@@ -755,7 +755,7 @@ export function FeedPage() {
                   📍 Post Destination
                 </label>
                 <div className="grid grid-cols-2 gap-3">
-                  <label className="flex items-center p-3 rounded-lg border border-gray-200 cursor-pointer hover:border-red-800 transition-colors" style={{ backgroundColor: '#f9f5f0' }}>
+                  <label className="flex items-center p-3 rounded-lg border border-gray-200 cursor-pointer hover:border-red-800 transition-colors" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
                     <input
                       type="radio"
                       name="category"
@@ -766,7 +766,7 @@ export function FeedPage() {
                     />
                     <span className="ml-3 text-sm font-medium text-gray-900">🏫 Campus Community</span>
                   </label>
-                  <label className="flex items-center p-3 rounded-lg border border-gray-200 cursor-pointer hover:border-red-800 transition-colors" style={{ backgroundColor: '#f9f5f0' }}>
+                  <label className="flex items-center p-3 rounded-lg border border-gray-200 cursor-pointer hover:border-red-800 transition-colors" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
                     <input
                       type="radio"
                       name="category"

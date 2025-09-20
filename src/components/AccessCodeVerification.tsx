@@ -159,7 +159,7 @@ export default function AccessCodeVerification({
                   onChange={(e) => setAccessCode(e.target.value)}
                   required
                   disabled={loading}
-                  className="uppercase style={{ backgroundColor: '#f9f5f0' }}/5 border-white/10 text-white placeholder:text-gray-400 focus:border-red-600 focus:ring-red-600/20 rounded-lg backdrop-blur-sm text-sm"
+                  className="uppercase style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}/5 border-white/10 text-white placeholder:text-gray-400 focus:border-red-600 focus:ring-red-600/20 rounded-lg backdrop-blur-sm text-sm"
                 />
                 <p className="text-xs text-gray-400 mt-2">
                   This code was provided by your administrator or in your

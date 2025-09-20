@@ -11,7 +11,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen style={{ backgroundColor: '#f9f5f0' }} flex items-center justify-center">
+      <div className="min-h-screen style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
           <p className="text-gray-600">Loading...</p>

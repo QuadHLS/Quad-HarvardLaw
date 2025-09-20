@@ -249,7 +249,7 @@ export function SearchSidebar({
   return (
     <div className="w-80 bg-[#8B4A6B] text-white flex flex-col">
       {/* Tab Navigation */}
-      <div className="flex px-2 pt-2 pb-0 gap-1" style={{ backgroundColor: '#f9f5f0' }}>
+      <div className="flex px-2 pt-2 pb-0 gap-1" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
         <button
           onClick={() => setActiveTab("search")}
           className={`px-3 py-1.5 text-center transition-colors rounded-t-lg text-sm ${
@@ -702,7 +702,7 @@ export function SearchSidebar({
           </div>
 
           {/* Outlines List */}
-          <div className="flex-1 text-black overflow-y-auto" style={{ backgroundColor: '#f9f5f0' }}>
+          <div className="flex-1 text-black overflow-y-auto" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
             {selectedCourse === "" ||
             selectedInstructor === "" ? (
               <div className="flex flex-col items-center justify-center h-full p-6 text-center">
@@ -952,7 +952,7 @@ export function SearchSidebar({
             </div>
           </div>
 
-          <div className="flex-1 text-black overflow-y-auto" style={{ backgroundColor: '#f9f5f0' }}>
+          <div className="flex-1 text-black overflow-y-auto" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
             {savedOutlines.filter(
               (outline) =>
                 savedCourseFilter === "" ||
@@ -1159,7 +1159,7 @@ export function SearchSidebar({
       ) : activeTab === "upload" ? (
         <>
           {/* Upload Tab Content */}
-          <div className="flex-1 text-black flex flex-col" style={{ backgroundColor: '#f9f5f0' }}>
+          <div className="flex-1 text-black flex flex-col" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
             {/* Upload Instructions */}
             <div className="p-6 text-center border-b bg-gray-50">
               <h3 className="text-lg font-medium text-gray-800 mb-2">
@@ -1333,7 +1333,7 @@ export function SearchSidebar({
       {/* Review Modal */}
       {reviewingOutline && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="rounded-lg p-6 max-w-md w-full mx-4" style={{ backgroundColor: '#f9f5f0' }}>
+          <div className="rounded-lg p-6 max-w-md w-full mx-4" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-black">
                 Rate this outline

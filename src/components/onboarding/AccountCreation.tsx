@@ -97,7 +97,7 @@ export function AccountCreation({ onComplete }: AccountCreationProps) {
 
   if (success) {
     return (
-      <div className="min-h-screen style={{ backgroundColor: '#f9f5f0' }} py-8 px-4">
+      <div className="min-h-screen style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} py-8 px-4">
         <div className="max-w-md mx-auto">
           <Card className="shadow-lg">
             <CardContent className="pt-6">
@@ -269,7 +269,7 @@ export function AccountCreation({ onComplete }: AccountCreationProps) {
 
         {/* Progress Indicator */}
         <div className="mt-8 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 style={{ backgroundColor: '#f9f5f0' }} rounded-full border shadow-sm">
+          <div className="inline-flex items-center gap-2 px-4 py-2 style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} rounded-full border shadow-sm">
             <div className="w-2 h-2 bg-red-600 rounded-full"></div>
             <span className="text-sm text-gray-600">
               Step 1 of 2 - Account Creation

@@ -231,7 +231,7 @@ export function EventsPage({ onAddToCalendar }: EventsPageProps) {
       case 'firm':
         return 'bg-blue-600 text-white';
       default:
-        return 'style={{ backgroundColor: '#f9f5f0' }}0 text-white';
+        return 'style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}0 text-white';
     }
   };
 
@@ -261,7 +261,7 @@ export function EventsPage({ onAddToCalendar }: EventsPageProps) {
       case 'information':
         return 'bg-yellow-100 text-yellow-800';
       default:
-        return 'style={{ backgroundColor: '#f9f5f0' }} text-gray-800';
+        return 'style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} text-gray-800';
     }
   };
 
@@ -357,7 +357,7 @@ export function EventsPage({ onAddToCalendar }: EventsPageProps) {
   };
 
   return (
-    <div className="h-full style={{ backgroundColor: '#f9f5f0' }} flex">
+    <div className="h-full style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} flex">
       {/* Dark Sidebar */}
       <div className="w-80 bg-[#752432] text-white flex flex-col">
         {/* Sidebar Header */}
@@ -377,7 +377,7 @@ export function EventsPage({ onAddToCalendar }: EventsPageProps) {
                   variant="ghost"
                   size="sm"
                   onClick={() => navigateMonth('prev')}
-                  className="h-8 w-8 p-0 text-white hover:style={{ backgroundColor: '#f9f5f0' }}/10"
+                  className="h-8 w-8 p-0 text-white hover:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}/10"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </Button>
@@ -385,7 +385,7 @@ export function EventsPage({ onAddToCalendar }: EventsPageProps) {
                   variant="ghost"
                   size="sm"
                   onClick={() => navigateMonth('next')}
-                  className="h-8 w-8 p-0 text-white hover:style={{ backgroundColor: '#f9f5f0' }}/10"
+                  className="h-8 w-8 p-0 text-white hover:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}/10"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </Button>
@@ -415,9 +415,9 @@ export function EventsPage({ onAddToCalendar }: EventsPageProps) {
                   <button
                     key={i}
                     onClick={() => setCurrentDate(dayDate)}
-                    className={`p-2 text-sm rounded hover:style={{ backgroundColor: '#f9f5f0' }}/10 transition-colors ${
-                      isSelected ? 'style={{ backgroundColor: '#f9f5f0' }}/20 text-white' : 
-                      isToday ? 'style={{ backgroundColor: '#f9f5f0' }}/10 text-white' : 
+                    className={`p-2 text-sm rounded hover:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}/10 transition-colors ${
+                      isSelected ? 'style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}/20 text-white' : 
+                      isToday ? 'style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}/10 text-white' : 
                       'text-white/80'
                     }`}
                   >
@@ -438,7 +438,7 @@ export function EventsPage({ onAddToCalendar }: EventsPageProps) {
               placeholder="Search by keyword"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 style={{ backgroundColor: '#f9f5f0' }}/10 border-white/20 text-white placeholder:text-white/40 focus:border-white/40"
+              className="pl-10 style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}/10 border-white/20 text-white placeholder:text-white/40 focus:border-white/40"
             />
           </div>
         </div>
@@ -454,7 +454,7 @@ export function EventsPage({ onAddToCalendar }: EventsPageProps) {
                   id="school-toggle"
                   checked={showSchoolEvents}
                   onCheckedChange={setShowSchoolEvents}
-                  className="data-[state=checked]:style={{ backgroundColor: '#f9f5f0' }}/20 data-[state=unchecked]:style={{ backgroundColor: '#f9f5f0' }}/20"
+                  className="data-[state=checked]:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}/20 data-[state=unchecked]:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}/20"
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -463,7 +463,7 @@ export function EventsPage({ onAddToCalendar }: EventsPageProps) {
                   id="firm-toggle"
                   checked={showFirmEvents}
                   onCheckedChange={setShowFirmEvents}
-                  className="data-[state=checked]:style={{ backgroundColor: '#f9f5f0' }}/20 data-[state=unchecked]:style={{ backgroundColor: '#f9f5f0' }}/20"
+                  className="data-[state=checked]:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}/20 data-[state=unchecked]:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}/20"
                 />
               </div>
             </div>
@@ -478,7 +478,7 @@ export function EventsPage({ onAddToCalendar }: EventsPageProps) {
                   id="lunch-toggle"
                   checked={showLunchEvents}
                   onCheckedChange={setShowLunchEvents}
-                  className="data-[state=checked]:style={{ backgroundColor: '#f9f5f0' }}/20 data-[state=unchecked]:style={{ backgroundColor: '#f9f5f0' }}/20"
+                  className="data-[state=checked]:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}/20 data-[state=unchecked]:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}/20"
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -487,7 +487,7 @@ export function EventsPage({ onAddToCalendar }: EventsPageProps) {
                   id="no-lunch-toggle"
                   checked={showNonLunchEvents}
                   onCheckedChange={setShowNonLunchEvents}
-                  className="data-[state=checked]:style={{ backgroundColor: '#f9f5f0' }}/20 data-[state=unchecked]:style={{ backgroundColor: '#f9f5f0' }}/20"
+                  className="data-[state=checked]:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}/20 data-[state=unchecked]:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}/20"
                 />
               </div>
             </div>
@@ -496,14 +496,14 @@ export function EventsPage({ onAddToCalendar }: EventsPageProps) {
 
         {/* Submit Event Button */}
         <div className="p-6 mt-auto">
-          <Button className="w-full style={{ backgroundColor: '#f9f5f0' }} text-[#752432] hover:style={{ backgroundColor: '#f9f5f0' }}/90">
+          <Button className="w-full style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} text-[#752432] hover:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}/90">
             Submit an Event
           </Button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col style={{ backgroundColor: '#f9f5f0' }}">
+      <div className="flex-1 flex flex-col style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}">
         {/* Main Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center gap-4">

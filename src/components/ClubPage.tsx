@@ -107,7 +107,7 @@ export function ClubPage({ clubId, onBack }: ClubPageProps) {
   
   if (!club) {
     return (
-      <div className="h-full flex items-center justify-center style={{ backgroundColor: '#f9f5f0' }}">
+      <div className="h-full flex items-center justify-center style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}">
         <div className="text-center">
           <h2 className="text-2xl font-semibold text-gray-900 mb-2">Club Not Found</h2>
           <p className="text-gray-600 mb-4">The requested organization could not be found.</p>
@@ -136,13 +136,13 @@ export function ClubPage({ clubId, onBack }: ClubPageProps) {
       'Social': 'bg-pink-100 text-pink-800',
       'Student Government': 'bg-indigo-100 text-indigo-800'
     };
-    return colors[category] || 'style={{ backgroundColor: '#f9f5f0' }} text-gray-800';
+    return colors[category] || 'style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} text-gray-800';
   };
 
   return (
-    <div className="h-full overflow-y-auto" style={{ backgroundColor: '#f9f5f0' }}>
+    <div className="h-full overflow-y-auto" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
       {/* Header */}
-      <div className="style={{ backgroundColor: '#f9f5f0' }} border-b border-gray-200">
+      <div className="style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} border-b border-gray-200">
         <div className="px-8 py-6">
           <div className="flex items-center gap-4 mb-6">
             <Button

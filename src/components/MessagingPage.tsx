@@ -279,9 +279,9 @@ export function MessagingPage() {
   };
 
   return (
-    <div className="h-screen style={{ backgroundColor: '#f9f5f0' }} flex">
+    <div className="h-screen style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} flex">
       {/* Sidebar */}
-      <div className="w-80 style={{ backgroundColor: '#f9f5f0' }} border-r border-gray-200 flex flex-col">
+      <div className="w-80 style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} border-r border-gray-200 flex flex-col">
         {/* Header */}
         <div className="p-4 border-b border-gray-200">
           <h1 className="text-xl font-medium text-gray-900 mb-4">Messaging</h1>
@@ -330,7 +330,7 @@ export function MessagingPage() {
               <button
                 key={chat.id}
                 onClick={() => setSelectedChat(chat)}
-                className={`w-full p-4 text-left hover:style={{ backgroundColor: '#f9f5f0' }} transition-colors ${
+                className={`w-full p-4 text-left hover:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} transition-colors ${
                   selectedChat?.id === chat.id ? 'bg-blue-50 border-r-2 border-blue-500' : ''
                 }`}
               >
@@ -401,7 +401,7 @@ export function MessagingPage() {
         {selectedChat ? (
           <>
             {/* Chat Header */}
-            <div className="style={{ backgroundColor: '#f9f5f0' }} border-b border-gray-200 p-4">
+            <div className="style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} border-b border-gray-200 p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Avatar>
@@ -491,7 +491,7 @@ export function MessagingPage() {
             </ScrollArea>
 
             {/* Message Input */}
-            <div className="style={{ backgroundColor: '#f9f5f0' }} border-t border-gray-200 p-4">
+            <div className="style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} border-t border-gray-200 p-4">
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm">
                   <Paperclip className="w-4 h-4" />

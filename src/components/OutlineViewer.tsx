@@ -144,7 +144,7 @@ export function OutlineViewer({ outline, onSaveOutline, isSaved }: OutlineViewer
             minHeight: `${11 * (zoom / 100)}in`,
             transform: `scale(${zoom / 100})`,
             transformOrigin: 'top center',
-            backgroundColor: '#f9f5f0'
+            backgroundColor: 'var(--background-color, #f9f5f0)'
           }}
         >
           <div className="p-8">

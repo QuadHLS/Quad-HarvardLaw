@@ -83,7 +83,7 @@ export function ExamsPage({
   });
 
   return (
-    <div className="h-full style={{ backgroundColor: '#f9f5f0' }} flex">
+    <div className="h-full style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} flex">
       {/* Search Sidebar */}
       <SearchSidebar
         outlines={sortedOutlines}
@@ -121,7 +121,7 @@ export function ExamsPage({
       {/* Main Content */}
       <div className="flex-1">
         {activeTab === 'upload' ? (
-          <div className="flex items-center justify-center h-full style={{ backgroundColor: '#f9f5f0' }}">
+          <div className="flex items-center justify-center h-full style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}">
             <div className="text-center p-8">
               <FileText className="w-24 h-24 text-gray-400 mx-auto mb-4" />
               <h2 className="text-2xl font-medium text-gray-700 mb-4">
@@ -130,7 +130,7 @@ export function ExamsPage({
               <p className="text-gray-600 mb-6 max-w-md">
                 Use the upload form in the sidebar to share your exam materials with the community.
               </p>
-              <div className="style={{ backgroundColor: '#f9f5f0' }} rounded-lg shadow-sm p-6 max-w-lg mx-auto">
+              <div className="style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} rounded-lg shadow-sm p-6 max-w-lg mx-auto">
                 <h3 className="font-medium text-gray-800 mb-3">Upload Guidelines:</h3>
                 <ul className="text-sm text-gray-600 space-y-2 text-left">
                   <li>• Accepted formats: PDF, DOC, DOCX</li>

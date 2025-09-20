@@ -1324,7 +1324,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                 {/* Progress Counter - only show when class year is selected */}
                 {classYear && (
                   <div className="mb-4 text-center">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 style={{ backgroundColor: '#f9f5f0' }} rounded-full">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} rounded-full">
                       <span className="text-sm text-gray-600">
                         {classYear === '1L' ? (
                           <>

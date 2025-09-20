@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, FileText, Star, Beer, Calendar, Menu, User, MessageCircle, Archive, ChevronDown, ChevronRight, BookOpen, LogOut } from 'lucide-react';
+import { Home, FileText, Star, Beer, Calendar, Menu, User, MessageCircle, Archive, ChevronDown, ChevronRight, BookOpen, LogOut, Sun, Moon, Palette } from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -16,6 +16,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
   const { user, signOut } = useAuth();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [userName, setUserName] = useState('User');
+  const [theme, setTheme] = useState<'light' | 'dark' | 'beige'>('beige');
 
   // Fetch user's name from profiles table
   useEffect(() => {
@@ -49,6 +50,35 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
     fetchUserName();
   }, [user]);
 
+  // Apply theme to document
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'light') {
+      root.style.setProperty('--background-color', '#ffffff');
+      root.style.setProperty('--text-color', '#000000');
+    } else if (theme === 'dark') {
+      root.style.setProperty('--background-color', '#0e172c');
+      root.style.setProperty('--text-color', '#ffffff');
+    } else {
+      root.style.setProperty('--background-color', '#f9f5f0');
+      root.style.setProperty('--text-color', '#000000');
+    }
+  }, [theme]);
+
+  const handleThemeChange = (newTheme: 'light' | 'dark' | 'beige') => {
+    setTheme(newTheme);
+  };
+
+  const handleThemeToggle = () => {
+    if (theme === 'light') {
+      setTheme('beige');
+    } else if (theme === 'beige') {
+      setTheme('dark');
+    } else {
+      setTheme('light');
+    }
+  };
+
   const handleSignOut = async () => {
     setIsSigningOut(true);
     await signOut();
@@ -77,7 +107,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
       className={`text-gray-800 flex flex-col transition-all duration-300 border-r border-gray-200 h-full ${
         isCollapsed ? 'w-16' : 'w-40'
       }`}
-      style={{ backgroundColor: '#f9f5f0' }}
+      style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}
     >
       {/* Header */}
       <div className={`p-4 ${!isCollapsed ? 'border-b border-gray-200' : ''}`}>
@@ -419,10 +449,40 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
               />
               <span className="font-medium">{userName}</span>
             </button>
+
+            {/* Theme Toggle Section - Expanded */}
+            <div className="border-t border-gray-200 p-4">
+              <div className="flex items-center justify-center gap-2">
+                <Button
+                  onClick={() => handleThemeChange('light')}
+                  variant="ghost"
+                  size="sm"
+                  className={`p-2 ${theme === 'light' ? 'bg-gray-100' : ''}`}
+                >
+                  <Sun className="w-4 h-4" style={{ color: theme === 'light' ? '#000000' : '#6b7280' }} />
+                </Button>
+                <Button
+                  onClick={() => handleThemeChange('beige')}
+                  variant="ghost"
+                  size="sm"
+                  className={`p-2 ${theme === 'beige' ? 'bg-gray-100' : ''}`}
+                >
+                  <Palette className="w-4 h-4" style={{ color: theme === 'beige' ? '#000000' : '#6b7280' }} />
+                </Button>
+                <Button
+                  onClick={() => handleThemeChange('dark')}
+                  variant="ghost"
+                  size="sm"
+                  className={`p-2 ${theme === 'dark' ? 'bg-gray-100' : ''}`}
+                >
+                  <Moon className="w-4 h-4" style={{ color: theme === 'dark' ? '#000000' : '#6b7280' }} />
+                </Button>
+              </div>
+            </div>
           </>
         ) : (
-          /* Collapsed - Calendar above Messaging above Profile in vertical stack */
-          <div className="p-3 flex flex-col items-center gap-2">
+          /* Collapsed - Calendar above Messaging above Profile above Theme in vertical stack */
+          <div className="p-3 flex flex-col items-center gap-3">
             {/* Calendar Icon - Top */}
             <button
               onClick={() => onSectionChange('calendar')}
@@ -473,6 +533,16 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
                 className="w-4 h-4" 
                 style={{ color: '#752432' }}
               />
+            </button>
+
+            {/* Theme Toggle Icon */}
+            <button
+              onClick={handleThemeToggle}
+              className="w-10 h-10 flex items-center justify-center rounded-lg transition-colors text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+            >
+              {theme === 'light' && <Sun className="w-5 h-5" style={{ color: '#000000' }} />}
+              {theme === 'beige' && <Palette className="w-5 h-5" style={{ color: '#000000' }} />}
+              {theme === 'dark' && <Moon className="w-5 h-5" style={{ color: '#ffffff' }} />}
             </button>
           </div>
         )}

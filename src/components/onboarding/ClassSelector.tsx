@@ -273,7 +273,7 @@ export function ClassSelector({
           return null;
         })()}
         {showDropdown && !isReadOnly && filteredClasses.length > 0 && (
-          <div className="absolute z-10 w-full mt-1 style={{ backgroundColor: '#f9f5f0' }} border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+          <div className="absolute z-10 w-full mt-1 style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
             {(() => {
               console.log(
                 'Rendering dropdown options for index',
@@ -300,7 +300,7 @@ export function ClassSelector({
                   );
                   handleClassSelect(lawClass);
                 }}
-                className="w-full px-3 py-2 text-left hover:style={{ backgroundColor: '#f9f5f0' }} text-sm border-b border-gray-100 last:border-b-0"
+                className="w-full px-3 py-2 text-left hover:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} text-sm border-b border-gray-100 last:border-b-0"
               >
                 {lawClass.name}
               </button>
@@ -322,7 +322,7 @@ export function ClassSelector({
 
         {/* Display-only professor for all class years (1L, 2L, 3L) */}
         {true ? (
-          <div className="min-h-[40px] py-2 px-3 style={{ backgroundColor: '#f9f5f0' }} border border-gray-200 rounded-md text-sm text-gray-500 leading-tight mt-1">
+          <div className="min-h-[40px] py-2 px-3 style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} border border-gray-200 rounded-md text-sm text-gray-500 leading-tight mt-1">
             {selectedProfessor?.name || (selectedClass ? 'Loading...' : (classYear === '1L' && index < 7 ? 'Choose section' : 'Select class first'))}
           </div>
         ) : (
@@ -408,7 +408,7 @@ export function ClassSelector({
                 (selectedClass?.professors?.length ?? 0) > 0 && (
               <div
                 data-professor-dropdown={index}
-                className="absolute z-50 w-full mt-1 style={{ backgroundColor: '#f9f5f0' }} border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                className="absolute z-50 w-full mt-1 style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
                 onClick={(e) => {
                   console.log(
                     'Professor dropdown container clicked:',
@@ -417,7 +417,7 @@ export function ClassSelector({
                   e.stopPropagation();
                 }}
               >
-                <div className="p-2 text-xs text-gray-500 style={{ backgroundColor: '#f9f5f0' }} border-b">
+                <div className="p-2 text-xs text-gray-500 style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} border-b">
                   Professors for {selectedClass?.name}:
                 </div>
                 {selectedClass?.professors?.map((professor) => {
@@ -464,7 +464,7 @@ export function ClassSelector({
                           );
                         }
                       }}
-                      className="w-full px-3 py-2 text-left hover:style={{ backgroundColor: '#f9f5f0' }} text-sm border-b border-gray-100 last:border-b-0 cursor-pointer"
+                      className="w-full px-3 py-2 text-left hover:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} text-sm border-b border-gray-100 last:border-b-0 cursor-pointer"
                       style={{ pointerEvents: 'auto' }}
                     >
                       {professor.name}

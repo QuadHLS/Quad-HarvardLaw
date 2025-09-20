@@ -1849,7 +1849,7 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
   });
   if (loading || authLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f9f5f0' }}>
         <div className="text-center">
           <div
             className="inline-flex items-center justify-center w-16 h-16 text-white rounded-full mb-4"
@@ -1889,7 +1889,7 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
   }
 
   return (
-    <div className="h-screen bg-gray-100 flex">
+    <div className="h-screen flex" style={{ backgroundColor: '#f9f5f0' }}>
       {/* Navigation Sidebar */}
       <NavigationSidebar
         activeSection={activeSection}
@@ -1941,7 +1941,7 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
       <div className="flex-1">
         {activeSection === 'outlines' ? (
           activeTab === 'upload' ? (
-            <div className="flex items-center justify-center h-full bg-gray-100">
+            <div className="flex items-center justify-center h-full" style={{ backgroundColor: '#f9f5f0' }}>
               <div className="text-center p-8">
                 <FileText className="w-24 h-24 text-gray-400 mx-auto mb-4" />
                 <h2 className="text-2xl font-medium text-gray-700 mb-4">
@@ -1982,7 +1982,7 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
           )
         ) : activeSection === 'exams' ? (
           activeTab === 'upload' ? (
-            <div className="flex items-center justify-center h-full bg-gray-100">
+            <div className="flex items-center justify-center h-full" style={{ backgroundColor: '#f9f5f0' }}>
               <div className="text-center p-8">
                 <FileText className="w-24 h-24 text-gray-400 mx-auto mb-4" />
                 <h2 className="text-2xl font-medium text-gray-700 mb-4">
@@ -2051,7 +2051,7 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
         ) : activeSection === 'messaging' ? (
           <MessagingPage />
         ) : (
-          <div className="flex items-center justify-center h-full bg-gray-100">
+          <div className="flex items-center justify-center h-full" style={{ backgroundColor: '#f9f5f0' }}>
             <div className="text-center p-8">
               <div className="w-24 h-24 bg-gray-300 rounded-full mx-auto mb-4 flex items-center justify-center">
                 <span className="text-2xl text-gray-600">📄</span>

@@ -74,42 +74,158 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
 
   return (
     <div 
-      className={`bg-white text-gray-800 flex flex-col transition-all duration-300 border-r border-gray-200 h-full ${
+      className={`text-gray-800 flex flex-col transition-all duration-300 border-r border-gray-200 h-full ${
         isCollapsed ? 'w-16' : 'w-40'
       }`}
+      style={{ backgroundColor: '#f9f5f0' }}
     >
       {/* Header */}
       <div className={`p-4 ${!isCollapsed ? 'border-b border-gray-200' : ''}`}>
-        {!isCollapsed && (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => onSectionChange('home')}
-                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 hover:opacity-80 transition-opacity cursor-pointer"
-                style={{ backgroundColor: '#752432' }}
+        {!isCollapsed ? (
+          <div className="flex items-center justify-center relative">
+            <button
+              onClick={() => onSectionChange('home')}
+              className="flex items-center justify-center flex-shrink-0 hover:opacity-80 transition-opacity cursor-pointer relative"
+              style={{ width: '120px', height: '20px' }}
+            >
+              {/* Individual Letters with Transform Animations */}
+              <span 
+                className="absolute transition-all duration-1000 ease-in-out pointer-events-none"
+                style={{ 
+                  color: '#00962c',
+                  fontSize: '1.2rem', 
+                  letterSpacing: '0.02em', 
+                  fontWeight: '500', 
+                  fontFamily: 'system-ui, -apple-system, sans-serif',
+                  transform: 'translate(-1.8rem, 0)',
+                  transition: 'transform 1000ms cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+                }}
               >
-                <span className="text-white text-xs font-bold">HLS</span>
-              </button>
-              <h2 className="font-medium text-gray-800">Quad</h2>
-            </div>
+                q
+              </span>
+              
+              <span 
+                className="absolute transition-all duration-1000 ease-in-out pointer-events-none"
+                style={{ 
+                  color: '#f71417',
+                  fontSize: '1.2rem', 
+                  letterSpacing: '0.02em', 
+                  fontWeight: '500', 
+                  fontFamily: 'system-ui, -apple-system, sans-serif',
+                  transform: 'translate(-0.6rem, 0)',
+                  transition: 'transform 1000ms cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+                }}
+              >
+                u
+              </span>
+              
+              <span 
+                className="absolute transition-all duration-1000 ease-in-out pointer-events-none"
+                style={{ 
+                  color: '#ffb100',
+                  fontSize: '1.2rem', 
+                  letterSpacing: '0.02em', 
+                  fontWeight: '500', 
+                  fontFamily: 'system-ui, -apple-system, sans-serif',
+                  transform: 'translate(0.6rem, 0)',
+                  transition: 'transform 1000ms cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+                }}
+              >
+                a
+              </span>
+              
+              <span 
+                className="absolute transition-all duration-1000 ease-in-out pointer-events-none"
+                style={{ 
+                  color: '#0078c3',
+                  fontSize: '1.2rem', 
+                  letterSpacing: '0.02em', 
+                  fontWeight: '500', 
+                  fontFamily: 'system-ui, -apple-system, sans-serif',
+                  transform: 'translate(1.8rem, 0)',
+                  transition: 'transform 1000ms cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+                }}
+              >
+                d
+              </span>
+            </button>
             <Button
               variant="ghost"
               size="sm"
               onClick={onToggleCollapsed}
-              className="text-gray-600 hover:bg-gray-100 h-8 w-8 p-0 flex-shrink-0"
+              className="absolute text-gray-600 hover:bg-gray-100 h-8 w-8 p-0 flex-shrink-0"
+              style={{ right: '-8px' }}
             >
               <Menu className="w-4 h-4" style={{ color: '#752432' }} />
             </Button>
           </div>
-        )}
-        {isCollapsed && (
+        ) : (
           <div className="flex flex-col items-center gap-2">
             <button
               onClick={() => onSectionChange('home')}
-              className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 hover:opacity-80 transition-opacity cursor-pointer"
-              style={{ backgroundColor: '#752432' }}
+              className="flex items-center justify-center flex-shrink-0 hover:opacity-80 transition-opacity cursor-pointer relative"
+              style={{ width: '50px', height: '50px' }}
             >
-              <span className="text-white text-xs font-bold">HLS</span>
+              {/* Individual Letters with Transform Animations */}
+              <span 
+                className="absolute transition-all duration-1000 ease-in-out pointer-events-none"
+                style={{ 
+                  color: '#00962c',
+                  fontSize: '1.2rem', 
+                  letterSpacing: '0.02em', 
+                  fontWeight: '500', 
+                  fontFamily: 'system-ui, -apple-system, sans-serif',
+                  transform: 'translate(-0.45rem, -0.6rem)',
+                  transition: 'transform 1000ms cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+                }}
+              >
+                q
+              </span>
+              
+              <span 
+                className="absolute transition-all duration-1000 ease-in-out pointer-events-none"
+                style={{ 
+                  color: '#f71417',
+                  fontSize: '1.2rem', 
+                  letterSpacing: '0.02em', 
+                  fontWeight: '500', 
+                  fontFamily: 'system-ui, -apple-system, sans-serif',
+                  transform: 'translate(0.45rem, -0.6rem)',
+                  transition: 'transform 1000ms cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+                }}
+              >
+                u
+              </span>
+              
+              <span 
+                className="absolute transition-all duration-1000 ease-in-out pointer-events-none"
+                style={{ 
+                  color: '#ffb100',
+                  fontSize: '1.2rem', 
+                  letterSpacing: '0.02em', 
+                  fontWeight: '500', 
+                  fontFamily: 'system-ui, -apple-system, sans-serif',
+                  transform: 'translate(-0.45rem, 0.6rem)',
+                  transition: 'transform 1000ms cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+                }}
+              >
+                a
+              </span>
+              
+              <span 
+                className="absolute transition-all duration-1000 ease-in-out pointer-events-none"
+                style={{ 
+                  color: '#0078c3',
+                  fontSize: '1.2rem', 
+                  letterSpacing: '0.02em', 
+                  fontWeight: '500', 
+                  fontFamily: 'system-ui, -apple-system, sans-serif',
+                  transform: 'translate(0.45rem, 0.6rem)',
+                  transition: 'transform 1000ms cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+                }}
+              >
+                d
+              </span>
             </button>
             <Button
               variant="ghost"

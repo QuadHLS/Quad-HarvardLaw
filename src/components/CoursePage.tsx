@@ -166,7 +166,7 @@ export function CoursePage({ courseName, onBack, onNavigateToOutlines, onNavigat
   const totalSessions = syllabusData.length;
 
   return (
-    <div className="h-full bg-gray-50 overflow-auto">
+    <div className="h-full style={{ backgroundColor: '#f9f5f0' }} overflow-auto">
       <div className="max-w-6xl mx-auto p-6">
         {/* Header */}
         <div className="mb-6">
@@ -200,7 +200,7 @@ export function CoursePage({ courseName, onBack, onNavigateToOutlines, onNavigat
                 </div>
               </div>
               <div className="text-right">
-                <div className="bg-white/20 rounded-lg p-4 backdrop-blur-sm">
+                <div className="style={{ backgroundColor: '#f9f5f0' }}/20 rounded-lg p-4 backdrop-blur-sm">
                   <div className="text-2xl font-bold">{courseData.students.length}</div>
                   <div className="text-white/80 text-sm">Students</div>
                 </div>
@@ -245,7 +245,7 @@ export function CoursePage({ courseName, onBack, onNavigateToOutlines, onNavigat
                     {courseData.students.map((student: any, index: number) => (
                       <div 
                         key={index} 
-                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                        className="flex items-center gap-3 p-2 rounded-lg hover:style={{ backgroundColor: '#f9f5f0' }} cursor-pointer transition-colors"
                         onClick={() => onNavigateToStudentProfile?.(student.name)}
                       >
                         <div className="w-8 h-8 bg-[#752432] text-white rounded-full flex items-center justify-center text-sm font-medium">
@@ -275,7 +275,7 @@ export function CoursePage({ courseName, onBack, onNavigateToOutlines, onNavigat
               <CardContent>
                 <div className="space-y-3">
                   {courseData.upcomingEvents.map((event: any, index: number) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div key={index} className="flex items-center justify-between p-3 style={{ backgroundColor: '#f9f5f0' }} rounded-lg">
                       <div className="flex items-center gap-3">
                         <div className={`w-3 h-3 rounded-full ${
                           event.type === 'exam' ? 'bg-red-500' : 
@@ -427,19 +427,19 @@ export function CoursePage({ courseName, onBack, onNavigateToOutlines, onNavigat
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    <div className="p-3 bg-gray-50 rounded-lg">
+                    <div className="p-3 style={{ backgroundColor: '#f9f5f0' }} rounded-lg">
                       <div className="font-medium">Study Group</div>
                       <div className="text-sm text-gray-600">Join or create study groups</div>
                     </div>
-                    <div className="p-3 bg-gray-50 rounded-lg">
+                    <div className="p-3 style={{ backgroundColor: '#f9f5f0' }} rounded-lg">
                       <div className="font-medium">Practice Exams</div>
                       <div className="text-sm text-gray-600">Previous years' exams and answers</div>
                     </div>
-                    <div className="p-3 bg-gray-50 rounded-lg">
+                    <div className="p-3 style={{ backgroundColor: '#f9f5f0' }} rounded-lg">
                       <div className="font-medium">Case Briefs</div>
                       <div className="text-sm text-gray-600">Student-contributed case summaries</div>
                     </div>
-                    <div className="p-3 bg-gray-50 rounded-lg">
+                    <div className="p-3 style={{ backgroundColor: '#f9f5f0' }} rounded-lg">
                       <div className="font-medium">Discussion Forum</div>
                       <div className="text-sm text-gray-600">Ask questions and share insights</div>
                     </div>

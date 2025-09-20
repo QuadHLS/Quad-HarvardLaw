@@ -504,9 +504,9 @@ export function ExplorePage() {
   };
 
   return (
-    <div className="h-full bg-gray-50 overflow-y-auto">
+    <div className="h-full style={{ backgroundColor: '#f9f5f0' }} overflow-y-auto">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-8 py-6">
+      <div className="style={{ backgroundColor: '#f9f5f0' }} border-b border-gray-200 px-8 py-6">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Explore Campus</h1>
           <p className="text-gray-600">Discover everything Harvard Law School and Cambridge have to offer</p>
@@ -727,7 +727,7 @@ export function ExplorePage() {
                           </span>
                         ))}
                         {listing.tags.length > 2 && (
-                          <span className="px-2 py-1 text-xs text-gray-500 rounded-full bg-gray-100">
+                          <span className="px-2 py-1 text-xs text-gray-500 rounded-full style={{ backgroundColor: '#f9f5f0' }}">
                             +{listing.tags.length - 2}
                           </span>
                         )}
@@ -759,7 +759,7 @@ export function ExplorePage() {
               
               {/* Call to Action */}
               <div className="mt-8 text-center">
-                <div className="bg-white rounded-lg shadow-sm p-6 max-w-md mx-auto">
+                <div className="style={{ backgroundColor: '#f9f5f0' }} rounded-lg shadow-sm p-6 max-w-md mx-auto">
                   <Package className="w-12 h-12 mx-auto mb-3" style={{ color: '#752432' }} />
                   <h3 className="font-semibold text-gray-900 mb-2">Have something to sell?</h3>
                   <p className="text-sm text-gray-600 mb-4">

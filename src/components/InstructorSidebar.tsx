@@ -13,7 +13,7 @@ export function InstructorSidebar({
   selectedInstructor 
 }: InstructorSidebarProps) {
   return (
-    <div className="w-64 bg-white border-l border-gray-200">
+    <div className="w-64 style={{ backgroundColor: '#f9f5f0' }} border-l border-gray-200">
       {/* Header */}
       <div className="bg-[#8B4A6B] text-white p-4">
         <h2 className="text-lg font-medium text-center">Instructors</h2>
@@ -27,7 +27,7 @@ export function InstructorSidebar({
             className={`p-3 rounded-lg border cursor-pointer transition-colors ${
               selectedInstructor === instructor.name
                 ? 'bg-[#8B4A6B] text-white border-[#8B4A6B]'
-                : 'bg-gray-50 hover:bg-gray-100 border-gray-200'
+                : 'style={{ backgroundColor: '#f9f5f0' }} hover:style={{ backgroundColor: '#f9f5f0' }} border-gray-200'
             }`}
             onClick={() => onSelectInstructor(
               selectedInstructor === instructor.name ? '' : instructor.name
@@ -44,7 +44,7 @@ export function InstructorSidebar({
             {selectedInstructor === instructor.name && (
               <div className="mt-2 space-y-1">
                 {instructor.courses.map(course => (
-                  <div key={course} className="text-xs bg-white/20 rounded px-2 py-1">
+                  <div key={course} className="text-xs style={{ backgroundColor: '#f9f5f0' }}/20 rounded px-2 py-1">
                     {course}
                   </div>
                 ))}

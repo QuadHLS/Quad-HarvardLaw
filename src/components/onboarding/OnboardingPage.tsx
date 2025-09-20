@@ -1067,7 +1067,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   };
 
   return (
-    <div className="min-h-screen bg-white py-8 px-4">
+    <div className="min-h-screen py-8 px-4" style={{ backgroundColor: '#f9f5f0', minHeight: '100vh' }}>
       <div className="max-w-4xl mx-auto">
         {/* Clear Session Button */}
         <div className="mb-4 flex justify-end">
@@ -1082,11 +1082,17 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
         {/* Header */}
         <div className="text-center mb-8">
-          <div
-            className="inline-flex items-center justify-center w-16 h-16 text-white rounded-full mb-4"
-            style={{ backgroundColor: '#752432' }}
-          >
-            <span className="text-2xl font-semibold">HLS</span>
+          <div className="mb-4">
+            <div className="leading-none" style={{ fontSize: '3rem', letterSpacing: '0.02em', fontWeight: '500', fontFamily: 'system-ui, -apple-system, sans-serif', marginLeft: '-0.1rem' }}>
+              <div className="flex justify-center" style={{ gap: '0.2rem', marginLeft: '-0.1rem' }}>
+                <span style={{ color: '#00962c' }}>q</span>
+                <span style={{ color: '#f71417' }}>u</span>
+              </div>
+              <div className="flex justify-center" style={{ gap: '0.2rem' }}>
+                <span style={{ color: '#ffb100' }}>a</span>
+                <span style={{ color: '#0078c3' }}>d</span>
+              </div>
+            </div>
           </div>
           <h1 className="text-3xl text-gray-900 mb-2">
             Academic Profile Setup
@@ -1318,7 +1324,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                 {/* Progress Counter - only show when class year is selected */}
                 {classYear && (
                   <div className="mb-4 text-center">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-full">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 style={{ backgroundColor: '#f9f5f0' }} rounded-full">
                       <span className="text-sm text-gray-600">
                         {classYear === '1L' ? (
                           <>

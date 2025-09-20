@@ -393,7 +393,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
 
   if (loading) {
     return (
-      <div className="h-full bg-gray-50 flex items-center justify-center">
+      <div className="h-full style={{ backgroundColor: '#f9f5f0' }} flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading profile...</p>
@@ -404,7 +404,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
 
   if (!profileData) {
     return (
-      <div className="h-full bg-gray-50 flex items-center justify-center">
+      <div className="h-full style={{ backgroundColor: '#f9f5f0' }} flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600">No profile data found</p>
         </div>
@@ -413,7 +413,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
   }
 
   return (
-    <div className="h-full bg-gray-50 overflow-y-auto">
+    <div className="h-full overflow-y-auto" style={{ backgroundColor: '#f9f5f0' }}>
       <div className="max-w-6xl mx-auto p-6 space-y-6">
         {/* Back Button - Only show when viewing student profile */}
         {onBack && (
@@ -1032,7 +1032,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                 <div className="space-y-2">
                   {profileData?.currentCourses?.length ? (
                     profileData.currentCourses.map((course, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div key={index} className="flex items-center justify-between p-3 style={{ backgroundColor: '#f9f5f0' }} rounded-lg">
                         <div>
                           <p className="font-medium text-gray-900">{course.name}</p>
                           <p className="text-sm text-gray-500">{course.professor}</p>

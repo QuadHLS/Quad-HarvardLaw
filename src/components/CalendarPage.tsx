@@ -243,7 +243,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
       case 'personal':
         return 'bg-indigo-500 text-white';
       default:
-        return 'bg-gray-500 text-white';
+        return 'text-white';
     }
   };
 
@@ -387,7 +387,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
   const upcomingEvents = getUpcomingEvents();
 
   return (
-    <div className="h-full bg-gray-50 flex flex-col">
+    <div className="h-full flex flex-col" style={{ backgroundColor: '#f9f5f0' }}>
       <div className="flex-1 p-4 pl-2 flex flex-col min-h-0">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -396,7 +396,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
             <p className="text-gray-600">Manage your academic schedule and events</p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center bg-white border border-gray-200 rounded-lg">
+            <div className="flex items-center border border-gray-200 rounded-lg" style={{ backgroundColor: '#f9f5f0' }}>
               <Button
                 variant={viewMode === 'day' ? 'default' : 'ghost'}
                 size="sm"
@@ -437,7 +437,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
               <div className="bg-[#752432] text-white p-4 pb-3">
                 <h3 className="font-medium text-white">Event Filters</h3>
               </div>
-              <div className="p-3 pt-0 -mt-3 bg-white">
+              <div className="p-3 pt-0 -mt-3" style={{ backgroundColor: '#f9f5f0' }}>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="class-toggle" className="text-sm">Class</Label>
@@ -514,7 +514,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
               </div>
               
               {!isAcademicYearCollapsed && (
-                <div className="flex-1 min-h-0 bg-white">
+                <div className="flex-1 min-h-0" style={{ backgroundColor: '#f9f5f0' }}>
                   <div className="p-3 pt-3 h-full overflow-y-auto">
                     <div className="space-y-3">
                       {hlsDates.map((hlsDate) => (
@@ -588,13 +588,13 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
               </div>
 
               {/* Calendar Grid */}
-              <div className="bg-white flex-1 min-h-0 flex flex-col">
+              <div className="flex-1 min-h-0 flex flex-col" style={{ backgroundColor: '#f9f5f0' }}>
                 {/* Week day headers */}
                 <div className="grid grid-cols-7 border-b border-gray-200 flex-shrink-0">
                   {weekDays.map((day) => (
                     <div
                       key={day}
-                      className="p-3 text-center text-sm font-medium text-gray-500 bg-gray-50"
+                      className="p-3 text-center text-sm font-medium text-gray-500" style={{ backgroundColor: '#f9f5f0' }}
                     >
                       {day}
                     </div>
@@ -616,7 +616,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                       <div
                         key={index}
                         className={`p-2 border-b border-r border-gray-200 flex flex-col ${
-                          day ? 'cursor-pointer hover:bg-gray-50' : 'bg-gray-50'
+                          day ? 'cursor-pointer hover:bg-gray-50' : ''
                         }`}
                         style={{ minHeight: '120px' }}
                         onClick={() => day && handleDayClick(day)}
@@ -668,7 +668,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                 <h3 className="font-medium text-white">Today's Events</h3>
               </div>
               
-              <div className="p-3 pt-0 -mt-3 bg-white">
+              <div className="p-3 pt-0 -mt-3" style={{ backgroundColor: '#f9f5f0' }}>
                 {todayEvents.length === 0 ? (
                   <p className="text-sm text-gray-500">No events scheduled for today</p>
                 ) : (
@@ -725,7 +725,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
               </div>
               
               {!isUpcomingEventsCollapsed && (
-                <div className="p-3 pt-0 -mt-3 bg-white">
+                <div className="p-3 pt-0 -mt-3" style={{ backgroundColor: '#f9f5f0' }}>
                   {upcomingEvents.length === 0 ? (
                     <p className="text-sm text-gray-500">No upcoming events</p>
                   ) : (

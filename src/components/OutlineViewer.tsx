@@ -138,12 +138,13 @@ export function OutlineViewer({ outline, onSaveOutline, isSaved }: OutlineViewer
           </div>
         ) : (
         <div 
-          className="mx-auto bg-white shadow-lg"
+          className="mx-auto shadow-lg"
           style={{ 
             width: `${8.5 * (zoom / 100)}in`,
             minHeight: `${11 * (zoom / 100)}in`,
             transform: `scale(${zoom / 100})`,
-            transformOrigin: 'top center'
+            transformOrigin: 'top center',
+            backgroundColor: '#f9f5f0'
           }}
         >
           <div className="p-8">

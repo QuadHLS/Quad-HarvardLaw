@@ -97,7 +97,7 @@ export function AccountCreation({ onComplete }: AccountCreationProps) {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8 px-4">
+      <div className="min-h-screen style={{ backgroundColor: '#f9f5f0' }} py-8 px-4">
         <div className="max-w-md mx-auto">
           <Card className="shadow-lg">
             <CardContent className="pt-6">
@@ -122,12 +122,21 @@ export function AccountCreation({ onComplete }: AccountCreationProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="min-h-screen py-8 px-4" style={{ backgroundColor: '#f9f5f0', minHeight: '100vh' }}>
       <div className="max-w-md mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-red-600 text-white rounded-full mb-4">
-            <span className="text-2xl font-semibold">HLS</span>
+          <div className="mb-4">
+            <div className="leading-none" style={{ fontSize: '3rem', letterSpacing: '0.02em', fontWeight: '500', fontFamily: 'system-ui, -apple-system, sans-serif', marginLeft: '-0.1rem' }}>
+              <div className="flex justify-center" style={{ gap: '0.2rem', marginLeft: '-0.1rem' }}>
+                <span style={{ color: '#00962c' }}>q</span>
+                <span style={{ color: '#f71417' }}>u</span>
+              </div>
+              <div className="flex justify-center" style={{ gap: '0.2rem' }}>
+                <span style={{ color: '#ffb100' }}>a</span>
+                <span style={{ color: '#0078c3' }}>d</span>
+              </div>
+            </div>
           </div>
           <h1 className="text-3xl text-gray-900 mb-2">Welcome to Quad</h1>
           <p className="text-gray-600">Create your account to get started</p>
@@ -260,7 +269,7 @@ export function AccountCreation({ onComplete }: AccountCreationProps) {
 
         {/* Progress Indicator */}
         <div className="mt-8 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full border shadow-sm">
+          <div className="inline-flex items-center gap-2 px-4 py-2 style={{ backgroundColor: '#f9f5f0' }} rounded-full border shadow-sm">
             <div className="w-2 h-2 bg-red-600 rounded-full"></div>
             <span className="text-sm text-gray-600">
               Step 1 of 2 - Account Creation

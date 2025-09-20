@@ -75,7 +75,7 @@ export function BarReviewPage({}: BarReviewPageProps) {
   };
 
   return (
-    <div className="h-full bg-gray-50 overflow-auto">
+    <div className="h-full style={{ backgroundColor: '#f9f5f0' }} overflow-auto">
       <div className="max-w-6xl mx-auto p-6">
         {/* Header */}
         <div className="mb-8">
@@ -176,7 +176,7 @@ export function BarReviewPage({}: BarReviewPageProps) {
               <div className="p-4 border-b">
                 <h3 className="font-medium text-gray-900">Location</h3>
               </div>
-              <div className="relative h-96 bg-gray-100">
+              <div className="relative h-96 style={{ backgroundColor: '#f9f5f0' }}">
                 <iframe
                   src={currentVenue.mapEmbedUrl}
                   width="100%"
@@ -208,7 +208,7 @@ export function BarReviewPage({}: BarReviewPageProps) {
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    className="w-full justify-between text-sm text-gray-600 hover:bg-gray-50 mb-3"
+                    className="w-full justify-between text-sm text-gray-600 hover:style={{ backgroundColor: '#f9f5f0' }} mb-3"
                   >
                     <span>See who's going</span>
                     {showAttendeeList ? (
@@ -219,12 +219,12 @@ export function BarReviewPage({}: BarReviewPageProps) {
                   </Button>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="space-y-0">
-                  <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-md bg-gray-50 mb-4">
+                  <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-md style={{ backgroundColor: '#f9f5f0' }} mb-4">
                     <div className="grid grid-cols-1 gap-0.5 p-2">
                       {attendees.slice(0, rsvpCount).map((name, index) => (
                         <div 
                           key={index} 
-                          className="text-xs text-gray-700 py-1 px-2 hover:bg-white rounded transition-colors"
+                          className="text-xs text-gray-700 py-1 px-2 hover:style={{ backgroundColor: '#f9f5f0' }} rounded transition-colors"
                         >
                           {name}
                         </div>

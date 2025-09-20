@@ -434,7 +434,7 @@ export function ReviewsPage() {
 
   const renderRatingBox = (rating: number, label: string, icon: React.ReactNode, reviewText: string, lowLabel?: string, highLabel?: string, isOverall?: boolean) => {
     return (
-      <div className={`p-4 bg-white rounded-lg border ${isOverall ? 'border-l-4 border-[#752432] bg-gray-50' : 'border-gray-200'} shadow-sm`}>
+      <div className={`p-4 rounded-lg border ${isOverall ? 'border-l-4 border-[#752432]' : 'border-gray-200'} shadow-sm`} style={{ backgroundColor: '#f9f5f0' }}>
         <div className="flex justify-between items-center mb-2">
           <div className="flex items-center space-x-2">
             {icon}
@@ -478,7 +478,7 @@ export function ReviewsPage() {
       case 'P':
         return 'bg-green-100 text-green-800 border-green-200';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'text-gray-800 border-gray-200';
     }
   };
 
@@ -496,10 +496,10 @@ export function ReviewsPage() {
   };
 
   return (
-    <div className="h-full bg-gray-100 overflow-hidden">
+    <div className="h-full style={{ backgroundColor: '#f9f5f0' }} overflow-hidden">
       <div className="h-full flex flex-col">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 p-6">
+        <div className="style={{ backgroundColor: '#f9f5f0' }} border-b border-gray-200 p-6">
           <div className="mx-auto">
             <div className="flex items-center mb-4">
               <Star className="w-8 h-8 mr-3" style={{ color: '#752432' }} />
@@ -797,7 +797,7 @@ export function ReviewsPage() {
                         {prof.courses.map((courseInfo) => (
                           <Card 
                             key={courseInfo.name}
-                            className="p-4 cursor-pointer hover:bg-gray-50 transition-colors border"
+                            className="p-4 cursor-pointer hover:style={{ backgroundColor: '#f9f5f0' }} transition-colors border"
                             onClick={() => setSelectedCourse(courseInfo.name)}
                           >
                             <div className="flex items-center justify-between">
@@ -836,7 +836,7 @@ export function ReviewsPage() {
                       {groupedProfessors[letter].map((prof) => (
                         <Card 
                           key={prof.fullName}
-                          className="p-6 cursor-pointer hover:bg-gray-50 transition-colors border"
+                          className="p-6 cursor-pointer hover:style={{ backgroundColor: '#f9f5f0' }} transition-colors border"
                           onClick={() => setSelectedProfessor(prof.fullName)}
                         >
                           <div className="flex items-start justify-between">

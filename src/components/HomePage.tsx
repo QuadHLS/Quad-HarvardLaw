@@ -141,7 +141,7 @@ function TodoItem({
 
             {todo.course && (
               <div className="px-3">
-                <span className="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-md">
+                <span className="inline-flex items-center px-2.5 py-1 text-gray-700 text-xs font-medium rounded-md" style={{ backgroundColor: '#f9f5f0' }}>
                   {todo.course}
                 </span>
               </div>
@@ -192,9 +192,9 @@ function TodoSection({
   onAddTodo,
 }: TodoSectionProps) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+    <div className="rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ backgroundColor: '#f9f5f0' }}>
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-gray-200">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 bg-white">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-[#752432]"></div>
           <h3 className="font-semibold text-gray-900">{title}</h3>
@@ -211,10 +211,10 @@ function TodoSection({
       </div>
 
       {/* Content */}
-      <div className="min-h-[200px] max-h-[400px] overflow-y-auto">
+      <div className="flex-1 overflow-y-auto" style={{ backgroundColor: '#f9f5f0' }}>
         {todos.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-40 text-center px-6">
-            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+          <div className="flex flex-col items-center justify-center h-60 text-center px-6">
+            <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: '#f9f5f0' }}>
               <span className="text-gray-400 text-xl">✓</span>
             </div>
             <p className="text-gray-500 text-sm font-medium">
@@ -286,7 +286,7 @@ function CourseCard({
 
   return (
     <Card
-      className="overflow-hidden h-[160px] flex flex-col bg-white shadow-sm border border-gray-200 cursor-pointer hover:shadow-lg hover:border-gray-300 transition-all duration-200"
+      className="overflow-hidden h-[160px] flex flex-col shadow-sm border border-gray-200 cursor-pointer hover:shadow-lg hover:border-gray-300 transition-all duration-200" style={{ backgroundColor: '#f9f5f0' }}
       onClick={() => onCourseClick?.(title)}
     >
       {/* Burgundy Header with Schedule */}
@@ -303,9 +303,9 @@ function CourseCard({
       </div>
 
       {/* Compact Content Area */}
-      <div className="flex-1 px-3 py-1 bg-white flex flex-col justify-between min-h-0">
+      <div className="flex-1 px-3 py-1 flex flex-col justify-between min-h-0" style={{ backgroundColor: '#f9f5f0' }}>
         {/* Next Topic - Compact */}
-        <div className="bg-gray-50 rounded px-2 py-1.5">
+        <div className="rounded px-2 py-1.5" style={{ backgroundColor: '#f9f5f0' }}>
           <div className="text-xs font-medium text-[#752432] mb-0.5">
             Next Topic
           </div>
@@ -651,7 +651,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
 
   if (loading) {
     return (
-      <div className="h-full bg-gray-50 flex items-center justify-center">
+      <div className="h-full style={{ backgroundColor: '#f9f5f0' }} flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-[#752432] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Loading your courses...</p>
@@ -661,7 +661,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
   }
 
   return (
-    <div className="h-full bg-gray-50 overflow-auto">
+    <div className="h-full overflow-auto" style={{ backgroundColor: '#f9f5f0' }}>
       <div className="max-w-full mx-auto p-6">
         <div className="flex gap-6">
           {/* Left Content - Extended */}
@@ -674,22 +674,62 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
             <div className="mb-8">
               <h2 className="text-lg font-medium text-gray-800 mb-4">To Do</h2>
 
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                <TodoSection
-                  title="Today"
-                  section="today"
-                  todos={todayTodos}
-                  editingTodoId={editingTodoId}
-                  editingText={editingText}
-                  onToggleTodo={toggleTodo}
-                  onRemoveTodo={removeTodo}
-                  onStartEdit={startEditing}
-                  onSaveEdit={saveEdit}
-                  onCancelEdit={cancelEdit}
-                  onEditTextChange={setEditingText}
-                  onAddTodo={startAddingTodo}
-                />
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-stretch">
+                {/* Today Todo List - Exact copy of This Week styling */}
+                <div className="rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ backgroundColor: '#f9f5f0' }}>
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 bg-white">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-[#752432]"></div>
+                      <h3 className="font-semibold text-gray-900">Today</h3>
+                    </div>
+                    <Button
+                      onClick={() => startAddingTodo('today')}
+                      size="sm"
+                      variant="ghost"
+                      className="text-[#752432] hover:text-white hover:bg-[#752432] h-8 px-3 rounded-lg transition-all duration-200 text-sm font-medium"
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      Add Task
+                    </Button>
+                  </div>
 
+                  {/* Content */}
+                  <div className="flex-1 overflow-y-auto" style={{ backgroundColor: '#f9f5f0' }}>
+                    {todayTodos.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-60 text-center px-6">
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: '#f9f5f0' }}>
+                          <span className="text-gray-400 text-xl">✓</span>
+                        </div>
+                        <p className="text-gray-500 text-sm font-medium">
+                          No tasks for today
+                        </p>
+                        <p className="text-gray-400 text-xs mt-1">
+                          Click "Add Task" to get started
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-gray-100">
+                        {todayTodos.map((todo) => (
+                          <TodoItem
+                            key={todo.id}
+                            todo={todo}
+                            isEditing={editingTodoId === todo.id}
+                            editingText={editingText}
+                            onToggle={toggleTodo}
+                            onRemove={removeTodo}
+                            onStartEdit={startEditing}
+                            onSaveEdit={saveEdit}
+                            onCancelEdit={cancelEdit}
+                            onEditTextChange={setEditingText}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* This Week Todo List */}
                 <TodoSection
                   title="This Week"
                   section="thisWeek"
@@ -707,7 +747,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
               </div>
 
               {showAddTodo && (
-                <div className="mt-6 p-6 bg-white rounded-xl border border-gray-200 shadow-lg">
+                <div className="mt-6 p-6 style={{ backgroundColor: '#f9f5f0' }} rounded-xl border border-gray-200 shadow-lg">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-8 h-8 rounded-full bg-[#752432] flex items-center justify-center">
                       <Plus className="w-4 h-4 text-white" />
@@ -776,7 +816,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                         setNewTodoDueDate('');
                       }}
                       variant="outline"
-                      className="border-gray-300 hover:bg-gray-50"
+                      className="border-gray-300 hover:style={{ backgroundColor: '#f9f5f0' }}"
                     >
                       Cancel
                     </Button>
@@ -791,8 +831,8 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                 Your Courses
               </h2>
               {courseData.length === 0 ? (
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 text-center">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="rounded-xl border border-gray-200 shadow-sm p-8 text-center" style={{ backgroundColor: '#f9f5f0' }}>
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: '#f9f5f0' }}>
                     <BookOpen className="w-8 h-8 text-gray-400" />
                   </div>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -850,7 +890,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                 {calendarDays.map((day, index) => (
                   <div
                     key={index}
-                    className={`text-center text-xs py-1.5 cursor-pointer hover:bg-gray-100 transition-colors ${
+                    className={`text-center text-xs py-1.5 cursor-pointer hover:style={{ backgroundColor: '#f9f5f0' }} transition-colors ${
                       day === 5
                         ? 'bg-[#752432] text-white font-medium rounded-full w-6 h-6 flex items-center justify-center mx-auto'
                         : day
@@ -875,7 +915,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
 
               {/* Schedule Content */}
               <div
-                className="relative bg-white overflow-hidden"
+                className="relative style={{ backgroundColor: '#f9f5f0' }} overflow-hidden"
                 style={{ height: '600px' }}
               >
                 {/* Time column */}
@@ -968,7 +1008,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
           {/* Daily View Sidebar - Shows when calendar day is clicked */}
           {showDailyView && (
             <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-              <Card className="w-full max-w-md bg-white rounded-xl shadow-2xl">
+              <Card className="w-full max-w-md style={{ backgroundColor: '#f9f5f0' }} rounded-xl shadow-2xl">
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
@@ -1001,7 +1041,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                   <div className="space-y-3">
                     {dailyCourses.length === 0 ? (
                       <div className="text-center py-8">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <div className="w-16 h-16 style={{ backgroundColor: '#f9f5f0' }} rounded-full flex items-center justify-center mx-auto mb-3">
                           <BookOpen className="w-8 h-8 text-gray-400" />
                         </div>
                         <p className="text-gray-500 font-medium">
@@ -1015,7 +1055,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                       dailyCourses.map((course, index) => (
                         <div
                           key={index}
-                          className="bg-gray-50 rounded-lg p-4 border border-gray-200"
+                          className="style={{ backgroundColor: '#f9f5f0' }} rounded-lg p-4 border border-gray-200"
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -1047,7 +1087,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                   <div className="mt-6 pt-4 border-t border-gray-200">
                     <Button
                       onClick={closeDailyView}
-                      className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700"
+                      className="w-full style={{ backgroundColor: '#f9f5f0' }} hover:bg-gray-200 text-gray-700"
                     >
                       Close
                     </Button>

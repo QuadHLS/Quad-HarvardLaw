@@ -5,7 +5,7 @@ import { Label } from '../ui/label';
 import { Alert, AlertDescription } from '../ui/alert';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { useAuth } from '../../contexts/AuthContext';
-import { Loader2, Eye, EyeOff, Mail, ArrowRight, Sun, FileText, Moon } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 
 interface LoginPageProps {
   onSwitchToSignup: () => void;
@@ -54,24 +54,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center relative" style={{ backgroundColor: '#f9f5f0', minHeight: '100vh' }}>
-      {/* Logo at the top */}
-      <div className="pt-16 pb-20">
-        <div className="leading-none" style={{ fontSize: '7rem', letterSpacing: '0.02em', fontWeight: '500', fontFamily: 'system-ui, -apple-system, sans-serif', marginLeft: '-0.2rem' }}>
-          <div className="flex justify-center" style={{ gap: '0.5rem', marginLeft: '-0.2rem' }}>
-            <span style={{ color: '#00962c' }}>q</span>
-            <span style={{ color: '#f71417' }}>u</span>
-          </div>
-          <div className="flex justify-center" style={{ gap: '0.5rem' }}>
-            <span style={{ color: '#ffb100' }}>a</span>
-            <span style={{ color: '#0078c3' }}>d</span>
-          </div>
-        </div>
-      </div>
-      
-      {/* Sign in form */}
-      <div className="w-full max-w-md" style={{ marginTop: '1rem' }}>
-        <Card className="w-full" style={{ backgroundColor: '#ffffff', border: 'none', boxShadow: '0 0 22px rgba(0, 0, 0, 0.12)' }}>
+    <Card className="w-full" style={{ backgroundColor: '#ffffff', border: 'none', boxShadow: '0 0 22px rgba(0, 0, 0, 0.12)' }}>
           <CardHeader className="text-center pb-2 px-4 pt-4">
             <CardTitle className="text-2xl">Sign in</CardTitle>
             <CardDescription className="text-sm" style={{ marginTop: '0.5rem' }}>
@@ -223,31 +206,5 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             </div>
           </CardContent>
         </Card>
-      </div>
-
-      {/* Theme switching slider in bottom left corner */}
-      <div className="fixed bottom-4 left-4">
-        <div className="flex bg-white/20 rounded-full p-1 backdrop-blur-sm">
-          <button
-            className="p-2 rounded-full transition-all duration-200 hover:bg-white/20"
-            aria-label="Light theme"
-          >
-            <Sun className="w-4 h-4 text-gray-700" />
-          </button>
-          <button
-            className="p-2 rounded-full transition-all duration-200 bg-white shadow-md"
-            aria-label="Default theme"
-          >
-            <FileText className="w-4 h-4 text-gray-700" />
-          </button>
-          <button
-            className="p-2 rounded-full transition-all duration-200 hover:bg-white/20"
-            aria-label="Dark theme"
-          >
-            <Moon className="w-4 h-4 text-gray-700" />
-          </button>
-        </div>
-      </div>
-    </div>
   );
 };

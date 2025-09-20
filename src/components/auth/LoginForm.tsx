@@ -78,7 +78,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={loading}
-              className="pr-12 h-10 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-red-600 focus:ring-red-600/20 rounded-lg backdrop-blur-sm text-sm"
+              className="pr-12 h-10 style={{ backgroundColor: '#f9f5f0' }}/5 border-white/10 text-white placeholder:text-gray-400 focus:border-red-600 focus:ring-red-600/20 rounded-lg backdrop-blur-sm text-sm"
             />
             <Mail className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
           </div>
@@ -100,7 +100,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
               onChange={(e) => setPassword(e.target.value)}
               required
               disabled={loading}
-              className="pr-12 h-10 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-red-600 focus:ring-red-600/20 rounded-lg backdrop-blur-sm text-sm"
+              className="pr-12 h-10 style={{ backgroundColor: '#f9f5f0' }}/5 border-white/10 text-white placeholder:text-gray-400 focus:border-red-600 focus:ring-red-600/20 rounded-lg backdrop-blur-sm text-sm"
             />
             <Button
               type="button"
@@ -164,7 +164,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           <Button
             type="button"
             variant="outline"
-            className="w-full h-9 bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20 rounded-lg backdrop-blur-sm transition-all duration-300 text-sm"
+            className="w-full h-9 style={{ backgroundColor: '#f9f5f0' }}/5 border-white/10 text-white hover:style={{ backgroundColor: '#f9f5f0' }}/10 hover:border-white/20 rounded-lg backdrop-blur-sm transition-all duration-300 text-sm"
             disabled={loading}
             onClick={handleGoogleSignIn}
           >

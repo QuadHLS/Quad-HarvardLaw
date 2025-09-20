@@ -116,7 +116,7 @@ export const AccessCodePage: React.FC<AccessCodePageProps> = ({ onComplete }) =>
                   onChange={(e) => setAccessCode(e.target.value)}
                   required
                   disabled={loading}
-                  className="h-10 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-red-600 focus:ring-red-600/20 rounded-lg backdrop-blur-sm text-sm"
+                  className="h-10 style={{ backgroundColor: '#f9f5f0' }}/5 border-white/10 text-white placeholder:text-gray-400 focus:border-red-600 focus:ring-red-600/20 rounded-lg backdrop-blur-sm text-sm"
                 />
               </div>
               

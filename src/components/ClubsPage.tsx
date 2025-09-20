@@ -337,13 +337,13 @@ export function ClubsPage({ onNavigateToClub }: ClubsPageProps) {
       'Social': 'bg-pink-100 text-pink-800',
       'Student Government': 'bg-indigo-100 text-indigo-800'
     };
-    return colors[category] || 'bg-gray-100 text-gray-800';
+    return colors[category] || 'style={{ backgroundColor: '#f9f5f0' }} text-gray-800';
   };
 
   return (
-    <div className="h-full bg-gray-50">
+    <div className="h-full" style={{ backgroundColor: '#f9f5f0' }}>
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-8 py-6">
+      <div className="style={{ backgroundColor: '#f9f5f0' }} border-b border-gray-200 px-8 py-6">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Student Organizations</h1>
           <p className="text-gray-600">Discover and join student organizations at Harvard Law School</p>
@@ -382,7 +382,7 @@ export function ClubsPage({ onNavigateToClub }: ClubsPageProps) {
       </div>
 
       {/* Results Count */}
-      <div className="px-8 py-4 bg-gray-50">
+      <div className="px-8 py-4" style={{ backgroundColor: '#f9f5f0' }}>
         <div className="max-w-7xl mx-auto">
           <p className="text-sm text-gray-600">
             Showing {filteredClubs.length} organization{filteredClubs.length !== 1 ? 's' : ''}
@@ -400,7 +400,7 @@ export function ClubsPage({ onNavigateToClub }: ClubsPageProps) {
               return (
                 <div
                   key={club.id}
-                  className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer"
+                  className="style={{ backgroundColor: '#f9f5f0' }} rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer"
                   onClick={() => onNavigateToClub(club.id)}
                 >
                   <div className="flex items-start gap-4 mb-4">
@@ -439,7 +439,7 @@ export function ClubsPage({ onNavigateToClub }: ClubsPageProps) {
                       </span>
                     ))}
                     {club.tags.length > 3 && (
-                      <span className="px-2 py-1 text-xs text-gray-500 rounded-full bg-gray-100">
+                      <span className="px-2 py-1 text-xs text-gray-500 rounded-full style={{ backgroundColor: '#f9f5f0' }}">
                         +{club.tags.length - 3}
                       </span>
                     )}

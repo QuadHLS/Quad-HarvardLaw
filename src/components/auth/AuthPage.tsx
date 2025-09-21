@@ -19,7 +19,7 @@ export const AuthPage: React.FC = () => {
       <div style={{ marginTop: '60px', paddingBottom: '80px' }}>
         <div className="flex justify-center">
           <img 
-            src="/src/assets/Quad Logo.png" 
+            src="/Quad Logo.png" 
             alt="Quad Logo" 
             className="w-auto object-contain"
             style={{ height: '180px' }}

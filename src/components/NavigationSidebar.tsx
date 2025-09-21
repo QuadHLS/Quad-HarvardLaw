@@ -118,7 +118,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
               className="flex items-center justify-center flex-shrink-0 hover:opacity-80 transition-opacity cursor-pointer"
             >
               <img 
-                src="/src/assets/Quad Logo.png" 
+                src="/Quad Logo.png" 
                 alt="Quad Logo" 
                 className="h-10 w-auto object-contain"
               />
@@ -141,7 +141,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
               style={{ width: '50px', height: '50px' }}
             >
               <img 
-                src="/src/assets/Quad Logo.png" 
+                src="/Quad Logo.png" 
                 alt="Quad Logo" 
                 className="h-12 w-auto object-contain"
               />

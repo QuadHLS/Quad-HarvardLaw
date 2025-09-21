@@ -273,7 +273,7 @@ export function ClassSelector({
           return null;
         })()}
         {showDropdown && !isReadOnly && filteredClasses.length > 0 && (
-          <div className="absolute z-10 w-full mt-1 style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto" style={{ position: 'absolute', zIndex: 9999 }}>
             {(() => {
               console.log(
                 'Rendering dropdown options for index',
@@ -300,7 +300,7 @@ export function ClassSelector({
                   );
                   handleClassSelect(lawClass);
                 }}
-                className="w-full px-3 py-2 text-left hover:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} text-sm border-b border-gray-100 last:border-b-0"
+                className="w-full px-3 py-2 text-left hover:bg-gray-100 text-sm border-b border-gray-100 last:border-b-0 bg-white"
               >
                 {lawClass.name}
               </button>
@@ -408,7 +408,8 @@ export function ClassSelector({
                 (selectedClass?.professors?.length ?? 0) > 0 && (
               <div
                 data-professor-dropdown={index}
-                className="absolute z-50 w-full mt-1 style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                style={{ position: 'absolute', zIndex: 9999 }}
                 onClick={(e) => {
                   console.log(
                     'Professor dropdown container clicked:',
@@ -464,7 +465,7 @@ export function ClassSelector({
                           );
                         }
                       }}
-                      className="w-full px-3 py-2 text-left hover:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} text-sm border-b border-gray-100 last:border-b-0 cursor-pointer"
+                      className="w-full px-3 py-2 text-left hover:bg-gray-100 text-sm border-b border-gray-100 last:border-b-0 cursor-pointer bg-white"
                       style={{ pointerEvents: 'auto' }}
                     >
                       {professor.name}

@@ -1,19 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Button } from './ui/button';
+import { Label } from './ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../ui/select';
-import { ClassSelector } from './ClassSelector';
-import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
-import { Loader2 } from 'lucide-react';
+} from './ui/select';
+import { ClassSelector } from './onboarding/ClassSelector';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
+import { Loader2, ArrowLeft } from 'lucide-react';
 
 type ClassYear = '1L' | '2L' | '3L';
 
@@ -34,347 +33,6 @@ interface CourseSchedule {
   location: string;
 }
 
-// All course data now comes from Supabase - no hardcoded data needed
-/*
-const lawClasses: LawClass[] = [
-  {
-    id: '1',
-    name: 'Civil Procedure (CivPro)',
-    professors: [
-      { id: '1', name: 'Professor Smith' },
-      { id: '2', name: 'Professor Johnson' },
-      { id: '73', name: 'Professor Williams' },
-      { id: '74', name: 'Professor Brown' },
-    ],
-  },
-  {
-    id: '2',
-    name: 'Constitutional Law (ConLaw)',
-    professors: [
-      { id: '3', name: 'Professor Brown' },
-      { id: '4', name: 'Professor Davis' },
-      { id: '75', name: 'Professor Wilson' },
-      { id: '76', name: 'Professor Moore' },
-    ],
-  },
-  {
-    id: '3',
-    name: 'Contracts',
-    professors: [
-      { id: '5', name: 'Professor Wilson' },
-      { id: '6', name: 'Professor Miller' },
-      { id: '77', name: 'Professor Taylor' },
-      { id: '78', name: 'Professor Anderson' },
-    ],
-  },
-  {
-    id: '4',
-    name: 'Criminal Law (CrimLaw)',
-    professors: [
-      { id: '7', name: 'Professor Taylor' },
-      { id: '8', name: 'Professor Anderson' },
-    ],
-  },
-  {
-    id: '5',
-    name: 'Legal Research and Writing (LRW)',
-    professors: [
-      { id: '9', name: 'Professor Thomas' },
-      { id: '10', name: 'Professor Jackson' },
-    ],
-  },
-  {
-    id: '6',
-    name: 'Property',
-    professors: [
-      { id: '11', name: 'Professor White' },
-      { id: '12', name: 'Professor Harris' },
-    ],
-  },
-  {
-    id: '7',
-    name: 'Torts',
-    professors: [
-      { id: '13', name: 'Professor Martin' },
-      { id: '14', name: 'Professor Garcia' },
-    ],
-  },
-  {
-    id: '8',
-    name: 'Legislation and Regulation (LegReg)',
-    professors: [
-      { id: '15', name: 'Professor Lee' },
-      { id: '16', name: 'Professor Kim' },
-    ],
-  },
-  // Elective courses for 1L students
-  {
-    id: '9',
-    name: 'Administrative Law',
-    professors: [
-      { id: '17', name: 'Professor Adams' },
-      { id: '18', name: 'Professor Baker' },
-    ],
-  },
-  {
-    id: '10',
-    name: 'Antitrust Law',
-    professors: [
-      { id: '19', name: 'Professor Carter' },
-      { id: '20', name: 'Professor Davis' },
-    ],
-  },
-  {
-    id: '11',
-    name: 'Bankruptcy',
-    professors: [
-      { id: '21', name: 'Professor Evans' },
-      { id: '22', name: 'Professor Foster' },
-    ],
-  },
-  {
-    id: '12',
-    name: 'Business Taxation',
-    professors: [
-      { id: '23', name: 'Professor Green' },
-      { id: '24', name: 'Professor Hall' },
-    ],
-  },
-  {
-    id: '13',
-    name: 'Civil Rights Law',
-    professors: [
-      { id: '25', name: 'Professor Jones' },
-      { id: '26', name: 'Professor King' },
-    ],
-  },
-  {
-    id: '14',
-    name: 'Commercial Law',
-    professors: [
-      { id: '27', name: 'Professor Lewis' },
-      { id: '28', name: 'Professor Moore' },
-    ],
-  },
-  {
-    id: '15',
-    name: 'Competition Law',
-    professors: [
-      { id: '29', name: 'Professor Nelson' },
-      { id: '30', name: 'Professor Parker' },
-    ],
-  },
-  {
-    id: '16',
-    name: 'Corporate Law',
-    professors: [
-      { id: '31', name: 'Professor Quinn' },
-      { id: '32', name: 'Professor Roberts' },
-    ],
-  },
-  {
-    id: '17',
-    name: 'Criminal Procedure',
-    professors: [
-      { id: '33', name: 'Professor Scott' },
-      { id: '34', name: 'Professor Turner' },
-    ],
-  },
-  {
-    id: '18',
-    name: 'Domestic Relations',
-    professors: [
-      { id: '35', name: 'Professor Walker' },
-      { id: '36', name: 'Professor Young' },
-    ],
-  },
-  // Additional 2L/3L courses
-  {
-    id: '19',
-    name: 'Advanced Constitutional Law',
-    professors: [
-      { id: '37', name: 'Professor Martinez' },
-      { id: '38', name: 'Professor Thompson' },
-      { id: '39', name: 'Professor Rodriguez' },
-    ],
-  },
-  {
-    id: '20',
-    name: 'Securities Regulation',
-    professors: [
-      { id: '40', name: 'Professor Clark' },
-      { id: '41', name: 'Professor Lewis' },
-      { id: '42', name: 'Professor Robinson' },
-    ],
-  },
-  {
-    id: '21',
-    name: 'International Law',
-    professors: [
-      { id: '43', name: 'Professor Wright' },
-      { id: '44', name: 'Professor Lopez' },
-      { id: '45', name: 'Professor Hill' },
-    ],
-  },
-  {
-    id: '22',
-    name: 'Environmental Law',
-    professors: [
-      { id: '46', name: 'Professor Green' },
-      { id: '47', name: 'Professor Adams' },
-      { id: '48', name: 'Professor Baker' },
-    ],
-  },
-  {
-    id: '23',
-    name: 'Intellectual Property',
-    professors: [
-      { id: '49', name: 'Professor Nelson' },
-      { id: '50', name: 'Professor Carter' },
-      { id: '51', name: 'Professor Mitchell' },
-    ],
-  },
-  {
-    id: '24',
-    name: 'Employment Law',
-    professors: [
-      { id: '52', name: 'Professor Perez' },
-      { id: '53', name: 'Professor Roberts' },
-      { id: '54', name: 'Professor Turner' },
-    ],
-  },
-  {
-    id: '25',
-    name: 'Health Law',
-    professors: [
-      { id: '55', name: 'Professor Phillips' },
-      { id: '56', name: 'Professor Campbell' },
-      { id: '57', name: 'Professor Parker' },
-    ],
-  },
-  {
-    id: '26',
-    name: 'Immigration Law',
-    professors: [
-      { id: '58', name: 'Professor Evans' },
-      { id: '59', name: 'Professor Edwards' },
-      { id: '60', name: 'Professor Collins' },
-    ],
-  },
-  {
-    id: '27',
-    name: 'Tax Law',
-    professors: [
-      { id: '61', name: 'Professor Stewart' },
-      { id: '62', name: 'Professor Sanchez' },
-      { id: '63', name: 'Professor Morris' },
-    ],
-  },
-  {
-    id: '28',
-    name: 'Family Law',
-    professors: [
-      { id: '64', name: 'Professor Rogers' },
-      { id: '65', name: 'Professor Reed' },
-      { id: '66', name: 'Professor Cook' },
-    ],
-  },
-  {
-    id: '29',
-    name: 'Real Estate Law',
-    professors: [
-      { id: '67', name: 'Professor Morgan' },
-      { id: '68', name: 'Professor Bell' },
-      { id: '69', name: 'Professor Murphy' },
-    ],
-  },
-  {
-    id: '30',
-    name: 'Estate Planning',
-    professors: [
-      { id: '70', name: 'Professor Bailey' },
-      { id: '71', name: 'Professor Rivera' },
-      { id: '72', name: 'Professor Cooper' },
-    ],
-  },
-  // 1L Elective Courses
-  {
-    id: '31',
-    name: 'Legal Writing Workshop',
-    professors: [
-      { id: '73', name: 'Professor Thompson' },
-      { id: '74', name: 'Professor Martinez' },
-      { id: '75', name: 'Professor Rodriguez' },
-    ],
-  },
-  {
-    id: '32',
-    name: 'Introduction to Legal Research',
-    professors: [
-      { id: '76', name: 'Professor Clark' },
-      { id: '77', name: 'Professor Lewis' },
-      { id: '78', name: 'Professor Robinson' },
-    ],
-  },
-  {
-    id: '33',
-    name: 'Moot Court',
-    professors: [
-      { id: '79', name: 'Professor Wright' },
-      { id: '80', name: 'Professor Lopez' },
-      { id: '81', name: 'Professor Hill' },
-    ],
-  },
-  {
-    id: '34',
-    name: 'Law and Society',
-    professors: [
-      { id: '82', name: 'Professor Green' },
-      { id: '83', name: 'Professor Adams' },
-      { id: '84', name: 'Professor Baker' },
-    ],
-  },
-  {
-    id: '35',
-    name: 'Legal Ethics',
-    professors: [
-      { id: '85', name: 'Professor Nelson' },
-      { id: '86', name: 'Professor Carter' },
-      { id: '87', name: 'Professor Mitchell' },
-    ],
-  },
-  {
-    id: '36',
-    name: 'Introduction to Public Interest Law',
-    professors: [
-      { id: '88', name: 'Professor Perez' },
-      { id: '89', name: 'Professor Roberts' },
-      { id: '90', name: 'Professor Turner' },
-    ],
-  },
-  {
-    id: '37',
-    name: 'Legal History',
-    professors: [
-      { id: '91', name: 'Professor Phillips' },
-      { id: '92', name: 'Professor Campbell' },
-      { id: '93', name: 'Professor Parker' },
-    ],
-  },
-  {
-    id: '38',
-    name: 'Introduction to International Law',
-    professors: [
-      { id: '94', name: 'Professor Evans' },
-      { id: '95', name: 'Professor Edwards' },
-      { id: '96', name: 'Professor Collins' },
-    ],
-  },
-];
-*/
-
-// No hardcoded data needed - all comes from Supabase
-
 interface LawClass {
   id: string;
   name: string;
@@ -386,19 +44,13 @@ interface Professor {
   name: string;
 }
 
-const getAvailableClasses = (
-  classYear: ClassYear,
-  excludeIds: string[],
-  apiData: LawClass[] = []
-): LawClass[] => {
-  // All class years (1L, 2L, 3L): Use only API data from the Courses table
-  return apiData;
-};
+interface CourseSelectionPageProps {
+  onBack: () => void;
+  onComplete: () => void;
+}
 
-export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
-  const { user, signOut } = useAuth();
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageProps) {
+  const { user } = useAuth();
   const [section, setSection] = useState<string>('');
   const [classYear, setClassYear] = useState<ClassYear | ''>('');
   const [selectedClasses, setSelectedClasses] = useState<SelectedClass[]>(
@@ -421,13 +73,79 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   }>({});
   const [allCourseData, setAllCourseData] = useState<any[]>([]);
 
+  // Fetch user's current profile data to pre-populate class year and section
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user?.id) return;
+
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('class_year, section, classes')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching user profile:', error);
+          return;
+        }
+
+        if (profile) {
+          setClassYear(profile.class_year || '');
+          setSection(profile.section || '');
+          
+          // Pre-populate selected classes if they exist
+          if (profile.classes && Array.isArray(profile.classes)) {
+            const newSelectedClasses = Array(10)
+              .fill(null)
+              .map(() => ({
+                lawClass: null,
+                professor: null,
+                scheduleOption: null,
+              }));
+
+            profile.classes.forEach((classData: any, index: number) => {
+              if (index < 10 && classData.class && classData.professor) {
+                // Create LawClass object
+                const lawClass: LawClass = {
+                  id: `${classData.class}-${index}`,
+                  name: classData.class,
+                  professors: [{
+                    id: classData.professor,
+                    name: classData.professor
+                  }]
+                };
+
+                // Create Professor object
+                const professor: Professor = {
+                  id: classData.professor,
+                  name: classData.professor
+                };
+
+                newSelectedClasses[index] = {
+                  lawClass,
+                  professor,
+                  scheduleOption: classData.schedule || null
+                };
+              }
+            });
+
+            setSelectedClasses(newSelectedClasses);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+
+    fetchUserProfile();
+  }, [user]);
+
   // Fetch courses from API for all students (1L, 2L, 3L)
   useEffect(() => {
     const fetchCourses = async () => {
       if (classYear === '1L' || classYear === '2L' || classYear === '3L') {
         setCoursesLoading(true);
-        setApiCourses([]);
-        setAllCourseData([]);
         try {
           console.log(
             'Fetching all courses from API for',
@@ -632,42 +350,36 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     };
   }, [classYear, section, allCourseData]);
 
-  // Handle class year changes
+  // Initialize course selection state based on class year (only run once when class year is loaded)
   useEffect(() => {
-    console.log('Class year changed to:', classYear);
+    if (classYear) {
+      console.log('Initializing course selection for class year:', classYear);
 
-    // Reset all course selection state when class year changes
-    if (classYear === '1L') {
-      // 1L: 7 required + 1 optional = 8 total
-      const newSelectedClasses = Array(8)
-        .fill(null)
-        .map(() => ({
-          lawClass: null,
-          professor: null,
-          scheduleOption: null,
-        }));
-      setSelectedClasses(newSelectedClasses);
-    } else if (classYear === '2L' || classYear === '3L') {
-      // 2L/3L: 3 required + up to 7 more = 10 total maximum
-      const newSelectedClasses = Array(10)
-        .fill(null)
-        .map(() => ({
-          lawClass: null,
-          professor: null,
-          scheduleOption: null,
-        }));
-      setSelectedClasses(newSelectedClasses);
-    } else {
-      // No class year selected - reset to empty state
-      setSelectedClasses([]);
+      // Set up the correct number of slots based on class year
+      if (classYear === '1L') {
+        // 1L: 7 required + 1 optional = 8 total
+        const newSelectedClasses = Array(8)
+          .fill(null)
+          .map(() => ({
+            lawClass: null,
+            professor: null,
+            scheduleOption: null,
+          }));
+        setSelectedClasses(newSelectedClasses);
+      } else if (classYear === '2L' || classYear === '3L') {
+        // 2L/3L: 3 required + up to 7 more = 10 total maximum
+        const newSelectedClasses = Array(10)
+          .fill(null)
+          .map(() => ({
+            lawClass: null,
+            professor: null,
+            scheduleOption: null,
+          }));
+        setSelectedClasses(newSelectedClasses);
+      }
+
+      console.log('Initialized course selection state for class year:', classYear);
     }
-
-    // Clear all related state when class year changes
-    setSection('');
-    setScheduleOptionsBySlot({});
-    setScheduleLoadingBySlot({});
-    
-    console.log('Reset all course selection state for class year:', classYear);
   }, [classYear]);
 
   const getAvailableClassesForSlot = (excludeIds: string[]): LawClass[] => {
@@ -897,24 +609,15 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     );
   };
 
-  // Removed handleScheduleChange since schedule is now display-only
-
   const isFormValid = () => {
     console.log('=== FORM VALIDATION START ===');
     console.log('Form data:', {
-      name,
-      phone,
       section,
       classYear,
       selectedClassesLength: selectedClasses.length,
     });
 
-    // Require name, section, class year, and class selection
-    if (!name.trim()) {
-      console.log('Form invalid: missing name', { name });
-      return false;
-    }
-
+    // Require section and class year
     if (!section) {
       console.log('Form invalid: missing section', { section });
       return false;
@@ -995,9 +698,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     setLoading(true);
 
     try {
-      // Debug: Log user object to see available data
-      console.log('Current user object:', user);
-
       if (!user?.id) {
         throw new Error('User not authenticated');
       }
@@ -1008,12 +708,10 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         );
       }
 
-      // Save all profile data to the profiles table (including phone)
+      // Update profile data with new course selections
       const profileData = {
         id: user.id,
         email: user.email || '', // Include email from authenticated user
-        full_name: name.trim(),
-        phone: phone.trim() || null, // Allow null for optional phone
         section,
         class_year: classYear,
         classes: selectedClasses
@@ -1028,7 +726,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       };
 
       console.log(
-        'Attempting to save profile data:',
+        'Attempting to update profile data:',
         JSON.stringify(profileData, null, 2)
       );
 
@@ -1044,7 +742,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
           code: profileError.code,
           fullError: profileError,
         });
-        // Throw with more detailed error message
         throw new Error(
           profileError.message ||
             profileError.details ||
@@ -1052,14 +749,14 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         );
       }
 
-      console.log('Onboarding data saved successfully');
+      console.log('Course selection updated successfully');
 
-      // Complete onboarding
+      // Complete course selection
       onComplete();
     } catch (error) {
-      console.error('Error saving onboarding data:', error);
+      console.error('Error updating course selection:', error);
       alert(
-        `Error saving your profile: ${
+        `Error updating your courses: ${
           error instanceof Error ? error.message : 'Unknown error'
         }. Please try again.`
       );
@@ -1069,152 +766,81 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   };
 
   return (
-    <div className="min-h-screen py-8 px-4" style={{ backgroundColor: '#f9f5f0', minHeight: '100vh' }}>
+    <div className="min-h-screen py-8 px-4" style={{ backgroundColor: 'var(--background-color, #f9f5f0)', minHeight: '100vh', overflow: 'visible' }}>
       <div className="max-w-4xl mx-auto">
-        {/* Clear Session Button */}
-        <div className="mb-4 flex justify-end">
-          <button
-            onClick={() => signOut()}
-            className="px-3 py-1 text-sm text-white rounded hover:opacity-90"
-            style={{ backgroundColor: '#752432' }}
+        {/* Back Button */}
+        <div className="mb-4">
+          <Button
+            onClick={onBack}
+            variant="ghost"
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
           >
-            Clear Session
-          </button>
+            <ArrowLeft className="w-4 h-4" />
+            Back to Settings
+          </Button>
         </div>
 
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="mb-4">
-            <div className="leading-none" style={{ fontSize: '3rem', letterSpacing: '0.02em', fontWeight: '500', fontFamily: 'system-ui, -apple-system, sans-serif', marginLeft: '-0.1rem' }}>
-              <div className="flex justify-center" style={{ gap: '0.2rem', marginLeft: '-0.1rem' }}>
-                <span style={{ color: '#00962c' }}>q</span>
-                <span style={{ color: '#f71417' }}>u</span>
-              </div>
-              <div className="flex justify-center" style={{ gap: '0.2rem' }}>
-                <span style={{ color: '#ffb100' }}>a</span>
-                <span style={{ color: '#0078c3' }}>d</span>
-              </div>
-            </div>
-          </div>
           <h1 className="text-3xl text-gray-900 mb-2">
-            Academic Profile Setup
+            Update Course Selection
           </h1>
           <p className="text-gray-600">
-            Complete your academic information to finish setup
+            Modify your academic course selections
           </p>
         </div>
 
         <Card className="shadow-lg">
           <CardHeader className="pb-6">
             <CardTitle className="text-2xl text-center text-gray-900">
-              Academic Setup
+              Course Selection
             </CardTitle>
           </CardHeader>
 
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-8">
-              {/* Class Year Selection */}
-              <div className="flex justify-center">
+              {/* Class Year and Section Selection */}
+              <div className="flex justify-center gap-6">
                 <div className="space-y-2 w-64">
                   <Label htmlFor="classYear">
                     Class Year<span style={{ color: '#752432' }}>*</span>
                   </Label>
-                  <Select
-                    value={classYear}
-                    onValueChange={(value: ClassYear) => setClassYear(value)}
-                  >
+                  <div className="min-h-[40px] py-2 px-3 bg-input-background border border-gray-200 rounded-md text-sm text-gray-700 flex items-center">
+                    {classYear ? `${classYear} (${classYear === '1L' ? 'First Year' : classYear === '2L' ? 'Second Year' : 'Third Year'})` : 'Loading...'}
+                  </div>
+                </div>
+
+                <div className="space-y-2 w-64">
+                  <Label htmlFor="section">
+                    Section<span style={{ color: '#752432' }}>*</span>
+                  </Label>
+                  <Select value={section} onValueChange={setSection}>
                     <SelectTrigger className="bg-input-background">
-                      <SelectValue placeholder="Select your class year" />
+                      <SelectValue placeholder="Select your section" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1L">1L (First Year)</SelectItem>
-                      <SelectItem value="2L">2L (Second Year)</SelectItem>
-                      <SelectItem value="3L">3L (Third Year)</SelectItem>
+                      <SelectItem value="1">Section 1</SelectItem>
+                      <SelectItem value="2">Section 2</SelectItem>
+                      <SelectItem value="3">Section 3</SelectItem>
+                      <SelectItem value="4">Section 4</SelectItem>
+                      <SelectItem value="5">Section 5</SelectItem>
+                      <SelectItem value="6">Section 6</SelectItem>
+                      <SelectItem value="7">Section 7</SelectItem>
+                      {(classYear === '2L' || classYear === '3L') && (
+                        <SelectItem value="8">Section 8</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
-              {/* Name and Section */}
+              {/* Class Selection */}
               {classYear && (
                 <div className="space-y-6">
                   <div className="border-t pt-6">
-                    <h3 className="text-xl text-gray-900 mb-4">
-                      Personal Information
-                    </h3>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* Full Name */}
-                      <div className="space-y-2">
-                        <Label htmlFor="name">
-                          Full Name<span style={{ color: '#752432' }}>*</span>
-                        </Label>
-                        <Input
-                          id="name"
-                          type="text"
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          placeholder="Enter your full name"
-                          className="bg-input-background"
-                          required
-                        />
-                      </div>
-
-                      {/* Phone Number */}
-                      <div className="space-y-2">
-                        <Label htmlFor="phone">Phone Number</Label>
-                        <Input
-                          id="phone"
-                          type="tel"
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          placeholder="Enter your phone number"
-                          className="bg-input-background"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                      {/* Section */}
-                      <div className="space-y-2">
-                        <Label htmlFor="section">
-                          Section<span style={{ color: '#752432' }}>*</span>
-                        </Label>
-                        <Select value={section} onValueChange={setSection}>
-                          <SelectTrigger className="bg-input-background">
-                            <SelectValue placeholder="Select your section" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1">Section 1</SelectItem>
-                            <SelectItem value="2">Section 2</SelectItem>
-                            <SelectItem value="3">Section 3</SelectItem>
-                            <SelectItem value="4">Section 4</SelectItem>
-                            <SelectItem value="5">Section 5</SelectItem>
-                            <SelectItem value="6">Section 6</SelectItem>
-                            <SelectItem value="7">Section 7</SelectItem>
-                            {(classYear === '2L' || classYear === '3L') && (
-                              <SelectItem value="8">Section 8</SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Class Selection */}
-              {classYear && (
-                <div className="space-y-6 w-full">
-                  <div className="border-t pt-6 w-full">
                     <h3 className="text-xl text-gray-900 mb-2">
-                      {classYear === '1L'
-                        ? 'Course Selection'
-                        : 'Course Selection'}
+                      Course Selection
                     </h3>
-                    <p className="text-gray-600 mb-4">
-                      {classYear === '1L' ? '' : ''}
-                    </p>
 
                     {/* Requirements Summary */}
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
@@ -1233,23 +859,10 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                       </div>
                     </div>
 
-                    <div className="space-y-4 w-full overflow-visible">
+                    <div className="space-y-4">
                       {selectedClasses
                         .slice(0, classYear === '1L' ? 8 : 10)
                         .map((selectedClass, index) => {
-                        // Debug logging for class slots
-                        if (index >= 8) {
-                          console.log(
-                            `Rendering class slot ${index} for ${classYear}:`,
-                            {
-                              hasClass: !!selectedClass.lawClass,
-                              className: selectedClass.lawClass?.name,
-                              hasProfessor: !!selectedClass.professor,
-                              professorName: selectedClass.professor?.name,
-                            }
-                          );
-                        }
-
                         // Get IDs of classes selected in other slots
                         const otherSelectedClassIds = selectedClasses
                           .map((sc, i) =>
@@ -1266,30 +879,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                         const isRequired =
                           classYear === '1L' ? index < 7 : index < 3; // Elective (index 7) is optional for 1L
 
-                        // Debug logging for elective class
-                        if (index === 7) {
-                          console.log('Elective class debug:', {
-                            index,
-                            selectedClass: selectedClass.lawClass,
-                            hasProfessors:
-                              selectedClass.lawClass?.professors?.length,
-                            professorNames:
-                              selectedClass.lawClass?.professors?.map(
-                                (p) => p.name
-                              ),
-                            isRequired,
-                          });
-                        }
-
-                        const shouldShowLoading = coursesLoading && (classYear === '2L' || classYear === '3L');
-                        console.log(`Slot ${index} rendering check:`, {
-                          classYear,
-                          coursesLoading,
-                          shouldShowLoading,
-                          index
-                        });
-
-                        return shouldShowLoading ? (
+                        return coursesLoading &&
+                          (classYear === '2L' || classYear === '3L') ? (
                           <div
                             key={`${classYear}-${index}`}
                             className="flex items-center justify-center p-4"
@@ -1380,7 +971,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                         '#752432')
                     }
                   >
-                    {loading ? 'Saving...' : 'Complete Setup'}
+                    {loading ? 'Updating...' : 'Update Courses'}
                   </Button>
                 </div>
               </div>

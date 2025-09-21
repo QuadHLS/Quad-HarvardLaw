@@ -9,6 +9,7 @@ import { Textarea } from './ui/textarea';
 import { Separator } from './ui/separator';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { CourseSelectionPage } from './CourseSelectionPage';
 
 interface UserStats {
   outlinesSaved: number;
@@ -25,6 +26,7 @@ interface ProfileData {
   instagram: string;
   linkedin: string;
   year: string;
+  section: string;
   age: number;
   hometown: string;
   summerCity: string;
@@ -55,6 +57,8 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
   const [phoneLoading, setPhoneLoading] = useState(false);
   const [showChangeCourses, setShowChangeCourses] = useState(false);
   const [courseLoading, setCourseLoading] = useState(false);
+  const [showCourseSelection, setShowCourseSelection] = useState(false);
+
 
   // Fetch profile data from Supabase
   useEffect(() => {
@@ -86,6 +90,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
             instagram: '',
             linkedin: '',
             year: profile.class_year || '',
+            section: profile.section || '',
             age: profile.age || 0,
             hometown: profile.hometown || '',
             summerCity: profile.summer_city || '',
@@ -128,6 +133,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
         instagram: '@sarahmartinez_law',
         linkedin: 'sarah-martinez-hls',
         year: '2L',
+        section: '3',
         age: 24,
         hometown: 'Los Angeles, CA',
         summerCity: 'San Francisco, CA',
@@ -174,6 +180,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
         instagram: '@mikechen_law',
         linkedin: 'mike-chen-hls',
         year: '2L',
+        section: '5',
         age: 26,
         hometown: 'Seattle, WA',
         summerCity: 'Chicago, IL',
@@ -223,6 +230,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       instagram: '@justinabbey',
       linkedin: 'justin-abbey-hls',
       year: '2L',
+      section: '2',
       age: 25,
       hometown: 'Boston, MA',
       summerCity: 'New York, NY',
@@ -461,7 +469,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                   <div className="flex justify-between items-start">
                     <div>
                       <h1 className="text-3xl font-medium text-gray-900 mb-2">{profileData.name}</h1>
-                      <p className="text-lg text-gray-600">{profileData.year} Student • Harvard Law School</p>
+                      <p className="text-lg text-gray-600">{profileData.year} Student • Section {profileData.section} • Harvard Law School</p>
                     </div>
                     {/* Show Edit and Settings buttons only for main user */}
                     {(!studentName || studentName === 'Justin Abbey') && !isEditing && (
@@ -849,13 +857,20 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                     className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
                   >
                     <BookOpen className="w-4 h-4 mr-2" />
-                    Change Courses
+                    Change Courses and Section
                   </Button>
                   <Button variant="outline" className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50">
                     <User className="w-4 h-4 mr-2" />
                     Change Password
                   </Button>
-                  <Button variant="outline" className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50">
+                  <Button 
+                    onClick={async () => {
+                      setShowSettings(false);
+                      await signOut();
+                    }}
+                    variant="outline" 
+                    className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
                     <LogOut className="w-4 h-4 mr-2" />
                     Sign Out
                   </Button>
@@ -1049,9 +1064,10 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
               <div className="flex gap-3 pt-4">
                 <Button
                   onClick={() => {
-                    // In a full implementation, this would redirect to onboarding
                     setShowChangeCourses(false);
-                    console.log('Redirecting to onboarding...');
+                    setTimeout(() => {
+                      setShowCourseSelection(true);
+                    }, 100);
                   }}
                   className="flex-1 text-white hover:opacity-90"
                   style={{ backgroundColor: '#752432' }}
@@ -1069,6 +1085,22 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Course Selection Page - Full Screen Overlay */}
+      {showCourseSelection && (
+        <div className="fixed inset-0 z-50 overflow-y-auto" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+          <CourseSelectionPage
+            onBack={() => {
+              setShowCourseSelection(false);
+            }}
+            onComplete={() => {
+              setShowCourseSelection(false);
+              // Refresh profile data after course selection
+              window.location.reload();
+            }}
+          />
         </div>
       )}
     </div>

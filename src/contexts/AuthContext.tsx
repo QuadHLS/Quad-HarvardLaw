@@ -44,10 +44,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
+      
+      // Set flag for fresh login to trigger onboarding
+      if (event === 'SIGNED_IN' && session?.user) {
+        sessionStorage.setItem('isFreshLogin', 'true')
+      }
     })
 
     return () => subscription.unsubscribe()

@@ -115,69 +115,13 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
           <div className="flex items-center justify-center relative">
             <button
               onClick={() => onSectionChange('home')}
-              className="flex items-center justify-center flex-shrink-0 hover:opacity-80 transition-opacity cursor-pointer relative"
-              style={{ width: '120px', height: '20px' }}
+              className="flex items-center justify-center flex-shrink-0 hover:opacity-80 transition-opacity cursor-pointer"
             >
-              {/* Individual Letters with Transform Animations */}
-              <span 
-                className="absolute transition-all duration-1000 ease-in-out pointer-events-none"
-                style={{ 
-                  color: '#00962c',
-                  fontSize: '1.2rem', 
-                  letterSpacing: '0.02em', 
-                  fontWeight: '500', 
-                  fontFamily: 'system-ui, -apple-system, sans-serif',
-                  transform: 'translate(-1.8rem, 0)',
-                  transition: 'transform 1000ms cubic-bezier(0.25, 0.46, 0.45, 0.94)'
-                }}
-              >
-                q
-              </span>
-              
-              <span 
-                className="absolute transition-all duration-1000 ease-in-out pointer-events-none"
-                style={{ 
-                  color: '#f71417',
-                  fontSize: '1.2rem', 
-                  letterSpacing: '0.02em', 
-                  fontWeight: '500', 
-                  fontFamily: 'system-ui, -apple-system, sans-serif',
-                  transform: 'translate(-0.6rem, 0)',
-                  transition: 'transform 1000ms cubic-bezier(0.25, 0.46, 0.45, 0.94)'
-                }}
-              >
-                u
-              </span>
-              
-              <span 
-                className="absolute transition-all duration-1000 ease-in-out pointer-events-none"
-                style={{ 
-                  color: '#ffb100',
-                  fontSize: '1.2rem', 
-                  letterSpacing: '0.02em', 
-                  fontWeight: '500', 
-                  fontFamily: 'system-ui, -apple-system, sans-serif',
-                  transform: 'translate(0.6rem, 0)',
-                  transition: 'transform 1000ms cubic-bezier(0.25, 0.46, 0.45, 0.94)'
-                }}
-              >
-                a
-              </span>
-              
-              <span 
-                className="absolute transition-all duration-1000 ease-in-out pointer-events-none"
-                style={{ 
-                  color: '#0078c3',
-                  fontSize: '1.2rem', 
-                  letterSpacing: '0.02em', 
-                  fontWeight: '500', 
-                  fontFamily: 'system-ui, -apple-system, sans-serif',
-                  transform: 'translate(1.8rem, 0)',
-                  transition: 'transform 1000ms cubic-bezier(0.25, 0.46, 0.45, 0.94)'
-                }}
-              >
-                d
-              </span>
+              <img 
+                src="/src/assets/Quad Logo.png" 
+                alt="Quad Logo" 
+                className="h-10 w-auto object-contain"
+              />
             </button>
             <Button
               variant="ghost"
@@ -193,69 +137,14 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
           <div className="flex flex-col items-center gap-2">
             <button
               onClick={() => onSectionChange('home')}
-              className="flex items-center justify-center flex-shrink-0 hover:opacity-80 transition-opacity cursor-pointer relative"
+              className="flex items-center justify-center flex-shrink-0 hover:opacity-80 transition-opacity cursor-pointer"
               style={{ width: '50px', height: '50px' }}
             >
-              {/* Individual Letters with Transform Animations */}
-              <span 
-                className="absolute transition-all duration-1000 ease-in-out pointer-events-none"
-                style={{ 
-                  color: '#00962c',
-                  fontSize: '1.2rem', 
-                  letterSpacing: '0.02em', 
-                  fontWeight: '500', 
-                  fontFamily: 'system-ui, -apple-system, sans-serif',
-                  transform: 'translate(-0.45rem, -0.6rem)',
-                  transition: 'transform 1000ms cubic-bezier(0.25, 0.46, 0.45, 0.94)'
-                }}
-              >
-                q
-              </span>
-              
-              <span 
-                className="absolute transition-all duration-1000 ease-in-out pointer-events-none"
-                style={{ 
-                  color: '#f71417',
-                  fontSize: '1.2rem', 
-                  letterSpacing: '0.02em', 
-                  fontWeight: '500', 
-                  fontFamily: 'system-ui, -apple-system, sans-serif',
-                  transform: 'translate(0.45rem, -0.6rem)',
-                  transition: 'transform 1000ms cubic-bezier(0.25, 0.46, 0.45, 0.94)'
-                }}
-              >
-                u
-              </span>
-              
-              <span 
-                className="absolute transition-all duration-1000 ease-in-out pointer-events-none"
-                style={{ 
-                  color: '#ffb100',
-                  fontSize: '1.2rem', 
-                  letterSpacing: '0.02em', 
-                  fontWeight: '500', 
-                  fontFamily: 'system-ui, -apple-system, sans-serif',
-                  transform: 'translate(-0.45rem, 0.6rem)',
-                  transition: 'transform 1000ms cubic-bezier(0.25, 0.46, 0.45, 0.94)'
-                }}
-              >
-                a
-              </span>
-              
-              <span 
-                className="absolute transition-all duration-1000 ease-in-out pointer-events-none"
-                style={{ 
-                  color: '#0078c3',
-                  fontSize: '1.2rem', 
-                  letterSpacing: '0.02em', 
-                  fontWeight: '500', 
-                  fontFamily: 'system-ui, -apple-system, sans-serif',
-                  transform: 'translate(0.45rem, 0.6rem)',
-                  transition: 'transform 1000ms cubic-bezier(0.25, 0.46, 0.45, 0.94)'
-                }}
-              >
-                d
-              </span>
+              <img 
+                src="/src/assets/Quad Logo.png" 
+                alt="Quad Logo" 
+                className="h-12 w-auto object-contain"
+              />
             </button>
             <Button
               variant="ghost"

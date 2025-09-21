@@ -1078,7 +1078,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
             className="px-3 py-1 text-sm text-white rounded hover:opacity-90"
             style={{ backgroundColor: '#752432' }}
           >
-            Clear Session
+            Go Back to Login
           </button>
         </div>
 

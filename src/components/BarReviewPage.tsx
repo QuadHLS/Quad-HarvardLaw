@@ -66,8 +66,6 @@ export function BarReviewPage({}: BarReviewPageProps) {
         }
 
         if (currentEventData) {
-          console.log('Current event data:', currentEventData);
-          console.log('Map embed URL:', currentEventData.map_embed_url);
           setCurrentEvent(currentEventData);
           
           // Fetch actual RSVP count from bar_count table
@@ -75,12 +73,10 @@ export function BarReviewPage({}: BarReviewPageProps) {
             .from('bar_count')
             .select('*', { count: 'exact', head: true });
 
-          console.log('RSVP count fetch result:', { rsvpCountData, countError });
 
           if (!countError && rsvpCountData !== null) {
             setRsvpCount(rsvpCountData);
           } else {
-            console.log('Error fetching RSVP count, using 0');
             setRsvpCount(0);
           }
 
@@ -90,11 +86,13 @@ export function BarReviewPage({}: BarReviewPageProps) {
               .from('bar_count')
               .select('*')
               .eq('identity', user.id)
-              .single();
+              .maybeSingle();
 
-            console.log('User RSVP check:', { userRsvp, userRsvpError });
             setIsRSVPed(!!userRsvp && !userRsvpError);
           }
+
+          // Fetch all attendees
+          fetchAttendees();
         } else {
           // Try to get the most recent event as fallback
           const { data: recentEventData, error: recentError } = await supabase
@@ -124,11 +122,13 @@ export function BarReviewPage({}: BarReviewPageProps) {
                 .from('bar_count')
                 .select('*')
                 .eq('identity', user.id)
-                .single();
+                .maybeSingle();
 
-              console.log('User RSVP check (recent event):', { userRsvp, userRsvpError });
               setIsRSVPed(!!userRsvp && !userRsvpError);
             }
+
+            // Fetch all attendees for recent event too
+            fetchAttendees();
           }
         }
 
@@ -172,8 +172,6 @@ export function BarReviewPage({}: BarReviewPageProps) {
 
   // Fetch attendee names from profiles table
   const fetchAttendees = async () => {
-    if (!currentEvent) return;
-    
     setAttendeesLoading(true);
     try {
       // Get all user IDs who RSVPed
@@ -183,6 +181,7 @@ export function BarReviewPage({}: BarReviewPageProps) {
 
       if (rsvpError) {
         console.error('Error fetching RSVPs:', rsvpError);
+        setAttendees([]);
         return;
       }
 
@@ -193,11 +192,12 @@ export function BarReviewPage({}: BarReviewPageProps) {
         // Fetch full names from profiles table
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
-          .select('full_name')
+          .select('id, full_name')
           .in('id', userIds);
 
         if (profilesError) {
           console.error('Error fetching profiles:', profilesError);
+          setAttendees([]);
           return;
         }
 
@@ -205,13 +205,20 @@ export function BarReviewPage({}: BarReviewPageProps) {
         const names = profilesData
           ?.map(profile => profile.full_name)
           .filter(name => name && name.trim() !== '') || [];
-
+        
+        // If we have fewer names than RSVPs, show a message
+        if (names.length < rsvpData.length) {
+          const missingCount = rsvpData.length - names.length;
+          names.push(`${missingCount} user${missingCount > 1 ? 's' : ''} (name not available)`);
+        }
+        
         setAttendees(names);
       } else {
         setAttendees([]);
       }
     } catch (error) {
       console.error('Error fetching attendees:', error);
+      setAttendees([]);
     } finally {
       setAttendeesLoading(false);
     }
@@ -244,9 +251,6 @@ export function BarReviewPage({}: BarReviewPageProps) {
 
 
   const handleRSVP = async () => {
-    console.log('RSVP clicked. User:', user?.id, 'isRSVPed:', isRSVPed);
-    console.log('User object:', user);
-    console.log('User role:', user?.role);
     
     if (!user) {
       alert('Please log in to RSVP');
@@ -262,26 +266,21 @@ export function BarReviewPage({}: BarReviewPageProps) {
 
     try {
       if (!isRSVPed) {
-        console.log('Attempting to insert RSVP for user:', user.id);
-        console.log('User role:', user.role);
-        console.log('User aud:', user.aud);
         
         // Test the policy first
         const { data: testData, error: testError } = await supabase
           .from('bar_count')
           .select('*')
           .limit(1);
-        console.log('Test select result:', { testData, testError });
         
         // Check if user already RSVPed to avoid duplicate key error
         const { data: existingRsvp } = await supabase
           .from('bar_count')
           .select('*')
           .eq('identity', user.id)
-          .single();
+          .maybeSingle();
 
         if (existingRsvp) {
-          console.log('User already RSVPed, skipping insert');
           setIsRSVPed(true);
           return;
         }
@@ -294,20 +293,17 @@ export function BarReviewPage({}: BarReviewPageProps) {
           })
           .select();
 
-        console.log('Insert RSVP result:', { data, insertError });
 
         if (insertError) {
           console.error('Insert error details:', insertError);
           throw insertError;
         }
 
-        console.log('RSVP successful, updating UI');
         setIsRSVPed(true);
         // Fetch updated attendee list and count
         fetchAttendees();
         await fetchRsvpCount();
       } else {
-        console.log('Attempting to delete RSVP for user:', user.id);
         
         // Remove user from bar_count table
         const { data, error: deleteError } = await supabase
@@ -316,14 +312,12 @@ export function BarReviewPage({}: BarReviewPageProps) {
           .eq('identity', user.id)
           .select();
 
-        console.log('Delete RSVP result:', { data, deleteError });
 
         if (deleteError) {
           console.error('Delete error details:', deleteError);
           throw deleteError;
         }
 
-        console.log('RSVP cancellation successful, updating UI');
         setIsRSVPed(false);
         // Fetch updated attendee list and count
         fetchAttendees();
@@ -543,8 +537,6 @@ export function BarReviewPage({}: BarReviewPageProps) {
                       referrerPolicy="no-referrer-when-downgrade"
                       className="absolute inset-0"
                       title="Bar Review Venue Location"
-                      onLoad={() => console.log('Map iframe loaded')}
-                      onError={() => console.log('Map iframe failed to load')}
                     />
                   </div>
                 ) : (
@@ -570,7 +562,16 @@ export function BarReviewPage({}: BarReviewPageProps) {
               </div>
 
               {/* Attendee List Dropdown */}
-              <Collapsible open={showAttendeeList} onOpenChange={setShowAttendeeList}>
+              <Collapsible 
+                open={showAttendeeList} 
+                onOpenChange={(open) => {
+                  setShowAttendeeList(open);
+                  if (open) {
+                    // Refresh attendees when dropdown opens
+                    fetchAttendees();
+                  }
+                }}
+              >
                 <CollapsibleTrigger asChild>
                   <Button 
                     variant="ghost" 
@@ -586,7 +587,7 @@ export function BarReviewPage({}: BarReviewPageProps) {
                   </Button>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="space-y-0">
-                  <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-md style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} mb-4">
+                  <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-md style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} mb-4">
                     <div className="grid grid-cols-1 gap-0.5 p-2">
                       {attendeesLoading ? (
                         <div className="text-xs text-gray-500 py-2 text-center">

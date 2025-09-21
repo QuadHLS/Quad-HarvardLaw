@@ -16,21 +16,19 @@ export const AuthPage: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col items-center relative" style={{ backgroundColor: 'var(--background-color, #f9f5f0)', minHeight: '100vh' }}>
       {/* Logo at the top */}
-      <div className="pt-16 pb-20">
-        <div className="leading-none" style={{ fontSize: '7rem', letterSpacing: '0.02em', fontWeight: '500', fontFamily: 'system-ui, -apple-system, sans-serif', marginLeft: '-0.2rem' }}>
-          <div className="flex justify-center" style={{ gap: '0.5rem', marginLeft: '-0.2rem' }}>
-            <span style={{ color: '#00962c' }}>q</span>
-            <span style={{ color: '#f71417' }}>u</span>
-          </div>
-          <div className="flex justify-center" style={{ gap: '0.5rem' }}>
-            <span style={{ color: '#ffb100' }}>a</span>
-            <span style={{ color: '#0078c3' }}>d</span>
-          </div>
+      <div style={{ marginTop: '60px', paddingBottom: '80px' }}>
+        <div className="flex justify-center">
+          <img 
+            src="/src/assets/Quad Logo.png" 
+            alt="Quad Logo" 
+            className="w-auto object-contain"
+            style={{ height: '180px' }}
+          />
         </div>
       </div>
       
       {/* Auth form */}
-      <div className="w-full max-w-md" style={{ marginTop: '1rem' }}>
+      <div className="w-full max-w-md" style={{ marginTop: '-1.5rem' }}>
         {authMode === 'login' && (
           <LoginPage
             onSwitchToSignup={handleSwitchToSignup}

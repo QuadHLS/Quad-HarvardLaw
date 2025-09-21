@@ -1631,32 +1631,16 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
           return;
         }
 
-        // Check if user has completed onboarding using classes_filled column
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('classes_filled')
-          .eq('id', currentUser.id)
-          .single();
-
-        if (profileError) {
-          console.error('Error fetching profile:', profileError);
-          if (isMounted) {
-            setHasCompletedOnboarding(false);
-          }
-          return;
-        }
-
-        // If classes_filled is true, skip onboarding. If false or null, show onboarding
-        const hasCompletedOnboarding = profile?.classes_filled === true;
-
+        // Always require onboarding - skip database check
         if (isMounted) {
-          setHasCompletedOnboarding(hasCompletedOnboarding);
+          setHasCompletedOnboarding(false);
         }
 
-        // Always require access code verification on login
-        // Reset verification state when user changes
+        // Always require access code verification and onboarding every time
+        // Reset both states when user changes
         if (isMounted) {
           setIsVerified(false);
+          setHasCompletedOnboarding(false);
           setAuthLoading(false);
         }
       } catch (_err) {
@@ -1886,17 +1870,17 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
     return <AuthPage />;
   }
 
-  // Skip access code verification for testing
-  // if (!isVerified) {
-  //   return (
-  //     <AccessCodeVerification
-  //       onVerified={async () => {
-  //         // Mark verified locally; server-side already updated profile
-  //         setIsVerified(true);
-  //       }}
-  //     />
-  //   );
-  // }
+  // Always require access code verification
+  if (!isVerified) {
+    return (
+      <AccessCodeVerification
+        onVerified={async () => {
+          // Mark verified locally; server-side already updated profile
+          setIsVerified(true);
+        }}
+      />
+    );
+  }
 
   // Show onboarding flow if user hasn't completed onboarding
   if (!hasCompletedOnboarding) {

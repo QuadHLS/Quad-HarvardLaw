@@ -1085,17 +1085,16 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="mb-4">
-            <div className="leading-none" style={{ fontSize: '3rem', letterSpacing: '0.02em', fontWeight: '500', fontFamily: 'system-ui, -apple-system, sans-serif', marginLeft: '-0.1rem' }}>
-              <div className="flex justify-center" style={{ gap: '0.2rem', marginLeft: '-0.1rem' }}>
-                <span style={{ color: '#00962c' }}>q</span>
-                <span style={{ color: '#f71417' }}>u</span>
-              </div>
-              <div className="flex justify-center" style={{ gap: '0.2rem' }}>
-                <span style={{ color: '#ffb100' }}>a</span>
-                <span style={{ color: '#0078c3' }}>d</span>
-              </div>
+            <div className="flex justify-center">
+              <img 
+                src="/src/assets/Quad Logo.png" 
+                alt="Quad Logo" 
+                className="w-auto object-contain"
+                style={{ height: '80px' }}
+              />
             </div>
           </div>
+          <div style={{ height: '40px' }}></div>
           <h1 className="text-3xl text-gray-900 mb-2">
             Academic Profile Setup
           </h1>

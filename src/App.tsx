@@ -1834,7 +1834,6 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
 
   const handleSectionChange = (section: string) => {
     setActiveSection(section);
-    setSidebarCollapsed(true); // Auto-collapse when changing sections
   };
 
   const handleToggleSidebar = () => {

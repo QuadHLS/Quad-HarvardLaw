@@ -12,11 +12,27 @@ interface NavigationSidebarProps {
 }
 
 export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed, onToggleCollapsed }: NavigationSidebarProps) {
-  const [isResourcesExpanded, setIsResourcesExpanded] = useState(false);
   const { user, signOut } = useAuth();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isResourcesExpanded, setIsResourcesExpanded] = useState(false);
+  const [isResourcesCollapsedExpanded, setIsResourcesCollapsedExpanded] = useState(false);
   const [userName, setUserName] = useState('User');
   const [theme, setTheme] = useState<'light' | 'dark' | 'beige'>('beige');
+  const [showMenuButton, setShowMenuButton] = useState(!isCollapsed);
+
+  // Handle delayed menu button teleport
+  useEffect(() => {
+    if (!isCollapsed) {
+      // Delay the menu button appearance by 200ms to let sidebar expand first
+      const timer = setTimeout(() => {
+        setShowMenuButton(true);
+      }, 200);
+      return () => clearTimeout(timer);
+    } else {
+      // Show immediately when collapsing
+      setShowMenuButton(true);
+    }
+  }, [isCollapsed]);
 
   // Fetch user's name from profiles table
   useEffect(() => {
@@ -104,63 +120,45 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
 
   return (
     <div 
-      className={`text-gray-800 flex flex-col transition-all duration-300 border-r border-gray-200 h-full ${
+      className={`text-gray-800 flex flex-col border-r border-gray-200 h-full ${
         isCollapsed ? 'w-16' : 'w-40'
       }`}
-      style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}
+      style={{ backgroundColor: 'var(--background-color, #f9f5f0)', transition: 'width 300ms ease-in-out' }}
     >
       {/* Header */}
       <div className={`p-4 ${!isCollapsed ? 'border-b border-gray-200' : ''}`}>
-        {!isCollapsed ? (
-          <div className="flex items-center justify-center relative">
-            <button
-              onClick={() => onSectionChange('home')}
-              className="flex items-center justify-center flex-shrink-0 hover:opacity-80 transition-opacity cursor-pointer"
-            >
-              <img 
-                src="/Quad Logo.png" 
-                alt="Quad Logo" 
-                className="h-10 w-auto object-contain"
-              />
-            </button>
+        <div className={`flex items-center justify-center relative ${
+          isCollapsed ? 'flex-col gap-2' : 'flex-row'
+        }`}>
+          <button
+            onClick={() => onSectionChange('home')}
+            className="flex items-center justify-center flex-shrink-0 hover:opacity-80 cursor-pointer w-12 h-12 relative z-20"
+          >
+            <img 
+              src="/Quad Logo.png" 
+              alt="Quad Logo" 
+              className="w-auto object-contain h-10 relative z-20"
+            />
+          </button>
+          {showMenuButton && (
             <Button
               variant="ghost"
               size="sm"
               onClick={onToggleCollapsed}
-              className="absolute text-gray-600 hover:bg-gray-100 h-8 w-8 p-0 flex-shrink-0"
-              style={{ right: '-8px' }}
+              className={`text-gray-600 hover:bg-gray-100 h-8 w-8 p-0 flex-shrink-0 ${
+                isCollapsed ? 'relative z-10' : 'absolute z-10'
+              }`}
+              style={isCollapsed ? {} : { right: '-12px', top: '50%', transform: 'translateY(-50%)' }}
             >
               <Menu className="w-4 h-4" style={{ color: '#752432' }} />
             </Button>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-2">
-            <button
-              onClick={() => onSectionChange('home')}
-              className="flex items-center justify-center flex-shrink-0 hover:opacity-80 transition-opacity cursor-pointer"
-              style={{ width: '50px', height: '50px' }}
-            >
-              <img 
-                src="/Quad Logo.png" 
-                alt="Quad Logo" 
-                className="h-12 w-auto object-contain"
-              />
-            </button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onToggleCollapsed}
-              className="text-gray-600 hover:bg-gray-100 h-8 w-8 p-0 flex-shrink-0"
-            >
-              <Menu className="w-4 h-4" style={{ color: '#752432' }} />
-            </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Navigation Items - Only show when expanded */}
+      {/* Navigation Items - Normal layout when expanded, hidden when collapsed */}
       {!isCollapsed && (
-        <nav className="flex-1 py-4">
+        <nav className="flex-1 py-4 px-3">
           <div className="space-y-2">
             {menuItems.map((item) => {
               const Icon = item.icon;
@@ -170,7 +168,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
                 <button
                   key={item.id}
                   onClick={() => onSectionChange(item.id)}
-                  className={`w-full flex items-center px-4 py-3 transition-colors text-left ${
+                  className={`w-full flex items-center px-3 py-2 text-left ${
                     isActive 
                       ? 'bg-gray-100 text-gray-800 border-r-2' 
                       : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
@@ -180,10 +178,10 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
                   }}
                 >
                   <Icon 
-                    className="w-5 h-5 mr-3" 
+                    className="w-5 h-5 mr-2" 
                     style={{ color: '#752432' }}
                   />
-                  <span className="font-medium">{item.label}</span>
+                  <span className="font-medium text-sm">{item.label}</span>
                 </button>
               );
             })}
@@ -193,7 +191,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
               {/* Resources Parent Item */}
               <button
                 onClick={() => setIsResourcesExpanded(!isResourcesExpanded)}
-                className={`w-full flex items-center px-4 py-3 transition-colors text-left ${
+                className={`w-full flex items-center px-3 py-2 text-left ${
                   ['outlines', 'reviews', 'exams'].includes(activeSection)
                     ? 'bg-gray-100 text-gray-800 border-r-2' 
                     : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
@@ -203,14 +201,14 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
                 }}
               >
                 <Archive 
-                  className="w-5 h-5 mr-3" 
+                  className="w-5 h-5 mr-2" 
                   style={{ color: '#752432' }}
                 />
-                <span className="font-medium flex-1">Resources</span>
+                <span className="font-medium flex-1 text-sm">Resources</span>
                 {isResourcesExpanded ? (
-                  <ChevronDown className="w-4 h-4" style={{ color: '#752432' }} />
+                  <ChevronDown className="w-3 h-3" style={{ color: '#752432' }} />
                 ) : (
-                  <ChevronRight className="w-4 h-4" style={{ color: '#752432' }} />
+                  <ChevronRight className="w-3 h-3" style={{ color: '#752432' }} />
                 )}
               </button>
 
@@ -225,7 +223,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
                       <button
                         key={item.id}
                         onClick={() => onSectionChange(item.id)}
-                        className={`w-full flex items-center px-4 py-2 transition-colors text-left ${
+                        className={`w-full flex items-center px-4 py-2 text-left ${
                           isActive 
                             ? 'bg-gray-100 text-gray-800 border-r-2' 
                             : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
@@ -249,7 +247,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
             {/* Bar Review */}
             <button
               onClick={() => onSectionChange('barreview')}
-              className={`w-full flex items-center px-4 py-3 transition-colors text-left ${
+              className={`w-full flex items-center px-3 py-2 text-left ${
                 activeSection === 'barreview'
                   ? 'bg-gray-100 text-gray-800 border-r-2' 
                   : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
@@ -259,10 +257,87 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
               }}
             >
               <Beer 
-                className="w-5 h-5 mr-3" 
+                className="w-5 h-5 mr-2" 
                 style={{ color: '#752432' }}
               />
-              <span className="font-medium">Bar Review</span>
+              <span className="font-medium text-sm">Bar Review</span>
+            </button>
+          </div>
+        </nav>
+      )}
+
+      {/* Spacer to push bottom section down when expanded */}
+      {!isCollapsed && <div className="flex-1" />}
+
+      {/* Collapsed Navigation Items - Show when collapsed */}
+      {isCollapsed && (
+        <nav className="pt-0 pb-4">
+          <div className="space-y-2">
+            {/* Home */}
+            <button
+              onClick={() => onSectionChange('home')}
+              className={`w-full flex items-center justify-center py-2 ${
+                activeSection === 'home'
+                  ? 'bg-gray-100 text-gray-800' 
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+              }`}
+            >
+              <Home className="w-5 h-5" style={{ color: '#752432' }} />
+            </button>
+
+            {/* Resources - Click to show dropdown */}
+            <div>
+              <button
+                onClick={() => setIsResourcesCollapsedExpanded(!isResourcesCollapsedExpanded)}
+                className={`w-full flex items-center justify-center py-2 ${
+                  ['outlines', 'reviews', 'exams'].includes(activeSection)
+                    ? 'bg-gray-100 text-gray-800' 
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                }`}
+              >
+                <Archive className="w-5 h-5" style={{ color: '#752432' }} />
+              </button>
+              
+              {/* Click dropdown for resources - appears below and pushes Bar Review down */}
+              {isResourcesCollapsedExpanded && (
+                <div className="w-full bg-white border border-gray-200 rounded-lg shadow-lg z-[9999] mt-1">
+                  <div className="py-2">
+                    {resourceItems.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = activeSection === item.id;
+                      
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => onSectionChange(item.id)}
+                          className={`w-full flex items-center justify-center py-2 ${
+                            isActive 
+                              ? 'bg-gray-100 text-gray-800' 
+                              : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                          }`}
+                        >
+                          <Icon 
+                            className="w-4 h-4" 
+                            style={{ color: '#752432' }}
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Bar Review */}
+            <button
+              onClick={() => onSectionChange('barreview')}
+              className={`w-full flex items-center justify-center py-2 ${
+                activeSection === 'barreview'
+                  ? 'bg-gray-100 text-gray-800' 
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+              }`}
+            >
+              <Beer className="w-5 h-5" style={{ color: '#752432' }} />
             </button>
           </div>
         </nav>
@@ -278,7 +353,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
             {/* Calendar Section - Expanded */}
             <button
               onClick={() => onSectionChange('calendar')}
-              className={`w-full flex items-center px-4 py-3 transition-colors text-left ${
+              className={`w-full flex items-center px-3 py-2 text-left ${
                 activeSection === 'calendar'
                   ? 'bg-gray-100 text-gray-800 border-r-2' 
                   : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
@@ -288,16 +363,16 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
               }}
             >
               <Calendar 
-                className="w-5 h-5 mr-3" 
+                className="w-5 h-5 mr-2" 
                 style={{ color: '#752432' }}
               />
-              <span className="font-medium">Calendar</span>
+              <span className="font-medium text-sm">Calendar</span>
             </button>
 
             {/* Messaging Section - Expanded */}
             <button
               onClick={() => onSectionChange('messaging')}
-              className={`w-full flex items-center px-4 py-3 transition-colors text-left ${
+              className={`w-full flex items-center px-3 py-2 text-left ${
                 activeSection === 'messaging'
                   ? 'bg-gray-100 text-gray-800 border-r-2' 
                   : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
@@ -306,24 +381,24 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
                 borderRightColor: activeSection === 'messaging' ? '#752432' : 'transparent'
               }}
             >
-              <div className="relative mr-3">
+              <div className="relative mr-2">
                 <MessageCircle 
                   className="w-5 h-5" 
                   style={{ color: '#752432' }}
                 />
                 {/* Small unread notification bubble */}
                 <div 
-                  className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-white"
+                  className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-white"
                   style={{ backgroundColor: '#752432' }}
                 />
               </div>
-              <span className="font-medium">Messaging</span>
+              <span className="font-medium text-sm">Messaging</span>
             </button>
             
             {/* Profile Section - Expanded */}
             <button
               onClick={() => onSectionChange('profile')}
-              className={`w-full flex items-center px-4 py-3 transition-colors text-left ${
+              className={`w-full flex items-center px-3 py-2 text-left ${
                 activeSection === 'profile'
                   ? 'bg-gray-100 text-gray-800 border-r-2' 
                   : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
@@ -333,10 +408,10 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
               }}
             >
               <User 
-                className="w-5 h-5 mr-3" 
+                className="w-5 h-5 mr-2" 
                 style={{ color: '#752432' }}
               />
-              <span className="font-medium">{userName}</span>
+              <span className="font-medium text-sm">{userName}</span>
             </button>
 
             {/* Theme Toggle Section - Expanded */}
@@ -375,7 +450,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
             {/* Calendar Icon - Top */}
             <button
               onClick={() => onSectionChange('calendar')}
-              className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${
+              className={`w-full flex items-center justify-center py-2 ${
                 activeSection === 'calendar'
                   ? 'bg-gray-100 text-gray-800' 
                   : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
@@ -390,7 +465,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
             {/* Messaging Icon - Middle */}
             <button
               onClick={() => onSectionChange('messaging')}
-              className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${
+              className={`w-full flex items-center justify-center py-2 ${
                 activeSection === 'messaging'
                   ? 'bg-gray-100 text-gray-800' 
                   : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
@@ -403,7 +478,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
                 />
                 {/* Small unread notification bubble */}
                 <div 
-                  className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-white"
+                  className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-white"
                   style={{ backgroundColor: '#752432' }}
                 />
               </div>
@@ -412,14 +487,14 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
             {/* Profile Icon - Bottom */}
             <button
               onClick={() => onSectionChange('profile')}
-              className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${
+              className={`w-full flex items-center justify-center py-2 ${
                 activeSection === 'profile'
                   ? 'bg-gray-100 text-gray-800' 
                   : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
               }`}
             >
               <User 
-                className="w-4 h-4" 
+                className="w-5 h-5" 
                 style={{ color: '#752432' }}
               />
             </button>
@@ -427,7 +502,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
             {/* Theme Toggle Icon */}
             <button
               onClick={handleThemeToggle}
-              className="w-10 h-10 flex items-center justify-center rounded-lg transition-colors text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+              className="w-full flex items-center justify-center py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50"
             >
               {theme === 'light' && <Sun className="w-5 h-5" style={{ color: '#000000' }} />}
               {theme === 'beige' && <Palette className="w-5 h-5" style={{ color: '#000000' }} />}
@@ -438,12 +513,12 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
       </div>
 
       {/* Sign Out Button - Bottom */}
-      <div className={`${!isCollapsed ? "border-t border-gray-200 p-4" : "p-3"}`}>
+      <div className={`${!isCollapsed ? "border-t border-gray-200 p-4" : "border-t border-gray-200 p-3"}`}>
         <Button
           onClick={handleSignOut}
           disabled={isSigningOut}
           variant="ghost"
-          className={`w-full ${!isCollapsed ? "justify-start" : "justify-center"} text-gray-600 hover:text-red-600 hover:bg-red-50 transition-colors`}
+          className={`w-full ${!isCollapsed ? "justify-start" : "justify-center"} text-gray-600 hover:text-red-600 hover:bg-red-50`}
         >
           <LogOut className={`${!isCollapsed ? "w-5 h-5 mr-3" : "w-4 h-4"}`} />
           {!isCollapsed && (

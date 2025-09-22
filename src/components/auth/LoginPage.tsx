@@ -54,15 +54,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   };
 
   return (
-    <Card className="w-full" style={{ backgroundColor: '#ffffff', border: 'none', boxShadow: '0 0 22px rgba(0, 0, 0, 0.12)' }}>
-          <CardHeader className="text-center pb-2 px-4 pt-4">
-            <CardTitle className="text-2xl">Sign in</CardTitle>
-            <CardDescription className="text-sm" style={{ marginTop: '0.5rem' }}>
+    <Card className="w-full" style={{ backgroundColor: '#ffffff', border: 'none', boxShadow: '0 0 22px rgba(0, 0, 0, 0.06)' }}>
+          <CardHeader className="text-center pb-2 px-3 sm:px-4 pt-3 sm:pt-4">
+            <CardTitle className="text-xl sm:text-2xl">Sign in</CardTitle>
+            <CardDescription className="text-xs sm:text-sm" style={{ marginTop: '0.5rem' }}>
               Enter your email and password to sign in
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="px-4 pb-4">
+          <CardContent className="px-3 sm:px-4 pb-3 sm:pb-4">
             {/* Error Alert */}
             {error && (
               <Alert className="mb-4 bg-destructive/10 border-destructive/20 text-destructive">

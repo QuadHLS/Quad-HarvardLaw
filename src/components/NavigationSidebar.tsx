@@ -166,7 +166,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
           height: 'calc(100% - 80px)',
           overflow: 'hidden',
           width: isCollapsed ? '0' : '160px',
-          transition: 'width 300ms ease-in-out'
+          transition: isCollapsed ? 'width 0ms ease-in-out' : 'width 300ms ease-in-out'
         }}
       >
         <div className="flex flex-col h-full" style={{ width: '160px', minWidth: '160px' }}>

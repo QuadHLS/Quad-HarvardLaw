@@ -519,7 +519,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
   const handleCalendarDayClick = (day: number | null) => {
     if (!day) return;
 
-    const clickedDate = new Date(2025, 8, day); // September 2025 (month is 0-indexed)
+    const clickedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
     setSelectedDate(clickedDate);
 
     // Filter courses for the selected day using real schedule data
@@ -618,8 +618,29 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
   const availableCourses = userCourses.map((course) => course.class);
 
 
+  const [currentTime, setCurrentTime] = useState(() => {
+    const now = new Date();
+    return now.getHours() * 60 + now.getMinutes();
+  });
+
+  // Update current time every minute for real-time red line movement
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setCurrentTime(now.getHours() * 60 + now.getMinutes());
+    };
+
+    // Update immediately
+    updateTime();
+
+    // Set up interval to update every minute
+    const interval = setInterval(updateTime, 60000); // 60000ms = 1 minute
+
+    // Cleanup interval on unmount
+    return () => clearInterval(interval);
+  }, []);
+
   const currentDate = new Date();
-  const currentTime = currentDate.getHours() * 60 + currentDate.getMinutes(); // Current time in minutes since midnight
 
   // Semester detection logic
   const getCurrentSemester = () => {
@@ -703,21 +724,23 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
     const startMinutes = startHour24 * 60 + parseInt(startMin);
     const endMinutes = endHour24 * 60 + parseInt(endMin);
     
-    // Convert to percentage position (6 AM to 5 PM = 11 hours = 660 minutes)
-    const startPosition = ((startMinutes - 360) / 660) * 100; // 360 = 6 AM in minutes
-    const height = ((endMinutes - startMinutes) / 660) * 100;
+    // Convert to percentage position (6 AM to 7 PM = 13 hours = 780 minutes)
+    const startPosition = ((startMinutes - 360) / 780) * 100; // 360 = 6 AM in minutes
+    const height = ((endMinutes - startMinutes) / 780) * 100;
     
     return { startPosition, height };
   };
 
-  // Generate calendar days for September 2025
+  // Generate calendar days for current month
   const generateCalendarDays = () => {
-    const daysInMonth = 30; // September has 30 days
-    const startDay = 0; // September 1, 2025 starts on Monday (0 = Sunday offset)
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDayOfMonth = new Date(year, month, 1).getDay();
     const days = [];
 
     // Add empty cells for days before the 1st
-    for (let i = 0; i < startDay; i++) {
+    for (let i = 0; i < firstDayOfMonth; i++) {
       days.push(null);
     }
 
@@ -733,12 +756,15 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
   const weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   const getCurrentTimePosition = () => {
-    // Calculate position based on 6 AM to 5 PM timeframe (11 hours = 660 minutes)
+    // Calculate position based on 6 AM to 7 PM timeframe (13 hours = 780 minutes)
     const startOfDay = 6 * 60; // 6 AM in minutes
-    const endOfDay = 17 * 60; // 5 PM in minutes
+    const endOfDay = 19 * 60; // 7 PM in minutes
     const timeFromStart = currentTime - startOfDay;
     const totalMinutes = endOfDay - startOfDay;
-    return Math.max(0, Math.min(100, (timeFromStart / totalMinutes) * 100));
+    const position = (timeFromStart / totalMinutes) * 100;
+    
+    // Show the line even if outside the range, but clamp it to visible area
+    return Math.max(0, Math.min(100, position));
   };
 
   if (loading) {
@@ -976,7 +1002,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
             <Card className="p-3">
               <div className="text-center mb-3">
                 <h3 className="text-sm font-medium text-gray-900">
-                  September 2025
+                  {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                 </h3>
               </div>
 
@@ -996,7 +1022,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                   <div
                     key={index}
                     className={`text-center text-xs py-1.5 cursor-pointer hover:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} transition-colors ${
-                      day === 5
+                      day === currentDate.getDate()
                         ? 'bg-[#752432] text-white font-medium rounded-full w-6 h-6 flex items-center justify-center mx-auto'
                         : day
                         ? 'text-gray-900 rounded-full w-6 h-6 flex items-center justify-center mx-auto hover:bg-[#752432]/10'
@@ -1027,17 +1053,17 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
               {/* Schedule Content */}
               <div
                 className="relative style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} overflow-hidden"
-                style={{ height: '600px' }}
+                style={{ height: '520px' }}
               >
                 {/* Time column */}
                 <div className="absolute left-0 top-0 w-16 h-full border-r border-gray-200">
                   {/* Time labels */}
-                  {[6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17].map(
+                  {[6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19].map(
                     (hour, index) => (
                       <div
                         key={hour}
                         className="absolute text-[10px] text-gray-500 text-center w-full leading-none"
-                        style={{ top: `${index * 50 + 8}px` }}
+                        style={{ top: `${index * 40 + 6}px` }}
                       >
                         <span className="whitespace-nowrap">
                           {hour <= 12 ? (hour === 0 ? 12 : hour) : hour - 12}:00
@@ -1050,21 +1076,21 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
 
                 {/* Time grid lines */}
                 <div className="absolute left-16 right-0 top-0 h-full">
-                  {Array.from({ length: 12 }, (_, index) => (
+                  {Array.from({ length: 14 }, (_, index) => (
                     <div
                       key={index}
                       className="absolute w-full border-b border-gray-100"
-                      style={{ top: `${index * 50}px` }}
+                      style={{ top: `${index * 40}px` }}
                     />
                   ))}
                 </div>
 
                 {/* Current time indicator */}
                 <div
-                  className="absolute left-0 right-0 z-20 flex items-center"
+                  className="absolute left-16 right-0 z-30 flex items-center"
                   style={{ top: `${getCurrentTimePosition()}%` }}
                 >
-                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <div className="w-2 h-2 bg-red-500 rounded-full shadow-sm"></div>
                   <div className="flex-1 h-0.5 bg-red-500"></div>
                 </div>
 

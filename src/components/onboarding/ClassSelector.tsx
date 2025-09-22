@@ -287,9 +287,9 @@ export function ClassSelector({
               );
               return null;
             })()}
-            {filteredClasses.map((lawClass) => (
+            {filteredClasses.map((lawClass, classIndex) => (
               <button
-                key={lawClass.id}
+                key={`${lawClass.id}-${classIndex}`}
                 type="button"
                 onClick={() => {
                   console.log(
@@ -421,11 +421,11 @@ export function ClassSelector({
                 <div className="p-2 text-xs text-gray-500 style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} border-b">
                   Professors for {selectedClass?.name}:
                 </div>
-                {selectedClass?.professors?.map((professor) => {
+                {selectedClass?.professors?.map((professor, profIndex) => {
                   console.log('Rendering professor option:', professor);
                   return (
                     <button
-                      key={professor.id}
+                      key={`${professor.id}-${profIndex}`}
                       type="button"
                       onMouseDown={(e) => {
                         e.preventDefault();

@@ -46,7 +46,7 @@ interface UserProfile {
 interface CourseCardProps {
   title: string;
   instructor: string;
-  nextEvent?: string;
+  course?: any;
   onCourseClick?: (courseName: string) => void;
 }
 
@@ -250,81 +250,86 @@ function TodoSection({
 function CourseCard({
   title,
   instructor,
-  nextEvent,
+  course,
   onCourseClick,
 }: CourseCardProps) {
-  // Get course-specific data for mini landing page
-  const getCoursePreview = (courseName: string) => {
-    const courseData: { [key: string]: any } = {
-      'Contract Law': {
-        schedule: 'M,W,F 9:00-10:00 AM',
-        nextTopic: 'Statute of Frauds',
-      },
-      Torts: {
-        schedule: 'Tu,Th 10:30-12:00 PM',
-        nextTopic: 'Negligence Standards',
-      },
-      'Property Law': {
-        schedule: 'M,W,F 11:30-12:30 PM',
-        nextTopic: 'Easements & Servitudes',
-      },
-      'Civil Procedure': {
-        schedule: 'Tu,Th 2:00-3:30 PM',
-        nextTopic: 'Discovery Rules',
-      },
-    };
-
-    return (
-      courseData[courseName] || {
+  // Get real course data from the course object
+  const getCoursePreview = () => {
+    if (!course?.schedule) {
+      return {
         schedule: 'TBD',
-        nextTopic: 'Course Introduction',
-      }
-    );
+        location: 'TBD'
+      };
+    }
+
+    const schedule = course.schedule;
+    const days = schedule.days || 'TBD';
+    const times = schedule.times || 'TBD';
+    const location = schedule.location || 'TBD';
+    
+    // Format the schedule display
+    let scheduleDisplay = 'TBD';
+    if (days !== 'TBD' && times !== 'TBD') {
+      scheduleDisplay = `${days} ${times}`;
+    } else if (days !== 'TBD') {
+      scheduleDisplay = days;
+    } else if (times !== 'TBD') {
+      scheduleDisplay = times;
+    }
+
+    return {
+      schedule: scheduleDisplay,
+      location: location
+    };
   };
 
-  const coursePreview = getCoursePreview(title);
+  const coursePreview = getCoursePreview();
 
   return (
     <Card
-      className="overflow-hidden h-[160px] flex flex-col shadow-sm border border-gray-200 cursor-pointer hover:shadow-lg hover:border-gray-300 transition-all duration-200" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}
+      className="overflow-hidden shadow-sm border border-gray-200 cursor-pointer hover:shadow-lg hover:border-gray-300 transition-all duration-200" 
+      style={{ 
+        backgroundColor: 'var(--background-color, #f9f5f0)',
+        height: '120px',
+        width: '100%'
+      }}
       onClick={() => onCourseClick?.(title)}
     >
       {/* Burgundy Header with Schedule */}
-      <div className="bg-[#752432] text-white px-3 py-2">
-        <h3 className="text-sm font-semibold leading-none mb-1 truncate">
-          {title}
-        </h3>
-        <div className="flex items-center justify-between">
-          <p className="text-white/85 text-xs truncate">{instructor}</p>
-          <span className="text-white/75 text-xs font-medium">
-            {coursePreview.schedule}
-          </span>
-        </div>
-      </div>
-
-      {/* Compact Content Area */}
-      <div className="flex-1 px-3 py-1 flex flex-col justify-between min-h-0" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-        {/* Next Topic - Compact */}
-        <div className="rounded px-2 py-1.5" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-          <div className="text-xs font-medium text-[#752432] mb-0.5">
-            Next Topic
-          </div>
-          <div className="text-xs text-gray-800 font-medium leading-tight truncate">
-            {coursePreview.nextTopic}
-          </div>
-        </div>
-
-        {/* Next Event - Compact */}
-        {nextEvent && (
-          <div className="flex items-center gap-1 mt-auto">
-            <Clock className="w-3 h-3 text-[#752432] flex-shrink-0" />
-            <span className="text-xs text-[#752432] font-medium">Next:</span>
-            <span className="text-xs text-gray-700 font-medium truncate flex-1">
-              {nextEvent}
+      <div 
+        className="bg-[#752432] text-white relative"
+        style={{
+          height: '120px',
+          padding: '8px 8px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between'
+        }}
+      >
+        <div>
+          <h3 className="text-xs font-semibold leading-none mb-0.5 truncate">
+            {title}
+          </h3>
+          <div className="flex items-center justify-between">
+            <span className="text-white/75 text-[10px] font-medium">
+              {coursePreview.schedule}
             </span>
           </div>
-        )}
+        </div>
+        <div>
+          {coursePreview.location && coursePreview.location !== 'TBD' && (
+            <div className="mt-0.5">
+              <span className="text-white/70 text-[10px]">
+                📍 {coursePreview.location}
+              </span>
+            </div>
+          )}
+          <div className="mt-0.5">
+            <p className="text-white/85 text-[10px] truncate">{instructor}</p>
+          </div>
+        </div>
       </div>
+
     </Card>
   );
 }
@@ -517,29 +522,20 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
     const clickedDate = new Date(2025, 8, day); // September 2025 (month is 0-indexed)
     setSelectedDate(clickedDate);
 
-    // Filter courses for the selected day
+    // Filter courses for the selected day using real schedule data
     const dayOfWeek = clickedDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
 
-    // For now, we'll show courses based on a simple schedule mapping
-    // In a real implementation, you'd parse the schedule data from user courses
     const coursesForDay = userCourses.filter((course) => {
-      // Simple mapping - in reality you'd parse the schedule field
-      const courseName = course.class.toLowerCase();
-      if (courseName.includes('torts') && (dayOfWeek === 1 || dayOfWeek === 3))
-        return true; // Mon, Wed
-      if (
-        courseName.includes('contract') &&
-        (dayOfWeek === 0 || dayOfWeek === 2 || dayOfWeek === 4)
-      )
-        return true; // Mon, Wed, Fri
-      if (
-        courseName.includes('property') &&
-        (dayOfWeek === 0 || dayOfWeek === 2 || dayOfWeek === 4)
-      )
-        return true; // Mon, Wed, Fri
-      if (courseName.includes('civil') && (dayOfWeek === 1 || dayOfWeek === 3))
-        return true; // Tue, Thu
-      return false;
+      // Check if course is for current semester
+      if (course.schedule?.semester && course.schedule.semester !== currentSemester) {
+        return false;
+      }
+      
+      // Parse schedule days
+      const scheduleDays = parseCourseSchedule(course.schedule?.days || '');
+      
+      // Check if course meets on selected day
+      return scheduleDays.includes(dayOfWeek);
     });
 
     setDailyCourses(coursesForDay);
@@ -579,44 +575,140 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
   const courseData = userCourses.map((course) => ({
     title: course.class,
     instructor: course.professor,
-    nextEvent: getNextEventForCourse(course.class),
+    course: course,
   }));
+
+  // Group courses by semester
+  const groupCoursesBySemester = () => {
+    const grouped: { [semester: string]: typeof courseData } = {};
+    
+    courseData.forEach(course => {
+      const semester = course.course?.schedule?.semester || 'TBD';
+      if (!grouped[semester]) {
+        grouped[semester] = [];
+      }
+      grouped[semester].push(course);
+    });
+    
+    // Sort semesters: FA (Fall), SP (Spring), WI (Winter), then TBD
+    const semesterOrder = ['FA', 'SP', 'WI', 'TBD'];
+    const sortedSemesters = Object.keys(grouped).sort((a, b) => {
+      const aYear = parseInt(a.replace(/\D/g, '')) || 0;
+      const bYear = parseInt(b.replace(/\D/g, '')) || 0;
+      const aSem = a.replace(/\d/g, '');
+      const bSem = b.replace(/\d/g, '');
+      
+      // First sort by semester order (FA, SP, WI), then by year
+      const aSemIndex = semesterOrder.indexOf(aSem);
+      const bSemIndex = semesterOrder.indexOf(bSem);
+      
+      if (aSemIndex !== bSemIndex) {
+        return aSemIndex - bSemIndex; // FA first, then SP, then WI
+      }
+      
+      return bYear - aYear; // Newer years first within same semester
+    });
+    
+    return { grouped, sortedSemesters };
+  };
+
+  const { grouped: coursesBySemester, sortedSemesters } = groupCoursesBySemester();
 
   // Get available courses for todo dropdown
   const availableCourses = userCourses.map((course) => course.class);
 
-  // Helper function to get next event for a course
-  function getNextEventForCourse(courseName: string): string {
-    const currentDate = new Date();
-    const dayOfWeek = currentDate.getDay();
-
-    const courseNameLower = courseName.toLowerCase();
-
-    // Simple schedule mapping - in reality you'd parse the schedule field
-    if (courseNameLower.includes('torts')) {
-      if (dayOfWeek === 1 || dayOfWeek === 3) return 'Today 8:00 AM';
-      return 'Tomorrow 8:00 AM';
-    }
-    if (courseNameLower.includes('contract')) {
-      if (dayOfWeek === 0 || dayOfWeek === 2 || dayOfWeek === 4)
-        return 'Today 9:00 AM';
-      return 'Tomorrow 9:00 AM';
-    }
-    if (courseNameLower.includes('property')) {
-      if (dayOfWeek === 0 || dayOfWeek === 2 || dayOfWeek === 4)
-        return 'Today 11:30 AM';
-      return 'Tomorrow 11:30 AM';
-    }
-    if (courseNameLower.includes('civil')) {
-      if (dayOfWeek === 1 || dayOfWeek === 3) return 'Today 2:00 PM';
-      return 'Tomorrow 2:00 PM';
-    }
-
-    return 'Schedule TBD';
-  }
 
   const currentDate = new Date();
   const currentTime = currentDate.getHours() * 60 + currentDate.getMinutes(); // Current time in minutes since midnight
+
+  // Semester detection logic
+  const getCurrentSemester = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth() + 1; // getMonth() is 0-indexed
+    const day = currentDate.getDate();
+    
+    // Fall: September 2 - November 25
+    if ((month === 9 && day >= 2) || month === 10 || (month === 11 && day <= 25)) {
+      return `${year}FA`;
+    }
+    // Winter: January 5 - January 21
+    else if (month === 1 && day >= 5 && day <= 21) {
+      return `${year}WI`;
+    }
+    // Spring: January 26 - April 24
+    else if ((month === 1 && day >= 26) || month === 2 || month === 3 || (month === 4 && day <= 24)) {
+      return `${year}SP`;
+    }
+    // Default to current year Fall if outside semester periods
+    else {
+      return `${year}FA`;
+    }
+  };
+
+  const currentSemester = getCurrentSemester();
+
+  // Parse course schedule and get courses for current day
+  const parseCourseSchedule = (scheduleString: string) => {
+    if (!scheduleString || scheduleString === 'TBD') return [];
+    
+    // Split by bullet points and commas
+    const days = scheduleString.split(/[,\•]/).map(d => d.trim());
+    const dayMap: { [key: string]: number } = {
+      'Mon': 1, 'Monday': 1,
+      'Tue': 2, 'Tuesday': 2, 'Tues': 2,
+      'Wed': 3, 'Wednesday': 3,
+      'Thu': 4, 'Thursday': 4, 'Thurs': 4,
+      'Fri': 5, 'Friday': 5,
+      'Sat': 6, 'Saturday': 6,
+      'Sun': 0, 'Sunday': 0
+    };
+    
+    return days.map(day => dayMap[day]).filter(day => day !== undefined);
+  };
+
+  const getCoursesForCurrentDay = () => {
+    const dayOfWeek = currentDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    return userCourses.filter(course => {
+      // Check if course is for current semester
+      if (course.schedule?.semester && course.schedule.semester !== currentSemester) {
+        return false;
+      }
+      
+      // Parse schedule days
+      const scheduleDays = parseCourseSchedule(course.schedule?.days || '');
+      
+      // Check if course meets on current day
+      return scheduleDays.includes(dayOfWeek);
+    });
+  };
+
+  const todaysCourses = getCoursesForCurrentDay();
+
+  // Parse time string and convert to position for calendar display
+  const parseTimeToPosition = (timeString: string) => {
+    if (!timeString || timeString === 'TBD') return null;
+    
+    // Parse time format like "1:30PM - 3:30PM" or "8:00AM - 9:30AM"
+    const timeMatch = timeString.match(/(\d{1,2}):(\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (!timeMatch) return null;
+    
+    const [, startHour, startMin, startPeriod, endHour, endMin, endPeriod] = timeMatch;
+    
+    // Convert to 24-hour format
+    const startHour24 = parseInt(startHour) + (startPeriod.toUpperCase() === 'PM' && startHour !== '12' ? 12 : 0);
+    const endHour24 = parseInt(endHour) + (endPeriod.toUpperCase() === 'PM' && endHour !== '12' ? 12 : 0);
+    
+    // Convert to minutes since midnight
+    const startMinutes = startHour24 * 60 + parseInt(startMin);
+    const endMinutes = endHour24 * 60 + parseInt(endMin);
+    
+    // Convert to percentage position (6 AM to 5 PM = 11 hours = 660 minutes)
+    const startPosition = ((startMinutes - 360) / 660) * 100; // 360 = 6 AM in minutes
+    const height = ((endMinutes - startMinutes) / 660) * 100;
+    
+    return { startPosition, height };
+  };
 
   // Generate calendar days for September 2025
   const generateCalendarDays = () => {
@@ -850,15 +942,28 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                   </Button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {courseData.map((course, index) => (
-                    <CourseCard
-                      key={index}
-                      title={course.title}
-                      instructor={course.instructor}
-                      nextEvent={course.nextEvent}
-                      onCourseClick={onNavigateToCourse}
-                    />
+                <div className="space-y-6">
+                  {sortedSemesters.map((semester, semesterIndex) => (
+                    <div key={semester}>
+                      {/* Add line break before 2026SP courses */}
+                      {semester === '2026SP' && semesterIndex > 0 && (
+                        <div className="h-4"></div>
+                      )}
+                      <h3 className="text-md font-semibold text-gray-800 mb-3">
+                        {semester === 'TBD' ? 'Schedule TBD' : semester}
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+                        {coursesBySemester[semester].map((course, index) => (
+                          <CourseCard
+                            key={`${semester}-${index}`}
+                            title={course.title}
+                            instructor={course.instructor}
+                            course={course.course}
+                            onCourseClick={onNavigateToCourse}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
@@ -910,7 +1015,13 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
               {/* Header */}
               <div className="p-4 border-b border-gray-200">
                 <h3 className="text-sm font-medium text-gray-900">Today</h3>
-                <p className="text-xs text-gray-600">Friday, Sep 5</p>
+                <p className="text-xs text-gray-600">
+                  {currentDate.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    month: 'short',
+                    day: 'numeric'
+                  })} • {currentSemester}
+                </p>
               </div>
 
               {/* Schedule Content */}
@@ -959,47 +1070,42 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
 
                 {/* Events */}
                 <div className="absolute left-16 right-0 top-0 h-full pr-2">
-                  {/* Torts: 8am - 9:30am */}
-                  <div
-                    className="absolute bg-[#752432] text-white rounded text-xs p-2 left-1 right-1 z-10"
-                    style={{
-                      top: `${2 * 50}px`,
-                      height: `${1.5 * 50}px`,
-                    }}
-                  >
-                    <div className="font-medium">Torts</div>
-                    <div className="text-white/90 mt-1 leading-none">
-                      8:00-9:30am
+                  {todaysCourses.length === 0 ? (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="text-center">
+                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                          <BookOpen className="w-6 h-6 text-gray-400" />
+                        </div>
+                        <p className="text-sm text-gray-500">No classes today</p>
+                      </div>
                     </div>
-                  </div>
-
-                  {/* Property: 11:30am - 12:30pm */}
-                  <div
-                    className="absolute bg-[#752432] text-white rounded text-xs p-2 left-1 right-1 z-10"
-                    style={{
-                      top: `${5.5 * 50}px`,
-                      height: `${1 * 50}px`,
-                    }}
-                  >
-                    <div className="font-medium">Property</div>
-                    <div className="text-white/90 mt-1 leading-none">
-                      11:30am-12:30pm
-                    </div>
-                  </div>
-
-                  {/* Board Meeting: 2pm - 3pm */}
-                  <div
-                    className="absolute bg-[#752432] text-white rounded text-xs p-2 left-1 right-1 z-10"
-                    style={{
-                      top: `${8 * 50}px`,
-                      height: `${1 * 50}px`,
-                    }}
-                  >
-                    <div className="font-medium">Board Meeting</div>
-                    <div className="text-white/90 mt-1 leading-none">
-                      2:00-3:00pm
-                    </div>
-                  </div>
+                  ) : (
+                    todaysCourses.map((course, index) => {
+                      const timePosition = parseTimeToPosition(course.schedule?.times || '');
+                      if (!timePosition) return null;
+                      
+                      return (
+                        <div
+                          key={index}
+                          className="absolute bg-[#752432] text-white rounded text-xs p-2 left-1 right-1 z-10"
+                          style={{
+                            top: `${timePosition.startPosition}%`,
+                            height: `${timePosition.height}%`,
+                          }}
+                        >
+                          <div className="font-medium truncate">{course.class}</div>
+                          <div className="text-white/90 mt-1 leading-none">
+                            {course.schedule?.times || 'TBD'}
+                          </div>
+                          {course.schedule?.location && course.schedule.location !== 'TBD' && (
+                            <div className="text-white/80 text-[10px] mt-1 truncate">
+                              📍 {course.schedule.location}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </Card>
@@ -1068,8 +1174,16 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                               </div>
                               <div className="flex items-center gap-2 text-sm text-[#752432]">
                                 <Clock className="w-4 h-4" />
-                                <span>Schedule: TBD</span>
+                                <span>
+                                  {course.schedule?.times || 'Schedule: TBD'}
+                                </span>
                               </div>
+                              {course.schedule?.location && course.schedule.location !== 'TBD' && (
+                                <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
+                                  <span>📍</span>
+                                  <span>{course.schedule.location}</span>
+                                </div>
+                              )}
                             </div>
                             <Button
                               onClick={() => onNavigateToCourse?.(course.class)}

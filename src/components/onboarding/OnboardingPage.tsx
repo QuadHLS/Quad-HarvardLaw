@@ -780,6 +780,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         [slotIndex]: scheduleOptions,
       }));
 
+
       // Simulate brief delay for UX
       await new Promise((resolve) => setTimeout(resolve, 200));
 
@@ -829,10 +830,43 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     // Clear schedule options when class changes
     setScheduleOptionsBySlot((prev) => ({ ...prev, [index]: [] }));
     
-    // Auto-fetch schedule for all class years after auto-selecting professor
-    if (lawClass && selectedProfessor) {
-      console.log('Auto-fetching schedule for', classYear, 'class:', lawClass.name, 'with professor:', selectedProfessor.name);
-      await fetchCourseDetails(lawClass.name, selectedProfessor.name, index);
+    // Auto-create schedule for 2L/3L students and 1L elective (slot 7)
+    if (lawClass && selectedProfessor && ((classYear === '2L' || classYear === '3L') || (classYear === '1L' && index === 7))) {
+      console.log('Auto-creating schedule for', classYear, 'class:', lawClass.name, 'with professor:', selectedProfessor.name);
+      
+      // Find matching course in the Courses table (same logic as 1L)
+      const matchingCourses = allCourseData.filter(
+        (course) => course.course_name === lawClass.name && course.instructor === selectedProfessor.name
+      );
+      
+      if (matchingCourses.length > 0) {
+        const course = matchingCourses[0];
+        
+        // Create schedule directly from course data (same as 1L)
+        const scheduleOption = course.days && course.times ? {
+          course_number: course.course_number,
+          course_name: course.course_name,
+          semester: course.semester,
+          instructor: course.instructor,
+          credits: course.credits,
+          days: course.days.split(';').map((d: string) => d.trim()).join(' • '),
+          times: course.times.split(';').map((t: string) => t.trim())[0] || 'TBD',
+          location: course.location || 'Location TBD'
+        } : null;
+        
+        // Update the selected class with the schedule
+        newSelectedClasses[index] = {
+          ...newSelectedClasses[index],
+          scheduleOption
+        };
+        setSelectedClasses(newSelectedClasses);
+        
+        console.log(`✅ Auto-created schedule for ${classYear} slot ${index}:`, {
+          course: lawClass.name,
+          professor: selectedProfessor.name,
+          schedule: scheduleOption ? `${scheduleOption.days} • ${scheduleOption.times}` : 'No schedule',
+        });
+      }
     }
     
     console.log(
@@ -873,13 +907,43 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     };
     setSelectedClasses(newSelectedClasses);
 
-    // For all students, fetch course schedule options after professor selection
-    if (professor && newSelectedClasses[index].lawClass) {
-      await fetchCourseDetails(
-        newSelectedClasses[index].lawClass!.name,
-        professor.name,
-        index
+    // Auto-create schedule for 2L/3L students and 1L elective when professor changes (like 1L does)
+    if (professor && newSelectedClasses[index].lawClass && ((classYear === '2L' || classYear === '3L') || (classYear === '1L' && index === 7))) {
+      console.log('Auto-creating schedule for', classYear, 'professor change:', professor.name);
+      
+      // Find matching course in the Courses table (same logic as 1L)
+      const matchingCourses = allCourseData.filter(
+        (course) => course.course_name === newSelectedClasses[index].lawClass!.name && course.instructor === professor.name
       );
+      
+      if (matchingCourses.length > 0) {
+        const course = matchingCourses[0];
+        
+        // Create schedule directly from course data (same as 1L)
+        const scheduleOption = course.days && course.times ? {
+          course_number: course.course_number,
+          course_name: course.course_name,
+          semester: course.semester,
+          instructor: course.instructor,
+          credits: course.credits,
+          days: course.days.split(';').map((d: string) => d.trim()).join(' • '),
+          times: course.times.split(';').map((t: string) => t.trim())[0] || 'TBD',
+          location: course.location || 'Location TBD'
+        } : null;
+        
+        // Update the selected class with the schedule
+        newSelectedClasses[index] = {
+          ...newSelectedClasses[index],
+          scheduleOption
+        };
+        setSelectedClasses(newSelectedClasses);
+        
+        console.log(`✅ Auto-created schedule for ${classYear} professor change:`, {
+          course: newSelectedClasses[index].lawClass!.name,
+          professor: professor.name,
+          schedule: scheduleOption ? `${scheduleOption.days} • ${scheduleOption.times}` : 'No schedule',
+        });
+      }
     } else {
       // Clear schedule options when professor is deselected
       setScheduleOptionsBySlot((prev) => ({ ...prev, [index]: [] }));

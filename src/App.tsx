@@ -1938,7 +1938,7 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
       )}
 
       {/* Main Content */}
-      <div className="flex-1">
+      <div className={`flex-1 ${sidebarCollapsed ? 'ml-16' : 'ml-40'}`} style={{ transition: 'margin-left 300ms ease-in-out' }}>
         {activeSection === 'outlines' ? (
           activeTab === 'upload' ? (
             <div className="flex items-center justify-center h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>

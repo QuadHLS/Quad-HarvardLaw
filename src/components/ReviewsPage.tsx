@@ -496,11 +496,12 @@ export function ReviewsPage() {
   };
 
   return (
-    <div className="h-full style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} overflow-hidden">
-      <div className="h-full flex flex-col">
+    <div className="h-full overflow-auto" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+      <div className="max-w-6xl mx-auto p-6">
+        <div className="h-full flex flex-col">
         {/* Header */}
-        <div className="style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} border-b border-gray-200 p-6">
-          <div className="mx-auto">
+        <div className="border-b border-gray-200 pb-6" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+          <div>
             <div className="flex items-center mb-4">
               <Star className="w-8 h-8 mr-3" style={{ color: '#752432' }} />
               <h1 className="text-2xl font-medium text-gray-800">Course Reviews</h1>
@@ -554,11 +555,11 @@ export function ReviewsPage() {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="mx-auto">
+        <div className="flex-1 overflow-y-auto pt-6">
+          <div>
             {filteredProfessors.length === 0 ? (
               <div className="text-center py-12">
-                <Star className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <Star className="w-16 h-16 text-gray-400 mb-4" />
                 <h3 className="text-lg font-medium text-gray-700 mb-2">No Professors Found</h3>
                 <p className="text-gray-600">
                   No professors match your search criteria. Try a different search term.
@@ -637,7 +638,7 @@ export function ReviewsPage() {
                       
                       {courseReviews.length === 0 ? (
                         <div className="text-center py-8">
-                          <Star className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                          <Star className="w-12 h-12 text-gray-400 mb-4" />
                           <h4 className="font-medium text-gray-700 mb-2">No Reviews Yet</h4>
                           <p className="text-gray-600">
                             No reviews available for {prof.firstName} {prof.lastName}'s {selectedCourse} course.
@@ -797,7 +798,7 @@ export function ReviewsPage() {
                         {prof.courses.map((courseInfo) => (
                           <Card 
                             key={courseInfo.name}
-                            className="p-4 cursor-pointer hover:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} transition-colors border"
+                            className="p-4 cursor-pointer hover:bg-gray-50 transition-colors border"
                             onClick={() => setSelectedCourse(courseInfo.name)}
                           >
                             <div className="flex items-center justify-between">
@@ -836,7 +837,7 @@ export function ReviewsPage() {
                       {groupedProfessors[letter].map((prof) => (
                         <Card 
                           key={prof.fullName}
-                          className="p-6 cursor-pointer hover:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} transition-colors border"
+                          className="p-6 cursor-pointer hover:bg-gray-50 transition-colors border"
                           onClick={() => setSelectedProfessor(prof.fullName)}
                         >
                           <div className="flex items-start justify-between">
@@ -896,6 +897,7 @@ export function ReviewsPage() {
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 }

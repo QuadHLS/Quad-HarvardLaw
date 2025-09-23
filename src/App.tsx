@@ -1915,7 +1915,7 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
   }
 
   return (
-    <div className="h-screen flex" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+    <div className="h-screen flex min-w-0" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
       {/* Navigation Sidebar */}
       <NavigationSidebar
         activeSection={activeSection}

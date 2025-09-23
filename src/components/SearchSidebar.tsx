@@ -678,7 +678,7 @@ export function SearchSidebar({
             <div className="flex gap-1.5 justify-center">
               <button
                 onClick={() => setShowOutlines(!showOutlines)}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm font-medium ${
                   showOutlines
                     ? "bg-white text-[#8B4A6B] border border-white shadow-sm"
                     : "bg-transparent text-white border border-white/50 hover:border-white/70"
@@ -689,7 +689,7 @@ export function SearchSidebar({
               </button>
               <button
                 onClick={() => setShowAttacks(!showAttacks)}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm font-medium ${
                   showAttacks
                     ? "bg-white text-[#8B4A6B] border border-white shadow-sm"
                     : "bg-transparent text-white border border-white/50 hover:border-white/70"

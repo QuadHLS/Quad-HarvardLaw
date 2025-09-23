@@ -120,10 +120,10 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
 
   return (
     <div 
-      className={`text-gray-800 flex flex-col border-r border-gray-200 h-full ${
+      className={`text-gray-800 flex flex-col border-r border-gray-200 h-full flex-shrink-0 ${
         isCollapsed ? 'w-16' : 'w-40'
       }`}
-      style={{ backgroundColor: 'var(--background-color, #f9f5f0)', transition: 'width 300ms ease-in-out' }}
+      style={{ backgroundColor: 'var(--background-color, #f9f5f0)', transition: 'width 300ms ease-in-out', minWidth: isCollapsed ? '4rem' : '10rem' }}
     >
       {/* Header */}
       <div className={`p-4 ${!isCollapsed ? 'border-b border-gray-200' : ''}`}>

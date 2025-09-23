@@ -4,10 +4,7 @@ import {
   Circle,
   X,
   Plus,
-  Clock,
-  Calendar,
   BookOpen,
-  Users,
 } from 'lucide-react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
@@ -398,8 +395,6 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
   const [, setUserProfile] = useState<UserProfile | null>(null);
   const [userCourses, setUserCourses] = useState<UserCourse[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [showDailyView, setShowDailyView] = useState(false);
-  const [dailyCourses, setDailyCourses] = useState<UserCourse[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Function to extract first name from full name
@@ -521,32 +516,8 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
 
     const clickedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
     setSelectedDate(clickedDate);
-
-    // Filter courses for the selected day using real schedule data
-    const dayOfWeek = clickedDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
-
-    const coursesForDay = userCourses.filter((course) => {
-      // Check if course is for current semester
-      if (course.schedule?.semester && course.schedule.semester !== currentSemester) {
-        return false;
-      }
-      
-      // Parse schedule days
-      const scheduleDays = parseCourseSchedule(course.schedule?.days || '');
-      
-      // Check if course meets on selected day
-      return scheduleDays.includes(dayOfWeek);
-    });
-
-    setDailyCourses(coursesForDay);
-    setShowDailyView(true);
   };
 
-  // Close daily view
-  const closeDailyView = () => {
-    setShowDailyView(false);
-    setDailyCourses([]);
-  };
 
   const todayTodos = todos
     .filter((todo) => todo.section === 'today')
@@ -687,8 +658,8 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
     return days.map(day => dayMap[day]).filter(day => day !== undefined);
   };
 
-  const getCoursesForCurrentDay = () => {
-    const dayOfWeek = currentDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+  const getCoursesForSelectedDay = () => {
+    const dayOfWeek = selectedDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
     
     return userCourses.filter(course => {
       // Check if course is for current semester
@@ -699,12 +670,12 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
       // Parse schedule days
       const scheduleDays = parseCourseSchedule(course.schedule?.days || '');
       
-      // Check if course meets on current day
+      // Check if course meets on selected day
       return scheduleDays.includes(dayOfWeek);
     });
   };
 
-  const todaysCourses = getCoursesForCurrentDay();
+  const selectedDayCourses = getCoursesForSelectedDay();
 
   // Parse time string and convert to position for calendar display
   const parseTimeToPosition = (timeString: string) => {
@@ -1036,13 +1007,15 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
               </div>
             </Card>
 
-            {/* Today's Schedule - Google Calendar Style */}
+            {/* Selected Day's Schedule - Google Calendar Style */}
             <Card className="p-0 overflow-hidden">
               {/* Header */}
               <div className="p-4 border-b border-gray-200">
-                <h3 className="text-sm font-medium text-gray-900">Today</h3>
+                <h3 className="text-sm font-medium text-gray-900">
+                  {selectedDate.toDateString() === new Date().toDateString() ? 'Today' : 'Schedule'}
+                </h3>
                 <p className="text-xs text-gray-600">
-                  {currentDate.toLocaleDateString('en-US', {
+                  {selectedDate.toLocaleDateString('en-US', {
                     weekday: 'long',
                     month: 'short',
                     day: 'numeric'
@@ -1096,17 +1069,19 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
 
                 {/* Events */}
                 <div className="absolute left-16 right-0 top-0 h-full pr-2">
-                  {todaysCourses.length === 0 ? (
+                  {selectedDayCourses.length === 0 ? (
                     <div className="flex items-center justify-center h-full">
                       <div className="text-center">
                         <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
                           <BookOpen className="w-6 h-6 text-gray-400" />
                         </div>
-                        <p className="text-sm text-gray-500">No classes today</p>
+                        <p className="text-sm text-gray-500">
+                          {selectedDate.toDateString() === new Date().toDateString() ? 'No classes today' : 'No classes scheduled'}
+                        </p>
                       </div>
                     </div>
                   ) : (
-                    todaysCourses.map((course, index) => {
+                    selectedDayCourses.map((course, index) => {
                       const timePosition = parseTimeToPosition(course.schedule?.times || '');
                       if (!timePosition) return null;
                       
@@ -1137,115 +1112,6 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
             </Card>
           </div>
 
-          {/* Daily View Modal - Shows when calendar day is clicked */}
-          {showDailyView && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center">
-              {/* Blurred Background */}
-              <div 
-                className="absolute inset-0 bg-black/20 backdrop-blur-md"
-                onClick={() => setShowDailyView(false)}
-              />
-              
-              {/* Daily View Modal */}
-              <div className="relative bg-white rounded-lg shadow-xl border border-gray-200 w-full max-w-md mx-4 max-h-[80vh] overflow-y-auto">
-                {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-[#752432] rounded-full flex items-center justify-center">
-                      <Calendar className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-semibold text-gray-900">
-                        {selectedDate.toLocaleDateString('en-US', {
-                          weekday: 'long',
-                          month: 'long',
-                          day: 'numeric',
-                        })}
-                      </h2>
-                      <p className="text-sm text-gray-600">
-                        Your courses for this day
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={closeDailyView}
-                    className="h-8 w-8 p-0"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-                
-                {/* Content */}
-                <div className="p-6 space-y-6">
-
-                  <div className="space-y-3">
-                    {dailyCourses.length === 0 ? (
-                      <div className="text-center py-8">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                          <BookOpen className="w-8 h-8 text-gray-400" />
-                        </div>
-                        <p className="text-gray-500 font-medium">
-                          No courses scheduled
-                        </p>
-                        <p className="text-gray-400 text-sm mt-1">
-                          Enjoy your free day!
-                        </p>
-                      </div>
-                    ) : (
-                      dailyCourses.map((course, index) => (
-                        <div
-                          key={index}
-                          className="bg-gray-50 rounded-lg p-4 border border-gray-200"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h4 className="font-semibold text-gray-900 mb-1">
-                                {course.class}
-                              </h4>
-                              <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                                <Users className="w-4 h-4" />
-                                <span>{course.professor}</span>
-                              </div>
-                              <div className="flex items-center gap-2 text-sm text-[#752432]">
-                                <Clock className="w-4 h-4" />
-                                <span>
-                                  {course.schedule?.times || 'Schedule: TBD'}
-                                </span>
-                              </div>
-                              {course.schedule?.location && course.schedule.location !== 'TBD' && (
-                                <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-                                  <span>📍</span>
-                                  <span>{course.schedule.location}</span>
-                                </div>
-                              )}
-                            </div>
-                            <Button
-                              onClick={() => onNavigateToCourse?.(course.class)}
-                              size="sm"
-                              className="bg-[#752432] hover:bg-[#752432]/90 text-white"
-                            >
-                              View Course
-                            </Button>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-
-                  <div className="mt-6 pt-4 border-t border-gray-200">
-                    <Button
-                      onClick={closeDailyView}
-                      className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700"
-                    >
-                      Close
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

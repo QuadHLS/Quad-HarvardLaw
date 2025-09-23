@@ -25,6 +25,7 @@ interface ProfileData {
   phone: string;
   instagram: string;
   linkedin: string;
+  avatar_url: string;
   year: string;
   section: string;
   age: number;
@@ -58,6 +59,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
   const [showChangeCourses, setShowChangeCourses] = useState(false);
   const [courseLoading, setCourseLoading] = useState(false);
   const [showCourseSelection, setShowCourseSelection] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
 
   // Fetch profile data from Supabase
@@ -71,7 +73,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       try {
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('full_name, email, phone, class_year, section, classes, age, hometown, summer_city, summer_firm, instagram, linkedin')
+          .select('full_name, email, phone, class_year, section, classes, age, hometown, summer_city, summer_firm, instagram, linkedin, avatar_url')
           .eq('id', user.id)
           .single();
 
@@ -89,6 +91,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
             phone: profile.phone || '',
             instagram: profile.instagram || '',
             linkedin: profile.linkedin || '',
+            avatar_url: profile.avatar_url || '',
             year: profile.class_year || '',
             section: profile.section || '',
             age: profile.age || 0,
@@ -399,6 +402,169 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
     }
   };
 
+  const handleDeleteAvatar = async () => {
+    if (!user?.id || !profileData?.avatar_url) return;
+
+    try {
+      // Extract filename from URL
+      const urlParts = profileData.avatar_url.split('/');
+      const fileName = urlParts[urlParts.length - 1];
+      
+      console.log('Delete attempt:', {
+        avatarUrl: profileData.avatar_url,
+        extractedFileName: fileName,
+        urlParts: urlParts,
+        userId: user.id,
+        filenameStartsWithUserId: fileName.startsWith(user.id)
+      });
+
+      // Delete from storage
+      const { data: deleteData, error: deleteError } = await supabase.storage
+        .from('Avatar')
+        .remove([fileName]);
+
+      console.log('Delete result:', {
+        deleteData: deleteData,
+        deleteError: deleteError
+      });
+
+      if (deleteError) {
+        console.error('Error deleting avatar from storage:', deleteError);
+        alert('Error deleting avatar from storage. Please try again.');
+        return;
+      }
+
+      console.log('File successfully deleted from storage');
+
+      // Update profile to remove avatar URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: null })
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Error updating profile:', updateError);
+        alert('Error updating profile. Please try again.');
+        return;
+      }
+
+      // Update local state
+      setProfileData(prev => prev ? { ...prev, avatar_url: '' } : null);
+      
+      // Reset the file input
+      const fileInput = document.getElementById('avatar-upload') as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = '';
+      }
+    } catch (error) {
+      console.error('Error deleting avatar:', error);
+      alert('Error deleting avatar. Please try again.');
+    }
+  };
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user?.id) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 500KB)
+    if (file.size > 500 * 1024) {
+      alert('File size must be less than 500KB');
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      // Delete existing avatar if it exists
+      if (profileData.avatar_url) {
+        const urlParts = profileData.avatar_url.split('/');
+        const oldFileName = urlParts[urlParts.length - 1];
+        
+        console.log('Deleting old avatar:', oldFileName);
+        
+        const { error: deleteError } = await supabase.storage
+          .from('Avatar')
+          .remove([oldFileName]);
+          
+        if (deleteError) {
+          console.error('Error deleting old avatar:', deleteError);
+          // Continue with upload even if delete fails
+        } else {
+          console.log('Successfully deleted old avatar');
+        }
+      }
+
+      // Create unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      
+      console.log('Attempting to upload file:', {
+        fileName,
+        fileSize: file.size,
+        fileType: file.type,
+        userId: user.id
+      });
+      
+      // Upload to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('Avatar')
+        .upload(fileName, file);
+
+      if (uploadError) {
+        console.error('Error uploading avatar:', uploadError);
+        console.error('Upload error details:', {
+          message: uploadError.message,
+          statusCode: uploadError.statusCode,
+          error: uploadError.error
+        });
+        alert(`Error uploading avatar: ${uploadError.message}. Please check the console for details.`);
+        return;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('Avatar')
+        .getPublicUrl(fileName);
+
+      const avatarUrl = urlData.publicUrl;
+      console.log('Generated avatar URL:', avatarUrl);
+
+      // Update profile with new avatar URL
+      console.log('Attempting to update profile with avatar URL:', avatarUrl);
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: avatarUrl })
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Error updating avatar URL:', updateError);
+        console.error('Update error details:', {
+          message: updateError.message,
+          details: updateError.details,
+          hint: updateError.hint
+        });
+        alert(`Error updating profile: ${updateError.message}. Please check the console for details.`);
+        return;
+      }
+
+      console.log('Successfully updated avatar URL in database');
+
+      // Update local state
+      setProfileData(prev => prev ? { ...prev, avatar_url: avatarUrl } : null);
+      console.log('Updated local profile data with new avatar URL');
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      alert('Error uploading avatar. Please try again.');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
 
 
   if (loading) {
@@ -448,20 +614,63 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
               {/* Profile Content */}
               <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-8 mb-8">
                 {/* Avatar with Upload */}
-                <div className="relative">
+                <div className="flex flex-col items-center">
                   <Avatar className="w-24 h-24 border-4 border-white shadow-lg -mt-12">
-                    <AvatarFallback className="text-2xl font-medium bg-gray-100 text-gray-700">
-                      {profileData.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                    </AvatarFallback>
+                    {profileData.avatar_url ? (
+                      <img 
+                        src={profileData.avatar_url} 
+                        alt="Profile" 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <AvatarFallback className="text-2xl font-medium bg-gray-100 text-gray-700">
+                        {profileData.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                      </AvatarFallback>
+                    )}
                   </Avatar>
                   {isEditing && (!studentName || studentName === 'Justin Abbey') && (
-                    <Button 
-                      size="sm" 
-                      className="absolute -bottom-2 -right-2 w-8 h-8 p-0 rounded-full shadow-md hover:opacity-90"
-                      style={{ backgroundColor: '#752432' }}
-                    >
-                      <Upload className="w-3 h-3 text-white" />
-                    </Button>
+                    <div className="flex flex-col gap-2 mt-4">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarUpload}
+                        className="hidden"
+                        id="avatar-upload"
+                        disabled={uploadingAvatar}
+                      />
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="text-xs px-3 py-1 h-7"
+                        disabled={uploadingAvatar}
+                        onClick={() => document.getElementById('avatar-upload')?.click()}
+                      >
+                        {uploadingAvatar ? (
+                          <div className="flex items-center gap-1">
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600"></div>
+                            <span>Uploading...</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <Upload className="w-3 h-3" />
+                            <span>Add Avatar</span>
+                          </div>
+                        )}
+                      </Button>
+                      {profileData.avatar_url && (
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="text-xs px-3 py-1 h-7 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                          onClick={handleDeleteAvatar}
+                        >
+                          <div className="flex items-center gap-1">
+                            <X className="w-3 h-3" />
+                            <span>Delete Avatar</span>
+                          </div>
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </div>
                 
@@ -520,20 +729,23 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                     ) : (
                       <div 
                         className="flex items-center gap-2 cursor-pointer hover:opacity-80"
-                        onClick={() => profileData.instagram && window.open(profileData.instagram, '_blank')}
+                        onClick={() => {
+                          if (profileData.instagram) {
+                            const url = profileData.instagram.startsWith('http') 
+                              ? profileData.instagram 
+                              : `https://${profileData.instagram}`;
+                            window.open(url, '_blank');
+                          }
+                        }}
                       >
                         <img 
                           src="/Instagram_Glyph_Gradient.png" 
                           alt="Instagram" 
                           className="h-6 w-auto" 
                         />
-                        {profileData.instagram ? (
-                          <span className="text-sm text-blue-600 hover:underline">
-                            {profileData.instagram}
-                          </span>
-                        ) : (
+                        {!profileData.instagram && profileData.linkedin && (
                           <span className="text-sm text-gray-400">
-                            {!profileData.instagram && !profileData.linkedin ? 'Click edit to add URL' : 'Add Instagram'}
+                            Show your creative side! ✨
                           </span>
                         )}
                       </div>
@@ -556,23 +768,33 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                     ) : (
                       <div 
                         className="flex items-center gap-2 cursor-pointer hover:opacity-80"
-                        onClick={() => profileData.linkedin && window.open(profileData.linkedin, '_blank')}
+                        onClick={() => {
+                          if (profileData.linkedin) {
+                            const url = profileData.linkedin.startsWith('http') 
+                              ? profileData.linkedin 
+                              : `https://${profileData.linkedin}`;
+                            window.open(url, '_blank');
+                          }
+                        }}
                       >
                         <img 
                           src="/LI-In-Bug.png" 
                           alt="LinkedIn" 
                           className="h-6 w-auto" 
                         />
-                        {profileData.linkedin ? (
-                          <span className="text-sm text-blue-600 hover:underline">
-                            {profileData.linkedin}
-                          </span>
-                        ) : (
+                        {!profileData.linkedin && profileData.instagram && (
                           <span className="text-sm text-gray-400">
-                            {!profileData.instagram && !profileData.linkedin ? 'Click edit to add URL' : 'Add LinkedIn'}
+                            Grow your career network! 🎯
                           </span>
                         )}
                       </div>
+                    )}
+                    
+                    {/* Show message only when both are empty */}
+                    {!profileData.instagram && !profileData.linkedin && !isEditing && (
+                      <span className="text-sm text-gray-400">
+                        Let others find you online! ⚡
+                      </span>
                     )}
                   </div>
                   

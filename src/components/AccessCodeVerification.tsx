@@ -17,13 +17,13 @@ export default function AccessCodeVerification({
   const [error, setError] = useState('');
   const [initialized, setInitialized] = useState(false);
 
-  // Always require access code verification - no database check needed
+  // Initialize component
   useEffect(() => {
     setInitialized(true);
   }, []);
 
   if (!initialized) {
-    // Avoid rendering anything until we confirm user is unverified
+    // Avoid rendering anything until component is initialized
     return null;
   }
 

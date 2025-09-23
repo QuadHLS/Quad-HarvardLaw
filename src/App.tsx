@@ -1631,16 +1631,28 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
           return;
         }
 
-        // Always require onboarding - skip database check
-        if (isMounted) {
-          setHasCompletedOnboarding(false);
+        // Check if user has already verified their access code and completed onboarding
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('access_code_verified, has_completed_onboarding')
+          .eq('id', currentUser.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching profile:', error);
+          // If profile doesn't exist or error, require verification and onboarding
+          if (isMounted) {
+            setIsVerified(false);
+            setHasCompletedOnboarding(false);
+            setAuthLoading(false);
+          }
+          return;
         }
 
-        // Always require access code verification and onboarding every time
-        // Reset both states when user changes
         if (isMounted) {
-          setIsVerified(false);
-          setHasCompletedOnboarding(false);
+          // Set verification status based on database
+          setIsVerified(profile.access_code_verified === true);
+          setHasCompletedOnboarding(profile.has_completed_onboarding === true);
           setAuthLoading(false);
         }
       } catch (_err) {
@@ -1874,7 +1886,20 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
     return (
       <AccessCodeVerification
         onVerified={async () => {
-          // Mark verified locally; server-side already updated profile
+          // Update the access_code_verified column in the database
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          if (currentUser) {
+            const { error } = await supabase
+              .from('profiles')
+              .update({ access_code_verified: true })
+              .eq('id', currentUser.id);
+            
+            if (error) {
+              console.error('Error updating access_code_verified:', error);
+            }
+          }
+          
+          // Mark verified locally
           setIsVerified(true);
         }}
       />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, MapPin, Calendar, Edit, Save, X, Star, FileText, MessageSquare, Trophy, BookOpen, Clock, Upload, Instagram, Linkedin, Heart, ArrowLeft, Settings, LogOut } from 'lucide-react';
+import { User, Mail, MapPin, Calendar, Edit, Save, X, Star, FileText, MessageSquare, Trophy, BookOpen, Clock, Upload, Heart, ArrowLeft, Settings, LogOut } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Avatar, AvatarFallback } from './ui/avatar';
@@ -71,7 +71,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       try {
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('full_name, email, phone, class_year, section, classes, age, hometown, summer_city, summer_firm')
+          .select('full_name, email, phone, class_year, section, classes, age, hometown, summer_city, summer_firm, instagram, linkedin')
           .eq('id', user.id)
           .single();
 
@@ -87,8 +87,8 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
             name: profile.full_name || 'User',
             email: profile.email || '',
             phone: profile.phone || '',
-            instagram: '',
-            linkedin: '',
+            instagram: profile.instagram || '',
+            linkedin: profile.linkedin || '',
             year: profile.class_year || '',
             section: profile.section || '',
             age: profile.age || 0,
@@ -303,7 +303,9 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
           hometown: editedData.hometown,
           summer_city: editedData.summerCity,
           summer_firm: editedData.summerFirm,
-          bio: editedData.bio
+          bio: editedData.bio,
+          instagram: editedData.instagram,
+          linkedin: editedData.linkedin
         })
         .eq('id', user.id);
 
@@ -444,7 +446,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
           <div className="p-8">
             <div className="relative">
               {/* Profile Content */}
-              <div className="flex items-start gap-8 mb-8">
+              <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-8 mb-8">
                 {/* Avatar with Upload */}
                 <div className="relative">
                   <Avatar className="w-24 h-24 border-4 border-white shadow-lg -mt-12">
@@ -466,14 +468,14 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                 {/* Main Profile Info */}
                 <div className="flex-1 space-y-6">
                   {/* Name and School */}
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h1 className="text-3xl font-medium text-gray-900 mb-2">{profileData.name}</h1>
-                      <p className="text-lg text-gray-600">{profileData.year} Student • Section {profileData.section} • Harvard Law School</p>
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+                    <div className="min-w-0 flex-1">
+                      <h1 className="text-2xl sm:text-3xl font-medium text-gray-900 mb-2 break-words">{profileData.name}</h1>
+                      <p className="text-base sm:text-lg text-gray-600 break-words">{profileData.year} Student • Section {profileData.section} • Harvard Law School</p>
                     </div>
                     {/* Show Edit and Settings buttons only for main user */}
                     {(!studentName || studentName === 'Justin Abbey') && !isEditing && (
-                      <div className="flex gap-1.5">
+                      <div className="flex gap-1.5 flex-shrink-0">
                         <Button onClick={handleEdit} variant="outline" className="gap-1.5 text-xs px-2 py-1 h-7">
                           <Edit className="w-3 h-3" />
                           Edit
@@ -491,23 +493,98 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                   </div>
                   
                   {/* Email */}
-                  <div className="flex items-center gap-3 text-base text-gray-600">
-                    <Mail className="w-5 h-5" />
-                    <span className={isEditing ? 'text-gray-500' : ''}>{profileData.email}</span>
+                  <div className="flex items-center gap-3 text-base text-gray-600 min-w-0">
+                    <Mail className="w-5 h-5 flex-shrink-0" />
+                    <span className={`${isEditing ? 'text-gray-500' : ''} break-all`}>{profileData.email}</span>
                     {isEditing && (
-                      <span className="text-xs text-gray-400 ml-2">(Email cannot be changed)</span>
+                      <span className="text-xs text-gray-400 ml-2 flex-shrink-0">(Email cannot be changed)</span>
+                    )}
+                  </div>
+                  
+                  {/* Social Media Icons */}
+                  <div className="flex items-center gap-4 mb-4">
+                    {isEditing && (!studentName || studentName === 'Justin Abbey') ? (
+                      <div className="flex items-center gap-2">
+                        <img 
+                          src="/Instagram_Glyph_Gradient.png" 
+                          alt="Instagram" 
+                          className="h-6 w-auto" 
+                        />
+                        <Input
+                          value={editedData?.instagram || ''}
+                          onChange={(e) => editedData && setEditedData({ ...editedData, instagram: e.target.value })}
+                          className="text-base h-8 px-2 w-48"
+                          placeholder="Instagram URL"
+                        />
+                      </div>
+                    ) : (
+                      <div 
+                        className="flex items-center gap-2 cursor-pointer hover:opacity-80"
+                        onClick={() => profileData.instagram && window.open(profileData.instagram, '_blank')}
+                      >
+                        <img 
+                          src="/Instagram_Glyph_Gradient.png" 
+                          alt="Instagram" 
+                          className="h-6 w-auto" 
+                        />
+                        {profileData.instagram ? (
+                          <span className="text-sm text-blue-600 hover:underline">
+                            {profileData.instagram}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-gray-400">
+                            {!profileData.instagram && !profileData.linkedin ? 'Click edit to add URL' : 'Add Instagram'}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    
+                    {isEditing && (!studentName || studentName === 'Justin Abbey') ? (
+                      <div className="flex items-center gap-2">
+                        <img 
+                          src="/LI-In-Bug.png" 
+                          alt="LinkedIn" 
+                          className="h-6 w-auto" 
+                        />
+                        <Input
+                          value={editedData?.linkedin || ''}
+                          onChange={(e) => editedData && setEditedData({ ...editedData, linkedin: e.target.value })}
+                          className="text-base h-8 px-2 w-48"
+                          placeholder="LinkedIn URL"
+                        />
+                      </div>
+                    ) : (
+                      <div 
+                        className="flex items-center gap-2 cursor-pointer hover:opacity-80"
+                        onClick={() => profileData.linkedin && window.open(profileData.linkedin, '_blank')}
+                      >
+                        <img 
+                          src="/LI-In-Bug.png" 
+                          alt="LinkedIn" 
+                          className="h-6 w-auto" 
+                        />
+                        {profileData.linkedin ? (
+                          <span className="text-sm text-blue-600 hover:underline">
+                            {profileData.linkedin}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-gray-400">
+                            {!profileData.instagram && !profileData.linkedin ? 'Click edit to add URL' : 'Add LinkedIn'}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                   
                   {/* Personal Information Grid */}
-                  <div className="grid grid-cols-2 gap-x-16 gap-y-3 text-base text-gray-600">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 md:gap-x-16 gap-y-3 text-base text-gray-600">
                     <div className="flex items-center gap-2">
                       <strong>Age:</strong> 
                       {isEditing && (!studentName || studentName === 'Justin Abbey') ? (
                         <Input
                           value={editedData?.age || ''}
                           onChange={(e) => editedData && setEditedData({ ...editedData, age: parseInt(e.target.value) || 0 })}
-                          className="text-base h-8 px-2 w-20"
+                          className="text-base h-8 px-2 w-16 md:w-20"
                           type="number"
                           placeholder="Age"
                         />
@@ -521,7 +598,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                         <Input
                           value={editedData?.hometown || ''}
                           onChange={(e) => editedData && setEditedData({ ...editedData, hometown: e.target.value })}
-                          className="text-base h-8 px-2 w-40"
+                          className="text-base h-8 px-2 w-32 md:w-40"
                           placeholder="Hometown"
                         />
                       ) : (
@@ -534,7 +611,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                         <Input
                           value={editedData?.summerCity || ''}
                           onChange={(e) => editedData && setEditedData({ ...editedData, summerCity: e.target.value })}
-                          className="text-base h-8 px-2 w-40"
+                          className="text-base h-8 px-2 w-32 md:w-40"
                           placeholder="Summer City"
                         />
                       ) : (
@@ -547,7 +624,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                         <Input
                           value={editedData?.summerFirm || ''}
                           onChange={(e) => editedData && setEditedData({ ...editedData, summerFirm: e.target.value })}
-                          className="text-base h-8 px-2 w-40"
+                          className="text-base h-8 px-2 w-32 md:w-40"
                           placeholder="Summer Firm"
                         />
                       ) : (
@@ -594,12 +671,6 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                     )}
                   </div>
                 </div>
-              </div>
-              
-              {/* Social Media Icons - Bottom Right */}
-              <div className="absolute bottom-6 right-6 flex items-center gap-4">
-                <Instagram className="w-6 h-6 cursor-pointer hover:opacity-80" style={{ color: '#752432' }} />
-                <Linkedin className="w-6 h-6 cursor-pointer hover:opacity-80" style={{ color: '#752432' }} />
               </div>
             </div>
           </div>

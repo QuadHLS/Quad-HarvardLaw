@@ -1,12 +1,10 @@
 import { useState } from 'react';
 import * as React from 'react';
-import { Star, Search, User, Calendar, ThumbsUp, ThumbsDown, BookOpen, MessageCircle, FileText, Award } from 'lucide-react';
+import { Star, Search, Calendar, ThumbsUp, ThumbsDown, BookOpen, MessageCircle, FileText, Award } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Select } from './ui/select';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 
 // Mock review data
 interface Review {
@@ -497,7 +495,7 @@ export function ReviewsPage() {
 
   return (
     <div className="h-full overflow-auto" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-      <div className="max-w-6xl mx-auto p-6">
+      <div className="max-w-full mx-auto p-6">
         <div className="h-full flex flex-col">
         {/* Header */}
         <div className="border-b border-gray-200 pb-6" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
@@ -511,8 +509,8 @@ export function ReviewsPage() {
             </p>
             
             {/* Search and A-Z Navigation */}
-            <div className="flex items-start gap-6">
-              <div className="max-w-md flex-1">
+            <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-6">
+              <div className="w-full lg:max-w-md lg:flex-1">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
@@ -526,27 +524,29 @@ export function ReviewsPage() {
               
               {/* A-Z Navigation */}
               {!selectedProfessor && (
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-gray-600 whitespace-nowrap">Jump to:</span>
-                  <div className="flex items-center gap-2">
-                    {Array.from({ length: 26 }, (_, i) => {
-                      const letter = String.fromCharCode(65 + i);
-                      const hasProfs = availableLetters.includes(letter);
-                      return (
-                        <button
-                          key={letter}
-                          onClick={() => hasProfs && scrollToLetter(letter)}
-                          disabled={!hasProfs}
-                          className={`px-2 py-1 text-sm font-medium transition-colors ${
-                            hasProfs
-                              ? 'text-[#752432] hover:text-[#752432]/80 cursor-pointer'
-                              : 'text-gray-400 cursor-not-allowed'
-                          }`}
-                        >
-                          {letter}
-                        </button>
-                      );
-                    })}
+                <div className="w-full lg:w-auto">
+                  <div className="flex flex-col lg:flex-row items-start lg:items-center gap-2 lg:gap-4">
+                    <span className="text-sm text-gray-600 whitespace-nowrap">Jump to:</span>
+                    <div className="flex flex-wrap items-center gap-1 lg:gap-2 max-w-full overflow-hidden">
+                      {Array.from({ length: 26 }, (_, i) => {
+                        const letter = String.fromCharCode(65 + i);
+                        const hasProfs = availableLetters.includes(letter);
+                        return (
+                          <button
+                            key={letter}
+                            onClick={() => hasProfs && scrollToLetter(letter)}
+                            disabled={!hasProfs}
+                            className={`px-1.5 lg:px-2 py-1 text-xs lg:text-sm font-medium transition-colors flex-shrink-0 ${
+                              hasProfs
+                                ? 'text-[#752432] hover:text-[#752432]/80 cursor-pointer'
+                                : 'text-gray-400 cursor-not-allowed'
+                            }`}
+                          >
+                            {letter}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}
@@ -556,7 +556,7 @@ export function ReviewsPage() {
 
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto pt-6">
-          <div>
+          <div className="min-w-0">
             {filteredProfessors.length === 0 ? (
               <div className="text-center py-12">
                 <Star className="w-16 h-16 text-gray-400 mb-4" />

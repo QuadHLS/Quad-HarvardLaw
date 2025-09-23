@@ -1021,11 +1021,11 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                 {calendarDays.map((day, index) => (
                   <div
                     key={index}
-                    className={`text-center text-xs py-1.5 cursor-pointer hover:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} transition-colors ${
+                    className={`text-center text-xs py-1.5 cursor-pointer transition-all duration-200 ${
                       day === currentDate.getDate()
-                        ? 'bg-[#752432] text-white font-medium rounded-full w-6 h-6 flex items-center justify-center mx-auto'
+                        ? 'bg-[#752432] text-white font-medium rounded w-6 h-6 flex items-center justify-center mx-auto shadow-sm'
                         : day
-                        ? 'text-gray-900 rounded-full w-6 h-6 flex items-center justify-center mx-auto hover:bg-[#752432]/10'
+                        ? 'text-gray-900 rounded w-6 h-6 flex items-center justify-center mx-auto bg-gray-100 shadow-sm border border-gray-200 hover:bg-gray-200 hover:shadow-md hover:scale-105'
                         : ''
                     }`}
                     onClick={() => handleCalendarDayClick(day)}
@@ -1137,43 +1137,53 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
             </Card>
           </div>
 
-          {/* Daily View Sidebar - Shows when calendar day is clicked */}
+          {/* Daily View Modal - Shows when calendar day is clicked */}
           {showDailyView && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-              <Card className="w-full max-w-md style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} rounded-xl shadow-2xl">
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-[#752432] rounded-full flex items-center justify-center">
-                        <Calendar className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-900">
-                          {selectedDate.toLocaleDateString('en-US', {
-                            weekday: 'long',
-                            month: 'long',
-                            day: 'numeric',
-                          })}
-                        </h3>
-                        <p className="text-sm text-gray-500">
-                          Your courses for this day
-                        </p>
-                      </div>
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+              {/* Blurred Background */}
+              <div 
+                className="absolute inset-0 bg-black/20 backdrop-blur-md"
+                onClick={() => setShowDailyView(false)}
+              />
+              
+              {/* Daily View Modal */}
+              <div className="relative bg-white rounded-lg shadow-xl border border-gray-200 w-full max-w-md mx-4 max-h-[80vh] overflow-y-auto">
+                {/* Header */}
+                <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-[#752432] rounded-full flex items-center justify-center">
+                      <Calendar className="w-5 h-5 text-white" />
                     </div>
-                    <Button
-                      onClick={closeDailyView}
-                      variant="ghost"
-                      size="sm"
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      <X className="w-5 h-5" />
-                    </Button>
+                    <div>
+                      <h2 className="text-xl font-semibold text-gray-900">
+                        {selectedDate.toLocaleDateString('en-US', {
+                          weekday: 'long',
+                          month: 'long',
+                          day: 'numeric',
+                        })}
+                      </h2>
+                      <p className="text-sm text-gray-600">
+                        Your courses for this day
+                      </p>
+                    </div>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={closeDailyView}
+                    className="h-8 w-8 p-0"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+                
+                {/* Content */}
+                <div className="p-6 space-y-6">
 
                   <div className="space-y-3">
                     {dailyCourses.length === 0 ? (
                       <div className="text-center py-8">
-                        <div className="w-16 h-16 style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} rounded-full flex items-center justify-center mx-auto mb-3">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
                           <BookOpen className="w-8 h-8 text-gray-400" />
                         </div>
                         <p className="text-gray-500 font-medium">
@@ -1187,7 +1197,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                       dailyCourses.map((course, index) => (
                         <div
                           key={index}
-                          className="style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} rounded-lg p-4 border border-gray-200"
+                          className="bg-gray-50 rounded-lg p-4 border border-gray-200"
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -1227,13 +1237,13 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                   <div className="mt-6 pt-4 border-t border-gray-200">
                     <Button
                       onClick={closeDailyView}
-                      className="w-full style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} hover:bg-gray-200 text-gray-700"
+                      className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700"
                     >
                       Close
                     </Button>
                   </div>
                 </div>
-              </Card>
+              </div>
             </div>
           )}
         </div>

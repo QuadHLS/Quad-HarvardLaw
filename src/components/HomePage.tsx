@@ -210,15 +210,15 @@ function TodoSection({
       {/* Content */}
       <div className="flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
         {todos.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-60 text-center px-6">
+          <div className="flex flex-col items-center justify-center text-center px-6" style={{ height: '210px' }}>
             <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
               <span className="text-gray-400 text-xl">✓</span>
             </div>
             <p className="text-gray-500 text-sm font-medium">
-              No {section === 'today' ? 'tasks for today' : 'tasks this week'}
+              {section === 'today' ? 'Ready to tackle today?' : 'Let\'s plan your week!'}
             </p>
             <p className="text-gray-400 text-xs mt-1">
-              Click "Add Task" to get started
+              Add your first task and start crushing your goals! 🚀
             </p>
           </div>
         ) : (
@@ -337,51 +337,8 @@ interface HomePageProps {
 }
 
 export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
-  const [todos, setTodos] = useState<TodoItem[]>([
-    {
-      id: '1',
-      text: 'Review Torts outlines for tomorrow',
-      completed: false,
-      course: 'Torts',
-      section: 'today',
-    },
-    {
-      id: '2',
-      text: 'Submit Property Law assignment',
-      completed: true,
-      course: 'Property Law',
-      section: 'today',
-    },
-    {
-      id: '3',
-      text: 'Meet with study group',
-      completed: false,
-      section: 'today',
-    },
-    {
-      id: '4',
-      text: 'Prepare for Civil Procedure exam',
-      completed: false,
-      course: 'Civil Procedure',
-      section: 'thisWeek',
-      dueDate: '2025-09-08',
-    },
-    {
-      id: '5',
-      text: 'Complete Constitutional Law reading',
-      completed: false,
-      course: 'Constitutional Law',
-      section: 'thisWeek',
-      dueDate: '2025-09-06',
-    },
-    {
-      id: '6',
-      text: 'Research for Law Review article',
-      completed: false,
-      section: 'thisWeek',
-      dueDate: '2025-09-10',
-    },
-  ]);
+  const [todayTodos, setTodayTodos] = useState<TodoItem[]>([]);
+  const [thisWeekTodos, setThisWeekTodos] = useState<TodoItem[]>([]);
   const [newTodoText, setNewTodoText] = useState('');
   const [newTodoCourse, setNewTodoCourse] = useState('');
   const [newTodoDueDate, setNewTodoDueDate] = useState('');
@@ -419,7 +376,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
       try {
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('full_name, classes, class_year')
+          .select('full_name, classes, class_year, todo_day, todo_week')
           .eq('id', user.id)
           .single();
 
@@ -435,6 +392,8 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
         if (profile) {
           setUserProfile(profile);
           setUserCourses(profile.classes || []);
+          setTodayTodos(profile.todo_day || []);
+          setThisWeekTodos(profile.todo_week || []);
         }
 
         setLoading(false);
@@ -447,12 +406,48 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
     fetchUserProfile();
   }, [user]);
 
+  // Save todos to database
+  const saveTodosToDatabase = async (todayTodos: TodoItem[], thisWeekTodos: TodoItem[]) => {
+    if (!user?.id) return;
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          todo_day: todayTodos,
+          todo_week: thisWeekTodos
+        })
+        .eq('id', user.id);
+      
+      if (error) {
+        console.error('Error saving todos:', error);
+      }
+    } catch (error) {
+      console.error('Error saving todos:', error);
+    }
+  };
+
   const toggleTodo = (id: string) => {
-    setTodos((prev) =>
-      prev.map((todo) =>
+    // Check if todo is in today's list
+    const todayTodoIndex = todayTodos.findIndex(todo => todo.id === id);
+    if (todayTodoIndex !== -1) {
+      const updatedTodayTodos = todayTodos.map((todo) =>
         todo.id === id ? { ...todo, completed: !todo.completed } : todo
-      )
-    );
+      );
+      setTodayTodos(updatedTodayTodos);
+      saveTodosToDatabase(updatedTodayTodos, thisWeekTodos);
+      return;
+    }
+
+    // Check if todo is in this week's list
+    const thisWeekTodoIndex = thisWeekTodos.findIndex(todo => todo.id === id);
+    if (thisWeekTodoIndex !== -1) {
+      const updatedThisWeekTodos = thisWeekTodos.map((todo) =>
+        todo.id === id ? { ...todo, completed: !todo.completed } : todo
+      );
+      setThisWeekTodos(updatedThisWeekTodos);
+      saveTodosToDatabase(todayTodos, updatedThisWeekTodos);
+    }
   };
 
   const addTodo = (section?: 'today' | 'thisWeek') => {
@@ -469,7 +464,15 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
             ? newTodoDueDate
             : undefined,
       };
-      setTodos((prev) => [...prev, newTodo]);
+      if (targetSection === 'today') {
+        const updatedTodayTodos = [...todayTodos, newTodo];
+        setTodayTodos(updatedTodayTodos);
+        saveTodosToDatabase(updatedTodayTodos, thisWeekTodos);
+      } else {
+        const updatedThisWeekTodos = [...thisWeekTodos, newTodo];
+        setThisWeekTodos(updatedThisWeekTodos);
+        saveTodosToDatabase(todayTodos, updatedThisWeekTodos);
+      }
       setNewTodoText('');
       setNewTodoCourse('');
       setNewTodoDueDate('');
@@ -483,7 +486,22 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
   };
 
   const removeTodo = (id: string) => {
-    setTodos((prev) => prev.filter((todo) => todo.id !== id));
+    // Check if todo is in today's list
+    const todayTodoIndex = todayTodos.findIndex(todo => todo.id === id);
+    if (todayTodoIndex !== -1) {
+      const updatedTodayTodos = todayTodos.filter((todo) => todo.id !== id);
+      setTodayTodos(updatedTodayTodos);
+      saveTodosToDatabase(updatedTodayTodos, thisWeekTodos);
+      return;
+    }
+
+    // Check if todo is in this week's list
+    const thisWeekTodoIndex = thisWeekTodos.findIndex(todo => todo.id === id);
+    if (thisWeekTodoIndex !== -1) {
+      const updatedThisWeekTodos = thisWeekTodos.filter((todo) => todo.id !== id);
+      setThisWeekTodos(updatedThisWeekTodos);
+      saveTodosToDatabase(todayTodos, updatedThisWeekTodos);
+    }
   };
 
   const startEditing = (todo: TodoItem) => {
@@ -493,13 +511,29 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
 
   const saveEdit = () => {
     if (editingTodoId && editingText.trim()) {
-      setTodos((prev) =>
-        prev.map((todo) =>
+      // Check if todo is in today's list
+      const todayTodoIndex = todayTodos.findIndex(todo => todo.id === editingTodoId);
+      if (todayTodoIndex !== -1) {
+        const updatedTodayTodos = todayTodos.map((todo) =>
           todo.id === editingTodoId
             ? { ...todo, text: editingText.trim() }
             : todo
-        )
-      );
+        );
+        setTodayTodos(updatedTodayTodos);
+        saveTodosToDatabase(updatedTodayTodos, thisWeekTodos);
+      } else {
+        // Check if todo is in this week's list
+        const thisWeekTodoIndex = thisWeekTodos.findIndex(todo => todo.id === editingTodoId);
+        if (thisWeekTodoIndex !== -1) {
+          const updatedThisWeekTodos = thisWeekTodos.map((todo) =>
+            todo.id === editingTodoId
+              ? { ...todo, text: editingText.trim() }
+              : todo
+          );
+          setThisWeekTodos(updatedThisWeekTodos);
+          saveTodosToDatabase(todayTodos, updatedThisWeekTodos);
+        }
+      }
     }
     setEditingTodoId(null);
     setEditingText('');
@@ -519,28 +553,24 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
   };
 
 
-  const todayTodos = todos
-    .filter((todo) => todo.section === 'today')
-    .sort((a, b) => {
-      // Sort completed items to the bottom
-      if (a.completed && !b.completed) return 1;
-      if (!a.completed && b.completed) return -1;
-      return 0;
-    });
+  const sortedTodayTodos = todayTodos.sort((a, b) => {
+    // Sort completed items to the bottom
+    if (a.completed && !b.completed) return 1;
+    if (!a.completed && b.completed) return -1;
+    return 0;
+  });
 
-  const thisWeekTodos = todos
-    .filter((todo) => todo.section === 'thisWeek')
-    .sort((a, b) => {
-      // Sort completed items to the bottom first
-      if (a.completed && !b.completed) return 1;
-      if (!a.completed && b.completed) return -1;
+  const sortedThisWeekTodos = thisWeekTodos.sort((a, b) => {
+    // Sort completed items to the bottom first
+    if (a.completed && !b.completed) return 1;
+    if (!a.completed && b.completed) return -1;
 
-      // Then sort by due date for uncompleted items, with items without due dates at the end
-      if (!a.dueDate && !b.dueDate) return 0;
-      if (!a.dueDate) return 1;
-      if (!b.dueDate) return -1;
-      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-    });
+    // Then sort by due date for uncompleted items, with items without due dates at the end
+    if (!a.dueDate && !b.dueDate) return 0;
+    if (!a.dueDate) return 1;
+    if (!b.dueDate) return -1;
+    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+  });
 
   // Generate course data from user's courses
   const courseData = userCourses.map((course) => ({
@@ -785,21 +815,21 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
 
                   {/* Content */}
                   <div className="flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-                    {todayTodos.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center h-60 text-center px-6">
+                    {sortedTodayTodos.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center text-center px-6" style={{ height: '210px' }}>
                         <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
                           <span className="text-gray-400 text-xl">✓</span>
                         </div>
                         <p className="text-gray-500 text-sm font-medium">
-                          No tasks for today
+                          Ready to tackle today?
                         </p>
                         <p className="text-gray-400 text-xs mt-1">
-                          Click "Add Task" to get started
+                          Add your first task and start crushing your goals! 🚀
                         </p>
                       </div>
                     ) : (
                       <div className="divide-y divide-gray-100">
-                        {todayTodos.map((todo) => (
+                        {sortedTodayTodos.map((todo) => (
                           <TodoItem
                             key={todo.id}
                             todo={todo}
@@ -822,7 +852,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                 <TodoSection
                   title="This Week"
                   section="thisWeek"
-                  todos={thisWeekTodos}
+                  todos={sortedThisWeekTodos}
                   editingTodoId={editingTodoId}
                   editingText={editingText}
                   onToggleTodo={toggleTodo}

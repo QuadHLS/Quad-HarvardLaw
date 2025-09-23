@@ -1631,16 +1631,16 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
           return;
         }
 
-        // Check if user has already verified their access code and completed onboarding
+        // Check if user has already verified their access code
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('access_code_verified, has_completed_onboarding')
+          .select('access_code_verified')
           .eq('id', currentUser.id)
           .single();
 
         if (error) {
           console.error('Error fetching profile:', error);
-          // If profile doesn't exist or error, require verification and onboarding
+          // If profile doesn't exist or error, require verification
           if (isMounted) {
             setIsVerified(false);
             setHasCompletedOnboarding(false);
@@ -1652,7 +1652,8 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
         if (isMounted) {
           // Set verification status based on database
           setIsVerified(profile.access_code_verified === true);
-          setHasCompletedOnboarding(profile.has_completed_onboarding === true);
+          // Always require onboarding for now
+          setHasCompletedOnboarding(false);
           setAuthLoading(false);
         }
       } catch (_err) {

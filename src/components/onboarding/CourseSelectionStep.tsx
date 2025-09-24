@@ -544,7 +544,7 @@ export function CourseSelectionStep({ onNext, onBack, basicInfo }: CourseSelecti
               <div className="relative">
                 {/* Time labels */}
                 <div className="absolute left-0 top-0 w-16 bg-gray-100">
-                  {Array.from({ length: 13 }, (_, i) => {
+                  {Array.from({ length: 16 }, (_, i) => {
                     const hour = 6 + i;
                     const time = hour <= 12 ? `${hour}:00 ${hour < 12 ? 'AM' : 'PM'}` : `${hour - 12}:00 PM`;
                     return (
@@ -559,7 +559,7 @@ export function CourseSelectionStep({ onNext, onBack, basicInfo }: CourseSelecti
                 <div className="ml-16 flex">
                   {['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((day, dayIndex) => (
                     <div key={day} className="flex-1 border-r border-gray-200 last:border-r-0">
-                      {Array.from({ length: 13 }, (_, i) => (
+                      {Array.from({ length: 16 }, (_, i) => (
                         <div key={i} className="h-16 border-b border-gray-200 last:border-b-0"></div>
                       ))}
                     </div>

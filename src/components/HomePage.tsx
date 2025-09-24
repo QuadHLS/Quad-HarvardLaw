@@ -725,9 +725,9 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
     const startMinutes = startHour24 * 60 + parseInt(startMin);
     const endMinutes = endHour24 * 60 + parseInt(endMin);
     
-    // Convert to percentage position (6 AM to 7 PM = 13 hours = 780 minutes)
-    const startPosition = ((startMinutes - 360) / 780) * 100; // 360 = 6 AM in minutes
-    const height = ((endMinutes - startMinutes) / 780) * 100;
+    // Convert to pixel position (6 AM to 9 PM = 15 hours = 900 minutes, 40px per hour)
+    const startPosition = ((startMinutes - 360) / 60) * 40 + 6; // 360 = 6 AM in minutes, 6px offset
+    const height = ((endMinutes - startMinutes) / 60) * 40;
     
     return { startPosition, height };
   };
@@ -757,15 +757,13 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
   const weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   const getCurrentTimePosition = () => {
-    // Calculate position based on 6 AM to 7 PM timeframe (13 hours = 780 minutes)
+    // Calculate pixel position based on 6 AM to 9 PM timeframe (40px per hour)
     const startOfDay = 6 * 60; // 6 AM in minutes
-    const endOfDay = 19 * 60; // 7 PM in minutes
     const timeFromStart = currentTime - startOfDay;
-    const totalMinutes = endOfDay - startOfDay;
-    const position = (timeFromStart / totalMinutes) * 100;
+    const position = (timeFromStart / 60) * 40 + 4; // 40px per hour + 4px offset, match class boxes
     
     // Show the line even if outside the range, but clamp it to visible area
-    return Math.max(0, Math.min(100, position));
+    return Math.max(10, Math.min(610, position)); // 10px to 610px (15 hours * 40px + 10px)
   };
 
   if (loading) {
@@ -1056,17 +1054,17 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
               {/* Schedule Content */}
               <div
                 className="relative style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} overflow-hidden"
-                style={{ height: '520px' }}
+                style={{ height: '640px' }}
               >
                 {/* Time column */}
-                <div className="absolute left-0 top-0 w-16 h-full border-r border-gray-200">
+                <div className="absolute left-0 w-16 h-full border-r border-gray-200" style={{ top: '6px' }}>
                   {/* Time labels */}
-                  {[6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19].map(
+                  {[6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21].map(
                     (hour, index) => (
                       <div
                         key={hour}
                         className="absolute text-[10px] text-gray-500 text-center w-full leading-none"
-                        style={{ top: `${index * 40 + 6}px` }}
+                        style={{ top: `${index * 40 - 4}px` }}
                       >
                         <span className="whitespace-nowrap">
                           {hour <= 12 ? (hour === 0 ? 12 : hour) : hour - 12}:00
@@ -1078,8 +1076,8 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                 </div>
 
                 {/* Time grid lines */}
-                <div className="absolute left-16 right-0 top-0 h-full">
-                  {Array.from({ length: 14 }, (_, index) => (
+                <div className="absolute left-16 right-0 h-full" style={{ top: '6px' }}>
+                  {Array.from({ length: 16 }, (_, index) => (
                     <div
                       key={index}
                       className="absolute w-full border-b border-gray-100"
@@ -1090,10 +1088,10 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
 
                 {/* Current time indicator */}
                 <div
-                  className="absolute left-16 right-0 z-30 flex items-center"
-                  style={{ top: `${getCurrentTimePosition()}%` }}
+                  className="absolute left-16 right-0 z-50 flex items-center"
+                  style={{ top: `${getCurrentTimePosition()}px` }}
                 >
-                  <div className="w-2 h-2 bg-red-500 rounded-full shadow-sm"></div>
+                  <div className="w-1.5 h-1.5 bg-red-500 rounded-full shadow-sm"></div>
                   <div className="flex-1 h-0.5 bg-red-500"></div>
                 </div>
 
@@ -1120,8 +1118,8 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                           key={index}
                           className="absolute bg-[#752432] text-white rounded text-xs p-2 left-1 right-1 z-10"
                           style={{
-                            top: `${timePosition.startPosition}%`,
-                            height: `${timePosition.height}%`,
+                            top: `${timePosition.startPosition}px`,
+                            height: `${timePosition.height}px`,
                           }}
                         >
                           <div className="font-medium truncate">{course.class}</div>

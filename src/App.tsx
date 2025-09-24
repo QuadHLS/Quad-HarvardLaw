@@ -1631,10 +1631,10 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
           return;
         }
 
-        // Check if user has already verified their access code
+        // Check if user has already verified their access code and completed onboarding
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('access_code_verified')
+          .select('access_code_verified, classes_filled')
           .eq('id', currentUser.id)
           .single();
 
@@ -1652,8 +1652,8 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
         if (isMounted) {
           // Set verification status based on database
           setIsVerified(profile.access_code_verified === true);
-          // Always require onboarding for now
-          setHasCompletedOnboarding(false);
+          // Set onboarding completion status based on classes_filled column
+          setHasCompletedOnboarding(profile.classes_filled === true);
           setAuthLoading(false);
         }
       } catch (_err) {
@@ -1910,7 +1910,21 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
   // Show onboarding flow if user hasn't completed onboarding
   if (!hasCompletedOnboarding) {
     return (
-      <OnboardingFlow onComplete={() => setHasCompletedOnboarding(true)} />
+      <OnboardingFlow onComplete={async () => {
+        // Refresh profile data to check classes_filled status
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        if (currentUser) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('classes_filled')
+            .eq('id', currentUser.id)
+            .single();
+          
+          if (profile) {
+            setHasCompletedOnboarding(profile.classes_filled === true);
+          }
+        }
+      }} />
     );
   }
 

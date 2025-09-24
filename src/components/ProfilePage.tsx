@@ -26,6 +26,7 @@ interface ProfileData {
   instagram: string;
   linkedin: string;
   avatar_url: string;
+  photo_urls: string[];
   year: string;
   section: string;
   age: number;
@@ -45,7 +46,7 @@ interface ProfilePageProps {
 }
 
 export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -60,6 +61,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
   const [courseLoading, setCourseLoading] = useState(false);
   const [showCourseSelection, setShowCourseSelection] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
 
 
   // Fetch profile data from Supabase
@@ -73,7 +75,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       try {
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('full_name, email, phone, class_year, section, classes, age, hometown, summer_city, summer_firm, instagram, linkedin, avatar_url')
+          .select('full_name, email, phone, class_year, section, classes, age, hometown, summer_city, summer_firm, instagram, linkedin, avatar_url, photo_urls')
           .eq('id', user.id)
           .single();
 
@@ -92,6 +94,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
             instagram: profile.instagram || '',
             linkedin: profile.linkedin || '',
             avatar_url: profile.avatar_url || '',
+            photo_urls: profile.photo_urls || [],
             year: profile.class_year || '',
             section: profile.section || '',
             age: profile.age || 0,
@@ -135,6 +138,8 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
         phone: '(617) 555-0456',
         instagram: '@sarahmartinez_law',
         linkedin: 'sarah-martinez-hls',
+        avatar_url: '',
+        photo_urls: [],
         year: '2L',
         section: '3',
         age: 24,
@@ -182,6 +187,8 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
         phone: '(617) 555-0789',
         instagram: '@mikechen_law',
         linkedin: 'mike-chen-hls',
+        avatar_url: '',
+        photo_urls: [],
         year: '2L',
         section: '5',
         age: 26,
@@ -232,6 +239,8 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       phone: '(617) 555-0123',
       instagram: '@justinabbey',
       linkedin: 'justin-abbey-hls',
+      avatar_url: '',
+      photo_urls: [],
       year: '2L',
       section: '2',
       age: 25,
@@ -565,7 +574,195 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
     }
   };
 
+  // Photo upload function with compression
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || !user?.id) return;
 
+    // Check if user already has 10 photos
+    if (profileData?.photo_urls && profileData.photo_urls.length >= 10) {
+      alert('You can only upload up to 10 photos');
+      return;
+    }
+
+    setUploadingPhotos(true);
+    try {
+      const newPhotoUrls: string[] = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+          alert(`File ${file.name} is not an image`);
+          continue;
+        }
+
+        // Validate file size (max 8MB before compression)
+        if (file.size > 8 * 1024 * 1024) {
+          alert(`File ${file.name} is too large (max 8MB)`);
+          continue;
+        }
+
+        // Compress image
+        const compressedFile = await compressImage(file);
+        
+        // Create unique filename
+        const fileExt = compressedFile.name.split('.').pop();
+        const fileName = `${user.id}-${Date.now()}-${i}.${fileExt}`;
+        
+        // Upload to Supabase Storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('Photos')
+          .upload(fileName, compressedFile);
+
+        if (uploadError) {
+          console.error('Error uploading photo:', uploadError);
+          alert(`Error uploading ${file.name}: ${uploadError.message}`);
+          continue;
+        }
+
+        // Get public URL
+        const { data: urlData } = supabase.storage
+          .from('Photos')
+          .getPublicUrl(fileName);
+
+        newPhotoUrls.push(urlData.publicUrl);
+      }
+
+      if (newPhotoUrls.length > 0) {
+        // Update profile with new photo URLs
+        const updatedPhotoUrls = [...(profileData?.photo_urls || []), ...newPhotoUrls];
+        
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ photo_urls: updatedPhotoUrls })
+          .eq('id', user.id);
+
+        if (updateError) {
+          console.error('Error updating photo URLs:', updateError);
+          alert('Error updating profile. Please try again.');
+          return;
+        }
+
+        // Update local state
+        setProfileData(prev => prev ? { ...prev, photo_urls: updatedPhotoUrls } : null);
+      }
+    } catch (error) {
+      console.error('Error uploading photos:', error);
+      alert('Error uploading photos. Please try again.');
+    } finally {
+      setUploadingPhotos(false);
+      // Reset the file input
+      const fileInput = document.getElementById('photo-upload') as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = '';
+      }
+    }
+  };
+
+  // Photo delete function
+  const handleDeletePhoto = async (photoUrl: string) => {
+    if (!user?.id || !profileData?.photo_urls) return;
+
+    try {
+      // Extract filename from URL
+      const urlParts = photoUrl.split('/');
+      const fileName = urlParts[urlParts.length - 1];
+      
+      // Delete from storage
+      const { error: deleteError } = await supabase.storage
+        .from('Photos')
+        .remove([fileName]);
+
+      if (deleteError) {
+        console.error('Error deleting photo from storage:', deleteError);
+        alert('Error deleting photo from storage. Please try again.');
+        return;
+      }
+
+      // Update profile to remove photo URL
+      const updatedPhotoUrls = profileData.photo_urls.filter(url => url !== photoUrl);
+      
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ photo_urls: updatedPhotoUrls })
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Error updating profile:', updateError);
+        alert('Error updating profile. Please try again.');
+        return;
+      }
+
+      // Update local state
+      setProfileData(prev => prev ? { ...prev, photo_urls: updatedPhotoUrls } : null);
+    } catch (error) {
+      console.error('Error deleting photo:', error);
+      alert('Error deleting photo. Please try again.');
+    }
+  };
+
+  // Image compression function
+  const compressImage = (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // Calculate new dimensions (max 1200px width/height)
+        const maxSize = 1200;
+        let { width, height } = img;
+        
+        if (width > height) {
+          if (width > maxSize) {
+            height = (height * maxSize) / width;
+            width = maxSize;
+          }
+        } else {
+          if (height > maxSize) {
+            width = (width * maxSize) / height;
+            height = maxSize;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Draw and compress
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Compress to target size (2MB for optimal cost savings)
+        const targetSize = 2 * 1024 * 1024; // 2MB in bytes
+        let quality = 0.8;
+        
+        const compressToTargetSize = (currentQuality: number): void => {
+          canvas.toBlob((blob) => {
+            if (blob) {
+              if (blob.size <= targetSize || currentQuality <= 0.1) {
+                // If size is acceptable or quality is too low, use this result
+                const compressedFile = new File([blob], file.name, {
+                  type: 'image/jpeg',
+                  lastModified: Date.now(),
+                });
+                resolve(compressedFile);
+              } else {
+                // Reduce quality and try again
+                compressToTargetSize(currentQuality - 0.1);
+              }
+            } else {
+              resolve(file);
+            }
+          }, 'image/jpeg', currentQuality);
+        };
+        
+        compressToTargetSize(quality);
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
 
   if (loading) {
     return (
@@ -940,36 +1137,116 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>Photos</CardTitle>
-                  {isEditing && (
-                    <Button size="sm" variant="outline" className="gap-2">
-                      <Upload className="w-4 h-4" />
-                      Add Photos
-                    </Button>
+                  {isEditing && (!studentName || studentName === 'Justin Abbey') && (
+                    <div className="flex gap-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handlePhotoUpload}
+                        className="hidden"
+                        id="photo-upload"
+                        disabled={uploadingPhotos}
+                      />
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="gap-2"
+                        disabled={uploadingPhotos || (profileData.photo_urls?.length || 0) >= 10}
+                        onClick={() => document.getElementById('photo-upload')?.click()}
+                      >
+                        {uploadingPhotos ? (
+                          <div className="flex items-center gap-1">
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600"></div>
+                            <span>Uploading...</span>
+                          </div>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4" />
+                            Add Photos
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   )}
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-3 gap-4">
-                  {/* Placeholder photos */}
-                  <div className="aspect-square bg-gray-200 rounded-lg flex items-center justify-center">
-                    <span className="text-gray-400">📸</span>
+                {/* Show grid only if there are photos */}
+                {profileData.photo_urls && profileData.photo_urls.length > 0 ? (
+                  <div className="grid grid-cols-4 gap-3">
+                    {/* Display actual photos only */}
+                    {profileData.photo_urls.map((photoUrl, index) => (
+                      <div key={index} className="relative group rounded-lg overflow-hidden">
+                        {isEditing && (!studentName || studentName === 'Justin Abbey') ? (
+                          <div
+                            onClick={() => handleDeletePhoto(photoUrl)}
+                            className="cursor-pointer relative"
+                          >
+                            <img 
+                              src={photoUrl} 
+                              alt={`Photo ${index + 1}`}
+                              className="w-full h-auto object-contain rounded-lg"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="bg-red-500 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-lg">
+                                <X className="w-5 h-5" />
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <img 
+                            src={photoUrl} 
+                            alt={`Photo ${index + 1}`}
+                            className="w-full h-auto object-contain rounded-lg"
+                          />
+                        )}
+                      </div>
+                    ))}
                   </div>
-                  <div className="aspect-square bg-gray-200 rounded-lg flex items-center justify-center">
-                    <span className="text-gray-400">📸</span>
+                ) : (
+                  /* Show motivational message when no photos */
+                  <div className="text-center py-12">
+                    <div className="text-6xl mb-4">📸</div>
+                    <h3 className="text-xl font-semibold text-gray-800 mb-2">Share Your Story!</h3>
+                    <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                      Upload up to 10 photos to showcase your personality, interests, and experiences. 
+                      Let others get to know the real you! ✨
+                    </p>
+                    {isEditing && (!studentName || studentName === 'Justin Abbey') && (
+                      <div className="flex justify-center">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handlePhotoUpload}
+                          className="hidden"
+                          id="photo-upload-empty"
+                          disabled={uploadingPhotos}
+                        />
+                        <Button 
+                          size="lg" 
+                          className="gap-2 text-white hover:opacity-90"
+                          style={{ backgroundColor: '#752432' }}
+                          disabled={uploadingPhotos}
+                          onClick={() => document.getElementById('photo-upload-empty')?.click()}
+                        >
+                          {uploadingPhotos ? (
+                            <div className="flex items-center gap-2">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              <span>Uploading...</span>
+                            </div>
+                          ) : (
+                            <>
+                              <Upload className="w-5 h-5" />
+                              Upload Your First Photos
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                  <div className="aspect-square bg-gray-200 rounded-lg flex items-center justify-center">
-                    <span className="text-gray-400">📸</span>
-                  </div>
-                  <div className="aspect-square bg-gray-200 rounded-lg flex items-center justify-center">
-                    <span className="text-gray-400">📸</span>
-                  </div>
-                  <div className="aspect-square bg-gray-200 rounded-lg flex items-center justify-center">
-                    <span className="text-gray-400">📸</span>
-                  </div>
-                  <div className="aspect-square bg-gray-200 rounded-lg flex items-center justify-center">
-                    <span className="text-gray-400">📸</span>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 

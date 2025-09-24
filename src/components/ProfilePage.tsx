@@ -579,13 +579,14 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
     const files = event.target.files;
     if (!files || !user?.id) return;
 
-    // Check if user already has 10 photos
-    if (profileData?.photo_urls && profileData.photo_urls.length >= 10) {
-      alert('You can only upload up to 10 photos');
+    // Check if user already has 20 photos
+    if (profileData?.photo_urls && profileData.photo_urls.length >= 20) {
+      alert('You can only upload up to 20 photos');
       return;
     }
 
     setUploadingPhotos(true);
+    
     try {
       const newPhotoUrls: string[] = [];
 
@@ -604,30 +605,36 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
           continue;
         }
 
-        // Compress image
-        const compressedFile = await compressImage(file);
-        
-        // Create unique filename
-        const fileExt = compressedFile.name.split('.').pop();
-        const fileName = `${user.id}-${Date.now()}-${i}.${fileExt}`;
-        
-        // Upload to Supabase Storage
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('Photos')
-          .upload(fileName, compressedFile);
+        try {
+          // Compress image
+          const compressedFile = await compressImage(file);
+          
+          // Create unique filename
+          const fileExt = compressedFile.name.split('.').pop();
+          const fileName = `${user.id}-${Date.now()}-${i}.${fileExt}`;
+          
+          // Upload to Supabase Storage
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('Photos')
+            .upload(fileName, compressedFile);
 
-        if (uploadError) {
-          console.error('Error uploading photo:', uploadError);
-          alert(`Error uploading ${file.name}: ${uploadError.message}`);
+          if (uploadError) {
+            console.error('Error uploading photo:', uploadError);
+            alert(`Error uploading ${file.name}: ${uploadError.message}`);
+            continue;
+          }
+
+          // Get public URL
+          const { data: urlData } = supabase.storage
+            .from('Photos')
+            .getPublicUrl(fileName);
+
+          newPhotoUrls.push(urlData.publicUrl);
+        } catch (compressionError) {
+          console.error(`Error compressing ${file.name}:`, compressionError);
+          alert(`Error processing ${file.name}. Please try a different image.`);
           continue;
         }
-
-        // Get public URL
-        const { data: urlData } = supabase.storage
-          .from('Photos')
-          .getPublicUrl(fileName);
-
-        newPhotoUrls.push(urlData.publicUrl);
       }
 
       if (newPhotoUrls.length > 0) {
@@ -705,59 +712,76 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
 
   // Image compression function
   const compressImage = (file: File): Promise<File> => {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       const img = new Image();
       
+      // Add timeout to prevent hanging
+      const timeout = setTimeout(() => {
+        reject(new Error('Compression timeout - image too large or complex'));
+      }, 30000); // 30 second timeout
+      
       img.onload = () => {
-        // Calculate new dimensions (max 1200px width/height)
-        const maxSize = 1200;
-        let { width, height } = img;
-        
-        if (width > height) {
-          if (width > maxSize) {
-            height = (height * maxSize) / width;
-            width = maxSize;
-          }
-        } else {
-          if (height > maxSize) {
-            width = (width * maxSize) / height;
-            height = maxSize;
-          }
-        }
-        
-        canvas.width = width;
-        canvas.height = height;
-        
-        // Draw and compress
-        ctx?.drawImage(img, 0, 0, width, height);
-        
-        // Compress to target size (2MB for optimal cost savings)
-        const targetSize = 2 * 1024 * 1024; // 2MB in bytes
-        let quality = 0.8;
-        
-        const compressToTargetSize = (currentQuality: number): void => {
-          canvas.toBlob((blob) => {
-            if (blob) {
-              if (blob.size <= targetSize || currentQuality <= 0.1) {
-                // If size is acceptable or quality is too low, use this result
-                const compressedFile = new File([blob], file.name, {
-                  type: 'image/jpeg',
-                  lastModified: Date.now(),
-                });
-                resolve(compressedFile);
-              } else {
-                // Reduce quality and try again
-                compressToTargetSize(currentQuality - 0.1);
-              }
-            } else {
-              resolve(file);
+        try {
+          // Calculate new dimensions (max 800px width/height)
+          const maxSize = 800;
+          let { width, height } = img;
+          
+          if (width > height) {
+            if (width > maxSize) {
+              height = (height * maxSize) / width;
+              width = maxSize;
             }
-          }, 'image/jpeg', currentQuality);
-        };
-        
-        compressToTargetSize(quality);
+          } else {
+            if (height > maxSize) {
+              width = (width * maxSize) / height;
+              height = maxSize;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          // Draw and compress
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Compress to target size (2MB for optimal cost savings)
+          const targetSize = 2 * 1024 * 1024; // 2MB in bytes
+          let quality = 0.8;
+          
+          const compressToTargetSize = (currentQuality: number): void => {
+            canvas.toBlob((blob) => {
+              if (blob) {
+                if (blob.size <= targetSize || currentQuality <= 0.1) {
+                  // If size is acceptable or quality is too low, use this result
+                  clearTimeout(timeout);
+                  const compressedFile = new File([blob], file.name, {
+                    type: 'image/jpeg',
+                    lastModified: Date.now(),
+                  });
+                  resolve(compressedFile);
+                } else {
+                  // Reduce quality and try again
+                  compressToTargetSize(currentQuality - 0.1);
+                }
+              } else {
+                clearTimeout(timeout);
+                resolve(file);
+              }
+            }, 'image/jpeg', currentQuality);
+          };
+          
+          compressToTargetSize(quality);
+        } catch (error) {
+          clearTimeout(timeout);
+          reject(error);
+        }
+      };
+      
+      img.onerror = () => {
+        clearTimeout(timeout);
+        reject(new Error('Failed to load image'));
       };
       
       img.src = URL.createObjectURL(file);
@@ -1152,7 +1176,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                         size="sm" 
                         variant="outline" 
                         className="gap-2"
-                        disabled={uploadingPhotos || (profileData.photo_urls?.length || 0) >= 10}
+                        disabled={uploadingPhotos || (profileData.photo_urls?.length || 0) >= 20}
                         onClick={() => document.getElementById('photo-upload')?.click()}
                       >
                         {uploadingPhotos ? (
@@ -1174,7 +1198,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
               <CardContent>
                 {/* Show grid only if there are photos */}
                 {profileData.photo_urls && profileData.photo_urls.length > 0 ? (
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="grid grid-cols-6 gap-2">
                     {/* Display actual photos only */}
                     {profileData.photo_urls.map((photoUrl, index) => (
                       <div key={index} className="relative group rounded-lg overflow-hidden">
@@ -1186,7 +1210,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                             <img 
                               src={photoUrl} 
                               alt={`Photo ${index + 1}`}
-                              className="w-full h-auto object-contain rounded-lg"
+                              className="w-full h-auto object-contain rounded-lg max-h-48"
                             />
                             <div className="absolute inset-0 flex items-center justify-center">
                               <div className="bg-red-500 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-lg">
@@ -1198,7 +1222,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                           <img 
                             src={photoUrl} 
                             alt={`Photo ${index + 1}`}
-                            className="w-full h-auto object-contain rounded-lg"
+                            className="w-full h-auto object-contain rounded-lg max-h-48"
                           />
                         )}
                       </div>
@@ -1210,7 +1234,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                     <div className="text-6xl mb-4">📸</div>
                     <h3 className="text-xl font-semibold text-gray-800 mb-2">Share Your Story!</h3>
                     <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                      Upload up to 10 photos to showcase your personality, interests, and experiences. 
+                      Upload up to 20 photos to showcase your personality, interests, and experiences. 
                       Let others get to know the real you! ✨
                     </p>
                     {isEditing && (!studentName || studentName === 'Justin Abbey') && (

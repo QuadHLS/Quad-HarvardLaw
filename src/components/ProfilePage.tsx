@@ -19,6 +19,12 @@ interface UserStats {
   reputation: number;
 }
 
+interface UserCourse {
+  class: string;
+  professor: string;
+  schedule?: any;
+}
+
 interface ProfileData {
   name: string;
   email: string;
@@ -34,7 +40,7 @@ interface ProfileData {
   summerCity: string;
   summerFirm: string;
   bio: string;
-  currentCourses: { name: string; professor: string }[];
+  currentCourses: UserCourse[];
   clubMemberships: string[];
   stats: UserStats;
   schedule: { [key: string]: { course: string; time: string; location: string }[] };
@@ -43,6 +49,99 @@ interface ProfileData {
 interface ProfilePageProps {
   studentName?: string;
   onBack?: () => void;
+}
+
+interface CourseCardProps {
+  title: string;
+  instructor: string;
+  course?: any;
+  onCourseClick?: (courseName: string) => void;
+}
+
+function CourseCard({
+  title,
+  instructor,
+  course,
+  onCourseClick,
+}: CourseCardProps) {
+  // Get real course data from the course object
+  const getCoursePreview = () => {
+    if (!course?.schedule) {
+      return {
+        schedule: 'TBD',
+        location: 'TBD'
+      };
+    }
+
+    const schedule = course.schedule;
+    const days = schedule.days || 'TBD';
+    const times = schedule.times || 'TBD';
+    const location = schedule.location || 'TBD';
+    
+    // Format the schedule display
+    let scheduleDisplay = 'TBD';
+    if (days !== 'TBD' && times !== 'TBD') {
+      scheduleDisplay = `${days} ${times}`;
+    } else if (days !== 'TBD') {
+      scheduleDisplay = days;
+    } else if (times !== 'TBD') {
+      scheduleDisplay = times;
+    }
+
+    return {
+      schedule: scheduleDisplay,
+      location: location
+    };
+  };
+
+  const coursePreview = getCoursePreview();
+
+  return (
+    <Card
+      className="overflow-hidden shadow-sm border border-gray-200 cursor-pointer hover:shadow-lg hover:border-gray-300 transition-all duration-200" 
+      style={{ 
+        backgroundColor: 'var(--background-color, #f9f5f0)',
+        height: '120px',
+        width: '100%'
+      }}
+      onClick={() => onCourseClick?.(title)}
+    >
+      {/* Burgundy Header with Schedule */}
+      <div 
+        className="bg-[#752432] text-white relative"
+        style={{
+          height: '120px',
+          padding: '8px 8px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between'
+        }}
+      >
+        <div>
+          <h3 className="text-xs font-semibold leading-none mb-0.5 truncate">
+            {title}
+          </h3>
+          <div className="flex items-center justify-between">
+            <span className="text-white/75 text-[10px] font-medium">
+              {coursePreview.schedule}
+            </span>
+          </div>
+        </div>
+        <div>
+          {coursePreview.location && coursePreview.location !== 'TBD' && (
+            <div className="mt-0.5">
+              <span className="text-white/70 text-[10px]">
+                📍 {coursePreview.location}
+              </span>
+            </div>
+          )}
+          <div className="mt-0.5">
+            <p className="text-white/85 text-[10px] truncate">{instructor}</p>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
 }
 
 export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
@@ -103,8 +202,9 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
             summerFirm: profile.summer_firm || '',
             bio: '',
             currentCourses: profile.classes?.map((cls: any) => ({
-              name: cls.class || '',
-              professor: cls.professor || ''
+              class: cls.class || '',
+              professor: cls.professor || '',
+              schedule: cls.schedule || null
             })) || [],
             clubMemberships: [],
             stats: {
@@ -148,10 +248,10 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
         summerFirm: 'Wilson Sonsini',
         bio: 'Second-year law student focusing on intellectual property and tech law. President of the IP Law Society and active in pro bono clinics.',
         currentCourses: [
-          { name: 'Contract Law', professor: 'Chen' },
-          { name: 'Torts', professor: 'Johnson' },
-          { name: 'Patent Law', professor: 'Davis' },
-          { name: 'Corporate Law', professor: 'Collins' }
+          { class: 'Contract Law', professor: 'Chen', schedule: { days: 'Mon, Wed, Fri', times: '9:00 AM - 10:00 AM', location: 'Austin Hall 101' } },
+          { class: 'Torts', professor: 'Johnson', schedule: { days: 'Tue, Thu', times: '10:30 AM - 12:00 PM', location: 'Langdell Library North' } },
+          { class: 'Patent Law', professor: 'Davis', schedule: { days: 'Mon, Wed', times: '2:00 PM - 3:30 PM', location: 'Hauser Hall 104' } },
+          { class: 'Corporate Law', professor: 'Collins', schedule: { days: 'Tue, Thu', times: '1:00 PM - 2:30 PM', location: 'Austin Hall 200' } }
         ],
         clubMemberships: ['IP Law Society (President)', 'Tech Law Review', 'Pro Bono Clinic', 'Women in Law'],
         schedule: {
@@ -197,10 +297,10 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
         summerFirm: 'Kirkland & Ellis',
         bio: 'Second-year law student with interests in corporate law and mergers & acquisitions. Editor of Harvard Business Law Review.',
         currentCourses: [
-          { name: 'Contract Law', professor: 'Chen' },
-          { name: 'Torts', professor: 'Johnson' },
-          { name: 'Corporate Law', professor: 'Collins' },
-          { name: 'Securities Law', professor: 'Martinez' }
+          { class: 'Contract Law', professor: 'Chen', schedule: { days: 'Mon, Wed, Fri', times: '9:00 AM - 10:00 AM', location: 'Austin Hall 101' } },
+          { class: 'Torts', professor: 'Johnson', schedule: { days: 'Tue, Thu', times: '10:30 AM - 12:00 PM', location: 'Langdell Library North' } },
+          { class: 'Corporate Law', professor: 'Collins', schedule: { days: 'Tue, Thu', times: '1:00 PM - 2:30 PM', location: 'Austin Hall 200' } },
+          { class: 'Securities Law', professor: 'Martinez', schedule: { days: 'Mon, Wed', times: '3:00 PM - 4:30 PM', location: 'Hauser Hall 105' } }
         ],
         clubMemberships: ['Harvard Business Law Review (Editor)', 'Corporate Law Society', 'Asian Law Students Association', 'Investment Law Club'],
         schedule: {
@@ -249,10 +349,10 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       summerFirm: 'Cravath, Swaine & Moore',
       bio: 'Second-year law student with interests in constitutional law and civil rights. Active member of the Harvard Law Review and mock trial team.',
       currentCourses: [
-        { name: 'Contract Law', professor: 'Chen' },
-        { name: 'Torts', professor: 'Johnson' },
-        { name: 'Property Law', professor: 'Chen' },
-        { name: 'Civil Procedure', professor: 'Martinez' }
+        { class: 'Contract Law', professor: 'Chen', schedule: { days: 'Mon, Wed, Fri', times: '9:00 AM - 10:00 AM', location: 'Austin Hall 101' } },
+        { class: 'Torts', professor: 'Johnson', schedule: { days: 'Tue, Thu', times: '10:30 AM - 12:00 PM', location: 'Langdell Library North' } },
+        { class: 'Property Law', professor: 'Chen', schedule: { days: 'Mon, Wed', times: '11:30 AM - 12:30 PM', location: 'Austin Hall 200' } },
+        { class: 'Civil Procedure', professor: 'Martinez', schedule: { days: 'Tue, Thu', times: '2:00 PM - 3:30 PM', location: 'Hauser Hall 104' } }
       ],
       clubMemberships: ['Harvard Law Review', 'Mock Trial Team', 'Student Bar Association', 'Public Interest Law Foundation'],
       schedule: {
@@ -1370,25 +1470,14 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                 <CardTitle>Current Courses</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   {profileData.currentCourses.map((course, index) => (
-                    <div key={index} className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-medium text-gray-900">{course.name}</h3>
-                        <Badge 
-                          className="text-white px-2 py-1" 
-                          style={{ backgroundColor: '#752432' }}
-                        >
-                          2L
-                        </Badge>
-                      </div>
-                      <p className="text-gray-600 text-sm">{course.professor}</p>
-                      <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
-                        <span>📚 Credits: 3</span>
-                        <span>⏰ MWF 10:00-11:00</span>
-                        <span>📍 Room 150</span>
-                      </div>
-                    </div>
+                    <CourseCard
+                      key={index}
+                      title={course.class}
+                      instructor={course.professor}
+                      course={course}
+                    />
                   ))}
                 </div>
               </CardContent>
@@ -1728,19 +1817,18 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
               {/* Current Courses Display */}
               <div>
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Current Courses</h3>
-                <div className="space-y-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   {profileData?.currentCourses?.length ? (
                     profileData.currentCourses.map((course, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} rounded-lg">
-                        <div>
-                          <p className="font-medium text-gray-900">{course.name}</p>
-                          <p className="text-sm text-gray-500">{course.professor}</p>
-                        </div>
-                        <Badge variant="secondary">{profileData.year}</Badge>
-                      </div>
+                      <CourseCard
+                        key={index}
+                        title={course.class}
+                        instructor={course.professor}
+                        course={course}
+                      />
                     ))
                   ) : (
-                    <p className="text-gray-500 text-center py-4">No courses selected</p>
+                    <p className="text-gray-500 text-center py-4 col-span-full">No courses selected</p>
                   )}
                 </div>
               </div>

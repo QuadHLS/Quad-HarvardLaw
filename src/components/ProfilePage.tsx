@@ -923,15 +923,16 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
               <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-8 mb-8">
                 {/* Avatar with Upload */}
                 <div className="flex flex-col items-center">
-                  <div className="w-24 h-24 border-4 border-white shadow-lg -mt-12 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
+                  <div className="border-4 border-white shadow-lg -mt-12 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
                     {profileData.avatar_url ? (
                       <img 
                         src={profileData.avatar_url} 
                         alt="Profile" 
-                        className="w-full h-full object-contain"
+                        className="h-auto object-contain rounded-full"
+                        style={{ maxWidth: '96px', maxHeight: '96px' }}
                       />
                     ) : (
-                      <div className="w-full h-full text-2xl font-medium bg-gray-100 text-gray-700 flex items-center justify-center">
+                      <div className="w-24 h-24 text-2xl font-medium bg-gray-100 text-gray-700 flex items-center justify-center">
                         {profileData.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                       </div>
                     )}

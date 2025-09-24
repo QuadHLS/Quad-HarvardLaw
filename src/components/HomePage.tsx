@@ -1123,14 +1123,14 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                           }}
                         >
                           <div className="font-medium truncate">{course.class}</div>
-                          <div className="text-white/90 mt-1 leading-none">
-                            {course.schedule?.times || 'TBD'}
+                          <div className="text-white/90 mt-1 leading-none flex items-center">
+                            <span>{course.schedule?.times || 'TBD'}</span>
+                            {course.schedule?.location && course.schedule.location !== 'TBD' && (
+                              <span className="text-white/80 text-[10px] ml-2">
+                                📍 {course.schedule.location}
+                              </span>
+                            )}
                           </div>
-                          {course.schedule?.location && course.schedule.location !== 'TBD' && (
-                            <div className="text-white/80 text-[10px] mt-1 truncate">
-                              📍 {course.schedule.location}
-                            </div>
-                          )}
                         </div>
                       );
                     })

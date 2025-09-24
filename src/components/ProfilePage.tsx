@@ -481,9 +481,9 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       return;
     }
 
-    // Validate file size (max 500KB)
-    if (file.size > 500 * 1024) {
-      alert('File size must be less than 500KB');
+    // Validate file size (max 8MB before compression)
+    if (file.size > 8 * 1024 * 1024) {
+      alert('File size must be less than 8MB');
       return;
     }
 
@@ -508,13 +508,17 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
         }
       }
 
+      // Compress avatar image
+      const compressedFile = await compressAvatarImage(file);
+      
       // Create unique filename
-      const fileExt = file.name.split('.').pop();
+      const fileExt = compressedFile.name.split('.').pop();
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
       
       console.log('Attempting to upload file:', {
         fileName,
-        fileSize: file.size,
+        originalFileSize: file.size,
+        compressedFileSize: compressedFile.size,
         fileType: file.type,
         userId: user.id
       });
@@ -522,7 +526,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       // Upload to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('Avatar')
-        .upload(fileName, file);
+        .upload(fileName, compressedFile);
 
       if (uploadError) {
         console.error('Error uploading avatar:', uploadError);
@@ -568,7 +572,11 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       console.log('Updated local profile data with new avatar URL');
     } catch (error) {
       console.error('Error uploading avatar:', error);
-      alert('Error uploading avatar. Please try again.');
+      if (error.message && error.message.includes('timeout')) {
+        alert('Error: Image is too large or complex to process. Please try a smaller image.');
+      } else {
+        alert('Error uploading avatar. Please try again.');
+      }
     } finally {
       setUploadingAvatar(false);
     }
@@ -710,7 +718,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
     }
   };
 
-  // Image compression function
+  // Image compression function for photos
   const compressImage = (file: File): Promise<File> => {
     return new Promise((resolve, reject) => {
       const canvas = document.createElement('canvas');
@@ -788,6 +796,85 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
     });
   };
 
+  // Avatar compression function (targets 500KB, maintains original ratio)
+  const compressAvatarImage = (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      // Add timeout to prevent hanging
+      const timeout = setTimeout(() => {
+        reject(new Error('Avatar compression timeout - image too large or complex'));
+      }, 30000); // 30 second timeout
+      
+      img.onload = () => {
+        try {
+          // Calculate new dimensions (max 400px on the longest side, maintain original ratio)
+          const maxSize = 400;
+          let { width, height } = img;
+          
+          // Maintain original aspect ratio
+          if (width > height) {
+            if (width > maxSize) {
+              height = (height * maxSize) / width;
+              width = maxSize;
+            }
+          } else {
+            if (height > maxSize) {
+              width = (width * maxSize) / height;
+              height = maxSize;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          // Draw and compress (maintains original aspect ratio)
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Compress to target size (500KB for avatars)
+          const targetSize = 500 * 1024; // 500KB in bytes
+          let quality = 0.8;
+          
+          const compressToTargetSize = (currentQuality: number): void => {
+            canvas.toBlob((blob) => {
+              if (blob) {
+                if (blob.size <= targetSize || currentQuality <= 0.1) {
+                  // If size is acceptable or quality is too low, use this result
+                  clearTimeout(timeout);
+                  const compressedFile = new File([blob], file.name, {
+                    type: 'image/jpeg',
+                    lastModified: Date.now(),
+                  });
+                  resolve(compressedFile);
+                } else {
+                  // Reduce quality and try again
+                  compressToTargetSize(currentQuality - 0.1);
+                }
+              } else {
+                clearTimeout(timeout);
+                resolve(file);
+              }
+            }, 'image/jpeg', currentQuality);
+          };
+          
+          compressToTargetSize(quality);
+        } catch (error) {
+          clearTimeout(timeout);
+          reject(error);
+        }
+      };
+      
+      img.onerror = () => {
+        clearTimeout(timeout);
+        reject(new Error('Failed to load avatar image'));
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
   if (loading) {
     return (
       <div className="h-full style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} flex items-center justify-center">
@@ -836,19 +923,19 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
               <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-8 mb-8">
                 {/* Avatar with Upload */}
                 <div className="flex flex-col items-center">
-                  <Avatar className="w-24 h-24 border-4 border-white shadow-lg -mt-12">
+                  <div className="w-24 h-24 border-4 border-white shadow-lg -mt-12 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
                     {profileData.avatar_url ? (
                       <img 
                         src={profileData.avatar_url} 
                         alt="Profile" 
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain"
                       />
                     ) : (
-                      <AvatarFallback className="text-2xl font-medium bg-gray-100 text-gray-700">
+                      <div className="w-full h-full text-2xl font-medium bg-gray-100 text-gray-700 flex items-center justify-center">
                         {profileData.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                      </AvatarFallback>
+                      </div>
                     )}
-                  </Avatar>
+                  </div>
                   {isEditing && (!studentName || studentName === 'Justin Abbey') && (
                     <div className="flex flex-col gap-2 mt-4">
                       <input
@@ -859,8 +946,8 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                         id="avatar-upload"
                         disabled={uploadingAvatar}
                       />
-                      <Button 
-                        size="sm" 
+                    <Button 
+                      size="sm" 
                         variant="outline"
                         className="text-xs px-3 py-1 h-7"
                         disabled={uploadingAvatar}
@@ -889,7 +976,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                             <X className="w-3 h-3" />
                             <span>Delete Avatar</span>
                           </div>
-                        </Button>
+                    </Button>
                       )}
                     </div>
                   )}
@@ -1186,19 +1273,19 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                           </div>
                         ) : (
                           <>
-                            <Upload className="w-4 h-4" />
-                            Add Photos
+                      <Upload className="w-4 h-4" />
+                      Add Photos
                           </>
                         )}
-                      </Button>
+                    </Button>
                     </div>
                   )}
                 </div>
               </CardHeader>
               <CardContent>
-                {/* Show grid only if there are photos */}
+                {/* Show photos only if there are photos */}
                 {profileData.photo_urls && profileData.photo_urls.length > 0 ? (
-                  <div className="grid grid-cols-6 gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {/* Display actual photos only */}
                     {profileData.photo_urls.map((photoUrl, index) => (
                       <div key={index} className="relative group rounded-lg overflow-hidden">
@@ -1210,7 +1297,8 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                             <img 
                               src={photoUrl} 
                               alt={`Photo ${index + 1}`}
-                              className="w-full h-auto object-contain rounded-lg max-h-48"
+                              className="h-auto object-contain rounded-lg"
+                              style={{ maxWidth: '150px' }}
                             />
                             <div className="absolute inset-0 flex items-center justify-center">
                               <div className="bg-red-500 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-lg">
@@ -1222,7 +1310,8 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                           <img 
                             src={photoUrl} 
                             alt={`Photo ${index + 1}`}
-                            className="w-full h-auto object-contain rounded-lg max-h-48"
+                            className="h-auto object-contain rounded-lg"
+                            style={{ maxWidth: '150px' }}
                           />
                         )}
                       </div>
@@ -1259,7 +1348,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                             <div className="flex items-center gap-2">
                               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                               <span>Uploading...</span>
-                            </div>
+                  </div>
                           ) : (
                             <>
                               <Upload className="w-5 h-5" />
@@ -1267,7 +1356,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                             </>
                           )}
                         </Button>
-                      </div>
+                </div>
                     )}
                   </div>
                 )}

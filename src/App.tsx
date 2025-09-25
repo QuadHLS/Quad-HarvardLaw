@@ -4,6 +4,7 @@ import { NavigationSidebar } from './components/NavigationSidebar';
 import { SearchSidebar } from './components/SearchSidebar';
 import { OutlineViewer } from './components/OutlineViewer';
 import { ExamsPage } from './components/ExamsPage';
+import { ReviewsPage } from './components/ReviewsPage';
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import type { Outline, Instructor } from './types';
@@ -371,6 +372,8 @@ function AppContent({ loading }: { loading: boolean }) {
             sortBy={sortBy}
             setSortBy={setSortBy}
           />
+        ) : activeSection === 'reviews' ? (
+          <ReviewsPage />
         ) : (
           <div className="flex items-center justify-center h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
             <div className="text-center p-8">

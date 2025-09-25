@@ -283,8 +283,8 @@ export function SearchSidebar({
                   setSelectedCourse(value);
                   // Clear all subsequent selections when course changes
                   setSelectedInstructor("");
-                  setSelectedGrade(undefined);
                   setSelectedYear(undefined);
+                  setSelectedGrade(undefined);
                 }}
               >
                 <SelectTrigger className="bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white h-10">
@@ -323,8 +323,8 @@ export function SearchSidebar({
                     e.stopPropagation();
                     setSelectedCourse("");
                     setSelectedInstructor("");
-                    setSelectedGrade(undefined);
                     setSelectedYear(undefined);
+                    setSelectedGrade(undefined);
                   }}
                   className="absolute right-8 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white z-10"
                 >
@@ -340,14 +340,14 @@ export function SearchSidebar({
                 value={selectedInstructor || undefined}
                 onValueChange={(value) => {
                   setSelectedInstructor(value);
-                  // Clear grade and year when instructor changes
-                  setSelectedGrade(undefined);
+                  // Clear year and grade when instructor changes
                   setSelectedYear(undefined);
+                  setSelectedGrade(undefined);
                 }}
                 disabled={!selectedCourse}
               >
                 <SelectTrigger className={`h-10 ${
-                  !selectedCourse 
+                  !selectedCourse
                     ? "bg-gray-400/20 border-gray-400/30 text-gray-400 cursor-not-allowed" 
                     : "bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white"
                 }`}>
@@ -382,8 +382,8 @@ export function SearchSidebar({
                     e.preventDefault();
                     e.stopPropagation();
                     setSelectedInstructor("");
-                    setSelectedGrade(undefined);
                     setSelectedYear(undefined);
+                    setSelectedGrade(undefined);
                   }}
                   className="absolute right-8 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white z-10"
                 >
@@ -392,107 +392,104 @@ export function SearchSidebar({
               )}
             </div>
 
-            {/* Grade and Year Filters Side by Side */}
-            <div className="flex gap-1.5">
-              {/* Grade Filter - Dynamic based on data */}
-              <div className="relative flex-1">
-                <Select
-                  key={`grade-${selectedGrade || "empty"}`}
-                  value={selectedGrade || undefined}
-                  onValueChange={(value) => {
-                    setSelectedGrade(value);
-                    // Clear year when grade changes
-                    setSelectedYear(undefined);
-                  }}
-                  disabled={!selectedCourse || !selectedInstructor}
-                >
-                  <SelectTrigger className={`h-10 ${
+            {/* Year Filter - Dynamic based on data */}
+            <div className="relative">
+              <Select
+                key={`year-${selectedYear || "empty"}`}
+                value={selectedYear || undefined}
+                onValueChange={(value) => {
+                  setSelectedYear(value);
+                  // Clear grade when year changes
+                  setSelectedGrade(undefined);
+                }}
+                disabled={!selectedCourse || !selectedInstructor}
+              >
+                <SelectTrigger className={`h-10 ${
+                  !selectedCourse || !selectedInstructor
+                    ? "bg-gray-400/20 border-gray-400/30 text-gray-400 cursor-not-allowed" 
+                    : "bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white"
+                }`}>
+                  <SelectValue placeholder={
                     !selectedCourse || !selectedInstructor
-                      ? "bg-gray-400/20 border-gray-400/30 text-gray-400 cursor-not-allowed" 
-                      : "bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white"
-                  }`}>
-                    <SelectValue placeholder={
-                      !selectedCourse || !selectedInstructor 
-                        ? "Select Instructor First" 
-                        : "Grade"
-                    } />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {/* Dynamic grade options from actual data */}
-                    {Array.from(new Set(allOutlines
-                      .filter(outline => 
-                        outline.course === selectedCourse && 
-                        outline.instructor === selectedInstructor
-                      )
-                      .map(outline => outline.type)))
-                      .sort()
-                      .map(grade => (
-                        <SelectItem key={grade} value={grade}>{grade}</SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-                {selectedGrade && (
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setSelectedGrade(undefined);
-                      setSelectedYear(undefined);
-                    }}
-                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white z-10"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-
-              {/* Year Filter - Dynamic based on data */}
-              <div className="relative flex-1">
-                <Select
-                  key={`year-${selectedYear || "empty"}`}
-                  value={selectedYear || undefined}
-                  onValueChange={(value) => setSelectedYear(value)}
-                  disabled={!selectedCourse || !selectedInstructor || !selectedGrade}
+                      ? "Select Instructor First" 
+                      : "Year"
+                  } />
+                </SelectTrigger>
+                <SelectContent>
+                  {/* Dynamic year options from actual data */}
+                  {Array.from(new Set(allOutlines
+                    .filter(outline => 
+                      outline.course === selectedCourse && 
+                      outline.instructor === selectedInstructor
+                    )
+                    .map(outline => outline.year)))
+                    .sort((a, b) => parseInt(b) - parseInt(a)) // Sort newest first
+                    .map(year => (
+                      <SelectItem key={year} value={year}>{year}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              {selectedYear && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setSelectedYear(undefined);
+                    setSelectedGrade(undefined);
+                  }}
+                  className="absolute right-8 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white z-10"
                 >
-                  <SelectTrigger className={`h-10 ${
-                    !selectedCourse || !selectedInstructor || !selectedGrade
-                      ? "bg-gray-400/20 border-gray-400/30 text-gray-400 cursor-not-allowed" 
-                      : "bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white"
-                  }`}>
-                    <SelectValue placeholder={
-                      !selectedCourse || !selectedInstructor || !selectedGrade
-                        ? "Select Grade First" 
-                        : "Year"
-                    } />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {/* Dynamic year options from actual data */}
-                    {Array.from(new Set(allOutlines
-                      .filter(outline => 
-                        outline.course === selectedCourse && 
-                        outline.instructor === selectedInstructor &&
-                        outline.type === selectedGrade
-                      )
-                      .map(outline => outline.year)))
-                      .sort((a, b) => parseInt(b) - parseInt(a)) // Sort newest first
-                      .map(year => (
-                        <SelectItem key={year} value={year}>{year}</SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-                {selectedYear && (
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setSelectedYear(undefined);
-                    }}
-                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white z-10"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Grade Filter - Dynamic based on data */}
+            <div className="relative">
+              <Select
+                key={`grade-${selectedGrade || "empty"}`}
+                value={selectedGrade || undefined}
+                onValueChange={(value) => setSelectedGrade(value)}
+                disabled={!selectedCourse || !selectedInstructor || !selectedYear}
+              >
+                <SelectTrigger className={`h-10 ${
+                  !selectedCourse || !selectedInstructor || !selectedYear
+                    ? "bg-gray-400/20 border-gray-400/30 text-gray-400 cursor-not-allowed" 
+                    : "bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white"
+                }`}>
+                  <SelectValue placeholder={
+                    !selectedCourse || !selectedInstructor || !selectedYear
+                      ? "Select Year First" 
+                      : "Grade"
+                  } />
+                </SelectTrigger>
+                <SelectContent>
+                  {/* Dynamic grade options from actual data */}
+                  {Array.from(new Set(allOutlines
+                    .filter(outline => 
+                      outline.course === selectedCourse && 
+                      outline.instructor === selectedInstructor &&
+                      outline.year === selectedYear
+                    )
+                    .map(outline => outline.type)))
+                    .sort()
+                    .map(grade => (
+                      <SelectItem key={grade} value={grade}>{grade}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              {selectedGrade && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setSelectedGrade(undefined);
+                  }}
+                  className="absolute right-8 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white z-10"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
 

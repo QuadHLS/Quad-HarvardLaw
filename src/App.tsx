@@ -10,6 +10,7 @@ import { BarReviewPage } from './components/BarReviewPage';
 import { CalendarPage } from './components/CalendarPage';
 import { ProfilePage } from './components/ProfilePage';
 import { MessagingPage } from './components/MessagingPage';
+import { ExamsPage } from './components/ExamsPage';
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/auth/AuthPage';
@@ -1677,6 +1678,8 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
     };
   }, [user]);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  
+  // Outlines state
   const [selectedOutline, setSelectedOutline] = useState<Outline | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
@@ -1694,6 +1697,25 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
   );
   const [savedOutlines, setSavedOutlines] = useState<Outline[]>([]);
   const [hiddenOutlines, setHiddenOutlines] = useState<string[]>([]);
+
+  // Exams state (separate from outlines)
+  const [selectedExam, setSelectedExam] = useState<Outline | null>(null);
+  const [examSearchTerm, setExamSearchTerm] = useState('');
+  const [selectedExamCourse, setSelectedExamCourse] = useState('');
+  const [selectedExamInstructor, setSelectedExamInstructor] = useState('');
+  const [selectedExamGrade, setSelectedExamGrade] = useState<string | undefined>(
+    undefined
+  );
+  const [selectedExamYear, setSelectedExamYear] = useState<string | undefined>(
+    undefined
+  );
+  const [showExamOutlines, setShowExamOutlines] = useState(true);
+  const [showExamAttacks, setShowExamAttacks] = useState(true);
+  const [examActiveTab, setExamActiveTab] = useState<'search' | 'saved' | 'upload'>(
+    'search'
+  );
+  const [savedExams, setSavedExams] = useState<Outline[]>([]);
+  const [hiddenExams, setHiddenExams] = useState<string[]>([]);
   const [activeSection, setActiveSection] = useState('home');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [selectedCourseForSearch, setSelectedCourseForSearch] =
@@ -1799,8 +1821,57 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
     );
   });
 
+  // Filter exams based on search criteria (separate from outlines)
+  const filteredExams = mockOutlines.filter((exam) => {
+    // Don't show any exams unless BOTH a course AND instructor are selected
+    if (selectedExamCourse === '' || selectedExamInstructor === '') {
+      return false;
+    }
+
+    // Exclude hidden exams
+    if (hiddenExams.includes(exam.id)) {
+      return false;
+    }
+
+    const matchesSearch =
+      examSearchTerm === '' ||
+      exam.title.toLowerCase().includes(examSearchTerm.toLowerCase()) ||
+      exam.course.toLowerCase().includes(examSearchTerm.toLowerCase());
+
+    const matchesCourse = exam.course === selectedExamCourse;
+    const matchesInstructor = exam.instructor === selectedExamInstructor;
+    const matchesGrade = !selectedExamGrade || exam.type === selectedExamGrade;
+    const matchesYear = !selectedExamYear || exam.year === selectedExamYear;
+
+    // Filter by Outline/Attack type based on page count
+    const isAttack = exam.pages <= 25;
+    const isOutline = exam.pages > 25;
+    const matchesType =
+      (isAttack && showExamAttacks) || (isOutline && showExamOutlines);
+
+    return (
+      matchesSearch &&
+      matchesCourse &&
+      matchesInstructor &&
+      matchesGrade &&
+      matchesYear &&
+      matchesType
+    );
+  });
+
   // Sort outlines
   const sortedOutlines = [...filteredOutlines].sort((a, b) => {
+    if (sortBy === 'Highest Rated') {
+      return b.rating - a.rating;
+    }
+    if (sortBy === 'Newest') {
+      return parseInt(b.year) - parseInt(a.year);
+    }
+    return a.title.localeCompare(b.title);
+  });
+
+  // Sort exams (separate from outlines)
+  const sortedExams = [...filteredExams].sort((a, b) => {
     if (sortBy === 'Highest Rated') {
       return b.rating - a.rating;
     }
@@ -1843,6 +1914,42 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
 
   const handleUnhideAllOutlines = () => {
     setHiddenOutlines([]);
+  };
+
+  // Exam handlers (separate from outlines)
+  const handleSaveExam = (exam: Outline) => {
+    setSavedExams((prev) => {
+      // Check if exam is already saved
+      if (prev.some((saved) => saved.id === exam.id)) {
+        return prev; // Don't add duplicates
+      }
+      return [...prev, exam];
+    });
+  };
+
+  const handleRemoveSavedExam = (examId: string) => {
+    setSavedExams((prev) =>
+      prev.filter((exam) => exam.id !== examId)
+    );
+  };
+
+  const handleToggleSaveExam = (exam: Outline) => {
+    setSavedExams((prev) => {
+      const isAlreadySaved = prev.some((saved) => saved.id === exam.id);
+      if (isAlreadySaved) {
+        return prev.filter((saved) => saved.id !== exam.id);
+      } else {
+        return [...prev, exam];
+      }
+    });
+  };
+
+  const handleHideExam = (examId: string) => {
+    setHiddenExams((prev) => [...prev, examId]);
+  };
+
+  const handleUnhideAllExams = () => {
+    setHiddenExams([]);
   };
 
   const handleSectionChange = (section: string) => {
@@ -1941,8 +2048,8 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
       {/* Toast Notifications */}
       <Toaster position="top-right" />
 
-      {/* Search Sidebar - Only show when in outlines or exams section */}
-      {(activeSection === 'outlines' || activeSection === 'exams') && (
+      {/* Search Sidebar - Only show when in outlines section */}
+      {activeSection === 'outlines' && (
         <SearchSidebar
           outlines={sortedOutlines}
           allOutlines={mockOutlines}
@@ -2021,46 +2128,19 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
             />
           )
         ) : activeSection === 'exams' ? (
-          activeTab === 'upload' ? (
-            <div className="flex items-center justify-center h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-              <div className="text-center p-8">
-                <FileText className="w-24 h-24 text-gray-400 mx-auto mb-4" />
-                <h2 className="text-2xl font-medium text-gray-700 mb-4">
-                  Upload Your Exam
-                </h2>
-                <p className="text-gray-600 mb-6 max-w-md">
-                  Use the upload form in the sidebar to share your exam
-                  materials with the community.
-                </p>
-                <div className="bg-white rounded-lg shadow-sm p-6 max-w-lg mx-auto">
-                  <h3 className="font-medium text-gray-800 mb-3">
-                    Upload Guidelines:
-                  </h3>
-                  <ul className="text-sm text-gray-600 space-y-2 text-left">
-                    <li>• Accepted formats: PDF, DOC, DOCX</li>
-                    <li>• Maximum file size: 50MB</li>
-                    <li>• Only upload your original work</li>
-                    <li>
-                      • Include accurate course and instructor information
-                    </li>
-                    <li>• Use descriptive titles for better discoverability</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <OutlineViewer
-              outline={selectedOutline}
-              onSaveOutline={handleSaveOutline}
-              isSaved={
-                selectedOutline
-                  ? savedOutlines.some(
-                      (saved) => saved.id === selectedOutline.id
-                    )
-                  : false
-              }
-            />
-          )
+          <ExamsPage
+            outlines={sortedExams}
+            allOutlines={mockOutlines}
+            courses={courses}
+            instructors={mockInstructors}
+            savedOutlines={savedExams}
+            hiddenOutlines={hiddenExams}
+            onSaveOutline={handleSaveExam}
+            onRemoveSavedOutline={handleRemoveSavedExam}
+            onToggleSaveOutline={handleToggleSaveExam}
+            onHideOutline={handleHideExam}
+            onUnhideAllOutlines={handleUnhideAllExams}
+          />
         ) : activeSection === 'reviews' ? (
           <ReviewsPage />
         ) : activeSection === 'home' ? (

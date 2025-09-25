@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  Search,
   Download,
   FileText,
   Star,
@@ -94,13 +93,6 @@ export function SearchSidebar({
   onHideOutline,
   onUnhideAllOutlines,
 }: SearchSidebarProps) {
-  const [showCourseDropdown, setShowCourseDropdown] =
-    useState(false);
-  const [courseSearchTerm, setCourseSearchTerm] = useState("");
-  const [showInstructorDropdown, setShowInstructorDropdown] =
-    useState(false);
-  const [instructorSearchTerm, setInstructorSearchTerm] =
-    useState("");
   const [reviewingOutline, setReviewingOutline] =
     useState<Outline | null>(null);
   const [hoverRating, setHoverRating] = useState(0);
@@ -281,47 +273,57 @@ export function SearchSidebar({
       {activeTab === "search" ? (
         <>
           {/* Search Tab Content */}
-          {/* Search by Course */}
+          {/* Course Filter - Simple Dropdown */}
           <div className="p-3 space-y-3 bg-[rgba(117,36,50,1)]">
             <div className="relative">
-              <Input
-                placeholder="Search by Course"
-                value={selectedCourse || courseSearchTerm}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setCourseSearchTerm(value);
-                  if (
-                    selectedCourse &&
-                    value !== selectedCourse
-                  ) {
-                    setSelectedCourse("");
+              <Select
+                key={`course-${selectedCourse || "empty"}`}
+                value={selectedCourse || undefined}
+                onValueChange={(value) => {
+                  setSelectedCourse(value);
+                  // Clear instructor if they don't teach the newly selected course
+                  if (selectedInstructor) {
+                    const instructorObj = instructors.find(
+                      (inst) => inst.name === selectedInstructor,
+                    );
+                    if (
+                      instructorObj &&
+                      !instructorObj.courses.includes(value)
+                    ) {
+                      setSelectedInstructor("");
+                    }
                   }
                 }}
-                onFocus={() => {
-                  setShowCourseDropdown(true);
-                  // If there's a selected course, clear the search term to show all options
-                  if (selectedCourse) {
-                    setCourseSearchTerm("");
-                  }
-                }}
-                onClick={() => {
-                  // When clicking on a field with a selection, show all options
-                  if (selectedCourse) {
-                    setCourseSearchTerm("");
-                    setShowCourseDropdown(true);
-                  }
-                }}
-                onBlur={() => {
-                  // Delay hiding to allow for dropdown clicks
-                  setTimeout(
-                    () => setShowCourseDropdown(false),
-                    200,
-                  );
-                }}
-                className={`bg-black/20 border-white/30 text-white placeholder:text-white/70 ${
-                  selectedCourse ? "pr-16" : "pr-10"
-                }`}
-              />
+              >
+                <SelectTrigger className="bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white h-10">
+                  <SelectValue placeholder="Select Course" />
+                </SelectTrigger>
+                <SelectContent>
+                  {/* Dynamic course options from actual data */}
+                  {courses
+                    .filter((course) => {
+                      // If an instructor is selected, only show courses that instructor teaches
+                      if (selectedInstructor) {
+                        const instructorObj = instructors.find(
+                          (inst) => inst.name === selectedInstructor,
+                        );
+                        if (
+                          instructorObj &&
+                          !instructorObj.courses.includes(course)
+                        ) {
+                          return false;
+                        }
+                      }
+                      return true;
+                    })
+                    .sort((a, b) => a.localeCompare(b))
+                    .map((course) => (
+                      <SelectItem key={course} value={course}>
+                        {course}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
               {selectedCourse && (
                 <button
                   onClick={(e) => {
@@ -329,255 +331,71 @@ export function SearchSidebar({
                     e.stopPropagation();
                     setSelectedCourse("");
                     setSelectedInstructor(""); // Clear instructor when clearing course
-                    setCourseSearchTerm("");
                   }}
                   className="absolute right-8 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white z-10"
                 >
                   <X className="w-4 h-4" />
                 </button>
               )}
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/70" />
-
-              {/* Course Dropdown */}
-              {showCourseDropdown && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white text-black rounded shadow-lg z-20 max-h-48 overflow-y-auto">
-                  {courses
-                    .filter((course) => {
-                      // If an instructor is selected, only show courses that instructor teaches
-                      if (selectedInstructor) {
-                        const instructorObj = instructors.find(
-                          (inst) =>
-                            inst.name === selectedInstructor,
-                        );
-                        if (
-                          instructorObj &&
-                          !instructorObj.courses.includes(
-                            course,
-                          )
-                        ) {
-                          return false;
-                        }
-                      }
-
-                      // If there's a search term, filter by it
-                      if (courseSearchTerm) {
-                        return course
-                          .toLowerCase()
-                          .includes(
-                            courseSearchTerm.toLowerCase(),
-                          );
-                      }
-                      // If there's a selected course but no search term, show all available courses
-                      if (selectedCourse && !courseSearchTerm) {
-                        return true;
-                      }
-                      // Default filtering behavior
-                      return course
-                        .toLowerCase()
-                        .includes(
-                          (
-                            selectedCourse || courseSearchTerm
-                          ).toLowerCase(),
-                        );
-                    })
-                    .sort((a, b) => a.localeCompare(b)) // Sort alphabetically
-                    .map((course) => (
-                      <button
-                        key={course}
-                        onClick={() => {
-                          // Toggle selection - deselect if already selected
-                          if (selectedCourse === course) {
-                            setSelectedCourse("");
-                            setSelectedInstructor(""); // Clear instructor when deselecting course
-                          } else {
-                            setSelectedCourse(course);
-
-                            // Clear selected instructor if they don't teach the newly selected course
-                            if (selectedInstructor) {
-                              const instructorObj =
-                                instructors.find(
-                                  (inst) =>
-                                    inst.name ===
-                                    selectedInstructor,
-                                );
-                              if (
-                                instructorObj &&
-                                !instructorObj.courses.includes(
-                                  course,
-                                )
-                              ) {
-                                setSelectedInstructor("");
-                              }
-                            }
-                          }
-                          setCourseSearchTerm("");
-                          setShowCourseDropdown(false);
-                        }}
-                        className={`w-full p-2 text-left hover:bg-gray-100 ${
-                          course === selectedCourse
-                            ? "bg-[#8B4A6B] text-white"
-                            : ""
-                        }`}
-                      >
-                        {course}
-                      </button>
-                    ))}
-                </div>
-              )}
             </div>
 
-            {/* Search by Instructor */}
+            {/* Instructor Filter - Simple Dropdown */}
             <div className="relative">
-              <Input
-                placeholder="Search by Instructor"
-                value={
-                  selectedInstructor || instructorSearchTerm
-                }
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setInstructorSearchTerm(value);
-                  if (
-                    selectedInstructor &&
-                    value !== selectedInstructor
-                  ) {
-                    setSelectedInstructor("");
-                  }
-                }}
-                onFocus={() => {
-                  setShowInstructorDropdown(true);
-                  // If there's a selected instructor, clear the search term to show all options
-                  if (selectedInstructor) {
-                    setInstructorSearchTerm("");
-                  }
-                }}
-                onClick={() => {
-                  // When clicking on a field with a selection, show all options
-                  if (selectedInstructor) {
-                    setInstructorSearchTerm("");
-                    setShowInstructorDropdown(true);
-                  }
-                }}
-                onBlur={() => {
-                  // Delay hiding to allow for dropdown clicks
-                  setTimeout(
-                    () => setShowInstructorDropdown(false),
-                    200,
+              <Select
+                key={`instructor-${selectedInstructor || "empty"}`}
+                value={selectedInstructor || undefined}
+                onValueChange={(value) => {
+                  setSelectedInstructor(value);
+                  // Auto-select course if instructor only teaches one course
+                  const instructorObj = instructors.find(
+                    (inst) => inst.name === value,
                   );
+                  if (
+                    instructorObj &&
+                    instructorObj.courses.length === 1
+                  ) {
+                    setSelectedCourse(instructorObj.courses[0]);
+                  }
                 }}
-                className={`bg-black/20 border-white/30 text-white placeholder:text-white/70 ${
-                  selectedInstructor ? "pr-16" : "pr-10"
-                }`}
-              />
+              >
+                <SelectTrigger className="bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white h-10">
+                  <SelectValue placeholder="Select Instructor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {/* Dynamic instructor options from actual data */}
+                  {instructors
+                    .filter((instructor) => {
+                      // If a course is selected, only show instructors who teach that course
+                      if (selectedCourse) {
+                        return instructor.courses.includes(selectedCourse);
+                      }
+                      // If no course is selected, show all instructors
+                      return true;
+                    })
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((instructor) => (
+                      <SelectItem key={instructor.name} value={instructor.name}>
+                        <div className="flex justify-between items-center w-full">
+                          <span>{instructor.name}</span>
+                          <span className="text-sm text-gray-500 ml-2">
+                            ({getInstructorOutlineCount(instructor.name)} Available)
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
               {selectedInstructor && (
                 <button
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     setSelectedInstructor("");
-                    setInstructorSearchTerm("");
                   }}
                   className="absolute right-8 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white z-10"
                 >
                   <X className="w-4 h-4" />
                 </button>
-              )}
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/70" />
-
-              {/* Instructor Dropdown */}
-              {showInstructorDropdown && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white text-black rounded shadow-lg z-20 max-h-48 overflow-y-auto">
-                  {instructors
-                    .filter((instructor) => {
-                      // If a course is selected, only show instructors who teach that course
-                      if (selectedCourse) {
-                        return instructor.courses.includes(
-                          selectedCourse,
-                        );
-                      }
-                      // If no course is selected, show all instructors
-                      return true;
-                    })
-                    .map((instructor) => instructor.name)
-                    .filter((instructor) => {
-                      // If there's a search term, filter by it
-                      if (instructorSearchTerm) {
-                        return instructor
-                          .toLowerCase()
-                          .includes(
-                            instructorSearchTerm.toLowerCase(),
-                          );
-                      }
-                      // If there's a selected instructor but no search term, show all available instructors
-                      if (
-                        selectedInstructor &&
-                        !instructorSearchTerm
-                      ) {
-                        return true;
-                      }
-                      // Default filtering behavior
-                      return instructor
-                        .toLowerCase()
-                        .includes(
-                          (
-                            selectedInstructor ||
-                            instructorSearchTerm
-                          ).toLowerCase(),
-                        );
-                    })
-                    .sort((a, b) => a.localeCompare(b)) // Sort alphabetically
-                    .map((instructor) => (
-                      <button
-                        key={instructor}
-                        onClick={() => {
-                          // Toggle selection - deselect if already selected
-                          if (
-                            selectedInstructor === instructor
-                          ) {
-                            setSelectedInstructor("");
-                          } else {
-                            setSelectedInstructor(instructor);
-
-                            // Auto-select course if instructor only teaches one course
-                            const instructorObj =
-                              instructors.find(
-                                (inst) =>
-                                  inst.name === instructor,
-                              );
-                            if (
-                              instructorObj &&
-                              instructorObj.courses.length === 1
-                            ) {
-                              setSelectedCourse(
-                                instructorObj.courses[0],
-                              );
-                            }
-                          }
-                          setInstructorSearchTerm("");
-                          setShowInstructorDropdown(false);
-                        }}
-                        className={`w-full p-2 text-left hover:bg-gray-100 flex justify-between items-center ${
-                          instructor === selectedInstructor
-                            ? "bg-[#8B4A6B] text-white"
-                            : ""
-                        }`}
-                      >
-                        <span>{instructor}</span>
-                        <span
-                          className={`text-sm ${
-                            instructor === selectedInstructor
-                              ? "text-white/70"
-                              : "text-gray-500"
-                          }`}
-                        >
-                          (
-                          {getInstructorOutlineCount(
-                            instructor,
-                          )}{" "}
-                          Available)
-                        </span>
-                      </button>
-                    ))}
-                </div>
               )}
             </div>
 

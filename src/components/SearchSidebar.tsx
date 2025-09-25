@@ -281,18 +281,10 @@ export function SearchSidebar({
                 value={selectedCourse || undefined}
                 onValueChange={(value) => {
                   setSelectedCourse(value);
-                  // Clear instructor if they don't teach the newly selected course
-                  if (selectedInstructor) {
-                    const instructorObj = instructors.find(
-                      (inst) => inst.name === selectedInstructor,
-                    );
-                    if (
-                      instructorObj &&
-                      !instructorObj.courses.includes(value)
-                    ) {
-                      setSelectedInstructor("");
-                    }
-                  }
+                  // Clear all subsequent selections when course changes
+                  setSelectedInstructor("");
+                  setSelectedGrade(undefined);
+                  setSelectedYear(undefined);
                 }}
               >
                 <SelectTrigger className="bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white h-10">
@@ -330,7 +322,9 @@ export function SearchSidebar({
                     e.preventDefault();
                     e.stopPropagation();
                     setSelectedCourse("");
-                    setSelectedInstructor(""); // Clear instructor when clearing course
+                    setSelectedInstructor("");
+                    setSelectedGrade(undefined);
+                    setSelectedYear(undefined);
                   }}
                   className="absolute right-8 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white z-10"
                 >
@@ -346,31 +340,28 @@ export function SearchSidebar({
                 value={selectedInstructor || undefined}
                 onValueChange={(value) => {
                   setSelectedInstructor(value);
-                  // Auto-select course if instructor only teaches one course
-                  const instructorObj = instructors.find(
-                    (inst) => inst.name === value,
-                  );
-                  if (
-                    instructorObj &&
-                    instructorObj.courses.length === 1
-                  ) {
-                    setSelectedCourse(instructorObj.courses[0]);
-                  }
+                  // Clear grade and year when instructor changes
+                  setSelectedGrade(undefined);
+                  setSelectedYear(undefined);
                 }}
+                disabled={!selectedCourse}
               >
-                <SelectTrigger className="bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white h-10">
-                  <SelectValue placeholder="Select Instructor" />
+                <SelectTrigger className={`h-10 ${
+                  !selectedCourse 
+                    ? "bg-gray-400/20 border-gray-400/30 text-gray-400 cursor-not-allowed" 
+                    : "bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white"
+                }`}>
+                  <SelectValue placeholder={!selectedCourse ? "Select Course First" : "Select Instructor"} />
                 </SelectTrigger>
                 <SelectContent>
                   {/* Dynamic instructor options from actual data */}
                   {instructors
                     .filter((instructor) => {
-                      // If a course is selected, only show instructors who teach that course
+                      // Only show instructors who teach the selected course
                       if (selectedCourse) {
                         return instructor.courses.includes(selectedCourse);
                       }
-                      // If no course is selected, show all instructors
-                      return true;
+                      return false;
                     })
                     .sort((a, b) => a.name.localeCompare(b.name))
                     .map((instructor) => (
@@ -391,6 +382,8 @@ export function SearchSidebar({
                     e.preventDefault();
                     e.stopPropagation();
                     setSelectedInstructor("");
+                    setSelectedGrade(undefined);
+                    setSelectedYear(undefined);
                   }}
                   className="absolute right-8 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white z-10"
                 >
@@ -406,16 +399,32 @@ export function SearchSidebar({
                 <Select
                   key={`grade-${selectedGrade || "empty"}`}
                   value={selectedGrade || undefined}
-                  onValueChange={(value) =>
-                    setSelectedGrade(value)
-                  }
+                  onValueChange={(value) => {
+                    setSelectedGrade(value);
+                    // Clear year when grade changes
+                    setSelectedYear(undefined);
+                  }}
+                  disabled={!selectedCourse || !selectedInstructor}
                 >
-                  <SelectTrigger className="bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white h-10">
-                    <SelectValue placeholder="Grade" />
+                  <SelectTrigger className={`h-10 ${
+                    !selectedCourse || !selectedInstructor
+                      ? "bg-gray-400/20 border-gray-400/30 text-gray-400 cursor-not-allowed" 
+                      : "bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white"
+                  }`}>
+                    <SelectValue placeholder={
+                      !selectedCourse || !selectedInstructor 
+                        ? "Select Course & Instructor First" 
+                        : "Grade"
+                    } />
                   </SelectTrigger>
                   <SelectContent>
                     {/* Dynamic grade options from actual data */}
-                    {Array.from(new Set(allOutlines.map(outline => outline.type)))
+                    {Array.from(new Set(allOutlines
+                      .filter(outline => 
+                        outline.course === selectedCourse && 
+                        outline.instructor === selectedInstructor
+                      )
+                      .map(outline => outline.type)))
                       .sort()
                       .map(grade => (
                         <SelectItem key={grade} value={grade}>{grade}</SelectItem>
@@ -428,6 +437,7 @@ export function SearchSidebar({
                       e.preventDefault();
                       e.stopPropagation();
                       setSelectedGrade(undefined);
+                      setSelectedYear(undefined);
                     }}
                     className="absolute right-8 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white z-10"
                   >
@@ -441,16 +451,29 @@ export function SearchSidebar({
                 <Select
                   key={`year-${selectedYear || "empty"}`}
                   value={selectedYear || undefined}
-                  onValueChange={(value) =>
-                    setSelectedYear(value)
-                  }
+                  onValueChange={(value) => setSelectedYear(value)}
+                  disabled={!selectedCourse || !selectedInstructor || !selectedGrade}
                 >
-                  <SelectTrigger className="bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white h-10">
-                    <SelectValue placeholder="Year" />
+                  <SelectTrigger className={`h-10 ${
+                    !selectedCourse || !selectedInstructor || !selectedGrade
+                      ? "bg-gray-400/20 border-gray-400/30 text-gray-400 cursor-not-allowed" 
+                      : "bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white"
+                  }`}>
+                    <SelectValue placeholder={
+                      !selectedCourse || !selectedInstructor || !selectedGrade
+                        ? "Select Course, Instructor & Grade First" 
+                        : "Year"
+                    } />
                   </SelectTrigger>
                   <SelectContent>
                     {/* Dynamic year options from actual data */}
-                    {Array.from(new Set(allOutlines.map(outline => outline.year)))
+                    {Array.from(new Set(allOutlines
+                      .filter(outline => 
+                        outline.course === selectedCourse && 
+                        outline.instructor === selectedInstructor &&
+                        outline.type === selectedGrade
+                      )
+                      .map(outline => outline.year)))
                       .sort((a, b) => parseInt(b) - parseInt(a)) // Sort newest first
                       .map(year => (
                         <SelectItem key={year} value={year}>{year}</SelectItem>

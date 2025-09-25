@@ -3,6 +3,7 @@ import { FileText } from 'lucide-react';
 import { NavigationSidebar } from './components/NavigationSidebar';
 import { SearchSidebar } from './components/SearchSidebar';
 import { OutlineViewer } from './components/OutlineViewer';
+import { ExamsPage } from './components/ExamsPage';
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import type { Outline, Instructor } from './types';
@@ -30,6 +31,19 @@ function AppContent({ loading }: { loading: boolean }) {
   const [activeSection, setActiveSection] = useState('outlines');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [sortBy, setSortBy] = useState('Highest Rated');
+
+  // Exams state - separate from outlines
+  const [selectedExam, setSelectedExam] = useState<Outline | null>(null);
+  const [examSearchTerm, setExamSearchTerm] = useState('');
+  const [selectedExamCourse, setSelectedExamCourse] = useState('');
+  const [selectedExamInstructor, setSelectedExamInstructor] = useState('');
+  const [selectedExamGrade, setSelectedExamGrade] = useState<string | undefined>(undefined);
+  const [selectedExamYear, setSelectedExamYear] = useState<string | undefined>(undefined);
+  const [showExamOutlines, setShowExamOutlines] = useState(true);
+  const [showExamAttacks, setShowExamAttacks] = useState(true);
+  const [examActiveTab, setExamActiveTab] = useState<'search' | 'saved' | 'upload'>('search');
+  const [savedExams, setSavedExams] = useState<Outline[]>([]);
+  const [hiddenExams, setHiddenExams] = useState<string[]>([]);
 
   // Filter outlines based on search criteria
   const filteredOutlines = outlineData.filter((outline) => {
@@ -80,6 +94,55 @@ function AppContent({ loading }: { loading: boolean }) {
     return a.title.localeCompare(b.title);
   });
 
+  // Filter exams based on search criteria (separate from outlines)
+  const filteredExams = outlineData.filter((exam) => {
+    // Don't show any exams unless BOTH a course AND instructor are selected
+    if (selectedExamCourse === '' || selectedExamInstructor === '') {
+      return false;
+    }
+
+    // Exclude hidden exams
+    if (hiddenExams.includes(exam.id)) {
+      return false;
+    }
+
+    const matchesSearch =
+      examSearchTerm === '' ||
+      exam.title.toLowerCase().includes(examSearchTerm.toLowerCase()) ||
+      exam.course.toLowerCase().includes(examSearchTerm.toLowerCase());
+
+    const matchesCourse = exam.course === selectedExamCourse;
+    const matchesInstructor = exam.instructor === selectedExamInstructor;
+    const matchesGrade = !selectedExamGrade || exam.type === selectedExamGrade;
+    const matchesYear = !selectedExamYear || exam.year === selectedExamYear;
+
+    // Filter by Outline/Attack type based on page count
+    const isAttack = exam.pages <= 25;
+    const isOutline = exam.pages > 25;
+    const matchesType =
+      (isAttack && showExamAttacks) || (isOutline && showExamOutlines);
+
+    return (
+      matchesSearch &&
+      matchesCourse &&
+      matchesInstructor &&
+      matchesGrade &&
+      matchesYear &&
+      matchesType
+    );
+  });
+
+  // Sort exams (separate from outlines)
+  const sortedExams = [...filteredExams].sort((a, b) => {
+    if (sortBy === 'Highest Rated') {
+      return b.rating - a.rating;
+    }
+    if (sortBy === 'Newest') {
+      return parseInt(b.year) - parseInt(a.year);
+    }
+    return a.title.localeCompare(b.title);
+  });
+
   // Outline handlers
   const handleSaveOutline = (outline: Outline) => {
     setSavedOutlines((prev) => {
@@ -113,6 +176,41 @@ function AppContent({ loading }: { loading: boolean }) {
 
   const handleUnhideAllOutlines = () => {
     setHiddenOutlines([]);
+  };
+
+  // Exam handlers (separate from outlines)
+  const handleSaveExam = (exam: Outline) => {
+    setSavedExams((prev) => {
+      if (prev.some((saved) => saved.id === exam.id)) {
+        return prev;
+      }
+      return [...prev, exam];
+    });
+  };
+
+  const handleRemoveSavedExam = (examId: string) => {
+    setSavedExams((prev) =>
+      prev.filter((exam) => exam.id !== examId)
+    );
+  };
+
+  const handleToggleSaveExam = (exam: Outline) => {
+    setSavedExams((prev) => {
+      const isAlreadySaved = prev.some((saved) => saved.id === exam.id);
+      if (isAlreadySaved) {
+        return prev.filter((saved) => saved.id !== exam.id);
+      } else {
+        return [...prev, exam];
+      }
+    });
+  };
+
+  const handleHideExam = (examId: string) => {
+    setHiddenExams((prev) => [...prev, examId]);
+  };
+
+  const handleUnhideAllExams = () => {
+    setHiddenExams([]);
   };
 
   const handleSectionChange = (section: string) => {
@@ -238,6 +336,41 @@ function AppContent({ loading }: { loading: boolean }) {
               }
             />
           )
+        ) : activeSection === 'exams' ? (
+          <ExamsPage
+            outlines={sortedExams}
+            allOutlines={outlineData}
+            courses={courseData}
+            instructors={instructorData}
+            savedOutlines={savedExams}
+            hiddenOutlines={hiddenExams}
+            onSaveOutline={handleSaveExam}
+            onRemoveSavedOutline={handleRemoveSavedExam}
+            onToggleSaveOutline={handleToggleSaveExam}
+            onHideOutline={handleHideExam}
+            onUnhideAllOutlines={handleUnhideAllExams}
+            // Exam-specific state
+            selectedExam={selectedExam}
+            setSelectedExam={setSelectedExam}
+            examSearchTerm={examSearchTerm}
+            setExamSearchTerm={setExamSearchTerm}
+            selectedExamCourse={selectedExamCourse}
+            setSelectedExamCourse={setSelectedExamCourse}
+            selectedExamInstructor={selectedExamInstructor}
+            setSelectedExamInstructor={setSelectedExamInstructor}
+            selectedExamGrade={selectedExamGrade}
+            setSelectedExamGrade={setSelectedExamGrade}
+            selectedExamYear={selectedExamYear}
+            setSelectedExamYear={setSelectedExamYear}
+            showExamOutlines={showExamOutlines}
+            setShowExamOutlines={setShowExamOutlines}
+            showExamAttacks={showExamAttacks}
+            setShowExamAttacks={setShowExamAttacks}
+            examActiveTab={examActiveTab}
+            setExamActiveTab={setExamActiveTab}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
+          />
         ) : (
           <div className="flex items-center justify-center h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
             <div className="text-center p-8">
@@ -245,10 +378,10 @@ function AppContent({ loading }: { loading: boolean }) {
                 <span className="text-2xl text-gray-600">📄</span>
               </div>
               <h2 className="text-2xl font-medium text-gray-700 mb-4">
-                Clean Outline Playground
+                Clean Frontend Playground
               </h2>
               <p className="text-gray-600 max-w-md">
-                This is a clean frontend UI playground for outlines with no mock data or backend dependencies.
+                This is a clean frontend UI playground with no mock data or backend dependencies.
               </p>
             </div>
           </div>

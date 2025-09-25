@@ -42,6 +42,10 @@ interface SearchSidebarProps {
   setSelectedCourse: (course: string) => void;
   selectedInstructor: string;
   setSelectedInstructor: (instructor: string) => void;
+  selectedGrade: string | undefined;
+  setSelectedGrade: (grade: string | undefined) => void;
+  selectedYear: string | undefined;
+  setSelectedYear: (year: string | undefined) => void;
   sortBy: string;
   setSortBy: (sortBy: string) => void;
   showOutlines: boolean;
@@ -69,6 +73,10 @@ export function SearchSidebar({
   setSelectedCourse,
   selectedInstructor,
   setSelectedInstructor,
+  selectedGrade,
+  setSelectedGrade,
+  selectedYear,
+  setSelectedYear,
   sortBy,
   setSortBy,
   showOutlines,
@@ -575,6 +583,75 @@ export function SearchSidebar({
 
             {/* Grade and Year Filters Side by Side */}
             <div className="flex gap-1.5">
+              {/* Grade Filter - Dynamic based on data */}
+              <div className="relative flex-1">
+                <Select
+                  key={`grade-${selectedGrade || "empty"}`}
+                  value={selectedGrade || undefined}
+                  onValueChange={(value) =>
+                    setSelectedGrade(value)
+                  }
+                >
+                  <SelectTrigger className="bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white h-10">
+                    <SelectValue placeholder="Grade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {/* Dynamic grade options from actual data */}
+                    {Array.from(new Set(allOutlines.map(outline => outline.type)))
+                      .sort()
+                      .map(grade => (
+                        <SelectItem key={grade} value={grade}>{grade}</SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                {selectedGrade && (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setSelectedGrade(undefined);
+                    }}
+                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white z-10"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              {/* Year Filter - Dynamic based on data */}
+              <div className="relative flex-1">
+                <Select
+                  key={`year-${selectedYear || "empty"}`}
+                  value={selectedYear || undefined}
+                  onValueChange={(value) =>
+                    setSelectedYear(value)
+                  }
+                >
+                  <SelectTrigger className="bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white h-10">
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {/* Dynamic year options from actual data */}
+                    {Array.from(new Set(allOutlines.map(outline => outline.year)))
+                      .sort((a, b) => parseInt(b) - parseInt(a)) // Sort newest first
+                      .map(year => (
+                        <SelectItem key={year} value={year}>{year}</SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                {selectedYear && (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setSelectedYear(undefined);
+                    }}
+                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white z-10"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

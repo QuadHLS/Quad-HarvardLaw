@@ -21,6 +21,8 @@ function AppContent({ loading }: { loading: boolean }) {
   const [selectedOutline, setSelectedOutline] = useState<Outline | null>(null);
   const [selectedCourse, setSelectedCourse] = useState('');
   const [selectedInstructor, setSelectedInstructor] = useState('');
+  const [selectedGrade, setSelectedGrade] = useState<string | undefined>(undefined);
+  const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
   const [showOutlines, setShowOutlines] = useState(true);
   const [showAttacks, setShowAttacks] = useState(true);
   const [activeTab, setActiveTab] = useState<'search' | 'saved' | 'upload'>('search');
@@ -57,6 +59,8 @@ function AppContent({ loading }: { loading: boolean }) {
 
     const matchesCourse = outline.course === selectedCourse;
     const matchesInstructor = outline.instructor === selectedInstructor;
+    const matchesGrade = !selectedGrade || outline.type === selectedGrade;
+    const matchesYear = !selectedYear || outline.year === selectedYear;
 
     // Filter by Outline/Attack type based on page count
     const isAttack = outline.pages <= 25;
@@ -67,6 +71,8 @@ function AppContent({ loading }: { loading: boolean }) {
     return (
       matchesCourse &&
       matchesInstructor &&
+      matchesGrade &&
+      matchesYear &&
       matchesType
     );
   });
@@ -256,6 +262,10 @@ function AppContent({ loading }: { loading: boolean }) {
           setSelectedCourse={setSelectedCourse}
           selectedInstructor={selectedInstructor}
           setSelectedInstructor={setSelectedInstructor}
+          selectedGrade={selectedGrade}
+          setSelectedGrade={setSelectedGrade}
+          selectedYear={selectedYear}
+          setSelectedYear={setSelectedYear}
           sortBy={sortBy}
           setSortBy={setSortBy}
           showOutlines={showOutlines}

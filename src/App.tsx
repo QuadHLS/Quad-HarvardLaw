@@ -5,10 +5,6 @@ import { SearchSidebar } from './components/SearchSidebar';
 import { OutlineViewer } from './components/OutlineViewer';
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { AuthPage } from './components/auth/AuthPage';
-import AccessCodeVerification from './components/AccessCodeVerification';
-import { OnboardingFlow } from './components/onboarding/OnboardingFlow';
-import { supabase } from './lib/supabase';
 import type { Outline, Instructor } from './types';
 
 // Clean outline data - no mock data, just empty arrays for UI playground
@@ -17,11 +13,7 @@ const instructorData: Instructor[] = [];
 const courseData: string[] = [];
 
 // Main App Content Component
-function AppContent({ user, loading }: { user: any; loading: boolean }) {
-  // Local auth state
-  const [authLoading] = useState(true);
-  const [isVerified, setIsVerified] = useState(false);
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+function AppContent({ loading }: { loading: boolean }) {
   
   // Outlines state - clean and simple
   const [selectedOutline, setSelectedOutline] = useState<Outline | null>(null);
@@ -131,8 +123,8 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
     setSidebarCollapsed((prev) => !prev);
   };
 
-  // Show loading state while checking authentication
-  if (loading || authLoading) {
+  // Simplified loading state for playground
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
         <div className="text-center">
@@ -149,53 +141,10 @@ function AppContent({ user, loading }: { user: any; loading: boolean }) {
     );
   }
 
-  // Show login page if user is not authenticated
-  if (!user) {
-    return <AuthPage />;
-  }
-
-  // Always require access code verification
-  if (!isVerified) {
-    return (
-      <AccessCodeVerification
-        onVerified={async () => {
-          const { data: { user: currentUser } } = await supabase.auth.getUser();
-          if (currentUser) {
-            const { error } = await supabase
-              .from('profiles')
-              .update({ access_code_verified: true })
-              .eq('id', currentUser.id);
-            
-            if (error) {
-              console.error('Error updating access_code_verified:', error);
-            }
-          }
-          
-          setIsVerified(true);
-        }}
-      />
-    );
-  }
-
-  // Show onboarding flow if user hasn't completed onboarding
-  if (!hasCompletedOnboarding) {
-    return (
-      <OnboardingFlow onComplete={async () => {
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
-        if (currentUser) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('classes_filled')
-            .eq('id', currentUser.id)
-            .single();
-          
-          if (profile) {
-            setHasCompletedOnboarding(profile.classes_filled === true);
-          }
-        }
-      }} />
-    );
-  }
+  // Skip authentication for playground - go straight to outline UI
+  // if (!user) {
+  //   return <AuthPage />;
+  // }
 
   return (
     <div className="h-screen flex min-w-0" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
@@ -320,7 +269,7 @@ export default function App() {
 
 // App component that uses AuthContext
 function AppWithAuth() {
-  const { user, loading } = useAuth();
+  const { loading } = useAuth();
 
-  return <AppContent user={user} loading={loading} />;
+  return <AppContent loading={loading} />;
 }

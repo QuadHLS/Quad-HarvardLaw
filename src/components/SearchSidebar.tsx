@@ -413,7 +413,7 @@ export function SearchSidebar({
                   }`}>
                     <SelectValue placeholder={
                       !selectedCourse || !selectedInstructor 
-                        ? "Select Course & Instructor First" 
+                        ? "Select Instructor First" 
                         : "Grade"
                     } />
                   </SelectTrigger>
@@ -461,7 +461,7 @@ export function SearchSidebar({
                   }`}>
                     <SelectValue placeholder={
                       !selectedCourse || !selectedInstructor || !selectedGrade
-                        ? "Select Course, Instructor & Grade First" 
+                        ? "Select Grade First" 
                         : "Year"
                     } />
                   </SelectTrigger>

@@ -19,7 +19,7 @@ const courseData: string[] = [];
 // Main App Content Component
 function AppContent({ user, loading }: { user: any; loading: boolean }) {
   // Local auth state
-  const [authLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true);
   const [isVerified, setIsVerified] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   

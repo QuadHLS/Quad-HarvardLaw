@@ -16,6 +16,27 @@ interface ExamsPageProps {
   onToggleSaveOutline: (outline: Outline) => void;
   onHideOutline: (outlineId: string) => void;
   onUnhideAllOutlines: () => void;
+  // Exam-specific state
+  selectedExam: Outline | null;
+  setSelectedExam: (exam: Outline | null) => void;
+  examSearchTerm: string;
+  setExamSearchTerm: (term: string) => void;
+  selectedExamCourse: string;
+  setSelectedExamCourse: (course: string) => void;
+  selectedExamInstructor: string;
+  setSelectedExamInstructor: (instructor: string) => void;
+  selectedExamGrade: string | undefined;
+  setSelectedExamGrade: (grade: string | undefined) => void;
+  selectedExamYear: string | undefined;
+  setSelectedExamYear: (year: string | undefined) => void;
+  showExamOutlines: boolean;
+  setShowExamOutlines: (show: boolean) => void;
+  showExamAttacks: boolean;
+  setShowExamAttacks: (show: boolean) => void;
+  examActiveTab: 'search' | 'saved' | 'upload';
+  setExamActiveTab: (tab: 'search' | 'saved' | 'upload') => void;
+  sortBy: string;
+  setSortBy: (sort: string) => void;
 }
 
 export function ExamsPage({
@@ -29,50 +50,61 @@ export function ExamsPage({
   onRemoveSavedOutline,
   onToggleSaveOutline,
   onHideOutline,
-  onUnhideAllOutlines
+  onUnhideAllOutlines,
+  // Exam-specific state
+  selectedExam,
+  setSelectedExam,
+  examSearchTerm,
+  setExamSearchTerm,
+  selectedExamCourse,
+  setSelectedExamCourse,
+  selectedExamInstructor,
+  setSelectedExamInstructor,
+  selectedExamGrade,
+  setSelectedExamGrade,
+  selectedExamYear,
+  setSelectedExamYear,
+  showExamOutlines,
+  setShowExamOutlines,
+  showExamAttacks,
+  setShowExamAttacks,
+  examActiveTab,
+  setExamActiveTab,
+  sortBy,
+  setSortBy
 }: ExamsPageProps) {
-  const [selectedOutline, setSelectedOutline] = useState<Outline | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCourse, setSelectedCourse] = useState('');
-  const [selectedInstructor, setSelectedInstructor] = useState('');
-  const [selectedGrade, setSelectedGrade] = useState<string | undefined>(undefined);
-  const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
-  const [showOutlines, setShowOutlines] = useState(true);
-  const [showAttacks, setShowAttacks] = useState(true);
-  const [activeTab, setActiveTab] = useState<'search' | 'saved' | 'upload'>('search');
-  const [sortBy, setSortBy] = useState('Highest Rated');
 
-  // Filter outlines based on search criteria (same logic as original)
-  const filteredOutlines = allOutlines.filter(outline => {
-    // Don't show any outlines unless BOTH a course AND instructor are selected
-    if (selectedCourse === '' || selectedInstructor === '') {
+  // Filter exams based on search criteria (using exam-specific state)
+  const filteredExams = allOutlines.filter(exam => {
+    // Don't show any exams unless BOTH a course AND instructor are selected
+    if (selectedExamCourse === '' || selectedExamInstructor === '') {
       return false;
     }
     
-    // Exclude hidden outlines
-    if (hiddenOutlines.includes(outline.id)) {
+    // Exclude hidden exams
+    if (hiddenOutlines.includes(exam.id)) {
       return false;
     }
     
-    const matchesSearch = searchTerm === '' || 
-      outline.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      outline.course.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = examSearchTerm === '' || 
+      exam.title.toLowerCase().includes(examSearchTerm.toLowerCase()) ||
+      exam.course.toLowerCase().includes(examSearchTerm.toLowerCase());
     
-    const matchesCourse = outline.course === selectedCourse;
-    const matchesInstructor = outline.instructor === selectedInstructor;
-    const matchesGrade = !selectedGrade || outline.type === selectedGrade;
-    const matchesYear = !selectedYear || outline.year === selectedYear;
+    const matchesCourse = exam.course === selectedExamCourse;
+    const matchesInstructor = exam.instructor === selectedExamInstructor;
+    const matchesGrade = !selectedExamGrade || exam.type === selectedExamGrade;
+    const matchesYear = !selectedExamYear || exam.year === selectedExamYear;
     
     // Filter by Outline/Attack type based on page count
-    const isAttack = outline.pages <= 25;
-    const isOutline = outline.pages > 25;
-    const matchesType = (isAttack && showAttacks) || (isOutline && showOutlines);
+    const isAttack = exam.pages <= 25;
+    const isOutline = exam.pages > 25;
+    const matchesType = (isAttack && showExamAttacks) || (isOutline && showExamOutlines);
     
     return matchesSearch && matchesCourse && matchesInstructor && matchesGrade && matchesYear && matchesType;
   });
 
-  // Sort outlines
-  const sortedOutlines = [...filteredOutlines].sort((a, b) => {
+  // Sort exams
+  const sortedExams = [...filteredExams].sort((a, b) => {
     if (sortBy === 'Highest Rated') {
       return b.rating - a.rating;
     }
@@ -83,33 +115,33 @@ export function ExamsPage({
   });
 
   return (
-    <div className="h-full style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} flex">
+    <div className="h-full flex" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
       {/* Search Sidebar */}
       <SearchSidebar
-        outlines={sortedOutlines}
+        outlines={sortedExams}
         allOutlines={allOutlines}
         courses={courses}
         instructors={instructors}
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        selectedCourse={selectedCourse}
-        setSelectedCourse={setSelectedCourse}
-        selectedInstructor={selectedInstructor}
-        setSelectedInstructor={setSelectedInstructor}
-        selectedGrade={selectedGrade}
-        setSelectedGrade={setSelectedGrade}
-        selectedYear={selectedYear}
-        setSelectedYear={setSelectedYear}
+        searchTerm={examSearchTerm}
+        setSearchTerm={setExamSearchTerm}
+        selectedCourse={selectedExamCourse}
+        setSelectedCourse={setSelectedExamCourse}
+        selectedInstructor={selectedExamInstructor}
+        setSelectedInstructor={setSelectedExamInstructor}
+        selectedGrade={selectedExamGrade}
+        setSelectedGrade={setSelectedExamGrade}
+        selectedYear={selectedExamYear}
+        setSelectedYear={setSelectedExamYear}
         sortBy={sortBy}
         setSortBy={setSortBy}
-        showOutlines={showOutlines}
-        setShowOutlines={setShowOutlines}
-        showAttacks={showAttacks}
-        setShowAttacks={setShowAttacks}
-        selectedOutline={selectedOutline}
-        onSelectOutline={setSelectedOutline}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        showOutlines={showExamOutlines}
+        setShowOutlines={setShowExamOutlines}
+        showAttacks={showExamAttacks}
+        setShowAttacks={setShowExamAttacks}
+        selectedOutline={selectedExam}
+        onSelectOutline={setSelectedExam}
+        activeTab={examActiveTab}
+        setActiveTab={setExamActiveTab}
         savedOutlines={savedOutlines}
         onRemoveSavedOutline={onRemoveSavedOutline}
         onToggleSaveOutline={onToggleSaveOutline}
@@ -120,8 +152,8 @@ export function ExamsPage({
       
       {/* Main Content */}
       <div className="flex-1">
-        {activeTab === 'upload' ? (
-          <div className="flex items-center justify-center h-full style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}">
+        {examActiveTab === 'upload' ? (
+          <div className="flex items-center justify-center h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
             <div className="text-center p-8">
               <FileText className="w-24 h-24 text-gray-400 mx-auto mb-4" />
               <h2 className="text-2xl font-medium text-gray-700 mb-4">
@@ -130,7 +162,7 @@ export function ExamsPage({
               <p className="text-gray-600 mb-6 max-w-md">
                 Use the upload form in the sidebar to share your exam materials with the community.
               </p>
-              <div className="style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} rounded-lg shadow-sm p-6 max-w-lg mx-auto">
+              <div className="bg-white rounded-lg shadow-sm p-6 max-w-lg mx-auto">
                 <h3 className="font-medium text-gray-800 mb-3">Upload Guidelines:</h3>
                 <ul className="text-sm text-gray-600 space-y-2 text-left">
                   <li>• Accepted formats: PDF, DOC, DOCX</li>
@@ -144,9 +176,9 @@ export function ExamsPage({
           </div>
         ) : (
           <OutlineViewer 
-            outline={selectedOutline} 
+            outline={selectedExam} 
             onSaveOutline={onSaveOutline}
-            isSaved={selectedOutline ? savedOutlines.some(saved => saved.id === selectedOutline.id) : false}
+            isSaved={selectedExam ? savedOutlines.some(saved => saved.id === selectedExam.id) : false}
           />
         )}
       </div>

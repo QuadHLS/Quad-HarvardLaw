@@ -38,16 +38,10 @@ interface SearchSidebarProps {
   allOutlines: Outline[];
   courses: string[];
   instructors: Instructor[];
-  searchTerm: string;
-  setSearchTerm: (term: string) => void;
   selectedCourse: string;
   setSelectedCourse: (course: string) => void;
   selectedInstructor: string;
   setSelectedInstructor: (instructor: string) => void;
-  selectedGrade: string | undefined;
-  setSelectedGrade: (grade: string | undefined) => void;
-  selectedYear: string | undefined;
-  setSelectedYear: (year: string | undefined) => void;
   sortBy: string;
   setSortBy: (sortBy: string) => void;
   showOutlines: boolean;
@@ -71,16 +65,10 @@ export function SearchSidebar({
   allOutlines,
   courses,
   instructors,
-  searchTerm,
-  setSearchTerm,
   selectedCourse,
   setSelectedCourse,
   selectedInstructor,
   setSelectedInstructor,
-  selectedGrade,
-  setSelectedGrade,
-  selectedYear,
-  setSelectedYear,
   sortBy,
   setSortBy,
   showOutlines,
@@ -587,92 +575,25 @@ export function SearchSidebar({
 
             {/* Grade and Year Filters Side by Side */}
             <div className="flex gap-1.5">
-              {/* Grade Filter */}
-              <div className="relative flex-1">
-                <Select
-                  key={`grade-${selectedGrade || "empty"}`}
-                  value={selectedGrade || undefined}
-                  onValueChange={(value) =>
-                    setSelectedGrade(value)
-                  }
-                >
-                  <SelectTrigger className="bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white h-10">
-                    <SelectValue placeholder="Grade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="DS">DS</SelectItem>
-                    <SelectItem value="H">H</SelectItem>
-                    <SelectItem value="P">P</SelectItem>
-                  </SelectContent>
-                </Select>
-                {selectedGrade && (
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setSelectedGrade(undefined);
-                    }}
-                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white z-10"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-
-              {/* Year Filter */}
-              <div className="relative flex-1">
-                <Select
-                  key={`year-${selectedYear || "empty"}`}
-                  value={selectedYear || undefined}
-                  onValueChange={(value) =>
-                    setSelectedYear(value)
-                  }
-                >
-                  <SelectTrigger className="bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white h-10">
-                    <SelectValue placeholder="Year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="2025">2025</SelectItem>
-                    <SelectItem value="2024">2024</SelectItem>
-                    <SelectItem value="2023">2023</SelectItem>
-                    <SelectItem value="2022">2022</SelectItem>
-                    <SelectItem value="2021">2021</SelectItem>
-                    <SelectItem value="2020">2020</SelectItem>
-                    <SelectItem value="2019">2019</SelectItem>
-                    <SelectItem value="2018">2018</SelectItem>
-                    <SelectItem value="2017">2017</SelectItem>
-                    <SelectItem value="2016">2016</SelectItem>
-                  </SelectContent>
-                </Select>
-                {selectedYear && (
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setSelectedYear(undefined);
-                    }}
-                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white z-10"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
             </div>
           </div>
 
-          {/* Sort By */}
+          {/* Sort By - Dynamic based on data */}
           <div className="px-3 pb-3 bg-[rgba(117,36,50,1)] space-y-3">
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="bg-white border-0 text-black">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Highest Rated">
-                  Highest Rated
-                </SelectItem>
-                <SelectItem value="Newest">Newest</SelectItem>
-              </SelectContent>
-            </Select>
+            {allOutlines.length > 0 && (
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="bg-white border-0 text-black">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Highest Rated">
+                    Highest Rated
+                  </SelectItem>
+                  <SelectItem value="Newest">Newest</SelectItem>
+                  <SelectItem value="Alphabetical">Alphabetical</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
 
             {/* Filter Tags */}
             <div className="flex gap-1.5 justify-center">

@@ -624,16 +624,7 @@ function AppContent({ user }: { user: any }) {
             />
           )
         ) : activeSection === 'exams' ? (
-          <ExamsPage
-            allOutlines={outlines}
-            savedOutlines={savedExams}
-            hiddenOutlines={hiddenExams}
-            onSaveOutline={handleSaveExam}
-            onRemoveSavedOutline={handleRemoveSavedExam}
-            onToggleSaveOutline={handleToggleSaveExam}
-            onHideOutline={handleHideExam}
-            onUnhideAllOutlines={handleUnhideAllExams}
-          />
+          <ExamsPage />
         ) : activeSection === 'reviews' ? (
           <ReviewsPage />
         ) : activeSection === 'home' ? (

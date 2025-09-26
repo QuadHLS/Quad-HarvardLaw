@@ -1,142 +1,135 @@
 import { useState } from 'react';
-import { FileText } from 'lucide-react';
-import { SearchSidebar } from './SearchSidebar';
-import { OutlineViewer } from './OutlineViewer';
-import type { Outline } from '../types';
+import { Search, Filter } from 'lucide-react';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/select';
 
 interface ExamsPageProps {
-  allOutlines: Outline[];
-  savedOutlines: Outline[];
-  hiddenOutlines: string[];
-  onSaveOutline: (outline: Outline) => void;
-  onRemoveSavedOutline: (outlineId: string) => void;
-  onToggleSaveOutline: (outline: Outline) => void;
-  onHideOutline: (outlineId: string) => void;
-  onUnhideAllOutlines: () => void;
+  // No props needed for now - completely independent
 }
 
-export function ExamsPage({
-  allOutlines,
-  savedOutlines,
-  hiddenOutlines,
-  onSaveOutline,
-  onRemoveSavedOutline,
-  onToggleSaveOutline,
-  onHideOutline,
-  onUnhideAllOutlines
-}: ExamsPageProps) {
-  const [selectedOutline, setSelectedOutline] = useState<Outline | null>(null);
-  const [selectedCourse, setSelectedCourse] = useState('');
-  const [selectedInstructor, setSelectedInstructor] = useState('');
-  const [selectedGrade, setSelectedGrade] = useState<string | undefined>(undefined);
-  const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
-  const [showOutlines, setShowOutlines] = useState(true);
-  const [showAttacks, setShowAttacks] = useState(true);
-  const [activeTab, setActiveTab] = useState<'search' | 'saved' | 'upload'>('search');
-  const [sortBy, setSortBy] = useState('Highest Rated');
+export function ExamsPage({}: ExamsPageProps) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCourse, setSelectedCourse] = useState('all');
+  const [selectedInstructor, setSelectedInstructor] = useState('all');
+  const [selectedYear, setSelectedYear] = useState('all');
+  const [selectedSemester, setSelectedSemester] = useState('all');
 
-
-  // Filter outlines based on search criteria (same logic as original)
-  const filteredOutlines = allOutlines.filter(outline => {
-    // Don't show any outlines unless BOTH a course AND instructor are selected
-    if (selectedCourse === '' || selectedInstructor === '') {
-      return false;
-    }
-    
-    // Exclude hidden outlines
-    if (hiddenOutlines.includes(outline.id)) {
-      return false;
-    }
-    
-    const matchesSearch = true; // No search term filtering for now
-    
-    const matchesCourse = outline.course === selectedCourse;
-    const matchesInstructor = outline.instructor === selectedInstructor;
-    const matchesGrade = !selectedGrade || outline.grade === selectedGrade;
-    const matchesYear = !selectedYear || outline.year === selectedYear;
-    
-    // Filter by Outline/Attack type based on page count
-    const isAttack = outline.pages <= 25;
-    const isOutline = outline.pages > 25;
-    const matchesType = (isAttack && showAttacks) || (isOutline && showOutlines);
-    
-    return matchesSearch && matchesCourse && matchesInstructor && matchesGrade && matchesYear && matchesType;
-  });
-
-  // Sort outlines
-  const sortedOutlines = [...filteredOutlines].sort((a, b) => {
-    if (sortBy === 'Highest Rated') {
-      return b.rating - a.rating;
-    }
-    if (sortBy === 'Newest') {
-      return parseInt(b.year) - parseInt(a.year);
-    }
-    return a.title.localeCompare(b.title);
-  });
+  const courses = ['Contracts', 'Torts', 'Criminal Law', 'Constitutional Law'];
+  const instructors = ['Professor Smith', 'Professor Johnson', 'Professor Williams'];
+  const years = ['2023', '2022', '2021', '2020'];
+  const semesters = ['Fall', 'Spring', 'Summer'];
 
   return (
-    <div className="h-full style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} flex">
-      {/* Search Sidebar */}
-      <SearchSidebar
-        outlines={sortedOutlines}
-        allOutlines={allOutlines}
-        selectedCourse={selectedCourse}
-        setSelectedCourse={setSelectedCourse}
-        selectedInstructor={selectedInstructor}
-        setSelectedInstructor={setSelectedInstructor}
-        selectedGrade={selectedGrade}
-        setSelectedGrade={setSelectedGrade}
-        selectedYear={selectedYear}
-        setSelectedYear={setSelectedYear}
-        sortBy={sortBy}
-        setSortBy={setSortBy}
-        showOutlines={showOutlines}
-        setShowOutlines={setShowOutlines}
-        showAttacks={showAttacks}
-        setShowAttacks={setShowAttacks}
-        selectedOutline={selectedOutline}
-        onSelectOutline={setSelectedOutline}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        savedOutlines={savedOutlines}
-        onRemoveSavedOutline={onRemoveSavedOutline}
-        onToggleSaveOutline={onToggleSaveOutline}
-        hiddenOutlines={hiddenOutlines}
-        onHideOutline={onHideOutline}
-        onUnhideAllOutlines={onUnhideAllOutlines}
-      />
-      
-      {/* Main Content */}
-      <div className="flex-1">
-        {activeTab === 'upload' ? (
-          <div className="flex items-center justify-center h-full style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}">
-            <div className="text-center p-8">
-              <FileText className="w-24 h-24 text-gray-400 mx-auto mb-4" />
-              <h2 className="text-2xl font-medium text-gray-700 mb-4">
-                Upload Your Exam
-              </h2>
-              <p className="text-gray-600 mb-6 max-w-md">
-                Use the upload form in the sidebar to share your exam materials with the community.
-              </p>
-              <div className="style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} rounded-lg shadow-sm p-6 max-w-lg mx-auto">
-                <h3 className="font-medium text-gray-800 mb-3">Upload Guidelines:</h3>
-                <ul className="text-sm text-gray-600 space-y-2 text-left">
-                  <li>• Accepted formats: PDF, DOC, DOCX</li>
-                  <li>• Maximum file size: 50MB</li>
-                  <li>• Only upload your original work</li>
-                  <li>• Include accurate course and instructor information</li>
-                  <li>• Use descriptive titles for better discoverability</li>
-                </ul>
-              </div>
-            </div>
+    <div className="h-full flex" style={{ backgroundColor: '#f9f5f0' }}>
+      {/* Left Sidebar - Search and Filters */}
+      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+        {/* Header */}
+        <div className="p-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-800 mb-2">Exam Search</h2>
+          <p className="text-sm text-gray-600">Find past exams and practice materials</p>
+        </div>
+
+        {/* Search Bar */}
+        <div className="p-4 border-b border-gray-200">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Input
+              placeholder="Search exams..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
           </div>
-        ) : (
-          <OutlineViewer 
-            outline={selectedOutline} 
-            onSaveOutline={onSaveOutline}
-            isSaved={selectedOutline ? savedOutlines.some(saved => saved.id === selectedOutline.id) : false}
-          />
-        )}
+        </div>
+
+        {/* Filters */}
+        <div className="p-4 space-y-4 flex-1">
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-2 block">Course</label>
+            <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select course" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Courses</SelectItem>
+                {courses.map(course => (
+                  <SelectItem key={course} value={course}>{course}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-2 block">Instructor</label>
+            <Select value={selectedInstructor} onValueChange={setSelectedInstructor}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select instructor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Instructors</SelectItem>
+                {instructors.map(instructor => (
+                  <SelectItem key={instructor} value={instructor}>{instructor}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-2 block">Year</label>
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select year" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Years</SelectItem>
+                {years.map(year => (
+                  <SelectItem key={year} value={year}>{year}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-2 block">Semester</label>
+            <Select value={selectedSemester} onValueChange={setSelectedSemester}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select semester" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Semesters</SelectItem>
+                {semesters.map(semester => (
+                  <SelectItem key={semester} value={semester}>{semester}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button className="w-full" variant="outline">
+            <Filter className="w-4 h-4 mr-2" />
+            Apply Filters
+          </Button>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <div className="p-6 border-b border-gray-200 bg-white">
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">Exams</h1>
+          <p className="text-gray-600">Browse and download past exam materials</p>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 p-6" style={{ backgroundColor: '#f9f5f0' }}>
+          {/* Empty content area - just the background */}
+        </div>
       </div>
     </div>
   );

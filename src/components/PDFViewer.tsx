@@ -8,9 +8,11 @@ interface PDFViewerProps {
   fileName: string;
   onDownload: () => void;
   onClose: () => void;
+  hideSearch?: boolean;
+  hideDownload?: boolean;
 }
 
-export function PDFViewer({ fileUrl, fileName, onDownload, onClose }: PDFViewerProps) {
+export function PDFViewer({ fileUrl, fileName, onDownload, onClose, hideSearch = false, hideDownload = false }: PDFViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -698,7 +700,8 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose }: PDFViewerP
   return (
     <div ref={containerRef} className="h-full flex flex-col overflow-hidden" style={{ backgroundColor: '#f9f5f0' }} onKeyDown={handleKeyDown} tabIndex={0}>
       {/* Search Bar */}
-      <div className="p-2 bg-white border-b">
+      {!hideSearch && (
+        <div className="p-2 bg-white border-b">
         <div className="flex items-center gap-1">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3" />
@@ -759,7 +762,8 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose }: PDFViewerP
             No results found
           </div>
         )}
-      </div>
+        </div>
+      )}
 
 
       {/* Controls */}
@@ -831,10 +835,12 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose }: PDFViewerP
         </div>
         
         <div className="flex items-center gap-1">
-          <Button onClick={onDownload} variant="outline" size="sm" className="h-7 px-2 text-xs">
-            <Download className="w-3 h-3 mr-1" />
-            Download
-          </Button>
+          {!hideDownload && (
+            <Button onClick={onDownload} variant="outline" size="sm" className="h-7 px-2 text-xs">
+              <Download className="w-3 h-3 mr-1" />
+              Download
+            </Button>
+          )}
           
           <Button onClick={onClose} variant="outline" size="sm" className="h-7 px-2 text-xs">
             <X className="w-3 h-3 mr-1" />

@@ -10,10 +10,8 @@ import {
   Tag,
   Trash2,
   Bookmark,
-  Dices,
   EyeIcon,
 } from "lucide-react";
-import { Input } from "./ui/input";
 import {
   Select,
   SelectContent,
@@ -65,6 +63,8 @@ interface SearchSidebarProps {
     type: string;
   } | null) => void;
   setPreviewLoading: (loading: boolean) => void;
+  uploadFormHasPreview: boolean;
+  setUploadFormHasPreview: (hasPreview: boolean) => void;
 }
 
 // Helper function to format outline display name
@@ -114,6 +114,8 @@ export function SearchSidebar({
   previewFile,
   setPreviewFile,
   setPreviewLoading,
+  uploadFormHasPreview,
+  setUploadFormHasPreview,
 }: SearchSidebarProps) {
   const [reviewingOutline, setReviewingOutline] =
     useState<Outline | null>(null);
@@ -124,8 +126,18 @@ export function SearchSidebar({
   const [reportText, setReportText] = useState("");
   const [savedCourseFilter, setSavedCourseFilter] =
     useState<string>("");
-  const [uploadTitle, setUploadTitle] = useState("");
   const [showNothingSavedMessage, setShowNothingSavedMessage] = useState(false);
+  
+  // Upload form state
+  const [uploadCourse, setUploadCourse] = useState<string>("");
+  const [uploadInstructor, setUploadInstructor] = useState<string>("");
+  const [uploadGrade, setUploadGrade] = useState<string>("");
+  const [uploadYear] = useState<string>(new Date().getFullYear().toString()); // Auto-set to current year
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadError, setUploadError] = useState<string>("");
+  const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null);
+  const [uploadConfirmed, setUploadConfirmed] = useState<boolean>(false);
+  
   // Page count functionality disabled - using data directly from Supabase
 
   // Derive data from allOutlines for progressive filtering
@@ -159,34 +171,18 @@ export function SearchSidebar({
     .filter((grade, index, self) => grade && self.indexOf(grade) === index)
     .sort();
 
+  // Upload form progressive filtering
+  const uploadAvailableInstructors = allOutlines
+    .filter(outline => !uploadCourse || outline.course === uploadCourse)
+    .map(outline => outline.instructor)
+    .filter((instructor, index, self) => instructor && self.indexOf(instructor) === index)
+    .sort();
 
-  // Arrays for random title generation
-  const adjectives = [
-    "Obese", "Round", "Peaceful", "Nice", "Rapid", "Swift", "Bold", "Bright",
-    "Sharp", "Clever", "Wild", "Calm", "Dark", "Light", "Deep", "High",
-    "Cold", "Warm", "Soft", "Hard", "Quick", "Slow", "Big", "Small",
-    "Loud", "Quiet", "Strong", "Weak", "Full", "Empty", "Rich", "Poor",
-    "New", "Old", "Fresh", "Stale", "Clear", "Cloudy", "Smooth", "Rough",
-    "Sweet", "Sour", "Hot", "Cool", "Dry", "Wet", "Clean", "Dirty",
-    "Happy", "Sad", "Lucky", "Wise", "Safe", "Free", "True", "False"
-  ];
+  // For upload, always show all available grades since user is uploading their own work
+  const uploadAvailableGrades = ["DS", "H", "P"];
 
-  const nouns = [
-    "Nosy", "Garden", "Eagle", "Master", "Expert", "Guide", "Pro", "Study",
-    "Legal", "Scholar", "Champion", "Hunter", "Tiger", "Lion", "Bear", "Wolf",
-    "Fox", "Hawk", "Snake", "Dragon", "Phoenix", "Knight", "Warrior", "King",
-    "Queen", "Prince", "Princess", "Chief", "Boss", "Leader", "Hero", "Star",
-    "Moon", "Sun", "River", "Mountain", "Ocean", "Forest", "Desert", "Valley",
-    "Bridge", "Tower", "Castle", "Palace", "Temple", "House", "Home", "Door",
-    "Window", "Key", "Lock", "Book", "Pen", "Paper", "Crown", "Sword"
-  ];
 
-  const generateRandomTitle = () => {
-    const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-    const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
-    const newTitle = randomAdjective + randomNoun;
-    setUploadTitle(newTitle);
-  };
+
 
   const handleDownload = async (filePath: string, fileType: string) => {
     try {
@@ -304,6 +300,225 @@ export function SearchSidebar({
   const handleCancelReport = () => {
     setReportingOutline(null);
     setReportText("");
+  };
+
+  // File upload handlers
+  const validateFile = (file: File): boolean => {
+    const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    const allowedExtensions = ['.pdf', '.docx'];
+    
+    const isValidType = allowedTypes.includes(file.type);
+    const isValidExtension = allowedExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+    
+    return isValidType || isValidExtension;
+  };
+
+  const handleFileSelect = (file: File) => {
+    setUploadError("");
+    
+    if (!validateFile(file)) {
+      setUploadError("Please select a PDF or DOCX file only.");
+      setUploadFormHasPreview(false);
+      return;
+    }
+    
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      setUploadError("File size must be less than 10MB.");
+      setUploadFormHasPreview(false);
+      return;
+    }
+    
+    setUploadFile(file);
+    
+    // Create preview URL for the file
+    const previewUrl = URL.createObjectURL(file);
+    setUploadPreviewUrl(previewUrl);
+    setUploadFormHasPreview(true);
+    
+    // Set the preview file for main content area
+    setPreviewFile({
+      url: previewUrl,
+      name: file.name,
+      type: file.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'docx'
+    });
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleFileSelect(file);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      handleFileSelect(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+  };
+
+  // Function to ensure folder structure exists in Supabase Storage
+  const ensureFolderStructure = async (course: string, instructor: string, year: string, grade: string) => {
+    try {
+      // Check if the course folder exists
+      const coursePath = `out/${course}/`;
+      const { data: courseList } = await supabase.storage
+        .from('Outlines')
+        .list('out', { search: course });
+      
+      if (!courseList || courseList.length === 0) {
+        // Create course folder by uploading an empty file (placeholder)
+        await supabase.storage
+          .from('Outlines')
+          .upload(`${coursePath}.gitkeep`, new Blob([''], { type: 'text/plain' }));
+      }
+
+      // Check if the instructor folder exists
+      const instructorPath = `out/${course}/${instructor}/`;
+      const { data: instructorList } = await supabase.storage
+        .from('Outlines')
+        .list(`out/${course}`, { search: instructor });
+      
+      if (!instructorList || instructorList.length === 0) {
+        // Create instructor folder
+        await supabase.storage
+          .from('Outlines')
+          .upload(`${instructorPath}.gitkeep`, new Blob([''], { type: 'text/plain' }));
+      }
+
+      // Check if the year folder exists
+      const yearPath = `out/${course}/${instructor}/${year}/`;
+      const { data: yearList } = await supabase.storage
+        .from('Outlines')
+        .list(`out/${course}/${instructor}`, { search: year });
+      
+      if (!yearList || yearList.length === 0) {
+        // Create year folder
+        await supabase.storage
+          .from('Outlines')
+          .upload(`${yearPath}.gitkeep`, new Blob([''], { type: 'text/plain' }));
+      }
+
+      // Check if the grade folder exists
+      const gradePath = `out/${course}/${instructor}/${year}/${grade}/`;
+      const { data: gradeList } = await supabase.storage
+        .from('Outlines')
+        .list(`out/${course}/${instructor}/${year}`, { search: grade });
+      
+      if (!gradeList || gradeList.length === 0) {
+        // Create grade folder
+        await supabase.storage
+          .from('Outlines')
+          .upload(`${gradePath}.gitkeep`, new Blob([''], { type: 'text/plain' }));
+      }
+    } catch (error) {
+      console.error('Error ensuring folder structure:', error);
+      // Don't throw error here, let the upload continue
+      // The upload will create the folders if they don't exist
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!uploadFile || !uploadCourse || !uploadInstructor || !uploadGrade) {
+      setUploadError("Please fill in all required fields and select a file.");
+      return;
+    }
+
+    if (!uploadConfirmed) {
+      setUploadError("Please confirm that you agree to the terms before uploading.");
+      return;
+    }
+
+    try {
+      setUploadError("");
+      
+      // Create a unique filename to avoid conflicts
+      const timestamp = Date.now();
+      const fileExtension = uploadFile.name.split('.').pop();
+      const baseFileName = uploadFile.name.replace(/\.[^/.]+$/, ""); // Remove extension
+      const uniqueFileName = `${baseFileName}_${timestamp}.${fileExtension}`;
+      
+      // Create the file path using the existing folder structure: out/Course/Instructor/Year/Grade/
+      const filePath = `out/${uploadCourse}/${uploadInstructor}/${uploadYear}/${uploadGrade}/${uniqueFileName}`;
+      
+      // Ensure the folder structure exists by creating missing folders
+      await ensureFolderStructure(uploadCourse, uploadInstructor, uploadYear, uploadGrade);
+      
+      // Upload file to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('Outlines')
+        .upload(filePath, uploadFile);
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        setUploadError(`Upload failed: ${uploadError.message}`);
+        return;
+      }
+
+      // Generate the formatted display name
+      const formattedName = formatOutlineDisplayName(uploadCourse, uploadInstructor, uploadYear, uploadGrade);
+      
+      // Get file size and page count
+      const fileSize = uploadFile.size;
+      
+      // Set page count to 1 to satisfy database constraint (pages > 0)
+      // This will be updated later by the background page counting process
+      const pageCount = 1;
+
+      // Create new row in outlines table
+      const { data: insertData, error: insertError } = await supabase
+        .from('outlines')
+        .insert({
+          title: formattedName,
+          file_name: uploadFile.name, // Keep original filename for display
+          course: uploadCourse,
+          instructor: uploadInstructor,
+          year: uploadYear,
+          grade: uploadGrade,
+          file_path: filePath, // This uses the unique filename for storage
+          file_size: fileSize,
+          file_type: fileExtension,
+          pages: pageCount,
+          rating: 0,
+          rating_count: 0,
+          download_count: 0,
+          description: null
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Database insert error:', insertError);
+        setUploadError(`Database error: ${insertError.message}`);
+        
+        // Try to clean up the uploaded file if database insert failed
+        await supabase.storage.from('Outlines').remove([filePath]);
+        return;
+      }
+
+      // Success! Clear the form
+      setUploadFile(null);
+      setUploadPreviewUrl(null);
+      setUploadFormHasPreview(false);
+      setPreviewFile(null);
+      setUploadCourse("");
+      setUploadInstructor("");
+      setUploadGrade("");
+      setUploadConfirmed(false);
+      setUploadError("");
+      
+      // Show success message
+      alert("Outline uploaded successfully!");
+      
+    } catch (error) {
+      console.error('Upload error:', error);
+      setUploadError("An unexpected error occurred during upload.");
+    }
   };
 
   const renderStars = (rating: number) => {
@@ -1075,50 +1290,90 @@ export function SearchSidebar({
       ) : activeTab === "upload" ? (
         <>
           {/* Upload Tab Content */}
-          <div className="flex-1 text-black flex flex-col" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-            {/* Upload Instructions */}
-            <div className="p-6 text-center border-b bg-gray-50">
-              <h3 className="text-lg font-medium text-gray-800 mb-2">
-                Upload Your Outline
-              </h3>
-              <p className="text-sm text-gray-600">
-                Share your study materials with the community. Accepted formats: PDF, DOC, DOCX
-              </p>
-            </div>
-
+          <div className="flex-1 text-black flex" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
             {/* Upload Form */}
-            <div className="flex-1 p-6">
-              <div className="space-y-6">
+            <div className="flex-1 p-3">
+              <div className="space-y-1">
                 {/* File Upload Area */}
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors">
-                  <div className="space-y-4">
-                    <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                      <FileText className="w-8 h-8 text-gray-400" />
+                <div 
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors cursor-pointer"
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onClick={() => document.getElementById('file-upload-input')?.click()}
+                >
+                  <input
+                    id="file-upload-input"
+                    type="file"
+                    accept=".pdf,.docx"
+                    onChange={handleFileInputChange}
+                    className="hidden"
+                  />
+                  <div className="space-y-2">
+                    <div className="mx-auto w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                      <FileText className="w-5 h-5 text-gray-400" />
                     </div>
                     <div>
-                      <h4 className="text-lg font-medium text-gray-800 mb-2">
-                        Drop your files here
-                      </h4>
-                      <p className="text-sm text-gray-600 mb-4">
-                        or click to browse your computer
-                      </p>
-                      <Button className="bg-[#752432] hover:bg-[#652030] text-white">
-                        Choose Files
-                      </Button>
+                      {uploadFile ? (
+                        <>
+                          <h4 className="text-lg font-medium text-green-800 mb-1">
+                            {uploadFile.name}
+                          </h4>
+                          <p className="text-sm text-gray-600 mb-3">
+                            {(uploadFile.size / (1024 * 1024)).toFixed(2)} MB
+                          </p>
+                          <Button 
+                            className="bg-red-600 hover:bg-red-700 text-white text-sm px-5 py-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (uploadPreviewUrl) {
+                                URL.revokeObjectURL(uploadPreviewUrl);
+                              }
+                              setUploadFile(null);
+                              setUploadPreviewUrl(null);
+                              setUploadError("");
+                              setUploadFormHasPreview(false);
+                              setPreviewFile(null);
+                            }}
+                          >
+                            Remove File
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <h4 className="text-lg font-medium text-gray-800 mb-1">
+                            Drop your files here
+                          </h4>
+                          <p className="text-sm text-gray-600 mb-3">
+                            or click to browse your computer
+                          </p>
+                          <Button className="bg-[#752432] hover:bg-[#652030] text-white text-sm px-5 py-2">
+                            Choose Files
+                          </Button>
+                        </>
+                      )}
                     </div>
-                    <p className="text-xs text-gray-500">
-                      Maximum file size: 50MB
+                    <p className="text-sm text-gray-500">
+                      Maximum file size: 10MB • PDF and DOCX only
                     </p>
+                    {uploadError && (
+                      <p className="text-sm text-red-600 bg-red-50 p-2 rounded">
+                        {uploadError}
+                      </p>
+                    )}
                   </div>
                 </div>
 
                 {/* Course Selection */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
+                <div>
+                  <label className="text-xs font-medium text-gray-700">
                     Course *
                   </label>
-                  <Select>
-                    <SelectTrigger className="bg-white border-gray-300 h-10">
+                  <Select value={uploadCourse} onValueChange={(value) => {
+                    setUploadCourse(value);
+                    setUploadInstructor(""); // Reset instructor when course changes
+                    setUploadGrade(""); // Reset grade when course changes
+                  }}>
+                    <SelectTrigger className="bg-white border-gray-300 h-8 mt-1">
                       <SelectValue placeholder="Select course" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1132,16 +1387,19 @@ export function SearchSidebar({
                 </div>
 
                 {/* Instructor Selection */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
+                <div>
+                  <label className="text-xs font-medium text-gray-700">
                     Instructor *
                   </label>
-                  <Select>
-                    <SelectTrigger className="bg-white border-gray-300 h-10">
-                      <SelectValue placeholder="Select instructor" />
+                  <Select value={uploadInstructor} onValueChange={(value) => {
+                    setUploadInstructor(value);
+                    setUploadGrade(""); // Reset grade when instructor changes
+                  }} disabled={!uploadCourse}>
+                    <SelectTrigger className="bg-white border-gray-300 h-8 mt-1">
+                      <SelectValue placeholder={uploadCourse ? "Select instructor" : "Select course first"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableInstructors.map((instructor) => (
+                      {uploadAvailableInstructors.map((instructor) => (
                         <SelectItem key={instructor} value={instructor}>
                           {instructor}
                         </SelectItem>
@@ -1151,74 +1409,49 @@ export function SearchSidebar({
                 </div>
 
                 {/* Additional Details */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs font-medium text-gray-700">
                       Year *
                     </label>
-                    <Select>
-                      <SelectTrigger className="bg-white border-gray-300 h-10">
-                        <SelectValue placeholder="Year" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="2025">2025</SelectItem>
-                        <SelectItem value="2024">2024</SelectItem>
-                        <SelectItem value="2023">2023</SelectItem>
-                        <SelectItem value="2022">2022</SelectItem>
-                        <SelectItem value="2021">2021</SelectItem>
-                        <SelectItem value="2020">2020</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="bg-gray-100 border border-gray-300 rounded-md h-8 mt-1 flex items-center px-3 text-sm text-gray-600">
+                      {uploadYear}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Auto-selected</p>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
+                  <div>
+                    <label className="text-xs font-medium text-gray-700">
                       Grade Received *
                     </label>
-                    <Select>
-                      <SelectTrigger className="bg-white border-gray-300 h-10">
-                        <SelectValue placeholder="Grade" />
+                    <Select value={uploadGrade} onValueChange={setUploadGrade} disabled={!uploadInstructor}>
+                      <SelectTrigger className="bg-white border-gray-300 h-8 mt-1">
+                        <SelectValue placeholder={uploadInstructor ? "Select grade" : "Select instructor first"} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="DS">DS (Dean's Scholar)</SelectItem>
-                        <SelectItem value="H">H (High)</SelectItem>
-                        <SelectItem value="P">P (Pass)</SelectItem>
+                        {uploadAvailableGrades.map((grade) => (
+                          <SelectItem key={grade} value={grade}>
+                            {grade === "DS" ? "DS (Dean's Scholar)" : 
+                             grade === "H" ? "H (High)" : 
+                             grade === "P" ? "P (Pass)" : grade}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
 
-                {/* Title Input with Dice */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Outline Title *
-                  </label>
-                  <div className="relative">
-                    <Input 
-                      value={uploadTitle}
-                      onChange={(e) => setUploadTitle(e.target.value)}
-                      placeholder="Random Title"
-                      className="bg-white border-gray-300 pr-12"
-                    />
-                    <button
-                      type="button"
-                      onClick={generateRandomTitle}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-[#752432] transition-colors p-1"
-                      title="Generate random title"
-                    >
-                      <Dices className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
 
                 {/* Terms Agreement */}
-                <div className="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-start space-x-2 p-3 bg-gray-50 rounded-lg">
                   <input 
                     type="checkbox" 
                     id="terms" 
-                    className="mt-0.5 h-4 w-4 text-[#752432] focus:ring-[#752432] border-gray-300 rounded" 
+                    checked={uploadConfirmed}
+                    onChange={(e) => setUploadConfirmed(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 text-[#752432] focus:ring-[#752432] border-gray-300 rounded"
                   />
-                  <label htmlFor="terms" className="text-sm text-gray-700">
+                  <label htmlFor="terms" className="text-xs text-gray-700">
                     I confirm that this is my original work and I have the right to share it. I agree to the{' '}
                     <a href="#" className="text-[#752432] hover:underline">Terms of Service</a> and{' '}
                     <a href="#" className="text-[#752432] hover:underline">Community Guidelines</a>.
@@ -1226,19 +1459,26 @@ export function SearchSidebar({
                 </div>
 
                 {/* Upload Button */}
-                <div className="pt-4 border-t">
+                <div className="pt-2 border-t">
                   <Button 
-                    className="w-full bg-[#752432] hover:bg-[#652030] text-white py-3"
-                    disabled
+                    className="w-full bg-[#752432] hover:bg-[#652030] text-white py-2 text-sm"
+                    disabled={!uploadFile || !uploadCourse || !uploadInstructor || !uploadGrade || !uploadConfirmed}
+                    onClick={handleUpload}
                   >
                     Upload Outline
                   </Button>
-                  <p className="text-xs text-gray-500 text-center mt-2">
-                    Please fill in all required fields and select a file to upload
+                  <p className="text-xs text-gray-500 text-center mt-1">
+                    {!uploadFile || !uploadCourse || !uploadInstructor || !uploadGrade 
+                      ? "Please fill in all required fields and select a file to upload"
+                      : !uploadConfirmed
+                      ? "Please confirm the terms agreement to upload"
+                      : "Ready to upload!"
+                    }
                   </p>
                 </div>
               </div>
             </div>
+
           </div>
         </>
       ) : null}

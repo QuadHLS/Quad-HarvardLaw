@@ -5,6 +5,7 @@ import { SearchSidebar } from './components/SearchSidebar';
 import { OutlineViewer } from './components/OutlineViewer';
 import { PDFViewer } from './components/PDFViewer';
 import { OfficeWebViewer } from './components/OfficeWebViewer';
+import { DOCXViewer } from './components/DOCXViewer';
 import { ReviewsPage } from './components/ReviewsPage';
 import { HomePage } from './components/HomePage';
 import { CoursePage } from './components/CoursePage';
@@ -130,6 +131,49 @@ function AppContent({ user }: { user: any }) {
   );
   const [savedOutlines, setSavedOutlines] = useState<Outline[]>([]);
 
+  // Load saved outlines from database
+  useEffect(() => {
+    const loadSavedOutlines = async () => {
+      if (!user?.id) return;
+
+      try {
+        // Get user's saved outline IDs from profiles table
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('saved_outlines')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError) {
+          console.error('Error loading saved outlines:', profileError);
+          return;
+        }
+
+        if (!profile?.saved_outlines || profile.saved_outlines.length === 0) {
+          setSavedOutlines([]);
+          return;
+        }
+
+        // Fetch the actual outline data for saved outline IDs
+        const { data: outlines, error: outlinesError } = await supabase
+          .from('outlines')
+          .select('*')
+          .in('id', profile.saved_outlines);
+
+        if (outlinesError) {
+          console.error('Error fetching saved outline details:', outlinesError);
+          return;
+        }
+
+        setSavedOutlines(outlines || []);
+      } catch (error) {
+        console.error('Error loading saved outlines:', error);
+      }
+    };
+
+    loadSavedOutlines();
+  }, [user?.id]);
+
   
   // Preview state
   const [previewFile, setPreviewFile] = useState<{
@@ -138,6 +182,7 @@ function AppContent({ user }: { user: any }) {
     type: string;
   } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [uploadFormHasPreview, setUploadFormHasPreview] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [selectedCourseForSearch, setSelectedCourseForSearch] =
@@ -302,31 +347,103 @@ function AppContent({ user }: { user: any }) {
   });
 
 
-  const handleSaveOutline = (outline: Outline) => {
-    setSavedOutlines((prev) => {
-      // Check if outline is already saved
-      if (prev.some((saved) => saved.id === outline.id)) {
-        return prev; // Don't add duplicates
+  const handleSaveOutline = async (outline: Outline) => {
+    if (!user?.id) return;
+
+    // Check if outline is already saved locally
+    if (savedOutlines.some((saved) => saved.id === outline.id)) {
+      return; // Don't add duplicates
+    }
+
+    try {
+      // Get current saved outlines from database
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('saved_outlines')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) {
+        console.error('Error fetching current saved outlines:', profileError);
+        return;
       }
-      return [...prev, outline];
-    });
+
+      const currentSavedOutlines = profile?.saved_outlines || [];
+      
+      // Add new outline ID to the array
+      const updatedSavedOutlines = [...currentSavedOutlines, outline.id];
+
+      // Update database
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ saved_outlines: updatedSavedOutlines })
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Error saving outline:', updateError);
+        return;
+      }
+
+      // Update local state
+      setSavedOutlines((prev) => [...prev, outline]);
+    } catch (error) {
+      console.error('Error saving outline:', error);
+    }
   };
 
-  const handleRemoveSavedOutline = (outlineId: string) => {
-    setSavedOutlines((prev) =>
-      prev.filter((outline) => outline.id !== outlineId)
-    );
+  const handleRemoveSavedOutline = async (outlineId: string) => {
+    if (!user?.id) return;
+
+    try {
+      // Get current saved outlines from database
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('saved_outlines')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) {
+        console.error('Error fetching current saved outlines:', profileError);
+        return;
+      }
+
+      const currentSavedOutlines = profile?.saved_outlines || [];
+      
+      // Remove outline ID from the array
+      const updatedSavedOutlines = currentSavedOutlines.filter((id: string) => id !== outlineId);
+
+      // Update database
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ saved_outlines: updatedSavedOutlines })
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Error removing saved outline:', updateError);
+        return;
+      }
+
+      // Update local state
+      setSavedOutlines((prev) =>
+        prev.filter((outline) => outline.id !== outlineId)
+      );
+    } catch (error) {
+      console.error('Error removing saved outline:', error);
+    }
   };
 
-  const handleToggleSaveOutline = (outline: Outline) => {
-    setSavedOutlines((prev) => {
-      const isAlreadySaved = prev.some((saved) => saved.id === outline.id);
-      if (isAlreadySaved) {
-        return prev.filter((saved) => saved.id !== outline.id);
-      } else {
-        return [...prev, outline];
-      }
-    });
+  const handleToggleSaveOutline = async (outline: Outline) => {
+    if (!user?.id) return;
+
+    const isAlreadySaved = savedOutlines.some((saved) => saved.id === outline.id);
+    
+    if (isAlreadySaved) {
+      // Remove from saved
+      await handleRemoveSavedOutline(outline.id);
+    } else {
+      // Add to saved
+      await handleSaveOutline(outline);
+    }
   };
 
 
@@ -449,6 +566,8 @@ function AppContent({ user }: { user: any }) {
           previewFile={previewFile}
           setPreviewFile={setPreviewFile}
           setPreviewLoading={setPreviewLoading}
+          uploadFormHasPreview={uploadFormHasPreview}
+          setUploadFormHasPreview={setUploadFormHasPreview}
         />
       )}
 
@@ -456,32 +575,98 @@ function AppContent({ user }: { user: any }) {
       <div className={`flex-1 border-l border-gray-300 overflow-hidden ${sidebarCollapsed ? 'ml-16' : 'ml-40'}`} style={{ transition: 'margin-left 300ms ease-in-out' }}>
         {activeSection === 'outlines' ? (
           activeTab === 'upload' ? (
-            <div className="flex items-center justify-center h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-              <div className="text-center p-8">
-                <FileText className="w-24 h-24 text-gray-400 mx-auto mb-4" />
-                <h2 className="text-2xl font-medium text-gray-700 mb-4">
-                  Upload Your Outline
-                </h2>
-                <p className="text-gray-600 mb-6 max-w-md">
-                  Use the upload form in the sidebar to share your study
-                  materials with the community.
-                </p>
-                <div className="bg-white rounded-lg shadow-sm p-6 max-w-lg mx-auto">
-                  <h3 className="font-medium text-gray-800 mb-3">
-                    Upload Guidelines:
-                  </h3>
-                  <ul className="text-sm text-gray-600 space-y-2 text-left">
-                    <li>• Accepted formats: PDF, DOC, DOCX</li>
-                    <li>• Maximum file size: 50MB</li>
-                    <li>• Only upload your original work</li>
-                    <li>
-                      • Include accurate course and instructor information
-                    </li>
-                    <li>• Use descriptive titles for better discoverability</li>
-                  </ul>
+            uploadFormHasPreview ? (
+              // Show preview in main content area when upload form has preview
+              <div className="h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+                {previewFile?.type.toLowerCase() === 'pdf' ? (
+                  <PDFViewer
+                    fileUrl={previewFile.url}
+                    fileName={previewFile.name}
+                    onDownload={() => {
+                      const link = document.createElement('a');
+                      link.href = previewFile.url;
+                      link.download = previewFile.name;
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
+                    onClose={() => {
+                      setPreviewFile(null);
+                      setUploadFormHasPreview(false);
+                    }}
+                    hideSearch={true}
+                    hideDownload={true}
+                  />
+                ) : previewFile?.type.toLowerCase() === 'docx' ? (
+                  <DOCXViewer
+                    fileUrl={previewFile.url}
+                    fileName={previewFile.name}
+                    onDownload={() => {
+                      const link = document.createElement('a');
+                      link.href = previewFile.url;
+                      link.download = previewFile.name;
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
+                    onClose={() => {
+                      setPreviewFile(null);
+                      setUploadFormHasPreview(false);
+                    }}
+                    hideSearch={true}
+                    hideFileName={true}
+                    hideDownload={true}
+                    showUploadNotice={true}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <p className="text-gray-600 mb-4">
+                        Preview is not available for {previewFile?.type} files.
+                      </p>
+                      <button
+                        onClick={() => {
+                          if (previewFile) {
+                            const link = document.createElement('a');
+                            link.href = previewFile.url;
+                            link.download = previewFile.name;
+                            link.click();
+                            document.body.removeChild(link);
+                          }
+                        }}
+                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                      >
+                        Download File
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+                <div className="text-center p-8">
+                  <FileText className="w-24 h-24 text-gray-400 mx-auto mb-4" />
+                  <h2 className="text-2xl font-medium text-gray-700 mb-4">
+                    Upload Your Outline
+                  </h2>
+                  <p className="text-gray-600 mb-6 max-w-md">
+                    Use the upload form in the sidebar to share your study
+                    materials with the community.
+                  </p>
+                  <div className="bg-white rounded-lg shadow-sm p-6 max-w-lg mx-auto">
+                    <h3 className="font-medium text-gray-800 mb-3">
+                      Upload Guidelines:
+                    </h3>
+                    <ul className="text-sm text-gray-600 space-y-2 text-left">
+                      <li>• Accepted formats: PDF and DOCX</li>
+                      <li>• Maximum file size: 10MB</li>
+                      <li>• Only upload your original work</li>
+                      <li>
+                        • Include accurate course, instructor, and grade information
+                      </li>
+                    </ul>
+                  </div>
                 </div>
               </div>
-            </div>
+            )
           ) : previewLoading ? (
             <div className="flex items-center justify-center h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
               <div className="text-center">

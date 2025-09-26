@@ -100,14 +100,35 @@ function parseFilePath(filePath: string): {
     const type = pathParts[3];
     const filename = pathParts[4];
 
-    // Extract title from filename (remove extension)
-    const title = filename.replace(/\.(pdf|docx)$/i, '');
-
     // Validate the grade type
     if (!['DS', 'H', 'P'].includes(type)) {
       console.warn(`Invalid grade type: ${type} in path: ${filePath}`);
       return null;
     }
+
+    // Helper function to format outline display name
+    const formatOutlineDisplayName = (course: string, instructor: string, year: string, grade: string): string => {
+      // Get first letter of course name
+      const courseInitial = course.charAt(0).toUpperCase();
+      
+      // Get instructor initials (first letter of each word)
+      const instructorInitials = instructor
+        .split(' ')
+        .map(name => name.charAt(0).toUpperCase())
+        .join('');
+      
+      // Get last 2 digits of year
+      const lastTwoDigits = year.slice(-2);
+      
+      // Generate random 3-digit number
+      const randomNumber = Math.floor(Math.random() * 900) + 100; // 100-999
+      
+      // Format as continuous text: CourseInitial + InstructorInitials + Last2Digits + Grade + Random3Digits
+      return `${courseInitial}${instructorInitials}${lastTwoDigits}${grade}${randomNumber}`;
+    };
+
+    // Generate formatted title
+    const title = formatOutlineDisplayName(course, instructor, year, type);
 
     return {
       course,

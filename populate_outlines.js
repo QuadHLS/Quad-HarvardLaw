@@ -106,9 +106,30 @@ async function scanBucketStructure() {
             // Get file size
             const fileSize = await getFileSize(filePath)
             
+            // Helper function to format outline display name
+            const formatOutlineDisplayName = (course, instructor, year, grade) => {
+              // Get first letter of course name
+              const courseInitial = course.charAt(0).toUpperCase();
+              
+              // Get instructor initials (first letter of each word)
+              const instructorInitials = instructor
+                .split(' ')
+                .map(name => name.charAt(0).toUpperCase())
+                .join('');
+              
+              // Get last 2 digits of year
+              const lastTwoDigits = year.slice(-2);
+              
+              // Generate random 3-digit number
+              const randomNumber = Math.floor(Math.random() * 900) + 100; // 100-999
+              
+              // Format as continuous text: CourseInitial + InstructorInitials + Last2Digits + Grade + Random3Digits
+              return `${courseInitial}${instructorInitials}${lastTwoDigits}${grade}${randomNumber}`;
+            };
+            
             // Create outline record
             const outline = {
-              title: path.parse(file.name).name, // Remove extension for title
+              title: formatOutlineDisplayName(classFolder.name, instructorFolder.name, yearFolder.name, gradeFolder.name),
               file_name: file.name,
               file_path: filePath,
               file_type: fileExtension.substring(1), // Remove the dot

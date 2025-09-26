@@ -5,14 +5,11 @@ import {
   FileText,
   Star,
   MoreHorizontal,
-  EyeOff,
   Flag,
   X,
   Tag,
   Trash2,
   Bookmark,
-  Eye,
-  Share,
   Dices,
   EyeIcon,
 } from "lucide-react";
@@ -56,9 +53,6 @@ interface SearchSidebarProps {
   savedOutlines: Outline[];
   onRemoveSavedOutline: (outlineId: string) => void;
   onToggleSaveOutline: (outline: Outline) => void;
-  hiddenOutlines: string[];
-  onHideOutline: (outlineId: string) => void;
-  onUnhideAllOutlines: () => void;
   loading?: boolean;
   previewFile: {
     url: string;
@@ -72,6 +66,27 @@ interface SearchSidebarProps {
   } | null) => void;
   setPreviewLoading: (loading: boolean) => void;
 }
+
+// Helper function to format outline display name
+const formatOutlineDisplayName = (course: string, instructor: string, year: string, grade: string): string => {
+  // Get first letter of course name
+  const courseInitial = course.charAt(0).toUpperCase();
+  
+  // Get instructor initials (first letter of each word)
+  const instructorInitials = instructor
+    .split(' ')
+    .map(name => name.charAt(0).toUpperCase())
+    .join('');
+  
+  // Get last 2 digits of year
+  const lastTwoDigits = year.slice(-2);
+  
+  // Generate random 3-digit number
+  const randomNumber = Math.floor(Math.random() * 900) + 100; // 100-999
+  
+  // Format as continuous text: CourseInitial + InstructorInitials + Last2Digits + Grade + Random3Digits
+  return `${courseInitial}${instructorInitials}${lastTwoDigits}${grade}${randomNumber}`;
+};
 
 export function SearchSidebar({
   outlines,
@@ -95,9 +110,6 @@ export function SearchSidebar({
   savedOutlines,
   onRemoveSavedOutline,
   onToggleSaveOutline,
-  hiddenOutlines,
-  onHideOutline,
-  onUnhideAllOutlines,
   loading = false,
   previewFile,
   setPreviewFile,
@@ -272,9 +284,6 @@ export function SearchSidebar({
     setHoverRating(0);
   };
 
-  const handleHide = (outline: Outline) => {
-    onHideOutline(outline.id);
-  };
 
   const handleReport = (outline: Outline) => {
     setReportingOutline(outline);
@@ -561,26 +570,26 @@ export function SearchSidebar({
                 onClick={() => {
                   setShowOutlines(!showOutlines);
                 }}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm font-medium ${
+                className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
                   showOutlines
                     ? "bg-white text-[#8B4A6B] border border-white shadow-sm"
                     : "bg-transparent text-white border border-white/50 hover:border-white/70"
                 }`}
               >
-                <Tag className="w-4 h-4" />
+                <Tag className="w-3 h-3" />
                 Outline ({'>'}25 pages)
               </button>
               <button
                 onClick={() => {
                   setShowAttacks(!showAttacks);
                 }}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm font-medium ${
+                className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
                   showAttacks
                     ? "bg-white text-[#8B4A6B] border border-white shadow-sm"
                     : "bg-transparent text-white border border-white/50 hover:border-white/70"
                 }`}
               >
-                <Tag className="w-4 h-4" />
+                <Tag className="w-3 h-3" />
                 Attack (≤25 pages)
               </button>
             </div>
@@ -683,7 +692,7 @@ export function SearchSidebar({
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <span className="font-medium">
-                            {outline.title}
+                            {formatOutlineDisplayName(outline.course, outline.instructor, outline.year, outline.grade)}
                           </span>
                           <span className="text-gray-600">
                             {outline.year}
@@ -733,21 +742,6 @@ export function SearchSidebar({
                           </span>
                         </div>
                         <div className="flex gap-1 items-center relative">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              // Handle share functionality
-                              console.log(
-                                "Share outline:",
-                                outline.title,
-                              );
-                            }}
-                            className="p-1 h-8 w-8"
-                          >
-                            <Share className="w-4 h-4" />
-                          </Button>
                           <div className="relative">
                             <Button
                               variant="ghost"
@@ -806,22 +800,6 @@ export function SearchSidebar({
                                 <Star className="w-4 h-4 mr-2" />
                                 Review
                               </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  handleHide(outline)
-                                }
-                              >
-                                <EyeOff className="w-4 h-4 mr-2" />
-                                Hide
-                              </DropdownMenuItem>
-                              {hiddenOutlines.length > 0 && (
-                                <DropdownMenuItem
-                                  onClick={onUnhideAllOutlines}
-                                >
-                                  <Eye className="w-4 h-4 mr-2" />
-                                  Unhide
-                                </DropdownMenuItem>
-                              )}
                               <DropdownMenuItem
                                 onClick={() =>
                                   handleReport(outline)
@@ -977,7 +955,7 @@ export function SearchSidebar({
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                               <span className="font-medium">
-                                {outline.title}
+                                {formatOutlineDisplayName(outline.course, outline.instructor, outline.year, outline.grade)}
                               </span>
                               <span className="text-gray-600">
                                 {outline.year}
@@ -1016,21 +994,6 @@ export function SearchSidebar({
 
                           {/* Action Icons - aligned horizontally and higher */}
                           <div className="flex gap-1 items-center justify-end relative">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                // Handle share functionality
-                                console.log(
-                                  "Share outline:",
-                                  outline.title,
-                                );
-                              }}
-                              className="p-1 h-8 w-8"
-                            >
-                              <Share className="w-4 h-4" />
-                            </Button>
                             <div className="relative">
                               <Button
                                 variant="ghost"
@@ -1089,24 +1052,6 @@ export function SearchSidebar({
                                   <Star className="w-4 h-4 mr-2" />
                                   Review
                                 </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    handleHide(outline)
-                                  }
-                                >
-                                  <EyeOff className="w-4 h-4 mr-2" />
-                                  Hide
-                                </DropdownMenuItem>
-                                {hiddenOutlines.length > 0 && (
-                                  <DropdownMenuItem
-                                    onClick={
-                                      onUnhideAllOutlines
-                                    }
-                                  >
-                                    <Eye className="w-4 h-4 mr-2" />
-                                    Unhide
-                                  </DropdownMenuItem>
-                                )}
                                 <DropdownMenuItem
                                   onClick={() =>
                                     handleReport(outline)

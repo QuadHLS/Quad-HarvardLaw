@@ -129,7 +129,6 @@ function AppContent({ user }: { user: any }) {
     'search'
   );
   const [savedOutlines, setSavedOutlines] = useState<Outline[]>([]);
-  const [hiddenOutlines, setHiddenOutlines] = useState<string[]>([]);
 
   
   // Preview state
@@ -266,10 +265,6 @@ function AppContent({ user }: { user: any }) {
       return false;
     }
 
-    // Exclude hidden outlines
-    if (hiddenOutlines.includes(outline.id)) {
-      return false;
-    }
 
     const matchesSearch = true; // No search term filtering for now
 
@@ -334,13 +329,6 @@ function AppContent({ user }: { user: any }) {
     });
   };
 
-  const handleHideOutline = (outlineId: string) => {
-    setHiddenOutlines((prev) => [...prev, outlineId]);
-  };
-
-  const handleUnhideAllOutlines = () => {
-    setHiddenOutlines([]);
-  };
 
 
   const handleSectionChange = (section: string) => {
@@ -457,9 +445,6 @@ function AppContent({ user }: { user: any }) {
           savedOutlines={savedOutlines}
           onRemoveSavedOutline={handleRemoveSavedOutline}
           onToggleSaveOutline={handleToggleSaveOutline}
-          hiddenOutlines={hiddenOutlines}
-          onHideOutline={handleHideOutline}
-          onUnhideAllOutlines={handleUnhideAllOutlines}
           loading={outlinesLoading}
           previewFile={previewFile}
           setPreviewFile={setPreviewFile}

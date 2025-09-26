@@ -5,10 +5,13 @@ export interface Outline {
   type: string;
   rating: number;
   ratingCount: number;
+  downloadCount: number;
   course: string;
   instructor: string;
-  fileType: 'PDF' | 'DOC';
-  fileUrl: string;
+  fileType: string;
+  filePath: string;
+  fileName: string;
+  fileSize: number;
   pages: number;
 }
 

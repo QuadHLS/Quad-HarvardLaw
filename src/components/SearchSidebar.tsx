@@ -30,13 +30,11 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { Textarea } from "./ui/textarea";
-import type { Outline, Instructor } from "../types";
+import type { Outline } from "../types";
 
 interface SearchSidebarProps {
   outlines: Outline[];
   allOutlines: Outline[];
-  courses: string[];
-  instructors: Instructor[];
   selectedCourse: string;
   setSelectedCourse: (course: string) => void;
   selectedInstructor: string;
@@ -66,8 +64,6 @@ interface SearchSidebarProps {
 export function SearchSidebar({
   outlines,
   allOutlines,
-  courses,
-  instructors,
   selectedCourse,
   setSelectedCourse,
   selectedInstructor,
@@ -220,19 +216,6 @@ export function SearchSidebar({
     });
   };
 
-  // Calculate outline count for each instructor based on selected course
-  const getInstructorOutlineCount = (
-    instructorName: string,
-  ) => {
-    return allOutlines.filter((outline) => {
-      const matchesInstructor =
-        outline.instructor === instructorName;
-      const matchesCourse =
-        selectedCourse === "" ||
-        outline.course === selectedCourse;
-      return matchesInstructor && matchesCourse;
-    }).length;
-  };
 
   return (
     <div className="w-80 bg-[#8B4A6B] text-white flex flex-col">
@@ -292,22 +275,7 @@ export function SearchSidebar({
                 </SelectTrigger>
                 <SelectContent>
                   {/* Dynamic course options from actual data */}
-                  {courses
-                    .filter((course) => {
-                      // If an instructor is selected, only show courses that instructor teaches
-                      if (selectedInstructor) {
-                        const instructorObj = instructors.find(
-                          (inst) => inst.name === selectedInstructor,
-                        );
-                        if (
-                          instructorObj &&
-                          !instructorObj.courses.includes(course)
-                        ) {
-                          return false;
-                        }
-                      }
-                      return true;
-                    })
+                  {Array.from(new Set(allOutlines.map(outline => outline.course)))
                     .sort((a, b) => a.localeCompare(b))
                     .map((course) => (
                       <SelectItem key={course} value={course}>
@@ -354,22 +322,22 @@ export function SearchSidebar({
                   <SelectValue placeholder={!selectedCourse ? "Select Course First" : "Select Instructor"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {/* Dynamic instructor options from actual data */}
-                  {instructors
-                    .filter((instructor) => {
-                      // Only show instructors who teach the selected course
-                      if (selectedCourse) {
-                        return instructor.courses.includes(selectedCourse);
-                      }
-                      return false;
-                    })
-                    .sort((a, b) => a.name.localeCompare(b.name))
+                  {/* Dynamic instructor options from actual data - only show instructors for selected course */}
+                  {Array.from(new Set(
+                    allOutlines
+                      .filter(outline => outline.course === selectedCourse)
+                      .map(outline => outline.instructor)
+                  ))
+                    .sort((a, b) => a.localeCompare(b))
                     .map((instructor) => (
-                      <SelectItem key={instructor.name} value={instructor.name}>
+                      <SelectItem key={instructor} value={instructor}>
                         <div className="flex justify-between items-center w-full">
-                          <span>{instructor.name}</span>
+                          <span>{instructor}</span>
                           <span className="text-sm text-gray-500 ml-2">
-                            ({getInstructorOutlineCount(instructor.name)} Available)
+                            ({allOutlines.filter(outline => 
+                              outline.course === selectedCourse && 
+                              outline.instructor === instructor
+                            ).length} Available)
                           </span>
                         </div>
                       </SelectItem>
@@ -416,7 +384,7 @@ export function SearchSidebar({
                   } />
                 </SelectTrigger>
                 <SelectContent>
-                  {/* Dynamic year options from actual data */}
+                  {/* Dynamic year options from actual data - only show years for selected course and instructor */}
                   {Array.from(new Set(allOutlines
                     .filter(outline => 
                       outline.course === selectedCourse && 
@@ -464,7 +432,7 @@ export function SearchSidebar({
                   } />
                 </SelectTrigger>
                 <SelectContent>
-                  {/* Dynamic grade options from actual data */}
+                  {/* Dynamic grade options from actual data - only show grades for selected course, instructor, and year */}
                   {Array.from(new Set(allOutlines
                     .filter(outline => 
                       outline.course === selectedCourse && 
@@ -660,8 +628,8 @@ export function SearchSidebar({
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDownload(
-                                  outline.fileUrl,
-                                  outline.fileType,
+                                  outline.filePath,
+                                  outline.fileType as "PDF" | "DOC",
                                 );
                               }}
                               className="p-1 h-8 w-8"
@@ -923,8 +891,8 @@ export function SearchSidebar({
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleDownload(
-                                    outline.fileUrl,
-                                    outline.fileType,
+                                    outline.filePath,
+                                    outline.fileType as "PDF" | "DOC",
                                   );
                                 }}
                                 className="p-1 h-8 w-8"
@@ -1042,11 +1010,13 @@ export function SearchSidebar({
                       <SelectValue placeholder="Select course" />
                     </SelectTrigger>
                     <SelectContent>
-                      {courses.sort((a, b) => a.localeCompare(b)).map((course) => (
-                        <SelectItem key={course} value={course}>
-                          {course}
-                        </SelectItem>
-                      ))}
+                      {Array.from(new Set(allOutlines.map(outline => outline.course)))
+                        .sort((a, b) => a.localeCompare(b))
+                        .map((course) => (
+                          <SelectItem key={course} value={course}>
+                            {course}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1061,14 +1031,13 @@ export function SearchSidebar({
                       <SelectValue placeholder="Select instructor" />
                     </SelectTrigger>
                     <SelectContent>
-                      {instructors
-                        .map(inst => inst.name)
+                      {Array.from(new Set(allOutlines.map(outline => outline.instructor)))
                         .sort((a, b) => a.localeCompare(b))
                         .map((instructor) => (
-                        <SelectItem key={instructor} value={instructor}>
-                          {instructor}
-                        </SelectItem>
-                      ))}
+                          <SelectItem key={instructor} value={instructor}>
+                            {instructor}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1084,12 +1053,11 @@ export function SearchSidebar({
                         <SelectValue placeholder="Year" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="2025">2025</SelectItem>
-                        <SelectItem value="2024">2024</SelectItem>
-                        <SelectItem value="2023">2023</SelectItem>
-                        <SelectItem value="2022">2022</SelectItem>
-                        <SelectItem value="2021">2021</SelectItem>
-                        <SelectItem value="2020">2020</SelectItem>
+                        {Array.from(new Set(allOutlines.map(outline => outline.year)))
+                          .sort((a, b) => parseInt(b) - parseInt(a))
+                          .map(year => (
+                            <SelectItem key={year} value={year}>{year}</SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -1103,9 +1071,11 @@ export function SearchSidebar({
                         <SelectValue placeholder="Grade" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="DS">DS (Dean's Scholar)</SelectItem>
-                        <SelectItem value="H">H (High)</SelectItem>
-                        <SelectItem value="P">P (Pass)</SelectItem>
+                        {Array.from(new Set(allOutlines.map(outline => outline.type)))
+                          .sort()
+                          .map(grade => (
+                            <SelectItem key={grade} value={grade}>{grade}</SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                   </div>

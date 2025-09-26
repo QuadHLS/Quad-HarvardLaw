@@ -7,8 +7,6 @@ import type { Outline, Instructor } from '../types';
 interface ExamsPageProps {
   outlines: Outline[];
   allOutlines: Outline[];
-  courses: string[];
-  instructors: Instructor[];
   savedOutlines: Outline[];
   hiddenOutlines: string[];
   onSaveOutline: (outline: Outline) => void;
@@ -42,8 +40,6 @@ interface ExamsPageProps {
 export function ExamsPage({
   outlines,
   allOutlines,
-  courses,
-  instructors,
   savedOutlines,
   hiddenOutlines,
   onSaveOutline,
@@ -120,10 +116,6 @@ export function ExamsPage({
       <SearchSidebar
         outlines={sortedExams}
         allOutlines={allOutlines}
-        courses={courses}
-        instructors={instructors}
-        searchTerm={examSearchTerm}
-        setSearchTerm={setExamSearchTerm}
         selectedCourse={selectedExamCourse}
         setSelectedCourse={setSelectedExamCourse}
         selectedInstructor={selectedExamInstructor}

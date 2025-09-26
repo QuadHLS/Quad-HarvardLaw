@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FileText } from 'lucide-react';
 import { NavigationSidebar } from './components/NavigationSidebar';
 import { SearchSidebar } from './components/SearchSidebar';
@@ -7,15 +7,15 @@ import { ExamsPage } from './components/ExamsPage';
 import { ReviewsPage } from './components/ReviewsPage';
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import type { Outline, Instructor } from './types';
-
-// Clean outline data - no mock data, just empty arrays for UI playground
-const outlineData: Outline[] = [];
-const instructorData: Instructor[] = [];
-const courseData: string[] = [];
+import { supabase } from './lib/supabase';
+import type { Outline } from './types';
 
 // Main App Content Component
 function AppContent({ loading }: { loading: boolean }) {
+  
+  // Data state
+  const [outlineData, setOutlineData] = useState<Outline[]>([]);
+  const [loadingOutlines, setLoadingOutlines] = useState(true);
   
   // Outlines state - clean and simple
   const [selectedOutline, setSelectedOutline] = useState<Outline | null>(null);
@@ -44,6 +44,72 @@ function AppContent({ loading }: { loading: boolean }) {
   const [examActiveTab, setExamActiveTab] = useState<'search' | 'saved' | 'upload'>('search');
   const [savedExams, setSavedExams] = useState<Outline[]>([]);
   const [hiddenExams, setHiddenExams] = useState<string[]>([]);
+
+  // Fetch outlines from database
+  useEffect(() => {
+    const fetchOutlines = async () => {
+      try {
+        setLoadingOutlines(true);
+        
+        // Try to fetch all data without any limit first
+        let allData: any[] = [];
+        let from = 0;
+        const batchSize = 1000;
+        let hasMore = true;
+
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from('outlines')
+            .select('*')
+            .range(from, from + batchSize - 1);
+
+          if (error) {
+            console.error('Error fetching outlines:', error);
+            return;
+          }
+
+          if (data && data.length > 0) {
+            allData = [...allData, ...data];
+            from += batchSize;
+            hasMore = data.length === batchSize;
+            console.log(`📊 Fetched ${allData.length} outlines so far...`);
+          } else {
+            hasMore = false;
+          }
+        }
+
+        console.log(`📊 Total outlines fetched: ${allData.length}`);
+        console.log('📋 Available courses:', Array.from(new Set(allData.map(o => o.course))));
+        console.log('👨‍🏫 Available instructors:', Array.from(new Set(allData.map(o => o.instructor))));
+
+        // Transform database data to match Outline interface
+        const transformedOutlines: Outline[] = allData.map((outline: any) => ({
+          id: outline.id,
+          title: outline.title,
+          course: outline.course,
+          instructor: outline.instructor,
+          year: outline.year,
+          type: outline.grade, // Database uses 'grade' field
+          pages: outline.pages,
+          rating: outline.rating || 0,
+          ratingCount: outline.rating_count || 0,
+          downloadCount: outline.download_count || 0,
+          filePath: outline.file_path,
+          fileName: outline.file_name,
+          fileType: outline.file_type,
+          fileSize: outline.file_size,
+        }));
+
+        setOutlineData(transformedOutlines);
+      } catch (error) {
+        console.error('Error fetching outlines:', error);
+      } finally {
+        setLoadingOutlines(false);
+      }
+    };
+
+    fetchOutlines();
+  }, []);
 
   // Filter outlines based on search criteria
   const filteredOutlines = outlineData.filter((outline) => {
@@ -215,8 +281,8 @@ function AppContent({ loading }: { loading: boolean }) {
     setSidebarCollapsed((prev) => !prev);
   };
 
-  // Simplified loading state for playground
-  if (loading) {
+  // Loading state for auth and outlines
+  if (loading || loadingOutlines) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
         <div className="text-center">
@@ -227,7 +293,9 @@ function AppContent({ loading }: { loading: boolean }) {
             <span className="text-2xl font-semibold">HLS</span>
           </div>
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">
+            {loading ? 'Loading...' : 'Loading outlines...'}
+          </p>
         </div>
       </div>
     );
@@ -256,8 +324,6 @@ function AppContent({ loading }: { loading: boolean }) {
         <SearchSidebar
           outlines={sortedOutlines}
           allOutlines={outlineData}
-          courses={courseData}
-          instructors={instructorData}
           selectedCourse={selectedCourse}
           setSelectedCourse={setSelectedCourse}
           selectedInstructor={selectedInstructor}
@@ -332,8 +398,6 @@ function AppContent({ loading }: { loading: boolean }) {
           <ExamsPage
             outlines={sortedExams}
             allOutlines={outlineData}
-            courses={courseData}
-            instructors={instructorData}
             savedOutlines={savedExams}
             hiddenOutlines={hiddenExams}
             onSaveOutline={handleSaveExam}

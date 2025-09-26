@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { supabase } from "../lib/supabase";
 import {
   Download,
   FileText,
@@ -163,9 +164,37 @@ export function SearchSidebar({
     setUploadTitle(newTitle);
   };
 
-  const handleDownload = (url: string, type: string) => {
-    // In a real app, this would download the file
-    console.log(`Downloading ${type} from ${url}`);
+  const handleDownload = async (filePath: string, fileType: string) => {
+    try {
+      console.log('Starting download for:', filePath);
+      
+      // Get the file URL from Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('Outlines')
+        .createSignedUrl(filePath, 60); // 60 seconds expiry
+
+      if (error) {
+        console.error('Error creating signed URL:', error);
+        alert('Error downloading file. Please try again.');
+        return;
+      }
+
+      if (data?.signedUrl) {
+        // Create a temporary download link and trigger it
+        const link = document.createElement('a');
+        link.href = data.signedUrl;
+        link.download = filePath.split('/').pop() || `outline.${fileType}`;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        console.log('Download initiated successfully');
+      }
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      alert('Error downloading file. Please try again.');
+    }
   };
 
   const handleReview = (outline: Outline) => {

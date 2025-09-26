@@ -137,6 +137,7 @@ export function SearchSidebar({
   const [uploadError, setUploadError] = useState<string>("");
   const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null);
   const [uploadConfirmed, setUploadConfirmed] = useState<boolean>(false);
+  const [uploadSuccess, setUploadSuccess] = useState<string>("");
   
   // Page count functionality disabled - using data directly from Supabase
 
@@ -512,8 +513,13 @@ export function SearchSidebar({
       setUploadConfirmed(false);
       setUploadError("");
       
-      // Show success message
-      alert("Outline uploaded successfully!");
+      // Show success message in UI
+      setUploadSuccess("Outline uploaded successfully! 🎉");
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => {
+        setUploadSuccess("");
+      }, 5000);
       
     } catch (error) {
       console.error('Upload error:', error);
@@ -1358,6 +1364,11 @@ export function SearchSidebar({
                     {uploadError && (
                       <p className="text-sm text-red-600 bg-red-50 p-2 rounded">
                         {uploadError}
+                      </p>
+                    )}
+                    {uploadSuccess && (
+                      <p className="text-sm text-green-600 bg-green-50 p-2 rounded">
+                        {uploadSuccess}
                       </p>
                     )}
                   </div>

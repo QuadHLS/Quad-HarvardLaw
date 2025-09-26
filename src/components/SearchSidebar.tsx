@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "../lib/supabase";
-import { getPageCount, updatePageCountInSupabase } from "../utils/pageCountUtils";
 import {
   Download,
   FileText,
@@ -121,60 +120,7 @@ export function SearchSidebar({
     useState<string>("");
   const [uploadTitle, setUploadTitle] = useState("");
   const [showNothingSavedMessage, setShowNothingSavedMessage] = useState(false);
-  const [pageCounts, setPageCounts] = useState<Record<string, number>>({});
-  const [loadingPageCounts, setLoadingPageCounts] = useState<Set<string>>(new Set());
-
-  // Function to fetch page count for an outline
-  const fetchPageCount = async (outline: Outline) => {
-    if (pageCounts[outline.id] || loadingPageCounts.has(outline.id)) {
-      return; // Already fetched or currently loading
-    }
-
-    setLoadingPageCounts(prev => new Set(prev).add(outline.id));
-
-    try {
-      // Get signed URL for the file
-      const { data, error } = await supabase.storage
-        .from('Outlines')
-        .createSignedUrl(outline.file_path, 60); // 60 seconds expiry
-
-      if (error || !data) {
-        console.error('Error getting signed URL:', error);
-        setPageCounts(prev => ({ ...prev, [outline.id]: 1 }));
-        return;
-      }
-
-      // Get page count from the file
-      const pageCount = await getPageCount(data.signedUrl, outline.file_type);
-      
-      // Update local state
-      setPageCounts(prev => ({ ...prev, [outline.id]: pageCount }));
-      
-      // Update database if page count is different from stored value
-      if (pageCount !== outline.pages) {
-        await updatePageCountInSupabase(outline.id, pageCount);
-      }
-    } catch (error) {
-      console.error('Error fetching page count:', error);
-      setPageCounts(prev => ({ ...prev, [outline.id]: 1 }));
-    } finally {
-      setLoadingPageCounts(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(outline.id);
-        return newSet;
-      });
-    }
-  };
-
-  // Load page counts when outlines change
-  useEffect(() => {
-    outlines.forEach(outline => {
-      if (outline.pages === 1 && !pageCounts[outline.id] && !loadingPageCounts.has(outline.id)) {
-        // Only fetch if pages is 1 (likely default) and we haven't fetched it yet
-        fetchPageCount(outline);
-      }
-    });
-  }, [outlines, pageCounts, loadingPageCounts]);
+  // Page count functionality disabled - using data directly from Supabase
 
   // Derive data from allOutlines for progressive filtering
   const availableCourses = allOutlines
@@ -717,28 +663,15 @@ export function SearchSidebar({
 
                       {/* Page Count Based Tags */}
                       <div className="flex flex-wrap gap-2 mb-1">
-                        {(() => {
-                          const actualPageCount = pageCounts[outline.id] || outline.pages;
-                          const isLoading = loadingPageCounts.has(outline.id);
-                          
-                          if (isLoading) {
-                            return (
-                              <span className="bg-gray-400 text-white px-2 py-1 rounded text-xs">
-                                Loading pages...
-                              </span>
-                            );
-                          }
-                          
-                          return actualPageCount <= 25 ? (
-                            <span className="bg-gray-500 text-white px-2 py-1 rounded text-xs">
-                              Attack ({actualPageCount} pages)
-                            </span>
-                          ) : (
-                            <span className="bg-green-700 text-white px-2 py-1 rounded text-xs">
-                              Outline ({actualPageCount} pages)
-                            </span>
-                          );
-                        })()}
+                        {outline.pages <= 25 ? (
+                          <span className="bg-gray-500 text-white px-2 py-1 rounded text-xs">
+                            Attack ({outline.pages} pages)
+                          </span>
+                        ) : (
+                          <span className="bg-green-700 text-white px-2 py-1 rounded text-xs">
+                            Outline ({outline.pages} pages)
+                          </span>
+                        )}
                       </div>
 
                       {/* Reviews and Action Buttons - aligned horizontally */}

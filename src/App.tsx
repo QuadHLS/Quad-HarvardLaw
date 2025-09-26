@@ -3,6 +3,8 @@ import { FileText } from 'lucide-react';
 import { NavigationSidebar } from './components/NavigationSidebar';
 import { SearchSidebar } from './components/SearchSidebar';
 import { OutlineViewer } from './components/OutlineViewer';
+import { PDFViewer } from './components/PDFViewer';
+import { DOCXViewer } from './components/DOCXViewer';
 import { ReviewsPage } from './components/ReviewsPage';
 import { HomePage } from './components/HomePage';
 import { CoursePage } from './components/CoursePage';
@@ -132,6 +134,14 @@ function AppContent({ user }: { user: any }) {
   // Exams state (separate from outlines)
   const [savedExams, setSavedExams] = useState<Outline[]>([]);
   const [hiddenExams, setHiddenExams] = useState<string[]>([]);
+  
+  // Preview state
+  const [previewFile, setPreviewFile] = useState<{
+    url: string;
+    name: string;
+    type: string;
+  } | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [selectedCourseForSearch, setSelectedCourseForSearch] =
@@ -491,6 +501,10 @@ function AppContent({ user }: { user: any }) {
           onHideOutline={handleHideOutline}
           onUnhideAllOutlines={handleUnhideAllOutlines}
           loading={outlinesLoading}
+          previewFile={previewFile}
+          setPreviewFile={setPreviewFile}
+          previewLoading={previewLoading}
+          setPreviewLoading={setPreviewLoading}
         />
       )}
 
@@ -523,6 +537,78 @@ function AppContent({ user }: { user: any }) {
                   </ul>
                 </div>
               </div>
+            </div>
+          ) : previewLoading ? (
+            <div className="flex items-center justify-center h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+              <div className="text-center">
+                <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <h3 className="text-lg font-medium text-gray-700 mb-2">
+                  Loading Preview...
+                </h3>
+                <p className="text-gray-500 text-sm">
+                  Please wait while we load the file for preview.
+                </p>
+              </div>
+            </div>
+          ) : previewFile ? (
+            <div className="h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+              {previewFile.type.toLowerCase() === 'pdf' ? (
+                <PDFViewer
+                  fileUrl={previewFile.url}
+                  fileName={previewFile.name}
+                  onDownload={() => {
+                    const link = document.createElement('a');
+                    link.href = previewFile.url;
+                    link.download = previewFile.name;
+                    link.target = '_blank';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                  onClose={() => setPreviewFile(null)}
+                />
+              ) : previewFile.type.toLowerCase() === 'docx' ? (
+                <DOCXViewer
+                  fileUrl={previewFile.url}
+                  fileName={previewFile.name}
+                  onDownload={() => {
+                    const link = document.createElement('a');
+                    link.href = previewFile.url;
+                    link.download = previewFile.name;
+                    link.target = '_blank';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                  onClose={() => setPreviewFile(null)}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <FileText className="w-16 h-16 text-gray-400 mb-4 mx-auto" />
+                    <h3 className="text-lg font-medium text-gray-700 mb-2">
+                      Preview Not Available
+                    </h3>
+                    <p className="text-gray-500 text-sm mb-4">
+                      Preview is not available for {previewFile.type} files.
+                    </p>
+                    <button
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = previewFile.url;
+                        link.download = previewFile.name;
+                        link.target = '_blank';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                      Download File
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <OutlineViewer

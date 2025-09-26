@@ -14,6 +14,7 @@ import {
   Eye,
   Share,
   Dices,
+  EyeIcon,
 } from "lucide-react";
 import { Input } from "./ui/input";
 import {
@@ -61,6 +62,18 @@ interface SearchSidebarProps {
   onHideOutline: (outlineId: string) => void;
   onUnhideAllOutlines: () => void;
   loading?: boolean;
+  previewFile: {
+    url: string;
+    name: string;
+    type: string;
+  } | null;
+  setPreviewFile: (file: {
+    url: string;
+    name: string;
+    type: string;
+  } | null) => void;
+  previewLoading: boolean;
+  setPreviewLoading: (loading: boolean) => void;
 }
 
 export function SearchSidebar({
@@ -91,6 +104,10 @@ export function SearchSidebar({
   onHideOutline,
   onUnhideAllOutlines,
   loading = false,
+  previewFile, // Passed through to parent for preview functionality
+  setPreviewFile,
+  previewLoading, // Passed through to parent for preview functionality
+  setPreviewLoading,
 }: SearchSidebarProps) {
   const [reviewingOutline, setReviewingOutline] =
     useState<Outline | null>(null);
@@ -194,6 +211,39 @@ export function SearchSidebar({
     } catch (error) {
       console.error('Error downloading file:', error);
       alert('Error downloading file. Please try again.');
+    }
+  };
+
+  const handlePreview = async (filePath: string, fileName: string, fileType: string) => {
+    try {
+      console.log('Starting preview for:', filePath);
+      setPreviewLoading(true);
+      
+      // Get the file URL from Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('Outlines')
+        .createSignedUrl(filePath, 60); // 60 seconds expiry
+
+      if (error) {
+        console.error('Error creating signed URL for preview:', error);
+        alert('Error loading file for preview. Please try again.');
+        setPreviewLoading(false);
+        return;
+      }
+
+      if (data?.signedUrl) {
+        setPreviewFile({
+          url: data.signedUrl,
+          name: fileName,
+          type: fileType
+        });
+        setPreviewLoading(false);
+        console.log('Preview initiated successfully');
+      }
+    } catch (error) {
+      console.error('Error loading file for preview:', error);
+      alert('Error loading file for preview. Please try again.');
+      setPreviewLoading(false);
     }
   };
 
@@ -653,6 +703,26 @@ export function SearchSidebar({
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                handlePreview(
+                                  outline.file_path,
+                                  outline.file_name,
+                                  outline.file_type,
+                                );
+                              }}
+                              className="p-1 h-8 w-8"
+                            >
+                              <EyeIcon className="w-4 h-4" />
+                            </Button>
+                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 text-[8px] text-gray-400 text-left mt-[-2px] mr-[0px] mb-[5px] ml-[0px] p-[0px]">
+                              Preview
+                            </div>
+                          </div>
+                          <div className="relative">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 handleDownload(
                                   outline.file_path,
                                   outline.file_type,
@@ -910,6 +980,26 @@ export function SearchSidebar({
                             >
                               <Share className="w-4 h-4" />
                             </Button>
+                            <div className="relative">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePreview(
+                                    outline.file_path,
+                                    outline.file_name,
+                                    outline.file_type,
+                                  );
+                                }}
+                                className="p-1 h-8 w-8"
+                              >
+                                <EyeIcon className="w-4 h-4" />
+                              </Button>
+                              <div className="absolute top-full left-1/2 transform -translate-x-1/2 text-[8px] text-gray-400 mt-0.5">
+                                Preview
+                              </div>
+                            </div>
                             <div className="relative">
                               <Button
                                 variant="ghost"
@@ -1279,6 +1369,7 @@ export function SearchSidebar({
           </div>
         </div>
       )}
+
     </div>
   );
 }

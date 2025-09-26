@@ -37,6 +37,8 @@
             "hono": "latest",
             "input-otp": "^1.4.2",
             "lucide-react": "^0.487.0",
+            "mammoth": "^1.11.0",
+            "pdfjs-dist": "^5.4.149",
             "react": "^18.3.1",
             "react-day-picker": "^8.10.1",
             "react-dom": "^18.3.1",

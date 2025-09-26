@@ -2,13 +2,10 @@ import { useState } from 'react';
 import { FileText } from 'lucide-react';
 import { SearchSidebar } from './SearchSidebar';
 import { OutlineViewer } from './OutlineViewer';
-import type { Outline, Instructor } from '../types';
+import type { Outline } from '../types';
 
 interface ExamsPageProps {
-  outlines: Outline[];
   allOutlines: Outline[];
-  courses: string[];
-  instructors: Instructor[];
   savedOutlines: Outline[];
   hiddenOutlines: string[];
   onSaveOutline: (outline: Outline) => void;
@@ -19,10 +16,7 @@ interface ExamsPageProps {
 }
 
 export function ExamsPage({
-  outlines,
   allOutlines,
-  courses,
-  instructors,
   savedOutlines,
   hiddenOutlines,
   onSaveOutline,
@@ -32,7 +26,6 @@ export function ExamsPage({
   onUnhideAllOutlines
 }: ExamsPageProps) {
   const [selectedOutline, setSelectedOutline] = useState<Outline | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
   const [selectedInstructor, setSelectedInstructor] = useState('');
   const [selectedGrade, setSelectedGrade] = useState<string | undefined>(undefined);
@@ -41,6 +34,7 @@ export function ExamsPage({
   const [showAttacks, setShowAttacks] = useState(true);
   const [activeTab, setActiveTab] = useState<'search' | 'saved' | 'upload'>('search');
   const [sortBy, setSortBy] = useState('Highest Rated');
+
 
   // Filter outlines based on search criteria (same logic as original)
   const filteredOutlines = allOutlines.filter(outline => {
@@ -54,13 +48,11 @@ export function ExamsPage({
       return false;
     }
     
-    const matchesSearch = searchTerm === '' || 
-      outline.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      outline.course.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = true; // No search term filtering for now
     
     const matchesCourse = outline.course === selectedCourse;
     const matchesInstructor = outline.instructor === selectedInstructor;
-    const matchesGrade = !selectedGrade || outline.type === selectedGrade;
+    const matchesGrade = !selectedGrade || outline.grade === selectedGrade;
     const matchesYear = !selectedYear || outline.year === selectedYear;
     
     // Filter by Outline/Attack type based on page count
@@ -88,10 +80,6 @@ export function ExamsPage({
       <SearchSidebar
         outlines={sortedOutlines}
         allOutlines={allOutlines}
-        courses={courses}
-        instructors={instructors}
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
         selectedCourse={selectedCourse}
         setSelectedCourse={setSelectedCourse}
         selectedInstructor={selectedInstructor}

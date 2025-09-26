@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  Search,
   Download,
   FileText,
   Star,
@@ -31,15 +30,11 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { Textarea } from "./ui/textarea";
-import type { Outline, Instructor } from "../types";
+import type { Outline } from "../types";
 
 interface SearchSidebarProps {
   outlines: Outline[];
   allOutlines: Outline[];
-  courses: string[];
-  instructors: Instructor[];
-  searchTerm: string;
-  setSearchTerm: (term: string) => void;
   selectedCourse: string;
   setSelectedCourse: (course: string) => void;
   selectedInstructor: string;
@@ -64,15 +59,12 @@ interface SearchSidebarProps {
   hiddenOutlines: string[];
   onHideOutline: (outlineId: string) => void;
   onUnhideAllOutlines: () => void;
+  loading?: boolean;
 }
 
 export function SearchSidebar({
   outlines,
   allOutlines,
-  courses,
-  instructors,
-  searchTerm,
-  setSearchTerm,
   selectedCourse,
   setSelectedCourse,
   selectedInstructor,
@@ -97,14 +89,8 @@ export function SearchSidebar({
   hiddenOutlines,
   onHideOutline,
   onUnhideAllOutlines,
+  loading = false,
 }: SearchSidebarProps) {
-  const [showCourseDropdown, setShowCourseDropdown] =
-    useState(false);
-  const [courseSearchTerm, setCourseSearchTerm] = useState("");
-  const [showInstructorDropdown, setShowInstructorDropdown] =
-    useState(false);
-  const [instructorSearchTerm, setInstructorSearchTerm] =
-    useState("");
   const [reviewingOutline, setReviewingOutline] =
     useState<Outline | null>(null);
   const [hoverRating, setHoverRating] = useState(0);
@@ -116,6 +102,38 @@ export function SearchSidebar({
     useState<string>("");
   const [uploadTitle, setUploadTitle] = useState("");
   const [showNothingSavedMessage, setShowNothingSavedMessage] = useState(false);
+
+  // Derive data from allOutlines for progressive filtering
+  const availableCourses = allOutlines
+    .map(outline => outline.course)
+    .filter((course, index, self) => course && self.indexOf(course) === index)
+    .sort();
+
+  const availableInstructors = allOutlines
+    .filter(outline => !selectedCourse || outline.course === selectedCourse)
+    .map(outline => outline.instructor)
+    .filter((instructor, index, self) => instructor && self.indexOf(instructor) === index)
+    .sort();
+
+  const availableYears = allOutlines
+    .filter(outline => 
+      (!selectedCourse || outline.course === selectedCourse) &&
+      (!selectedInstructor || outline.instructor === selectedInstructor)
+    )
+    .map(outline => outline.year)
+    .filter((year, index, self) => year && self.indexOf(year) === index)
+    .sort((a, b) => b.localeCompare(a)); // Most recent first
+
+  const availableGrades = allOutlines
+    .filter(outline => 
+      (!selectedCourse || outline.course === selectedCourse) &&
+      (!selectedInstructor || outline.instructor === selectedInstructor) &&
+      (!selectedYear || outline.year === selectedYear)
+    )
+    .map(outline => outline.grade)
+    .filter((grade, index, self) => grade && self.indexOf(grade) === index)
+    .sort();
+
 
   // Arrays for random title generation
   const adjectives = [
@@ -145,7 +163,7 @@ export function SearchSidebar({
     setUploadTitle(newTitle);
   };
 
-  const handleDownload = (url: string, type: "PDF" | "DOC") => {
+  const handleDownload = (url: string, type: string) => {
     // In a real app, this would download the file
     console.log(`Downloading ${type} from ${url}`);
   };
@@ -232,19 +250,19 @@ export function SearchSidebar({
     });
   };
 
-  // Calculate outline count for each instructor based on selected course
-  const getInstructorOutlineCount = (
-    instructorName: string,
-  ) => {
-    return allOutlines.filter((outline) => {
-      const matchesInstructor =
-        outline.instructor === instructorName;
-      const matchesCourse =
-        selectedCourse === "" ||
-        outline.course === selectedCourse;
-      return matchesInstructor && matchesCourse;
-    }).length;
-  };
+
+  if (loading) {
+    return (
+      <div className="w-80 bg-[#8B4A6B] text-white flex flex-col">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+            <p className="text-white/70">Loading outlines...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-80 bg-[#8B4A6B] text-white flex flex-col">
@@ -285,332 +303,37 @@ export function SearchSidebar({
       {activeTab === "search" ? (
         <>
           {/* Search Tab Content */}
-          {/* Search by Course */}
-          <div className="p-3 space-y-3 bg-[rgba(117,36,50,1)]">
-            <div className="relative">
-              <Input
-                placeholder="Search by Course"
-                value={selectedCourse || courseSearchTerm}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setCourseSearchTerm(value);
-                  if (
-                    selectedCourse &&
-                    value !== selectedCourse
-                  ) {
-                    setSelectedCourse("");
-                  }
-                }}
-                onFocus={() => {
-                  setShowCourseDropdown(true);
-                  // If there's a selected course, clear the search term to show all options
-                  if (selectedCourse) {
-                    setCourseSearchTerm("");
-                  }
-                }}
-                onClick={() => {
-                  // When clicking on a field with a selection, show all options
-                  if (selectedCourse) {
-                    setCourseSearchTerm("");
-                    setShowCourseDropdown(true);
-                  }
-                }}
-                onBlur={() => {
-                  // Delay hiding to allow for dropdown clicks
-                  setTimeout(
-                    () => setShowCourseDropdown(false),
-                    200,
-                  );
-                }}
-                className={`bg-black/20 border-white/30 text-white placeholder:text-white/70 ${
-                  selectedCourse ? "pr-16" : "pr-10"
-                }`}
-              />
-              {selectedCourse && (
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setSelectedCourse("");
-                    setSelectedInstructor(""); // Clear instructor when clearing course
-                    setCourseSearchTerm("");
-                  }}
-                  className="absolute right-8 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white z-10"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/70" />
-
-              {/* Course Dropdown */}
-              {showCourseDropdown && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white text-black rounded shadow-lg z-20 max-h-48 overflow-y-auto">
-                  {courses
-                    .filter((course) => {
-                      // If an instructor is selected, only show courses that instructor teaches
-                      if (selectedInstructor) {
-                        const instructorObj = instructors.find(
-                          (inst) =>
-                            inst.name === selectedInstructor,
-                        );
-                        if (
-                          instructorObj &&
-                          !instructorObj.courses.includes(
-                            course,
-                          )
-                        ) {
-                          return false;
-                        }
-                      }
-
-                      // If there's a search term, filter by it
-                      if (courseSearchTerm) {
-                        return course
-                          .toLowerCase()
-                          .includes(
-                            courseSearchTerm.toLowerCase(),
-                          );
-                      }
-                      // If there's a selected course but no search term, show all available courses
-                      if (selectedCourse && !courseSearchTerm) {
-                        return true;
-                      }
-                      // Default filtering behavior
-                      return course
-                        .toLowerCase()
-                        .includes(
-                          (
-                            selectedCourse || courseSearchTerm
-                          ).toLowerCase(),
-                        );
-                    })
-                    .sort((a, b) => a.localeCompare(b)) // Sort alphabetically
-                    .map((course) => (
-                      <button
-                        key={course}
-                        onClick={() => {
-                          // Toggle selection - deselect if already selected
-                          if (selectedCourse === course) {
-                            setSelectedCourse("");
-                            setSelectedInstructor(""); // Clear instructor when deselecting course
-                          } else {
-                            setSelectedCourse(course);
-
-                            // Clear selected instructor if they don't teach the newly selected course
-                            if (selectedInstructor) {
-                              const instructorObj =
-                                instructors.find(
-                                  (inst) =>
-                                    inst.name ===
-                                    selectedInstructor,
-                                );
-                              if (
-                                instructorObj &&
-                                !instructorObj.courses.includes(
-                                  course,
-                                )
-                              ) {
-                                setSelectedInstructor("");
-                              }
-                            }
-                          }
-                          setCourseSearchTerm("");
-                          setShowCourseDropdown(false);
-                        }}
-                        className={`w-full p-2 text-left hover:bg-gray-100 ${
-                          course === selectedCourse
-                            ? "bg-[#8B4A6B] text-white"
-                            : ""
-                        }`}
-                      >
-                        {course}
-                      </button>
-                    ))}
-                </div>
-              )}
-            </div>
-
-            {/* Search by Instructor */}
-            <div className="relative">
-              <Input
-                placeholder="Search by Instructor"
-                value={
-                  selectedInstructor || instructorSearchTerm
-                }
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setInstructorSearchTerm(value);
-                  if (
-                    selectedInstructor &&
-                    value !== selectedInstructor
-                  ) {
-                    setSelectedInstructor("");
-                  }
-                }}
-                onFocus={() => {
-                  setShowInstructorDropdown(true);
-                  // If there's a selected instructor, clear the search term to show all options
-                  if (selectedInstructor) {
-                    setInstructorSearchTerm("");
-                  }
-                }}
-                onClick={() => {
-                  // When clicking on a field with a selection, show all options
-                  if (selectedInstructor) {
-                    setInstructorSearchTerm("");
-                    setShowInstructorDropdown(true);
-                  }
-                }}
-                onBlur={() => {
-                  // Delay hiding to allow for dropdown clicks
-                  setTimeout(
-                    () => setShowInstructorDropdown(false),
-                    200,
-                  );
-                }}
-                className={`bg-black/20 border-white/30 text-white placeholder:text-white/70 ${
-                  selectedInstructor ? "pr-16" : "pr-10"
-                }`}
-              />
-              {selectedInstructor && (
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setSelectedInstructor("");
-                    setInstructorSearchTerm("");
-                  }}
-                  className="absolute right-8 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white z-10"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/70" />
-
-              {/* Instructor Dropdown */}
-              {showInstructorDropdown && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white text-black rounded shadow-lg z-20 max-h-48 overflow-y-auto">
-                  {instructors
-                    .filter((instructor) => {
-                      // If a course is selected, only show instructors who teach that course
-                      if (selectedCourse) {
-                        return instructor.courses.includes(
-                          selectedCourse,
-                        );
-                      }
-                      // If no course is selected, show all instructors
-                      return true;
-                    })
-                    .map((instructor) => instructor.name)
-                    .filter((instructor) => {
-                      // If there's a search term, filter by it
-                      if (instructorSearchTerm) {
-                        return instructor
-                          .toLowerCase()
-                          .includes(
-                            instructorSearchTerm.toLowerCase(),
-                          );
-                      }
-                      // If there's a selected instructor but no search term, show all available instructors
-                      if (
-                        selectedInstructor &&
-                        !instructorSearchTerm
-                      ) {
-                        return true;
-                      }
-                      // Default filtering behavior
-                      return instructor
-                        .toLowerCase()
-                        .includes(
-                          (
-                            selectedInstructor ||
-                            instructorSearchTerm
-                          ).toLowerCase(),
-                        );
-                    })
-                    .sort((a, b) => a.localeCompare(b)) // Sort alphabetically
-                    .map((instructor) => (
-                      <button
-                        key={instructor}
-                        onClick={() => {
-                          // Toggle selection - deselect if already selected
-                          if (
-                            selectedInstructor === instructor
-                          ) {
-                            setSelectedInstructor("");
-                          } else {
-                            setSelectedInstructor(instructor);
-
-                            // Auto-select course if instructor only teaches one course
-                            const instructorObj =
-                              instructors.find(
-                                (inst) =>
-                                  inst.name === instructor,
-                              );
-                            if (
-                              instructorObj &&
-                              instructorObj.courses.length === 1
-                            ) {
-                              setSelectedCourse(
-                                instructorObj.courses[0],
-                              );
-                            }
-                          }
-                          setInstructorSearchTerm("");
-                          setShowInstructorDropdown(false);
-                        }}
-                        className={`w-full p-2 text-left hover:bg-gray-100 flex justify-between items-center ${
-                          instructor === selectedInstructor
-                            ? "bg-[#8B4A6B] text-white"
-                            : ""
-                        }`}
-                      >
-                        <span>{instructor}</span>
-                        <span
-                          className={`text-sm ${
-                            instructor === selectedInstructor
-                              ? "text-white/70"
-                              : "text-gray-500"
-                          }`}
-                        >
-                          (
-                          {getInstructorOutlineCount(
-                            instructor,
-                          )}{" "}
-                          Available)
-                        </span>
-                      </button>
-                    ))}
-                </div>
-              )}
-            </div>
-
-            {/* Grade and Year Filters Side by Side */}
-            <div className="flex gap-1.5">
-              {/* Grade Filter */}
-              <div className="relative flex-1">
+            {/* Course Filter */}
+            <div className="p-3 space-y-3 bg-[rgba(117,36,50,1)]">
+              <div className="relative">
                 <Select
-                  key={`grade-${selectedGrade || "empty"}`}
-                  value={selectedGrade || undefined}
-                  onValueChange={(value) =>
-                    setSelectedGrade(value)
-                  }
+                  key={`course-${selectedCourse || "empty"}`}
+                  value={selectedCourse || undefined}
+                  onValueChange={(value) => {
+                    setSelectedCourse(value);
+                    // Clear instructor when changing course
+                    setSelectedInstructor("");
+                  }}
+                  disabled={availableCourses.length === 0}
                 >
-                  <SelectTrigger className="bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white h-10">
-                    <SelectValue placeholder="Grade" />
+                  <SelectTrigger className="bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white h-10 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <SelectValue placeholder="Select Course" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="DS">DS</SelectItem>
-                    <SelectItem value="H">H</SelectItem>
-                    <SelectItem value="P">P</SelectItem>
+                    {availableCourses.length > 0 ? availableCourses.map((course) => (
+                      <SelectItem key={course} value={course}>
+                        {course}
+                      </SelectItem>
+                    )) : null}
                   </SelectContent>
                 </Select>
-                {selectedGrade && (
+                {selectedCourse && (
                   <button
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      setSelectedGrade(undefined);
+                      setSelectedCourse("");
+                      setSelectedInstructor("");
                     }}
                     className="absolute right-8 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white z-10"
                   >
@@ -619,29 +342,69 @@ export function SearchSidebar({
                 )}
               </div>
 
+              {/* Instructor Filter */}
+              <div className="relative">
+                <Select
+                  key={`instructor-${selectedInstructor || "empty"}`}
+                  value={selectedInstructor || undefined}
+                  onValueChange={(value) => {
+                    setSelectedInstructor(value);
+                  }}
+                  disabled={availableInstructors.length === 0 || !selectedCourse}
+                >
+                  <SelectTrigger className="bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white h-10 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <SelectValue placeholder={
+                      !selectedCourse 
+                        ? "Select course first" 
+                        : "Select Instructor"
+                    } />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableInstructors.length > 0 ? availableInstructors.map((instructor) => (
+                      <SelectItem key={instructor} value={instructor}>
+                        {instructor}
+                      </SelectItem>
+                    )) : null}
+                  </SelectContent>
+                </Select>
+                {selectedInstructor && (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setSelectedInstructor("");
+                    }}
+                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white z-10"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+
               {/* Year Filter */}
-              <div className="relative flex-1">
+              <div className="relative">
                 <Select
                   key={`year-${selectedYear || "empty"}`}
                   value={selectedYear || undefined}
                   onValueChange={(value) =>
                     setSelectedYear(value)
                   }
+                  disabled={availableYears.length === 0 || !selectedInstructor}
                 >
-                  <SelectTrigger className="bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white h-10">
-                    <SelectValue placeholder="Year" />
+                  <SelectTrigger className="bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white h-10 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <SelectValue placeholder={
+                      !selectedInstructor 
+                        ? "Select instructor first" 
+                        : "Select Year"
+                    } />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="2025">2025</SelectItem>
-                    <SelectItem value="2024">2024</SelectItem>
-                    <SelectItem value="2023">2023</SelectItem>
-                    <SelectItem value="2022">2022</SelectItem>
-                    <SelectItem value="2021">2021</SelectItem>
-                    <SelectItem value="2020">2020</SelectItem>
-                    <SelectItem value="2019">2019</SelectItem>
-                    <SelectItem value="2018">2018</SelectItem>
-                    <SelectItem value="2017">2017</SelectItem>
-                    <SelectItem value="2016">2016</SelectItem>
+                    {availableYears.length > 0 ? availableYears.map((year) => (
+                      <SelectItem key={year} value={year}>
+                        {year}
+                      </SelectItem>
+                    )) : null}
                   </SelectContent>
                 </Select>
                 {selectedYear && (
@@ -657,8 +420,46 @@ export function SearchSidebar({
                   </button>
                 )}
               </div>
+
+              {/* Grade Filter */}
+              <div className="relative">
+                <Select
+                  key={`grade-${selectedGrade || "empty"}`}
+                  value={selectedGrade || undefined}
+                  onValueChange={(value) =>
+                    setSelectedGrade(value)
+                  }
+                  disabled={availableGrades.length === 0 || !selectedYear}
+                >
+                  <SelectTrigger className="bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white h-10 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <SelectValue placeholder={
+                      !selectedYear 
+                        ? "Select year first" 
+                        : "Select Grade"
+                    } />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableGrades.length > 0 ? availableGrades.map((grade) => (
+                      <SelectItem key={grade} value={grade}>
+                        {grade}
+                      </SelectItem>
+                    )) : null}
+                  </SelectContent>
+                </Select>
+                {selectedGrade && (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setSelectedGrade(undefined);
+                    }}
+                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white z-10"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
 
           {/* Sort By */}
           <div className="px-3 pb-3 bg-[rgba(117,36,50,1)] space-y-3">
@@ -758,7 +559,7 @@ export function SearchSidebar({
                             {outline.year}
                           </span>
                           <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">
-                            {outline.type}
+                            {outline.grade}
                           </span>
                         </div>
                         {/* Bookmark Tag */}
@@ -798,7 +599,7 @@ export function SearchSidebar({
                         <div className="flex items-center gap-1">
                           {renderStars(outline.rating)}
                           <span className="text-xs text-gray-600 ml-1">
-                            ({outline.ratingCount})
+                            ({outline.rating_count})
                           </span>
                         </div>
                         <div className="flex gap-1 items-center relative">
@@ -824,8 +625,8 @@ export function SearchSidebar({
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDownload(
-                                  outline.fileUrl,
-                                  outline.fileType,
+                                  outline.file_path,
+                                  outline.file_type,
                                 );
                               }}
                               className="p-1 h-8 w-8"
@@ -833,7 +634,7 @@ export function SearchSidebar({
                               <Download className="w-4 h-4" />
                             </Button>
                             <div className="absolute top-full left-1/2 transform -translate-x-1/2 text-[8px] text-gray-400 text-left mt-[-2px] mr-[0px] mb-[5px] ml-[0px] p-[0px]">
-                              ({outline.fileType})
+                              ({outline.file_type})
                             </div>
                           </div>
                           <DropdownMenu>
@@ -1032,7 +833,7 @@ export function SearchSidebar({
                                 {outline.year}
                               </span>
                               <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">
-                                {outline.type}
+                                {outline.grade}
                               </span>
                             </div>
                             <Button
@@ -1087,8 +888,8 @@ export function SearchSidebar({
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleDownload(
-                                    outline.fileUrl,
-                                    outline.fileType,
+                                    outline.file_path,
+                                    outline.file_type,
                                   );
                                 }}
                                 className="p-1 h-8 w-8"
@@ -1096,7 +897,7 @@ export function SearchSidebar({
                                 <Download className="w-4 h-4" />
                               </Button>
                               <div className="absolute top-full left-1/2 transform -translate-x-1/2 text-[8px] text-gray-400 mt-0.5">
-                                ({outline.fileType})
+                                ({outline.file_type})
                               </div>
                             </div>
                             <DropdownMenu>
@@ -1206,7 +1007,7 @@ export function SearchSidebar({
                       <SelectValue placeholder="Select course" />
                     </SelectTrigger>
                     <SelectContent>
-                      {courses.sort((a, b) => a.localeCompare(b)).map((course) => (
+                      {availableCourses.map((course) => (
                         <SelectItem key={course} value={course}>
                           {course}
                         </SelectItem>
@@ -1225,10 +1026,7 @@ export function SearchSidebar({
                       <SelectValue placeholder="Select instructor" />
                     </SelectTrigger>
                     <SelectContent>
-                      {instructors
-                        .map(inst => inst.name)
-                        .sort((a, b) => a.localeCompare(b))
-                        .map((instructor) => (
+                      {availableInstructors.map((instructor) => (
                         <SelectItem key={instructor} value={instructor}>
                           {instructor}
                         </SelectItem>

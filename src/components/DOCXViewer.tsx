@@ -123,6 +123,22 @@ export function DOCXViewer({ fileUrl, fileName, onDownload, onClose }: DOCXViewe
     setHighlightedContent(content);
   };
 
+  // Auto-search with debouncing
+  useEffect(() => {
+    // Always start with clean content when search term changes
+    setSearchResults([]);
+    setCurrentSearchIndex(0);
+    setHighlightedContent(content);
+
+    const timeoutId = setTimeout(() => {
+      if (searchTerm.trim()) {
+        searchInDOCX(searchTerm);
+      }
+    }, 300); // 300ms delay
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, content]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96 bg-gray-100 rounded-lg">
@@ -158,11 +174,6 @@ export function DOCXViewer({ fileUrl, fileName, onDownload, onClose }: DOCXViewe
               placeholder="Search in DOCX..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  searchInDOCX(searchTerm);
-                }
-              }}
               className="pl-8 pr-7 h-8 text-sm"
             />
             {searchTerm && (

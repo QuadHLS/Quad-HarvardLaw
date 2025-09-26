@@ -103,7 +103,7 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose }: PDFViewerP
     };
   }, [totalPages, currentPage]);
 
-  const renderPage = async (pageNum: number) => {
+  const renderPage = async (pageNum: number, customScale?: number) => {
     if (!pdfRef.current || !canvasRef.current) return;
 
     try {
@@ -126,7 +126,8 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose }: PDFViewerP
         return;
       }
 
-      const viewport = page.getViewport({ scale });
+      const renderScale = customScale !== undefined ? customScale : scale;
+      const viewport = page.getViewport({ scale: renderScale });
       
       // Set canvas size
       canvas.height = viewport.height;
@@ -183,7 +184,7 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose }: PDFViewerP
 
   const changeScale = (newScale: number) => {
     setScale(newScale);
-    renderPage(currentPage);
+    renderPage(currentPage, newScale);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

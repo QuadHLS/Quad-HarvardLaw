@@ -628,10 +628,10 @@ function AppContent({ user }: { user: any }) {
         ) : activeSection === 'reviews' ? (
           <ReviewsPage />
         ) : activeSection === 'home' ? (
-        <HomePage
-          onNavigateToCourse={handleNavigateToCourse}
-          user={user}
-        />
+          <HomePage
+            onNavigateToCourse={handleNavigateToCourse}
+            user={user}
+          />
         ) : activeSection === 'course' ? (
           <CoursePage
             courseName={selectedCourse}

@@ -558,7 +558,9 @@ export function SearchSidebar({
             {/* Filter Tags */}
             <div className="flex gap-1.5 justify-center">
               <button
-                onClick={() => setShowOutlines(!showOutlines)}
+                onClick={() => {
+                  setShowOutlines(!showOutlines);
+                }}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm font-medium ${
                   showOutlines
                     ? "bg-white text-[#8B4A6B] border border-white shadow-sm"
@@ -566,10 +568,12 @@ export function SearchSidebar({
                 }`}
               >
                 <Tag className="w-4 h-4" />
-                Outline
+                Outline ({'>'}25 pages)
               </button>
               <button
-                onClick={() => setShowAttacks(!showAttacks)}
+                onClick={() => {
+                  setShowAttacks(!showAttacks);
+                }}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm font-medium ${
                   showAttacks
                     ? "bg-white text-[#8B4A6B] border border-white shadow-sm"
@@ -577,45 +581,91 @@ export function SearchSidebar({
                 }`}
               >
                 <Tag className="w-4 h-4" />
-                Attack
+                Attack (≤25 pages)
               </button>
             </div>
           </div>
 
           {/* Outlines List */}
           <div className="flex-1 text-black overflow-y-auto" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-            {selectedCourse === "" ||
-            selectedInstructor === "" ? (
+            {(() => {
+              // First filter by course and instructor
+              const courseInstructorFiltered = outlines.filter((outline) => {
+                if (selectedCourse === "" || selectedInstructor === "") {
+                  return false; // Don't show any if course/instructor not selected
+                }
+                return outline.course === selectedCourse && outline.instructor === selectedInstructor;
+              });
+
+
+              // Then filter by page count based on button selection
+              const filteredOutlines = courseInstructorFiltered.filter((outline) => {
+                // If both buttons are selected, show all
+                if (showOutlines && showAttacks) {
+                  return true;
+                }
+                // If only outline button is selected, show only outlines
+                if (showOutlines && !showAttacks) {
+                  return outline.pages > 25;
+                }
+                // If only attack button is selected, show only attacks
+                if (!showOutlines && showAttacks) {
+                  return outline.pages <= 25;
+                }
+                // If neither is selected, show nothing
+                return false;
+              });
+
+              return filteredOutlines.length === 0;
+            })() ? (
               <div className="flex flex-col items-center justify-center h-full p-6 text-center">
                 <FileText className="w-16 h-16 text-gray-400 mb-4" />
                 <h3 className="text-lg font-medium text-gray-700 mb-2">
-                  {selectedCourse === "" &&
-                  selectedInstructor === ""
-                    ? "No Filters Selected"
-                    : "Incomplete Selection"}
+                  {selectedCourse === "" || selectedInstructor === ""
+                    ? selectedCourse === "" && selectedInstructor === ""
+                      ? "No Filters Selected"
+                      : "Incomplete Selection"
+                    : "No Outlines Found"}
                 </h3>
                 <p className="text-gray-500 text-sm">
-                  {selectedCourse === "" &&
-                  selectedInstructor === ""
-                    ? "Please select both a course and instructor above to view available outlines."
-                    : selectedCourse === ""
-                      ? "Please select a course to complete your search criteria."
-                      : "Please select an instructor to complete your search criteria."}
-                </p>
-              </div>
-            ) : outlines.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-                <FileText className="w-16 h-16 text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-700 mb-2">
-                  No Outlines Found
-                </h3>
-                <p className="text-gray-500 text-sm">
-                  No outlines match your current search
-                  criteria.
+                  {selectedCourse === "" || selectedInstructor === ""
+                    ? selectedCourse === "" && selectedInstructor === ""
+                      ? "Please select both a course and instructor above to view available outlines."
+                      : selectedCourse === ""
+                        ? "Please select a course to complete your search criteria."
+                        : "Please select an instructor to complete your search criteria."
+                    : "No outlines match your current search criteria."}
                 </p>
               </div>
             ) : (
-              outlines.map((outline) => {
+              (() => {
+                // First filter by course and instructor
+                const courseInstructorFiltered = outlines.filter((outline) => {
+                  if (selectedCourse === "" || selectedInstructor === "") {
+                    return false; // Don't show any if course/instructor not selected
+                  }
+                  return outline.course === selectedCourse && outline.instructor === selectedInstructor;
+                });
+
+                // Then filter by page count based on button selection
+                return courseInstructorFiltered.filter((outline) => {
+                  // If both buttons are selected, show all
+                  if (showOutlines && showAttacks) {
+                    return true;
+                  }
+                  // If only outline button is selected, show only outlines
+                  if (showOutlines && !showAttacks) {
+                    return outline.pages > 25;
+                  }
+                  // If only attack button is selected, show only attacks
+                  if (!showOutlines && showAttacks) {
+                    return outline.pages <= 25;
+                  }
+                  // If neither is selected, show nothing
+                  return false;
+                });
+              })()
+                .map((outline) => {
                 const isSaved = savedOutlines.some(
                   (saved) => saved.id === outline.id,
                 );

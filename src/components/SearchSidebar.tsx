@@ -51,8 +51,6 @@ interface SearchSidebarProps {
   setShowOutlines: (show: boolean) => void;
   showAttacks: boolean;
   setShowAttacks: (show: boolean) => void;
-  selectedOutline: Outline | null;
-  onSelectOutline: (outline: Outline) => void;
   activeTab: "search" | "saved" | "upload";
   setActiveTab: (tab: "search" | "saved" | "upload") => void;
   savedOutlines: Outline[];
@@ -72,7 +70,6 @@ interface SearchSidebarProps {
     name: string;
     type: string;
   } | null) => void;
-  previewLoading: boolean;
   setPreviewLoading: (loading: boolean) => void;
 }
 
@@ -93,8 +90,6 @@ export function SearchSidebar({
   setShowOutlines,
   showAttacks,
   setShowAttacks,
-  selectedOutline,
-  onSelectOutline,
   activeTab,
   setActiveTab,
   savedOutlines,
@@ -104,9 +99,8 @@ export function SearchSidebar({
   onHideOutline,
   onUnhideAllOutlines,
   loading = false,
-  previewFile, // Passed through to parent for preview functionality
+  previewFile,
   setPreviewFile,
-  previewLoading, // Passed through to parent for preview functionality
   setPreviewLoading,
 }: SearchSidebarProps) {
   const [reviewingOutline, setReviewingOutline] =
@@ -216,6 +210,12 @@ export function SearchSidebar({
   };
 
   const handlePreview = async (filePath: string, fileName: string, fileType: string) => {
+    // Check if the same file is already being previewed
+    if (previewFile && previewFile.name === fileName && previewFile.type === fileType) {
+      console.log('File is already being previewed, skipping...');
+      return;
+    }
+
     try {
       console.log('Starting preview for:', filePath);
       setPreviewLoading(true);
@@ -673,11 +673,11 @@ export function SearchSidebar({
                   <div
                     key={outline.id}
                     className={`p-3 border-b border-gray-300 cursor-pointer hover:bg-gray-100 ${
-                      selectedOutline?.id === outline.id
-                        ? "bg-blue-50"
+                      previewFile && previewFile.name === outline.file_name && previewFile.type === outline.file_type
+                        ? "bg-blue-50 border-blue-200"
                         : ""
                     }`}
-                    onClick={() => onSelectOutline(outline)}
+                    onClick={() => handlePreview(outline.file_path, outline.file_name, outline.file_type)}
                   >
                     <div className="relative">
                       <div className="flex items-center justify-between mb-2">
@@ -967,11 +967,11 @@ export function SearchSidebar({
                       <div
                         key={outline.id}
                         className={`p-3 border-b border-gray-300 cursor-pointer hover:bg-gray-100 ${
-                          selectedOutline?.id === outline.id
-                            ? "bg-blue-50"
+                          previewFile && previewFile.name === outline.file_name && previewFile.type === outline.file_type
+                            ? "bg-blue-50 border-blue-200"
                             : ""
                         }`}
-                        onClick={() => onSelectOutline(outline)}
+                        onClick={() => handlePreview(outline.file_path, outline.file_name, outline.file_type)}
                       >
                         <div className="relative">
                           <div className="flex items-center justify-between mb-2">

@@ -4,7 +4,7 @@ import { NavigationSidebar } from './components/NavigationSidebar';
 import { SearchSidebar } from './components/SearchSidebar';
 import { OutlineViewer } from './components/OutlineViewer';
 import { PDFViewer } from './components/PDFViewer';
-import { DOCXViewer } from './components/DOCXViewer';
+import { OfficeWebViewer } from './components/OfficeWebViewer';
 import { ReviewsPage } from './components/ReviewsPage';
 import { HomePage } from './components/HomePage';
 import { CoursePage } from './components/CoursePage';
@@ -131,9 +131,6 @@ function AppContent({ user }: { user: any }) {
   const [savedOutlines, setSavedOutlines] = useState<Outline[]>([]);
   const [hiddenOutlines, setHiddenOutlines] = useState<string[]>([]);
 
-  // Exams state (separate from outlines)
-  const [savedExams, setSavedExams] = useState<Outline[]>([]);
-  const [hiddenExams, setHiddenExams] = useState<string[]>([]);
   
   // Preview state
   const [previewFile, setPreviewFile] = useState<{
@@ -345,41 +342,6 @@ function AppContent({ user }: { user: any }) {
     setHiddenOutlines([]);
   };
 
-  // Exam handlers (separate from outlines)
-  const handleSaveExam = (exam: Outline) => {
-    setSavedExams((prev) => {
-      // Check if exam is already saved
-      if (prev.some((saved) => saved.id === exam.id)) {
-        return prev; // Don't add duplicates
-      }
-      return [...prev, exam];
-    });
-  };
-
-  const handleRemoveSavedExam = (examId: string) => {
-    setSavedExams((prev) =>
-      prev.filter((exam) => exam.id !== examId)
-    );
-  };
-
-  const handleToggleSaveExam = (exam: Outline) => {
-    setSavedExams((prev) => {
-      const isAlreadySaved = prev.some((saved) => saved.id === exam.id);
-      if (isAlreadySaved) {
-        return prev.filter((saved) => saved.id !== exam.id);
-      } else {
-        return [...prev, exam];
-      }
-    });
-  };
-
-  const handleHideExam = (examId: string) => {
-    setHiddenExams((prev) => [...prev, examId]);
-  };
-
-  const handleUnhideAllExams = () => {
-    setHiddenExams([]);
-  };
 
   const handleSectionChange = (section: string) => {
     setActiveSection(section);
@@ -490,8 +452,6 @@ function AppContent({ user }: { user: any }) {
           setShowOutlines={setShowOutlines}
           showAttacks={showAttacks}
           setShowAttacks={setShowAttacks}
-          selectedOutline={selectedOutline}
-          onSelectOutline={setSelectedOutline}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           savedOutlines={savedOutlines}
@@ -503,13 +463,12 @@ function AppContent({ user }: { user: any }) {
           loading={outlinesLoading}
           previewFile={previewFile}
           setPreviewFile={setPreviewFile}
-          previewLoading={previewLoading}
           setPreviewLoading={setPreviewLoading}
         />
       )}
 
       {/* Main Content */}
-      <div className={`flex-1 border-l border-gray-300 ${sidebarCollapsed ? 'ml-16' : 'ml-40'}`} style={{ transition: 'margin-left 300ms ease-in-out' }}>
+      <div className={`flex-1 border-l border-gray-300 overflow-hidden ${sidebarCollapsed ? 'ml-16' : 'ml-40'}`} style={{ transition: 'margin-left 300ms ease-in-out' }}>
         {activeSection === 'outlines' ? (
           activeTab === 'upload' ? (
             <div className="flex items-center justify-center h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
@@ -568,7 +527,7 @@ function AppContent({ user }: { user: any }) {
                   onClose={() => setPreviewFile(null)}
                 />
               ) : previewFile.type.toLowerCase() === 'docx' ? (
-                <DOCXViewer
+                <OfficeWebViewer
                   fileUrl={previewFile.url}
                   fileName={previewFile.name}
                   onDownload={() => {

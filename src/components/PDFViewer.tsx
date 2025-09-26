@@ -14,7 +14,7 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose }: PDFViewerP
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
-  const [scale, setScale] = useState(1.0);
+  const [scale, setScale] = useState(1.0); // Start with original scale, will auto-fit
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -23,6 +23,80 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose }: PDFViewerP
   const [isSearching, setIsSearching] = useState(false);
   const pdfRef = useRef<any>(null);
   const currentRenderTaskRef = useRef<any>(null);
+  const scrollAccumulatorRef = useRef<number>(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isRenderingRef = useRef<boolean>(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [scrollPosition, setScrollPosition] = useState(0);
+  const boundaryScrollAccumulatorRef = useRef<number>(0);
+
+  // Handle wheel events with proper event listener
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleWheelEvent = (e: WheelEvent) => {
+      // Only handle wheel events when not holding Ctrl/Cmd (to allow zoom)
+      if (e.ctrlKey || e.metaKey) {
+        return; // Let browser handle zoom
+      }
+
+      e.preventDefault();
+      
+      const scrollContainer = scrollContainerRef.current;
+      if (!scrollContainer) return;
+
+      const scrollDelta = e.deltaY;
+      const currentScrollTop = scrollContainer.scrollTop;
+      const scrollHeight = scrollContainer.scrollHeight;
+      const clientHeight = scrollContainer.clientHeight;
+      
+      // Check if we're at the exact boundaries
+      const isAtTop = currentScrollTop <= 0;
+      const isAtBottom = currentScrollTop + clientHeight >= scrollHeight - 1;
+      
+      if (scrollDelta > 0) {
+        // Scrolling down
+        if (isAtBottom && currentPage < totalPages) {
+          // At bottom of current page, accumulate scroll to switch pages
+          boundaryScrollAccumulatorRef.current += scrollDelta;
+          
+          // Require 150px of accumulated scroll before switching pages
+          if (boundaryScrollAccumulatorRef.current >= 150) {
+            boundaryScrollAccumulatorRef.current = 0;
+            goToPage(currentPage + 1);
+          }
+        } else {
+          // Scroll within current page
+          boundaryScrollAccumulatorRef.current = 0; // Reset accumulator
+          scrollContainer.scrollTop += scrollDelta;
+        }
+      } else {
+        // Scrolling up
+        if (isAtTop && currentPage > 1) {
+          // At top of current page, accumulate scroll to switch pages
+          boundaryScrollAccumulatorRef.current += Math.abs(scrollDelta);
+          
+          // Require 150px of accumulated scroll before switching pages
+          if (boundaryScrollAccumulatorRef.current >= 150) {
+            boundaryScrollAccumulatorRef.current = 0;
+            goToPage(currentPage - 1);
+          }
+        } else {
+          // Scroll within current page
+          boundaryScrollAccumulatorRef.current = 0; // Reset accumulator
+          scrollContainer.scrollTop += scrollDelta;
+        }
+      }
+    };
+
+    // Add event listener with { passive: false } to allow preventDefault
+    container.addEventListener('wheel', handleWheelEvent, { passive: false });
+
+    return () => {
+      container.removeEventListener('wheel', handleWheelEvent);
+    };
+  }, [currentPage, totalPages]);
 
   useEffect(() => {
     const loadPDF = async () => {
@@ -46,8 +120,8 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose }: PDFViewerP
         pdfRef.current = pdf;
         setTotalPages(pdf.numPages);
         
-        // Render first page immediately
-        await renderPage(1);
+        // Auto-fit to width on first load
+        await fitToWidth();
         setLoading(false);
       } catch (err) {
         console.error('Error loading PDF:', err);
@@ -90,7 +164,8 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose }: PDFViewerP
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(() => {
         if (totalPages > 0 && currentPage > 0) {
-          renderPage(currentPage);
+          // Auto-fit to width when container is resized
+          fitToWidth();
         }
       }, 100);
     });
@@ -103,14 +178,24 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose }: PDFViewerP
     };
   }, [totalPages, currentPage]);
 
+
   const renderPage = async (pageNum: number, customScale?: number) => {
     if (!pdfRef.current || !canvasRef.current) return;
 
+    // Prevent multiple simultaneous renders
+    if (isRenderingRef.current) {
+      return;
+    }
+
     try {
-      // Cancel any existing render task first
+      isRenderingRef.current = true;
+
+      // Cancel any existing render task first and wait for it to complete
       if (currentRenderTaskRef.current) {
         try {
           currentRenderTaskRef.current.cancel();
+          // Wait a bit for the cancellation to take effect
+          await new Promise(resolve => setTimeout(resolve, 50));
         } catch (e) {
           // Ignore cancellation errors
         }
@@ -126,19 +211,49 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose }: PDFViewerP
         return;
       }
 
+      // Get device pixel ratio for high-DPI displays
+      const devicePixelRatio = window.devicePixelRatio || 1;
       const renderScale = customScale !== undefined ? customScale : scale;
+      
+      // Create viewport with the desired scale
       const viewport = page.getViewport({ scale: renderScale });
       
-      // Set canvas size
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
+      // Set canvas size for high-DPI display (multiply by device pixel ratio)
+      canvas.height = viewport.height * devicePixelRatio;
+      canvas.width = viewport.width * devicePixelRatio;
       
-      // Clear the canvas
+      // Scale the canvas back down using CSS for crisp rendering
+      canvas.style.height = `${viewport.height}px`;
+      canvas.style.width = `${viewport.width}px`;
+      
+      // Scale the drawing context so everything draws at the higher resolution
+      context.scale(devicePixelRatio, devicePixelRatio);
+      
+      // Completely reset the canvas and context
       context.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Reset all context properties to default state
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.globalAlpha = 1.0;
+      context.globalCompositeOperation = 'source-over';
+      context.fillStyle = '#000000';
+      context.strokeStyle = '#000000';
+      context.lineWidth = 1;
+      context.lineCap = 'butt';
+      context.lineJoin = 'miter';
+      context.miterLimit = 10;
+      
+      // Apply device pixel ratio scaling
+      context.scale(devicePixelRatio, devicePixelRatio);
+
+      // Enable better text rendering
+      context.textRenderingOptimization = 'optimizeQuality';
+      context.imageSmoothingEnabled = true;
+      context.imageSmoothingQuality = 'high';
 
       const renderContext = {
         canvasContext: context,
-        viewport: viewport,
+        viewport: viewport, // Use the same viewport for rendering
       };
 
       // Start new render task
@@ -162,6 +277,7 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose }: PDFViewerP
         // Check if it's a cancellation error
         if (renderErr.name === 'RenderingCancelledException') {
           console.log('Render was cancelled, this is expected');
+          isRenderingRef.current = false;
           return;
         }
         throw renderErr;
@@ -172,6 +288,8 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose }: PDFViewerP
       if (err.name !== 'RenderingCancelledException') {
         setError('Failed to render page. Please try again.');
       }
+    } finally {
+      isRenderingRef.current = false;
     }
   };
 
@@ -179,12 +297,61 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose }: PDFViewerP
     if (pageNum >= 1 && pageNum <= totalPages) {
       setCurrentPage(pageNum);
       renderPage(pageNum);
+      // Reset scroll position to top when changing pages
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = 0;
+      }
+      // Reset boundary scroll accumulator
+      boundaryScrollAccumulatorRef.current = 0;
     }
   };
 
   const changeScale = (newScale: number) => {
     setScale(newScale);
     renderPage(currentPage, newScale);
+  };
+
+  const fitToWidth = async () => {
+    if (!pdfRef.current || !canvasRef.current) return;
+    
+    try {
+      const page = await pdfRef.current.getPage(currentPage);
+      const container = canvasRef.current.parentElement?.parentElement; // Get the scrollable container
+      const containerWidth = container?.clientWidth || 800;
+      const viewport = page.getViewport({ scale: 1.0 });
+      const newScale = (containerWidth - 80) / viewport.width; // 80px padding (40px on each side)
+      
+      // Ensure scale doesn't go below 0.3 or above 3.0
+      const clampedScale = Math.max(0.3, Math.min(3.0, newScale));
+      
+      setScale(clampedScale);
+      renderPage(currentPage, clampedScale);
+    } catch (err) {
+      console.error('Error fitting to width:', err);
+    }
+  };
+
+  const fitToPage = async () => {
+    if (!pdfRef.current || !canvasRef.current) return;
+    
+    try {
+      const page = await pdfRef.current.getPage(currentPage);
+      const container = canvasRef.current.parentElement;
+      if (!container) return;
+      
+      const containerWidth = container.clientWidth - 40; // 40px padding
+      const containerHeight = container.clientHeight - 40; // 40px padding
+      const viewport = page.getViewport({ scale: 1.0 });
+      
+      const scaleX = containerWidth / viewport.width;
+      const scaleY = containerHeight / viewport.height;
+      const newScale = Math.min(scaleX, scaleY, 3.0); // Max 300% zoom
+      
+      setScale(newScale);
+      renderPage(currentPage, newScale);
+    } catch (err) {
+      console.error('Error fitting to page:', err);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -194,8 +361,22 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose }: PDFViewerP
       goToPage(currentPage - 1);
     } else if (e.key === 'ArrowRight') {
       goToPage(currentPage + 1);
+    } else if (e.key === '+' || e.key === '=') {
+      e.preventDefault();
+      if (scale < 4.0) {
+        changeScale(scale + 0.1);
+      }
+    } else if (e.key === '-') {
+      e.preventDefault();
+      if (scale > 0.3) {
+        changeScale(scale - 0.1);
+      }
+    } else if (e.key === '0') {
+      e.preventDefault();
+      fitToWidth();
     }
   };
+
 
   const searchInPDF = async (term: string) => {
     if (!pdfRef.current || !term.trim()) {
@@ -515,7 +696,7 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose }: PDFViewerP
   }
 
   return (
-    <div className="h-full flex flex-col" style={{ backgroundColor: '#f9f5f0' }} onKeyDown={handleKeyDown} tabIndex={0}>
+    <div ref={containerRef} className="h-full flex flex-col overflow-hidden" style={{ backgroundColor: '#f9f5f0' }} onKeyDown={handleKeyDown} tabIndex={0}>
       {/* Search Bar */}
       <div className="p-2 bg-white border-b">
         <div className="flex items-center gap-1">
@@ -580,15 +761,13 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose }: PDFViewerP
         )}
       </div>
 
-      {/* Header Controls */}
+      {/* File Name Header */}
+      <div className="p-2 bg-gray-50 border-b">
+        <h3 className="font-semibold text-sm truncate">{fileName}</h3>
+      </div>
+
+      {/* Controls */}
       <div className="flex items-center justify-between p-2 bg-gray-50 border-b">
-        <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-sm">{fileName}</h3>
-          <span className="text-xs text-gray-500">
-            Page {currentPage} of {totalPages}
-          </span>
-        </div>
-        
         <div className="flex items-center gap-1">
           <Button
             onClick={() => goToPage(currentPage - 1)}
@@ -596,9 +775,14 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose }: PDFViewerP
             variant="outline"
             size="sm"
             className="h-7 px-2"
+            title="Previous Page"
           >
             <ChevronLeft className="w-3 h-3" />
           </Button>
+          
+          <span className="text-xs text-gray-500 px-2" title="Use mouse wheel to scroll through pages">
+            {currentPage} / {totalPages}
+          </span>
           
           <Button
             onClick={() => goToPage(currentPage + 1)}
@@ -606,52 +790,80 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose }: PDFViewerP
             variant="outline"
             size="sm"
             className="h-7 px-2"
+            title="Next Page"
           >
             <ChevronRight className="w-3 h-3" />
           </Button>
           
-          <div className="flex items-center gap-1 ml-2">
-            <Button
-              onClick={() => changeScale(scale - 0.2)}
-              disabled={scale <= 0.5}
-              variant="outline"
-              size="sm"
-              className="h-7 px-2"
-            >
-              <ZoomOut className="w-3 h-3" />
-            </Button>
-            
-            <span className="text-xs px-1">{Math.round(scale * 100)}%</span>
-            
-            <Button
-              onClick={() => changeScale(scale + 0.2)}
-              disabled={scale >= 3.0}
-              variant="outline"
-              size="sm"
-              className="h-7 px-2"
-            >
-              <ZoomIn className="w-3 h-3" />
-            </Button>
-          </div>
+          <div className="w-px h-4 bg-gray-300 mx-2"></div>
           
+          <Button
+            onClick={() => changeScale(scale - 0.1)}
+            disabled={scale <= 0.3}
+            variant="outline"
+            size="sm"
+            className="h-7 px-2"
+            title="Zoom Out"
+          >
+            <ZoomOut className="w-3 h-3" />
+          </Button>
+          
+          <span className="text-xs px-1 min-w-[2.5rem] text-center">{Math.round(scale * 100)}%</span>
+          
+          <Button
+            onClick={() => changeScale(scale + 0.1)}
+            disabled={scale >= 4.0}
+            variant="outline"
+            size="sm"
+            className="h-7 px-2"
+            title="Zoom In"
+          >
+            <ZoomIn className="w-3 h-3" />
+          </Button>
+          
+          <div className="w-px h-4 bg-gray-300 mx-2"></div>
+          
+          <Button
+            onClick={fitToWidth}
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            title="Fit to Width"
+          >
+            Fit
+          </Button>
+        </div>
+        
+        <div className="flex items-center gap-1">
           <Button onClick={onDownload} variant="outline" size="sm" className="h-7 px-2 text-xs">
             <Download className="w-3 h-3 mr-1" />
             Download
           </Button>
           
           <Button onClick={onClose} variant="outline" size="sm" className="h-7 px-2 text-xs">
+            <X className="w-3 h-3 mr-1" />
             Close
           </Button>
         </div>
       </div>
 
       {/* PDF Canvas */}
-      <div className="flex-1 overflow-auto p-4" style={{ backgroundColor: '#f9f5f0' }}>
-        <div className="flex justify-center">
+      <div 
+        ref={scrollContainerRef}
+        className="flex-1 overflow-auto p-4" 
+        style={{ backgroundColor: '#f9f5f0' }}
+      >
+        <div className="flex justify-center w-full">
           <canvas
             ref={canvasRef}
             className="shadow-lg bg-white"
-            style={{ maxWidth: '100%', height: 'auto' }}
+            style={{ 
+              maxWidth: '100%', 
+              maxHeight: 'none', // Allow canvas to be taller than container
+              height: 'auto',
+              width: 'auto',
+              imageRendering: '-webkit-optimize-contrast'
+            }}
           />
         </div>
       </div>

@@ -23,9 +23,7 @@ export function OfficeWebViewer({ fileUrl, fileName, onDownload, onClose }: Offi
   return (
     <div className="h-full flex flex-col" onKeyDown={handleKeyDown} tabIndex={0}>
       {/* Header Controls */}
-      <div className="flex items-center justify-between p-2 bg-gray-50 border-b">
-        <h3 className="font-semibold text-sm">{fileName}</h3>
-        
+      <div className="flex items-center justify-end p-2 bg-gray-50 border-b">
         <div className="flex items-center gap-1">
           <Button onClick={onDownload} variant="outline" size="sm" className="h-7 px-2 text-xs">
             <Download className="w-3 h-3 mr-1" />

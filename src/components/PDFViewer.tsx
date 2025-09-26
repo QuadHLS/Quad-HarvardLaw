@@ -761,10 +761,6 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose }: PDFViewerP
         )}
       </div>
 
-      {/* File Name Header */}
-      <div className="p-2 bg-gray-50 border-b">
-        <h3 className="font-semibold text-sm truncate">{fileName}</h3>
-      </div>
 
       {/* Controls */}
       <div className="flex items-center justify-between p-2 bg-gray-50 border-b">

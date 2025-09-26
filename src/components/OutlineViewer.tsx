@@ -26,117 +26,122 @@ export function OutlineViewer({ outline, onSaveOutline, isSaved }: OutlineViewer
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 25, 50));
 
   return (
-    <div className="flex flex-col h-full bg-gray-800">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between px-2 pt-2 pb-0 bg-gray-700 text-white">
-        {/* Left Section - Page Navigation */}
-        <div className="flex items-center gap-3 py-1.5">
-          <span className="text-sm text-white/90 min-w-12 text-center">
-            {outline ? `${currentPage} / ${totalPages}` : '— / —'}
-          </span>
-          <div className="flex items-center gap-1">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={!outline || currentPage === 1}
-              className="h-8 w-8 p-0 text-white hover:bg-gray-600 disabled:opacity-50"
-            >
-              ←
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={!outline || currentPage === totalPages}
-              className="h-8 w-8 p-0 text-white hover:bg-gray-600 disabled:opacity-50"
-            >
-              →
-            </Button>
+    <div className="flex flex-col h-full" style={{ backgroundColor: '#f9f5f0' }}>
+      {!outline ? (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <p className="text-gray-600 text-lg font-medium mb-2">Search and Select an Outline to Preview</p>
+            <p className="text-gray-500 text-sm">Use the search filters on the left to find and select an outline to view its content.</p>
           </div>
         </div>
+      ) : (
+        <>
+          {/* Toolbar */}
+          <div className="flex items-center justify-between px-2 pt-2 pb-0 bg-gray-700 text-white">
+            {/* Left Section - Page Navigation */}
+            <div className="flex items-center gap-3 py-1.5">
+              <span className="text-sm text-white/90 min-w-12 text-center">
+                {outline ? `${currentPage} / ${totalPages}` : '— / —'}
+              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={!outline || currentPage === 1}
+                  className="h-8 w-8 p-0 text-white hover:bg-gray-600 disabled:opacity-50"
+                >
+                  ←
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={!outline || currentPage === totalPages}
+                  className="h-8 w-8 p-0 text-white hover:bg-gray-600 disabled:opacity-50"
+                >
+                  →
+                </Button>
+              </div>
+            </div>
 
-        {/* Center Section - Search Bar */}
-        <div className="relative flex-1 max-w-lg mx-6">
-          <Input
-            placeholder={outline ? (outline.pages <= 25 ? "Search in Attack" : "Search in Outline") : ""}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            disabled={!outline}
-            className="h-8 bg-gray-600 border-gray-500 text-white placeholder:text-gray-400 pr-10 focus:ring-1 focus:ring-gray-400"
-          />
-          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-        </div>
+            {/* Center Section - Search Bar */}
+            <div className="relative flex-1 max-w-lg mx-6">
+              <Input
+                placeholder={outline ? (outline.pages <= 25 ? "Search in Attack" : "Search in Outline") : ""}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                disabled={!outline}
+                className="h-8 bg-gray-600 border-gray-500 text-white placeholder:text-gray-400 pr-10 focus:ring-1 focus:ring-gray-400"
+              />
+              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            </div>
 
-        {/* Right Section - Zoom Controls and Actions */}
-        <div className="flex items-center gap-2 py-1.5">
-          {/* Zoom Controls */}
-          <div className="flex items-center gap-1">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleZoomOut}
-              disabled={!outline || zoom <= 50}
-              className="h-8 w-8 p-0 text-white hover:bg-gray-600 disabled:opacity-50"
-            >
-              <ZoomOut className="w-4 h-4" />
-            </Button>
-            <span className="text-sm text-white/90 min-w-12 text-center">
-              {outline ? `${zoom}%` : '—'}
-            </span>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleZoomIn}
-              disabled={!outline || zoom >= 200}
-              className="h-8 w-8 p-0 text-white hover:bg-gray-600 disabled:opacity-50"
-            >
-              <ZoomIn className="w-4 h-4" />
-            </Button>
+            {/* Right Section - Zoom Controls and Actions */}
+            <div className="flex items-center gap-2 py-1.5">
+              {/* Zoom Controls */}
+              <div className="flex items-center gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleZoomOut}
+                  disabled={!outline || zoom <= 50}
+                  className="h-8 w-8 p-0 text-white hover:bg-gray-600 disabled:opacity-50"
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </Button>
+                <span className="text-sm text-white/90 min-w-12 text-center">
+                  {outline ? `${zoom}%` : '—'}
+                </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleZoomIn}
+                  disabled={!outline || zoom >= 200}
+                  className="h-8 w-8 p-0 text-white hover:bg-gray-600 disabled:opacity-50"
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              {/* Separator */}
+              <div className="w-px h-5 bg-gray-500 mx-1" />
+              
+              {/* Action Buttons */}
+              <div className="flex items-center gap-1">
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  disabled={!outline} 
+                  className="h-8 w-8 p-0 text-white hover:bg-gray-600 bg-gray-800 disabled:opacity-50"
+                >
+                  <Share className="w-4 h-4" />
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  disabled={!outline} 
+                  onClick={() => outline && onSaveOutline(outline)}
+                  className={`h-8 w-8 p-0 text-white hover:bg-gray-600 disabled:opacity-50 ${
+                    isSaved ? 'bg-green-800 hover:bg-green-700' : 'bg-gray-800'
+                  }`}
+                >
+                  <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  disabled={!outline} 
+                  className="h-8 w-8 p-0 text-white hover:bg-gray-600 bg-gray-800 disabled:opacity-50"
+                >
+                  <Download className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
           </div>
-          
-          {/* Separator */}
-          <div className="w-px h-5 bg-gray-500 mx-1" />
-          
-          {/* Action Buttons */}
-          <div className="flex items-center gap-1">
-            <Button 
-              size="sm" 
-              variant="ghost" 
-              disabled={!outline} 
-              className="h-8 w-8 p-0 text-white hover:bg-gray-600 bg-gray-800 disabled:opacity-50"
-            >
-              <Share className="w-4 h-4" />
-            </Button>
-            <Button 
-              size="sm" 
-              variant="ghost" 
-              disabled={!outline} 
-              onClick={() => outline && onSaveOutline(outline)}
-              className={`h-8 w-8 p-0 text-white hover:bg-gray-600 disabled:opacity-50 ${
-                isSaved ? 'bg-green-800 hover:bg-green-700' : 'bg-gray-800'
-              }`}
-            >
-              <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
-            </Button>
-            <Button 
-              size="sm" 
-              variant="ghost" 
-              disabled={!outline} 
-              className="h-8 w-8 p-0 text-white hover:bg-gray-600 bg-gray-800 disabled:opacity-50"
-            >
-              <Download className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
 
-      {/* Document Viewer */}
-      <div className="flex-1 overflow-auto bg-gray-600 p-4">{!outline ? (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-gray-300">Select an outline to view</p>
-          </div>
-        ) : (
+          {/* Document Viewer */}
+          <div className="flex-1 overflow-auto p-4" style={{ backgroundColor: '#f9f5f0' }}>
         <div 
           className="mx-auto shadow-lg"
           style={{ 
@@ -228,8 +233,9 @@ export function OutlineViewer({ outline, onSaveOutline, isSaved }: OutlineViewer
             </div>
           </div>
         </div>
-        )}
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -1,0 +1,326 @@
+import { useState } from 'react';
+import { FileText } from 'lucide-react';
+import { NavigationSidebar } from './components/NavigationSidebar';
+import { SearchSidebar } from './components/SearchSidebar';
+import { OutlineViewer } from './components/OutlineViewer';
+import { Toaster } from './components/ui/sonner';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthPage } from './components/auth/AuthPage';
+import AccessCodeVerification from './components/AccessCodeVerification';
+import { OnboardingFlow } from './components/onboarding/OnboardingFlow';
+import { supabase } from './lib/supabase';
+import type { Outline, Instructor } from './types';
+
+// Clean outline data - no mock data, just empty arrays for UI playground
+const outlineData: Outline[] = [];
+const instructorData: Instructor[] = [];
+const courseData: string[] = [];
+
+// Main App Content Component
+function AppContent({ user, loading }: { user: any; loading: boolean }) {
+  // Local auth state
+  const [authLoading, setAuthLoading] = useState(true);
+  const [isVerified, setIsVerified] = useState(false);
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  
+  // Outlines state - clean and simple
+  const [selectedOutline, setSelectedOutline] = useState<Outline | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCourse, setSelectedCourse] = useState('');
+  const [selectedInstructor, setSelectedInstructor] = useState('');
+  const [selectedGrade, setSelectedGrade] = useState<string | undefined>(undefined);
+  const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
+  const [showOutlines, setShowOutlines] = useState(true);
+  const [showAttacks, setShowAttacks] = useState(true);
+  const [activeTab, setActiveTab] = useState<'search' | 'saved' | 'upload'>('search');
+  const [savedOutlines, setSavedOutlines] = useState<Outline[]>([]);
+  const [hiddenOutlines, setHiddenOutlines] = useState<string[]>([]);
+  const [activeSection, setActiveSection] = useState('outlines');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [sortBy, setSortBy] = useState('Highest Rated');
+
+  // Filter outlines based on search criteria
+  const filteredOutlines = outlineData.filter((outline) => {
+    // Don't show any outlines unless BOTH a course AND instructor are selected
+    if (selectedCourse === '' || selectedInstructor === '') {
+      return false;
+    }
+
+    // Exclude hidden outlines
+    if (hiddenOutlines.includes(outline.id)) {
+      return false;
+    }
+
+    const matchesSearch =
+      searchTerm === '' ||
+      outline.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      outline.course.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesCourse = outline.course === selectedCourse;
+    const matchesInstructor = outline.instructor === selectedInstructor;
+    const matchesGrade = !selectedGrade || outline.type === selectedGrade;
+    const matchesYear = !selectedYear || outline.year === selectedYear;
+
+    // Filter by Outline/Attack type based on page count
+    const isAttack = outline.pages <= 25;
+    const isOutline = outline.pages > 25;
+    const matchesType =
+      (isAttack && showAttacks) || (isOutline && showOutlines);
+
+    return (
+      matchesSearch &&
+      matchesCourse &&
+      matchesInstructor &&
+      matchesGrade &&
+      matchesYear &&
+      matchesType
+    );
+  });
+
+  // Sort outlines
+  const sortedOutlines = [...filteredOutlines].sort((a, b) => {
+    if (sortBy === 'Highest Rated') {
+      return b.rating - a.rating;
+    }
+    if (sortBy === 'Newest') {
+      return parseInt(b.year) - parseInt(a.year);
+    }
+    return a.title.localeCompare(b.title);
+  });
+
+  // Outline handlers
+  const handleSaveOutline = (outline: Outline) => {
+    setSavedOutlines((prev) => {
+      if (prev.some((saved) => saved.id === outline.id)) {
+        return prev;
+      }
+      return [...prev, outline];
+    });
+  };
+
+  const handleRemoveSavedOutline = (outlineId: string) => {
+    setSavedOutlines((prev) =>
+      prev.filter((outline) => outline.id !== outlineId)
+    );
+  };
+
+  const handleToggleSaveOutline = (outline: Outline) => {
+    setSavedOutlines((prev) => {
+      const isAlreadySaved = prev.some((saved) => saved.id === outline.id);
+      if (isAlreadySaved) {
+        return prev.filter((saved) => saved.id !== outline.id);
+      } else {
+        return [...prev, outline];
+      }
+    });
+  };
+
+  const handleHideOutline = (outlineId: string) => {
+    setHiddenOutlines((prev) => [...prev, outlineId]);
+  };
+
+  const handleUnhideAllOutlines = () => {
+    setHiddenOutlines([]);
+  };
+
+  const handleSectionChange = (section: string) => {
+    setActiveSection(section);
+  };
+
+  const handleToggleSidebar = () => {
+    setSidebarCollapsed((prev) => !prev);
+  };
+
+  // Show loading state while checking authentication
+  if (loading || authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+        <div className="text-center">
+          <div
+            className="inline-flex items-center justify-center w-16 h-16 text-white rounded-full mb-4"
+            style={{ backgroundColor: '#752432' }}
+          >
+            <span className="text-2xl font-semibold">HLS</span>
+          </div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login page if user is not authenticated
+  if (!user) {
+    return <AuthPage />;
+  }
+
+  // Always require access code verification
+  if (!isVerified) {
+    return (
+      <AccessCodeVerification
+        onVerified={async () => {
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          if (currentUser) {
+            const { error } = await supabase
+              .from('profiles')
+              .update({ access_code_verified: true })
+              .eq('id', currentUser.id);
+            
+            if (error) {
+              console.error('Error updating access_code_verified:', error);
+            }
+          }
+          
+          setIsVerified(true);
+        }}
+      />
+    );
+  }
+
+  // Show onboarding flow if user hasn't completed onboarding
+  if (!hasCompletedOnboarding) {
+    return (
+      <OnboardingFlow onComplete={async () => {
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        if (currentUser) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('classes_filled')
+            .eq('id', currentUser.id)
+            .single();
+          
+          if (profile) {
+            setHasCompletedOnboarding(profile.classes_filled === true);
+          }
+        }
+      }} />
+    );
+  }
+
+  return (
+    <div className="h-screen flex min-w-0" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+      {/* Navigation Sidebar */}
+      <NavigationSidebar
+        activeSection={activeSection}
+        onSectionChange={handleSectionChange}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapsed={handleToggleSidebar}
+      />
+
+      {/* Toast Notifications */}
+      <Toaster position="top-right" />
+
+      {/* Search Sidebar - Only show when in outlines section */}
+      {activeSection === 'outlines' && (
+        <SearchSidebar
+          outlines={sortedOutlines}
+          allOutlines={outlineData}
+          courses={courseData}
+          instructors={instructorData}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          selectedCourse={selectedCourse}
+          setSelectedCourse={setSelectedCourse}
+          selectedInstructor={selectedInstructor}
+          setSelectedInstructor={setSelectedInstructor}
+          selectedGrade={selectedGrade}
+          setSelectedGrade={setSelectedGrade}
+          selectedYear={selectedYear}
+          setSelectedYear={setSelectedYear}
+          sortBy={sortBy}
+          setSortBy={setSortBy}
+          showOutlines={showOutlines}
+          setShowOutlines={setShowOutlines}
+          showAttacks={showAttacks}
+          setShowAttacks={setShowAttacks}
+          selectedOutline={selectedOutline}
+          onSelectOutline={setSelectedOutline}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          savedOutlines={savedOutlines}
+          onRemoveSavedOutline={handleRemoveSavedOutline}
+          onToggleSaveOutline={handleToggleSaveOutline}
+          hiddenOutlines={hiddenOutlines}
+          onHideOutline={handleHideOutline}
+          onUnhideAllOutlines={handleUnhideAllOutlines}
+        />
+      )}
+
+      {/* Main Content */}
+      <div className={`flex-1 ${sidebarCollapsed ? 'ml-16' : 'ml-40'}`} style={{ transition: 'margin-left 300ms ease-in-out' }}>
+        {activeSection === 'outlines' ? (
+          activeTab === 'upload' ? (
+            <div className="flex items-center justify-center h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+              <div className="text-center p-8">
+                <FileText className="w-24 h-24 text-gray-400 mx-auto mb-4" />
+                <h2 className="text-2xl font-medium text-gray-700 mb-4">
+                  Upload Your Outline
+                </h2>
+                <p className="text-gray-600 mb-6 max-w-md">
+                  Use the upload form in the sidebar to share your study
+                  materials with the community.
+                </p>
+                <div className="bg-white rounded-lg shadow-sm p-6 max-w-lg mx-auto">
+                  <h3 className="font-medium text-gray-800 mb-3">
+                    Upload Guidelines:
+                  </h3>
+                  <ul className="text-sm text-gray-600 space-y-2 text-left">
+                    <li>• Accepted formats: PDF, DOC, DOCX</li>
+                    <li>• Maximum file size: 50MB</li>
+                    <li>• Only upload your original work</li>
+                    <li>
+                      • Include accurate course and instructor information
+                    </li>
+                    <li>• Use descriptive titles for better discoverability</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <OutlineViewer
+              outline={selectedOutline}
+              onSaveOutline={handleSaveOutline}
+              isSaved={
+                selectedOutline
+                  ? savedOutlines.some(
+                      (saved) => saved.id === selectedOutline.id
+                    )
+                  : false
+              }
+            />
+          )
+        ) : (
+          <div className="flex items-center justify-center h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+            <div className="text-center p-8">
+              <div className="w-24 h-24 bg-gray-300 rounded-full mx-auto mb-4 flex items-center justify-center">
+                <span className="text-2xl text-gray-600">📄</span>
+              </div>
+              <h2 className="text-2xl font-medium text-gray-700 mb-4">
+                Clean Outline Playground
+              </h2>
+              <p className="text-gray-600 max-w-md">
+                This is a clean frontend UI playground for outlines with no mock data or backend dependencies.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Main App Component with AuthProvider
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppWithAuth />
+    </AuthProvider>
+  );
+}
+
+// App component that uses AuthContext
+function AppWithAuth() {
+  const { user, loading } = useAuth();
+
+  return <AppContent user={user} loading={loading} />;
+}

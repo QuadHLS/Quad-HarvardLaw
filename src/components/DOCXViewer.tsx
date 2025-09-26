@@ -150,10 +150,10 @@ export function DOCXViewer({ fileUrl, fileName, onDownload, onClose }: DOCXViewe
   return (
     <div className="h-full flex flex-col" onKeyDown={handleKeyDown} tabIndex={0}>
       {/* Search Bar */}
-      <div className="p-4 bg-white border-b">
-        <div className="flex items-center gap-2">
+      <div className="p-2 bg-white border-b">
+        <div className="flex items-center gap-1">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3" />
             <Input
               placeholder="Search in DOCX..."
               value={searchTerm}
@@ -163,41 +163,34 @@ export function DOCXViewer({ fileUrl, fileName, onDownload, onClose }: DOCXViewe
                   searchInDOCX(searchTerm);
                 }
               }}
-              className="pl-10 pr-10"
+              className="pl-8 pr-7 h-8 text-sm"
             />
             {searchTerm && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={clearSearch}
-                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-5 w-5 p-0"
               >
-                <X className="w-3 h-3" />
+                <X className="w-2.5 h-2.5" />
               </Button>
             )}
           </div>
-          <Button
-            onClick={() => searchInDOCX(searchTerm)}
-            disabled={!searchTerm.trim()}
-            size="sm"
-          >
-            Search
-          </Button>
         </div>
         
         {/* Search Results */}
         {searchResults.length > 0 && (
-          <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
+          <div className="mt-1 flex items-center gap-1 text-xs text-gray-600">
             <span>
               {currentSearchIndex + 1} of {searchResults.length} results
             </span>
-            <div className="flex gap-1">
+            <div className="flex gap-0.5">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={goToPreviousResult}
                 disabled={searchResults.length === 0}
-                className="h-6 px-2"
+                className="h-5 px-1.5 text-xs"
               >
                 ↑
               </Button>
@@ -206,26 +199,31 @@ export function DOCXViewer({ fileUrl, fileName, onDownload, onClose }: DOCXViewe
                 size="sm"
                 onClick={goToNextResult}
                 disabled={searchResults.length === 0}
-                className="h-6 px-2"
+                className="h-5 px-1.5 text-xs"
               >
                 ↓
               </Button>
             </div>
           </div>
         )}
+        {searchResults.length === 0 && searchTerm && (
+          <div className="mt-1 text-xs text-gray-500">
+            No results found
+          </div>
+        )}
       </div>
 
       {/* Header Controls */}
-      <div className="flex items-center justify-between p-4 bg-gray-50 border-b">
-        <h3 className="font-semibold text-lg">{fileName}</h3>
+      <div className="flex items-center justify-between p-2 bg-gray-50 border-b">
+        <h3 className="font-semibold text-sm">{fileName}</h3>
         
-        <div className="flex items-center gap-2">
-          <Button onClick={onDownload} variant="outline" size="sm">
-            <Download className="w-4 h-4 mr-1" />
+        <div className="flex items-center gap-1">
+          <Button onClick={onDownload} variant="outline" size="sm" className="h-7 px-2 text-xs">
+            <Download className="w-3 h-3 mr-1" />
             Download
           </Button>
           
-          <Button onClick={onClose} variant="outline" size="sm">
+          <Button onClick={onClose} variant="outline" size="sm" className="h-7 px-2 text-xs">
             Close
           </Button>
         </div>

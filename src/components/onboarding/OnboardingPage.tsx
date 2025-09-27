@@ -5,7 +5,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
-import { ArrowLeft, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 
@@ -163,6 +163,18 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
   // Page 2 helper functions
   const totalCredits = selectedCourses.reduce((sum, course) => sum + course.credits, 0);
+
+  // Check if course requirements are met
+  const areRequirementsMet = () => {
+    if (classYear === '1L') {
+      // 1L: Need 7 preselected required courses, 8th elective is optional
+      return selectedCourses.length >= 7 && selectedCourses.length <= 8;
+    } else if (classYear === '2L' || classYear === '3L') {
+      // 2L/3L: Need at least 3 required courses, max 10 total courses
+      return selectedCourses.length >= 3 && selectedCourses.length <= 10;
+    }
+    return false;
+  };
 
   const handleRemoveCourse = (courseId: string) => {
     setSelectedCourses(prev => prev.filter(course => course.id !== courseId));
@@ -721,9 +733,9 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                                 {!isRequired1L && (
                                   <button
                                     onClick={() => handleRemoveCourse(course.id)}
-                                    className="text-red-600 hover:text-red-800 text-xs"
+                                    className="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-red-100 transition-colors ml-6"
                                   >
-                                    Remove
+                                    <X className="w-4 h-4" />
                                   </button>
                         )}
                       </div>
@@ -897,12 +909,63 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
             {/* Complete Setup Button */}
             <button
-              onClick={() => {
+              disabled={!areRequirementsMet()}
+              onClick={async () => {
+                // Save selected courses to profiles table
+                if (user && selectedCourses.length > 0) {
+                  try {
+                    // Transform selectedCourses to the required format
+                    const classesData = selectedCourses.map(course => {
+                      // Map semester to correct format
+                      let semesterCode = '2025FA'; // default
+                      if (course.semester === 'Fall') {
+                        semesterCode = '2025FA';
+                      } else if (course.semester === 'Winter') {
+                        semesterCode = '2026WI';
+                      } else if (course.semester === 'Spring') {
+                        semesterCode = '2026SP';
+                      }
+
+                      return {
+                        class: course.courseName,
+                        schedule: {
+                          days: course.days.join(' • '),
+                          times: course.time,
+                          credits: course.credits,
+                          location: course.building && course.room ? `${course.building}${course.room}` : 'Location TBD',
+                          semester: semesterCode,
+                          instructor: course.professor,
+                          course_name: course.courseName,
+                          course_number: 1
+                        },
+                        professor: course.professor
+                      };
+                    });
+
+                    const { error } = await supabase
+                      .from('profiles')
+                      .update({ classes: classesData })
+                      .eq('id', user.id);
+
+                    if (error) {
+                      console.error('Error saving classes:', error);
+                    } else {
+                      console.log('Classes saved successfully:', classesData);
+                    }
+                  } catch (error) {
+                    console.error('Error saving classes:', error);
+                  }
+                }
+                
                 onComplete();
               }}
-              className="text-white px-6 py-2 text-sm font-medium rounded-md border border-[#752531]"
+              className={`px-6 py-2 text-sm font-medium rounded-md border ${
+                areRequirementsMet() 
+                  ? 'text-white border-[#752531] cursor-pointer' 
+                  : 'text-gray-400 border-gray-300 cursor-not-allowed'
+              }`}
               style={{ 
-                backgroundColor: '#752531',
+                backgroundColor: areRequirementsMet() ? '#752531' : '#f3f4f6',
                 minHeight: '36px',
                 minWidth: '120px'
               }}

@@ -391,10 +391,6 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
 
         if (profile) {
           setUserProfile(profile);
-          console.log('=== DATABASE DEBUG ===');
-          console.log('Profile classes from database:', profile.classes);
-          console.log('First class example:', profile.classes?.[0]);
-          console.log('======================');
           setUserCourses(profile.classes || []);
           setTodayTodos(profile.todo_day || []);
           setThisWeekTodos(profile.todo_week || []);
@@ -589,14 +585,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
     
     courseData.forEach(course => {
       // The course object contains the schedule data directly
-      console.log('=== COURSE DEBUG ===');
-      console.log('Course object:', course);
-      console.log('Course.course:', course.course);
-      console.log('Course.course.schedule:', course.course?.schedule);
-      console.log('Course.course.schedule.semester:', course.course?.schedule?.semester);
       const semester = course.course?.schedule?.semester || 'TBD';
-      console.log('Final semester value:', semester);
-      console.log('===================');
       if (!grouped[semester]) {
         grouped[semester] = [];
       }

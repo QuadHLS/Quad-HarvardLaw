@@ -145,18 +145,18 @@ export function ReviewsPage() {
     course_name: '',
     semester: '',
     year: '',
-    grade: 'H',
-    overall_rating: 5,
-    readings_rating: 5,
-    cold_calls_rating: 5,
-    exam_rating: 5,
+    grade: '',
+    overall_rating: 0,
+    readings_rating: 0,
+    cold_calls_rating: 0,
+    exam_rating: 0,
     overall_review: '',
     readings_review: '',
     cold_calls_review: '',
     exam_review: '',
-    laptops_allowed: true,
-    assessment_type: 'Final Exam',
-    has_cold_calls: true
+    laptops_allowed: false,
+    assessment_type: '',
+    has_cold_calls: false
   });
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -288,18 +288,18 @@ export function ReviewsPage() {
         course_name: '',
         semester: '',
         year: '',
-        grade: 'H',
-        overall_rating: 5,
-        readings_rating: 5,
-        cold_calls_rating: 5,
-        exam_rating: 5,
+        grade: '',
+        overall_rating: 0,
+        readings_rating: 0,
+        cold_calls_rating: 0,
+        exam_rating: 0,
         overall_review: '',
         readings_review: '',
         cold_calls_review: '',
         exam_review: '',
-        laptops_allowed: true,
-        assessment_type: 'Final Exam',
-        has_cold_calls: true
+        laptops_allowed: false,
+        assessment_type: '',
+        has_cold_calls: false
       });
       setShowReviewForm(false);
       

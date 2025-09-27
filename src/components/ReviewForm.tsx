@@ -94,6 +94,13 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
     };
   }, []);
 
+  // Reset dropdown state when modal opens
+  useEffect(() => {
+    if (showReviewForm) {
+      setShowProfessorDropdown(false);
+    }
+  }, [showReviewForm]);
+
   const handleProfessorSelect = (professorName: string) => {
     setFormData(prev => ({ ...prev, professor_name: professorName, course_name: '' }));
     setProfessorSearch(professorName);
@@ -110,7 +117,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
 
   return (
     <Dialog open={showReviewForm} onOpenChange={setShowReviewForm}>
-      <DialogContent className="w-[800px] max-w-[90vw]">
+      <DialogContent className="w-[800px] max-w-[90vw]" style={{ backgroundColor: '#f9f5f2' }}>
         <DialogHeader>
           <DialogTitle>Write a Review</DialogTitle>
           <DialogDescription>
@@ -126,10 +133,10 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
           )}
 
           {/* Basic Info - Horizontal Layout */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 mt-2">
             <div className="relative" ref={professorDropdownRef}>
-              <Label>Professor *</Label>
-              <div className="relative">
+              <Label>Professor <span style={{ color: '#752531' }}>*</span></Label>
+              <div className="relative mt-2">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <Input
                   placeholder="Search for professor..."
@@ -137,6 +144,8 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
                   onChange={(e) => handleProfessorSearchChange(e.target.value)}
                   onFocus={() => setShowProfessorDropdown(true)}
                   className="pl-10 pr-10"
+                  style={{ backgroundColor: 'white' }}
+                  autoFocus={false}
                 />
                 {professorSearch && (
                   <button
@@ -155,7 +164,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
               
               {/* Professor Dropdown */}
               {showProfessorDropdown && filteredProfessors.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+                <div className="absolute z-10 w-full mt-1 border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto" style={{ backgroundColor: '#f9f5f2' }}>
                   {filteredProfessors.map((prof) => (
                     <button
                       key={prof.id}
@@ -171,20 +180,20 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
               
               {/* No results message */}
               {showProfessorDropdown && professorSearch.trim() && filteredProfessors.length === 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg p-4 text-gray-500 text-center">
+                <div className="absolute z-10 w-full mt-1 border border-gray-300 rounded-md shadow-lg p-4 text-gray-500 text-center" style={{ backgroundColor: '#f9f5f2' }}>
                   No professors found matching "{professorSearch}"
                 </div>
               )}
             </div>
 
             <div>
-              <Label>Course *</Label>
+              <Label>Course <span style={{ color: '#752531' }}>*</span></Label>
               <Select 
                 value={formData.course_name} 
                 onValueChange={(value) => setFormData(prev => ({ ...prev, course_name: value }))}
                 disabled={!formData.professor_name}
               >
-                <SelectTrigger>
+                <SelectTrigger className="mt-2" style={{ backgroundColor: 'white' }}>
                   <SelectValue placeholder={formData.professor_name ? "Select course" : "Select professor first"} />
                 </SelectTrigger>
                 <SelectContent>
@@ -228,16 +237,16 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
           </div>
 
           {/* Semester, Year, Grade - Horizontal Layout */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-4 mt-2">
             <div>
-              <Label>Semester *</Label>
+              <Label>Semester <span style={{ color: '#752531' }}>*</span></Label>
               <Select 
                 value={formData.semester} 
                 onValueChange={(value: 'Fall' | 'Winter' | 'Spring' | 'Summer') => 
                   setFormData(prev => ({ ...prev, semester: value }))
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="mt-2" style={{ backgroundColor: 'white' }}>
                   <SelectValue placeholder="Semester" />
                 </SelectTrigger>
                 <SelectContent>
@@ -250,24 +259,25 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
             </div>
 
             <div>
-              <Label>Year *</Label>
-              <Input
+              <Label>Year <span style={{ color: '#752531' }}>*</span></Label>
+              <Input className="mt-2"
                 type="number"
                 placeholder="2025"
                 value={formData.year}
                 onChange={(e) => setFormData(prev => ({ ...prev, year: e.target.value || '2025' }))}
+                style={{ backgroundColor: 'white' }}
               />
             </div>
 
             <div>
-              <Label>Grade Received *</Label>
+              <Label>Grade Received <span style={{ color: '#752531' }}>*</span></Label>
               <Select 
                 value={formData.grade} 
                 onValueChange={(value: 'DS' | 'H' | 'P') => 
                   setFormData(prev => ({ ...prev, grade: value }))
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="mt-2" style={{ backgroundColor: 'white' }}>
                   <SelectValue placeholder="Select grade" />
                 </SelectTrigger>
                 <SelectContent>
@@ -280,8 +290,8 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
           </div>
 
           {/* Overall Rating */}
-          <div>
-            <Label>Overall Rating (1-10) *</Label>
+          <div className="mt-2">
+            <Label>Overall Rating (1-10) <span style={{ color: '#752531' }}>*</span></Label>
             <div className="flex items-center gap-2 mt-2">
               {Array.from({ length: 10 }, (_, i) => (
                 <button
@@ -301,14 +311,14 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
           </div>
 
           {/* Other Ratings */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-3 mt-2">
             <div>
-              <Label>Readings (1-10) *</Label>
+              <Label>Readings (1-10) <span style={{ color: '#752531' }}>*</span></Label>
               <Select 
                 value={formData.readings_rating.toString()} 
                 onValueChange={(value) => setFormData(prev => ({ ...prev, readings_rating: parseInt(value) }))}
               >
-                <SelectTrigger>
+                <SelectTrigger className="mt-2" style={{ backgroundColor: 'white' }}>
                   <SelectValue placeholder="Rating" />
                 </SelectTrigger>
                 <SelectContent>
@@ -322,12 +332,12 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
             </div>
 
             <div>
-              <Label>Cold Calls (1-10) *</Label>
+              <Label>Cold Calls (1-10) <span style={{ color: '#752531' }}>*</span></Label>
               <Select 
                 value={formData.cold_calls_rating.toString()} 
                 onValueChange={(value) => setFormData(prev => ({ ...prev, cold_calls_rating: parseInt(value) }))}
               >
-                <SelectTrigger>
+                <SelectTrigger className="mt-2" style={{ backgroundColor: 'white' }}>
                   <SelectValue placeholder="Rating" />
                 </SelectTrigger>
                 <SelectContent>
@@ -341,12 +351,12 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
             </div>
 
             <div>
-              <Label>Exams (1-10) *</Label>
+              <Label>Exams (1-10) <span style={{ color: '#752531' }}>*</span></Label>
               <Select 
                 value={formData.exam_rating.toString()} 
                 onValueChange={(value) => setFormData(prev => ({ ...prev, exam_rating: parseInt(value) }))}
               >
-                <SelectTrigger>
+                <SelectTrigger className="mt-2" style={{ backgroundColor: 'white' }}>
                   <SelectValue placeholder="Rating" />
                 </SelectTrigger>
                 <SelectContent>
@@ -362,56 +372,60 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
 
 
           {/* Review Text - Horizontal Layout */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 mt-2">
             <div>
-              <Label>Overall Review *</Label>
-              <Textarea
-                placeholder="Share your overall experience with this professor and course..."
+              <Label>Overall Review <span style={{ color: '#752531' }}>*</span></Label>
+              <Textarea className="mt-2"
+                placeholder=""
                 value={formData.overall_review}
                 onChange={(e) => setFormData(prev => ({ ...prev, overall_review: e.target.value }))}
                 rows={2}
+                style={{ backgroundColor: 'white' }}
               />
             </div>
 
             <div>
-              <Label>Readings Review *</Label>
-              <Textarea
-                placeholder="Comment on the reading load and quality..."
+              <Label>Readings Review <span style={{ color: '#752531' }}>*</span></Label>
+              <Textarea className="mt-2"
+                placeholder=""
                 value={formData.readings_review}
                 onChange={(e) => setFormData(prev => ({ ...prev, readings_review: e.target.value }))}
                 rows={2}
+                style={{ backgroundColor: 'white' }}
               />
             </div>
 
             <div>
-              <Label>Cold Calls Review *</Label>
-              <Textarea
-                placeholder="Share your experience with cold calls..."
+              <Label>Cold Calls Review <span style={{ color: '#752531' }}>*</span></Label>
+              <Textarea className="mt-2"
+                placeholder=""
                 value={formData.cold_calls_review}
                 onChange={(e) => setFormData(prev => ({ ...prev, cold_calls_review: e.target.value }))}
                 rows={2}
+                style={{ backgroundColor: 'white' }}
               />
             </div>
 
             <div>
-              <Label>Exam Review *</Label>
-              <Textarea
-                placeholder="Comment on the exam format and difficulty..."
+              <Label>Exam Review <span style={{ color: '#752531' }}>*</span></Label>
+              <Textarea className="mt-2"
+                placeholder=""
                 value={formData.exam_review}
                 onChange={(e) => setFormData(prev => ({ ...prev, exam_review: e.target.value }))}
                 rows={2}
+                style={{ backgroundColor: 'white' }}
               />
             </div>
           </div>
 
           {/* Switches - Horizontal Layout */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 mt-2">
             <div className="flex items-center space-x-2">
               <Switch
                 checked={formData.laptops_allowed}
                 onCheckedChange={(checked) => setFormData(prev => ({ ...prev, laptops_allowed: checked }))}
               />
-              <Label>Laptops Allowed *</Label>
+              <Label>Laptops Allowed <span style={{ color: '#752531' }}>*</span></Label>
             </div>
 
             <div className="flex items-center space-x-2">
@@ -419,20 +433,20 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
                 checked={formData.has_cold_calls}
                 onCheckedChange={(checked) => setFormData(prev => ({ ...prev, has_cold_calls: checked }))}
               />
-              <Label>Has Cold Calls *</Label>
+              <Label>Has Cold Calls <span style={{ color: '#752531' }}>*</span></Label>
             </div>
           </div>
 
           {/* Assessment Type */}
-          <div className="pt-2">
-            <Label className="block mb-2">Assessment Type *</Label>
+          <div className="pt-2 mt-2">
+            <Label className="block mb-2">Assessment Type <span style={{ color: '#752531' }}>*</span></Label>
             <Select 
               value={formData.assessment_type} 
               onValueChange={(value: 'Project' | 'Final Exam' | 'Both') => 
                 setFormData(prev => ({ ...prev, assessment_type: value }))
               }
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full mt-2" style={{ backgroundColor: 'white' }}>
                 <SelectValue placeholder="Select assessment type" />
               </SelectTrigger>
               <SelectContent>
@@ -454,7 +468,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
             </Button>
             <Button
               onClick={handleSubmitReview}
-              disabled={formLoading || !formData.overall_review.trim() || !formData.readings_review.trim() || !formData.cold_calls_review.trim() || !formData.exam_review.trim() || !formData.professor_name || !formData.course_name || !formData.semester || !formData.year || !formData.grade || !formData.overall_rating || !formData.readings_rating || !formData.cold_calls_rating || !formData.exam_rating || !formData.assessment_type}
+              disabled={formLoading || !formData.overall_review.trim() || !formData.readings_review.trim() || !formData.cold_calls_review.trim() || !formData.exam_review.trim() || !formData.professor_name || !formData.course_name || !formData.semester || !formData.year || !formData.grade || formData.overall_rating === 0 || formData.readings_rating === 0 || formData.cold_calls_rating === 0 || formData.exam_rating === 0 || !formData.assessment_type}
               className="bg-[#752432] hover:bg-[#752432]/90"
             >
               {formLoading ? 'Submitting...' : 'Submit Review'}

@@ -97,11 +97,11 @@ export async function getFilterOptions(): Promise<FilterOptions> {
     }
 
     // Extract unique values and sort them
-    const allCourses = coursesData?.map(item => item.course) || [];
+    const allCourses = coursesData?.map((item: any) => item.course) || [];
     const uniqueCourses = Array.from(new Set(allCourses));
     const courses = uniqueCourses
       .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b));
+      .sort((a: any, b: any) => a.localeCompare(b));
     
     console.log('getFilterOptions: Raw courses data:', coursesData);
     console.log('getFilterOptions: Total course records:', coursesData?.length);
@@ -110,23 +110,23 @@ export async function getFilterOptions(): Promise<FilterOptions> {
     console.log('getFilterOptions: Final courses (after filtering):', courses);
     console.log('getFilterOptions: Courses count:', courses.length);
 
-    const instructors = Array.from(new Set(instructorsData?.map(item => item.instructor) || []))
+    const instructors = Array.from(new Set(instructorsData?.map((item: any) => item.instructor) || []))
       .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b));
+      .sort((a: any, b: any) => a.localeCompare(b));
 
-    const years = Array.from(new Set(yearsData?.map(item => item.year) || []))
+    const years = Array.from(new Set(yearsData?.map((item: any) => item.year) || []))
       .filter(Boolean)
-      .sort((a, b) => b.localeCompare(a)); // Sort years descending (newest first)
+      .sort((a: any, b: any) => b.localeCompare(a)); // Sort years descending (newest first)
 
-    const grades = Array.from(new Set(gradesData?.map(item => item.type) || []))
+    const grades = Array.from(new Set(gradesData?.map((item: any) => item.type) || []))
       .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b));
+      .sort((a: any, b: any) => a.localeCompare(b));
 
     return {
-      courses,
-      instructors,
-      years,
-      grades
+      courses: courses as string[],
+      instructors: instructors as string[],
+      years: years as string[],
+      grades: grades as string[]
     };
   } catch (error) {
     console.error('Error getting filter options:', error);

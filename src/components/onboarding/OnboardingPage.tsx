@@ -669,16 +669,20 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                 <Card className="shadow-lg">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-lg text-gray-900">
-                      My Courses ({totalCredits} Credits)
+                      My Courses
                     </CardTitle>
                     <p className="text-sm text-gray-600 mt-1">
+                      {classYear} | Section {section}
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">
                       {classYear === '1L'
-                        ? '7 Required + 1 Elective' 
+                        ? `7 Required + 1 Elective (${totalCredits} Credits)` 
                         : classYear === '2L' 
-                        ? 'Required + Electives' 
-                        : 'Required + Electives'
+                        ? `3 Required | 10 Max (${totalCredits} Credits)` 
+                        : `3 Required | 10 Max (${totalCredits} Credits)`
                       }
                     </p>
+                    <hr className="border-gray-200 mt-2" />
                   </CardHeader>
                   <CardContent className="pt-0 px-6 pb-6">
                     {/* Course Cards */}
@@ -692,9 +696,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                           <p className="text-sm">No courses selected yet</p>
                           <p className="text-xs mt-1">
                             {classYear === '1L' ? 'Courses will auto-populate when section is selected' : 'Click "Add Class" to get started'}
-                          </p>
-                          <p className="text-xs mt-1 text-gray-400">
-                            Debug: {classYear} | Section: {section} | Courses loaded: {allCourseData.length}
                           </p>
                         </div>
                       ) : (
@@ -722,6 +723,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                                   </button>
                         )}
                       </div>
+                              <p className="text-xs text-gray-600 mb-0.5">Semester: {course.semester}</p>
                               <p className="text-xs text-gray-600 mb-0.5">Professor: {course.professor}</p>
                               <p className="text-xs text-gray-600 mb-0.5">{course.credits} Credits</p>
                               <p className="text-xs text-gray-600">{course.days.join(', ')} {course.time}</p>
@@ -993,6 +995,11 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                               <p className="text-xs text-gray-500 mb-2">{course.course_code}</p>
                             )}
                             <div className="space-y-1">
+                              {course.semester && (
+                                <p className="text-xs text-gray-600">
+                                  <span className="font-medium">Semester:</span> {course.semester}
+                                </p>
+                              )}
                               {course.credits && (
                                 <p className="text-xs text-gray-600">
                                   <span className="font-medium">Credits:</span> {course.credits}

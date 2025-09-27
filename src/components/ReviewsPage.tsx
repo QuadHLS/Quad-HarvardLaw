@@ -1,323 +1,124 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import * as React from 'react';
-import { Star, Search, Calendar, ThumbsUp, ThumbsDown, BookOpen, MessageCircle, FileText, Award } from 'lucide-react';
+import { Star, Search, Calendar, ThumbsUp, ThumbsDown, BookOpen, MessageCircle, FileText, Award, Plus, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Textarea } from './ui/textarea';
+import { Label } from './ui/label';
+import { Switch } from './ui/switch';
+import { supabase } from '../lib/supabase';
+import { ReviewForm } from './ReviewForm';
 
-// Mock review data
+// Database review interface
 interface Review {
   id: string;
-  course: string;
-  instructor: string;
-  overall: number;
-  overallReview: string;
-  coldCalls?: number;
-  coldCallsReview?: string;
-  readings?: number;
-  readingsReview?: string;
-  exam?: number;
-  examReview?: string;
+  user_id: string;
+  professor_name: string;
+  course_name: string;
   semester: string;
   year: string;
-  anonymous: boolean;
-  helpful: number;
-  unhelpful: number;
-  laptopsAllowed?: boolean;
-  assessmentType?: 'Final' | 'Paper' | 'Both';
-  hasColdCalls?: boolean;
   grade: 'DS' | 'H' | 'P';
+  
+  // Ratings (1-10 scale)
+  overall_rating: number;
+  readings_rating: number;
+  cold_calls_rating: number;
+  exam_rating: number;
+  
+  
+  // Review text
+  overall_review: string;
+  readings_review?: string;
+  cold_calls_review?: string;
+  exam_review?: string;
+  
+  // Course details
+  laptops_allowed?: boolean;
+  assessment_type?: 'Project' | 'Final Exam' | 'Both';
+  has_cold_calls?: boolean;
+  
+  // Engagement
+  helpful_count: number;
+  not_helpful_count: number;
+  
+  // Metadata
+  anonymous: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
-const mockReviews: Review[] = [
-  {
-    id: '1',
-    course: 'Constitutional Law',
-    instructor: 'Rodriguez',
-    overall: 9,
-    overallReview: 'Professor Rodriguez is absolutely brilliant. Her lectures are engaging and she really helps you understand the nuances of constitutional interpretation. Highly recommend this class.',
-    coldCalls: 8,
-    coldCallsReview: 'She uses the Socratic method but in a supportive way. Questions are challenging but fair, and she helps guide you to the right answer if you\'re struggling.',
-    readings: 7,
-    readingsReview: 'The reading load is heavy but manageable if you stay on top of it. Cases are well-selected and directly relevant to class discussions.',
-    exam: 8,
-    examReview: 'Her exams are challenging but fair - they really test your understanding rather than just memorization. Study the cases thoroughly.',
-    semester: 'Fall',
-    year: '2024',
-    anonymous: true,
-    helpful: 23,
-    unhelpful: 2,
-    laptopsAllowed: true,
-    assessmentType: 'Final',
-    hasColdCalls: true,
-    grade: 'DS'
-  },
-  {
-    id: '2',
-    course: 'Constitutional Law',
-    instructor: 'Rodriguez',
-    overall: 8,
-    overallReview: 'Good professor overall. She knows her stuff and is always prepared for class. Sometimes moves a bit fast through complex topics but office hours are helpful.',
-    coldCalls: 6,
-    coldCallsReview: 'Cold calls are frequent but not too intimidating. She\'s patient if you\'re prepared but haven\'t quite grasped the concept yet.',
-    readings: 5,
-    readingsReview: 'Reasonable reading load compared to other Con Law professors. Focus on the main cases and you\'ll be fine.',
-    exam: 7,
-    examReview: 'Fair exam that focuses on application of concepts rather than pure memorization. Practice hypotheticals are key.',
-    semester: 'Spring',
-    year: '2024',
-    anonymous: false,
-    helpful: 15,
-    unhelpful: 1,
-    laptopsAllowed: true,
-    assessmentType: 'Final',
-    hasColdCalls: true,
-    grade: 'H'
-  },
-  {
-    id: '3',
-    course: 'Contract Law',
-    instructor: 'Chen',
-    overall: 9,
-    overallReview: 'Chen is fantastic! Makes contracts actually interesting and relatable. Uses lots of real-world examples and cases. He\'s very approachable during office hours.',
-    coldCalls: 7,
-    coldCallsReview: 'He uses cold calls to keep everyone engaged, but they\'re more like guided discussions. He wants you to think through the problems together.',
-    readings: 8,
-    readingsReview: 'The reading is substantial but every case matters. He does a great job connecting the readings to practical applications.',
-    exam: 9,
-    examReview: 'Excellent exam that really tests your understanding of contract principles. If you understand the concepts, you\'ll do well.',
-    semester: 'Fall',
-    year: '2024',
-    anonymous: true,
-    helpful: 31,
-    unhelpful: 0,
-    laptopsAllowed: false,
-    assessmentType: 'Final',
-    hasColdCalls: true,
-    grade: 'DS'
-  },
-  {
-    id: '4',
-    course: 'Criminal Law',
-    instructor: 'Thompson',
-    overall: 6,
-    overallReview: 'Thompson knows criminal law inside and out, but can be intimidating in class. If you\'re prepared and engaged, you\'ll learn a lot. If not, it can be a tough semester.',
-    coldCalls: 9,
-    coldCallsReview: 'Uses the Socratic method extensively and can be quite intimidating. Come to class prepared or you\'ll have a bad time.',
-    readings: 6,
-    readingsReview: 'Standard criminal law reading load. The cases are interesting but Thompson expects you to know them inside and out.',
-    exam: 5,
-    examReview: 'Tough exam with very detailed hypotheticals. You need to know the elements of every crime perfectly.',
-    semester: 'Fall',
-    year: '2023',
-    anonymous: true,
-    helpful: 18,
-    unhelpful: 5,
-    laptopsAllowed: true,
-    assessmentType: 'Final',
-    hasColdCalls: true,
-    grade: 'P'
-  },
-  {
-    id: '5',
-    course: 'Torts',
-    instructor: 'Moore',
-    overall: 8,
-    overallReview: 'Moore makes torts digestible and even fun at times. Clear explanations and good use of hypotheticals. One of the better 1L professors.',
-    readings: 7,
-    readingsReview: 'Manageable reading load with good case selection. Moore does a nice job highlighting the key takeaways from each case.',
-    exam: 8,
-    examReview: 'Straightforward exam if you understand the concepts. Focus on understanding the elements and policy rationales.',
-    semester: 'Spring',
-    year: '2024',
-    anonymous: false,
-    helpful: 27,
-    unhelpful: 3,
-    laptopsAllowed: true,
-    assessmentType: 'Final',
-    hasColdCalls: false,
-    grade: 'H'
-  },
-  {
-    id: '6',
-    course: 'Evidence',
-    instructor: 'Taylor',
-    overall: 10,
-    overallReview: 'Taylor is amazing for Evidence. The subject matter is complex but she breaks it down beautifully. Lots of practical examples from her litigation experience.',
-    coldCalls: 8,
-    coldCallsReview: 'She uses cold calls effectively to work through evidence problems step by step. It\'s more collaborative than scary.',
-    readings: 9,
-    readingsReview: 'Heavy reading but every case matters. She connects everything back to practical litigation situations which helps it stick.',
-    exam: 9,
-    examReview: 'Challenging but fair exam with realistic evidence problems. Her practice exams are very helpful.',
-    semester: 'Fall',
-    year: '2024',
-    anonymous: true,
-    helpful: 22,
-    unhelpful: 1,
-    laptopsAllowed: true,
-    assessmentType: 'Final',
-    hasColdCalls: true,
-    grade: 'DS'
-  },
-  {
-    id: '7',
-    course: 'Advanced Constitutional Law',
-    instructor: 'Foster',
-    overall: 7,
-    overallReview: 'Foster\'s seminar is excellent for deep constitutional analysis. Great for students interested in constitutional scholarship and academic discussion.',
-    readings: 8,
-    readingsReview: 'Heavy reading load with academic articles and recent cases. Every reading is directly relevant to class discussion.',
-    semester: 'Spring',
-    year: '2024',
-    anonymous: true,
-    helpful: 15,
-    unhelpful: 1,
-    laptopsAllowed: true,
-    assessmentType: 'Paper',
-    hasColdCalls: false,
-    grade: 'H'
-  },
-  {
-    id: '8',
-    course: 'Corporate Law',
-    instructor: 'Collins',
-    overall: 9,
-    overallReview: 'Collins brings real-world business experience to the classroom. The material is complex but she explains it well. Mix of assessment types keeps things interesting.',
-    coldCalls: 5,
-    coldCallsReview: 'Light cold calling, more like check-ins to see if you\'re following along. She\'s supportive and not trying to trip you up.',
-    readings: 7,
-    readingsReview: 'Good selection of cases and materials. She provides helpful context about how things work in practice.',
-    exam: 8,
-    examReview: 'Fair exam that combines doctrinal knowledge with practical application. The paper component lets you dive deeper into topics of interest.',
-    semester: 'Fall',
-    year: '2024',
-    anonymous: false,
-    helpful: 19,
-    unhelpful: 2,
-    laptopsAllowed: true,
-    assessmentType: 'Both',
-    hasColdCalls: true,
-    grade: 'DS'
-  },
-  {
-    id: '9',
-    course: 'Civil Rights Law',
-    instructor: 'Rodriguez',
-    overall: 8,
-    overallReview: 'Professor Rodriguez brings her constitutional expertise to civil rights issues. Passionate about the subject and it shows in her teaching.',
-    coldCalls: 7,
-    coldCallsReview: 'Similar style to her Con Law class - challenging but supportive questions that help you understand the cases.',
-    readings: 8,
-    readingsReview: 'Heavy reading load with both historical and contemporary cases. Every reading connects to current events.',
-    exam: 7,
-    examReview: 'Challenging exam that requires you to apply civil rights principles to novel situations. Good preparation for practice.',
-    semester: 'Spring',
-    year: '2024',
-    anonymous: true,
-    helpful: 16,
-    unhelpful: 1,
-    laptopsAllowed: true,
-    assessmentType: 'Final',
-    hasColdCalls: true,
-    grade: 'H'
-  },
-  {
-    id: '10',
-    course: 'Commercial Law',
-    instructor: 'Chen',
-    overall: 9,
-    overallReview: 'Chen is just as excellent in Commercial Law as in Contracts. Great at connecting theory to practice.',
-    coldCalls: 6,
-    coldCallsReview: 'Uses cold calls to work through UCC problems. More technical than Contracts but still supportive.',
-    readings: 7,
-    readingsReview: 'Mix of cases and UCC provisions. Chen provides good commercial context for the statutory material.',
-    exam: 9,
-    examReview: 'Well-crafted exam that tests understanding of commercial transactions. Practice problems are essential.',
-    semester: 'Spring',
-    year: '2024',
-    anonymous: false,
-    helpful: 12,
-    unhelpful: 0,
-    laptopsAllowed: false,
-    assessmentType: 'Final',
-    hasColdCalls: true,
-    grade: 'DS'
-  }
-];
-
-const courses = [
-  'All Courses',
-  'Administrative Law',
-  'Advanced Constitutional Law', 
-  'Antitrust Law',
-  'Bankruptcy',
-  'Business Taxation',
-  'Civil Rights Law',
-  'Commercial Law',
-  'Competition Law',
-  'Constitutional Law',
-  'Contract Law',
-  'Corporate Law',
-  'Criminal Law',
-  'Criminal Procedure',
-  'Domestic Relations',
-  'Employment Law',
-  'Energy Law',
-  'Environmental Law',
-  'Estate Planning',
-  'Evidence',
-  'Family Law',
-  'Financial Regulation',
-  'Health Law',
-  'Immigration Law',
-  'Intellectual Property Law',
-  'International Law',
-  'Labor Law',
-  'Medical Malpractice',
-  'Patent Law',
-  'Personal Injury Law',
-  'Property Law',
-  'Real Estate Law',
-  'Securities Law',
-  'Tax Law',
-  'Torts',
-  'Trial Advocacy'
-];
-
-// Professor data with their courses and overall ratings
+// Database interfaces
 interface Professor {
+  id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Course {
+  id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ProfessorCourse {
+  professor_id: string;
+  course_id: string;
+  created_at: string;
+}
+
+interface ProfessorStats {
+  professor_name: string;
+  course_name: string;
+  avg_overall_rating: number;
+  avg_readings_rating: number;
+  avg_cold_calls_rating: number;
+  avg_exam_rating: number;
+  total_reviews: number;
+  total_helpful: number;
+  total_not_helpful: number;
+  some_laptops_allowed: boolean;
+  some_has_cold_calls: boolean;
+}
+
+// Processed professor data for display
+interface ProcessedProfessor {
   firstName: string;
   lastName: string;
   fullName: string;
-  courses: string[];
+  courses: Array<{
+    name: string;
+    reviewCount: number;
+    avgRating?: number;
+  }>;
   overallRating: number;
   totalReviews: number;
 }
 
-const professors: Professor[] = [
-  { name: 'Rodriguez', courses: ['Constitutional Law', 'Civil Rights Law'], overallRating: 8.5, totalReviews: 12 },
-  { name: 'Chen', courses: ['Contract Law', 'Commercial Law'], overallRating: 9.2, totalReviews: 8 },
-  { name: 'Thompson', courses: ['Criminal Law', 'Criminal Procedure'], overallRating: 6.8, totalReviews: 15 },
-  { name: 'Moore', courses: ['Torts', 'Personal Injury Law'], overallRating: 8.7, totalReviews: 9 },
-  { name: 'Taylor', courses: ['Evidence', 'Trial Advocacy'], overallRating: 9.1, totalReviews: 11 },
-  { name: 'Foster', courses: ['Advanced Constitutional Law', 'Civil Rights Law'], overallRating: 7.3, totalReviews: 6 },
-  { name: 'Collins', courses: ['Corporate Law', 'Securities Law'], overallRating: 8.9, totalReviews: 7 },
-  { name: 'Anderson', courses: ['Property Law', 'Real Estate Law'], overallRating: 8.0, totalReviews: 10 },
-  { name: 'Davis', courses: ['Intellectual Property Law', 'Patent Law'], overallRating: 7.8, totalReviews: 14 },
-  { name: 'Miller', courses: ['Labor Law', 'Employment Law'], overallRating: 8.3, totalReviews: 13 }
-];
-
-const instructorNames = [
-  'Select a Professor',
-  'Rodriguez', 'Chen', 'Thompson', 'Moore', 'Taylor', 'Foster', 'Collins', 
-  'Anderson', 'Davis', 'Miller', 'Abel', 'Baker', 'Barnes', 'Brown', 'Campbell', 
-  'Carter', 'Clark', 'Edwards', 'Evans', 'Garcia', 'Green', 'Hall', 'Harris', 
-  'Jackson', 'Johnson', 'Kim', 'King', 'Lee', 'Lopez', 'Martinez', 'Mitchell', 
-  'Morris', 'Nelson', 'Parker', 'Perez', 'Phillips', 'Sanchez', 'Scott', 
-  'Stewart', 'Turner', 'White', 'Williams', 'Wilson', 'Wright', 'Young', 'Zachariah'
-];
+// Review form data
+interface ReviewFormData {
+  professor_name: string;
+  course_name: string;
+  semester: 'Fall' | 'Winter' | 'Spring' | 'Summer';
+  year: string;
+  grade: 'DS' | 'H' | 'P';
+  overall_rating: number;
+  readings_rating: number;
+  cold_calls_rating: number;
+  exam_rating: number;
+  overall_review: string;
+  readings_review: string;
+  cold_calls_review: string;
+  exam_review: string;
+  laptops_allowed: boolean;
+  assessment_type: 'Project' | 'Final Exam' | 'Both';
+  has_cold_calls: boolean;
+}
 
 export function ReviewsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -325,52 +126,314 @@ export function ReviewsPage() {
   const [selectedCourse, setSelectedCourse] = useState('');
   const [reviewSortBy, setReviewSortBy] = useState('Most Recent');
 
-  // Calculate comprehensive professor data from reviews
-  const professorData = React.useMemo(() => {
-    const professorMap = new Map();
-    
-    // Aggregate data from reviews
-    mockReviews.forEach(review => {
-      if (!professorMap.has(review.instructor)) {
-        const [firstName, lastName] = review.instructor.includes(' ') 
-          ? review.instructor.split(' ') 
-          : ['', review.instructor];
-        
-        professorMap.set(review.instructor, {
-          firstName: firstName || '',
-          lastName: lastName || review.instructor,
-          fullName: review.instructor,
-          courses: new Map(),
-          totalReviews: 0,
-          totalRating: 0
+  // Real data state
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [professors, setProfessors] = useState<Professor[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [professorCourses, setProfessorCourses] = useState<ProfessorCourse[]>([]);
+  const [professorStats, setProfessorStats] = useState<ProfessorStats[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // User votes state
+  const [userVotes, setUserVotes] = useState<Record<string, 'helpful' | 'not_helpful' | null>>({});
+  
+  // Review form state
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [formData, setFormData] = useState<ReviewFormData>({
+    professor_name: '',
+    course_name: '',
+    semester: '',
+    year: '',
+    grade: 'H',
+    overall_rating: 5,
+    readings_rating: 5,
+    cold_calls_rating: 5,
+    exam_rating: 5,
+    overall_review: '',
+    readings_review: '',
+    cold_calls_review: '',
+    exam_review: '',
+    laptops_allowed: true,
+    assessment_type: 'Final Exam',
+    has_cold_calls: true
+  });
+  const [formLoading, setFormLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formSuccess, setFormSuccess] = useState<string | null>(null);
+
+  // Fetch user votes
+  const fetchUserVotes = async (reviewIds: string[]) => {
+    try {
+      const { data, error } = await supabase.rpc('get_user_votes', {
+        p_review_ids: reviewIds
+      });
+      
+      if (error) throw error;
+      
+      const votes: Record<string, 'helpful' | 'not_helpful' | null> = {};
+      reviewIds.forEach(id => votes[id] = null);
+      
+      if (data) {
+        data.forEach((vote: any) => {
+          votes[vote.review_id] = vote.engagement_type;
         });
       }
       
-      const prof = professorMap.get(review.instructor);
-      prof.totalReviews++;
-      prof.totalRating += review.overall;
-      
-      if (!prof.courses.has(review.course)) {
-        prof.courses.set(review.course, 0);
+      setUserVotes(votes);
+    } catch (err) {
+      console.error('Error fetching user votes:', err);
+    }
+  };
+
+  // Fetch data from database
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Fetch all data in parallel
+        const [reviewsResult, professorsResult, coursesResult, professorCoursesResult, statsResult] = await Promise.all([
+          supabase.from('reviews').select('*').order('created_at', { ascending: false }),
+          supabase.from('professors').select('*').order('name'),
+          supabase.from('courses').select('*').order('name'),
+          supabase.from('professor_courses').select('*'),
+          supabase.from('professor_stats').select('*')
+        ]);
+
+        if (reviewsResult.error) throw reviewsResult.error;
+        if (professorsResult.error) throw professorsResult.error;
+        if (coursesResult.error) throw coursesResult.error;
+        if (professorCoursesResult.error) throw professorCoursesResult.error;
+        if (statsResult.error) throw statsResult.error;
+
+        const reviewsData = reviewsResult.data || [];
+        setReviews(reviewsData);
+        setProfessors(professorsResult.data || []);
+        setCourses(coursesResult.data || []);
+        setProfessorCourses(professorCoursesResult.data || []);
+        setProfessorStats(statsResult.data || []);
+        
+        // Fetch user votes for all reviews
+        if (reviewsData.length > 0) {
+          await fetchUserVotes(reviewsData.map(r => r.id));
+        }
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch data');
+      } finally {
+        setLoading(false);
       }
-      prof.courses.set(review.course, prof.courses.get(review.course) + 1);
+    };
+
+    fetchData();
+  }, []);
+
+  // Get courses for selected professor
+  const getCoursesForProfessor = (professorName: string) => {
+    return courses.filter(course => {
+      // Check if this professor teaches this course
+      return professors.some(prof => 
+        prof.name === professorName && 
+        // This would need to be enhanced with the professor_courses relationship
+        // For now, we'll show all courses and let the user select
+        true
+      );
+    });
+  };
+
+  // Submit review form
+  const handleSubmitReview = async () => {
+    try {
+      setFormLoading(true);
+      setFormError(null);
+      setFormSuccess(null);
+
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('You must be logged in to submit a review');
+      }
+
+      // Submit review
+      const { data, error } = await supabase
+        .from('reviews')
+        .insert([{
+          user_id: user.id,
+          ...formData
+        }])
+        .select();
+
+      if (error) throw error;
+
+      // Refresh all data to show the new review
+      const [reviewsResult, professorsResult, coursesResult, professorCoursesResult, statsResult] = await Promise.all([
+        supabase.from('reviews').select('*').order('created_at', { ascending: false }),
+        supabase.from('professors').select('*').order('name'),
+        supabase.from('courses').select('*').order('name'),
+        supabase.from('professor_courses').select('*'),
+        supabase.from('professor_stats').select('*')
+      ]);
+
+      if (reviewsResult.data) setReviews(reviewsResult.data);
+      if (professorsResult.data) setProfessors(professorsResult.data);
+      if (coursesResult.data) setCourses(coursesResult.data);
+      if (professorCoursesResult.data) setProfessorCourses(professorCoursesResult.data);
+      if (statsResult.data) setProfessorStats(statsResult.data);
+
+      // Reset form and close modal
+      setFormData({
+        professor_name: '',
+        course_name: '',
+        semester: '',
+        year: '',
+        grade: 'H',
+        overall_rating: 5,
+        readings_rating: 5,
+        cold_calls_rating: 5,
+        exam_rating: 5,
+        overall_review: '',
+        readings_review: '',
+        cold_calls_review: '',
+        exam_review: '',
+        laptops_allowed: true,
+        assessment_type: 'Final Exam',
+        has_cold_calls: true
+      });
+      setShowReviewForm(false);
+      
+      // Show success message
+      console.log('Review submitted successfully!');
+
+    } catch (err) {
+      console.error('Error submitting review:', err);
+      setFormError(err instanceof Error ? err.message : 'Failed to submit review');
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  // Vote on review (helpful/not helpful)
+  const handleVote = async (reviewId: string, voteType: 'helpful' | 'not_helpful') => {
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('You must be logged in to vote on reviews');
+      }
+
+      // Determine the action based on current vote
+      const currentVote = userVotes[reviewId];
+      let actionType = voteType;
+      
+      // If user clicks the same button they already voted for, unvote
+      if (currentVote === voteType) {
+        actionType = 'unvote';
+      }
+
+      // Call the voting function
+      const { data, error } = await supabase.rpc('vote_on_review', {
+        p_review_id: reviewId,
+        p_engagement_type: actionType
+      });
+
+      if (error) throw error;
+
+      // Update the review counts and user vote state
+      if (data) {
+        setReviews(prevReviews => 
+          prevReviews.map(review => 
+            review.id === reviewId 
+              ? { 
+                  ...review, 
+                  helpful_count: data.helpful_count, 
+                  not_helpful_count: data.not_helpful_count 
+                }
+              : review
+          )
+        );
+        
+        // Update user vote state
+        setUserVotes(prev => ({
+          ...prev,
+          [reviewId]: data.user_vote
+        }));
+      }
+
+    } catch (err) {
+      console.error('Error voting on review:', err);
+      // You could add a toast notification here
+    }
+  };
+
+  // Calculate comprehensive professor data from database
+  const professorData = React.useMemo(() => {
+    const professorMap = new Map<string, ProcessedProfessor>();
+    
+    // Initialize professors from database
+    professors.forEach(prof => {
+      const [firstName, lastName] = prof.name.includes(' ') 
+        ? prof.name.split(' ') 
+        : ['', prof.name];
+      
+      professorMap.set(prof.name, {
+          firstName: firstName || '',
+        lastName: lastName || prof.name,
+        fullName: prof.name,
+        courses: [],
+        overallRating: 0,
+        totalReviews: 0
+      });
     });
     
-    // Convert to final format and sort by last name
+    // Add all courses that each professor teaches (from professor_courses relationship)
+    professors.forEach(prof => {
+      const profData = professorMap.get(prof.name);
+      if (profData) {
+        // Find all courses this professor teaches using professor_courses relationship
+        const professorCourseIds = professorCourses
+          .filter(pc => pc.professor_id === prof.id)
+          .map(pc => pc.course_id);
+        
+        const professorCoursesList = courses.filter(course => 
+          professorCourseIds.includes(course.id)
+        );
+        
+        // Add courses to professor data
+        professorCoursesList.forEach(course => {
+          profData.courses.push({
+            name: course.name,
+            reviewCount: 0 // Will be updated below
+          });
+        });
+      }
+    });
+    
+    // Aggregate data from reviews
+    reviews.forEach(review => {
+      if (professorMap.has(review.professor_name)) {
+        const prof = professorMap.get(review.professor_name)!;
+      prof.totalReviews++;
+        prof.overallRating += review.overall_rating;
+        
+        // Update course review count
+        const existingCourse = prof.courses.find(c => c.name === review.course_name);
+        if (existingCourse) {
+          existingCourse.reviewCount++;
+        }
+      }
+    });
+    
+    // Calculate averages and sort
     const result = Array.from(professorMap.values()).map(prof => ({
-      firstName: prof.firstName,
-      lastName: prof.lastName,
-      fullName: prof.fullName,
-      overallRating: prof.totalRating / prof.totalReviews,
-      totalReviews: prof.totalReviews,
-      courses: Array.from(prof.courses.entries()).map(([course, count]) => ({
-        name: course,
-        reviewCount: count
-      })).sort((a, b) => a.name.localeCompare(b.name))
+      ...prof,
+      overallRating: prof.totalReviews > 0 ? prof.overallRating / prof.totalReviews : 0,
+      courses: prof.courses.sort((a, b) => a.name.localeCompare(b.name))
     })).sort((a, b) => a.lastName.localeCompare(b.lastName));
     
     return result;
-  }, []);
+  }, [professors, courses, professorCourses, reviews]);
 
   // Filter professors based on search
   const filteredProfessors = professorData.filter(prof =>
@@ -412,20 +475,19 @@ export function ReviewsPage() {
 
   // Get reviews for selected professor/course
   const getReviewsForProfessorCourse = (professorName: string, courseName: string, sortBy: string) => {
-    const filteredReviews = mockReviews.filter(review => 
-      review.instructor === professorName && review.course === courseName
+    const filteredReviews = reviews.filter(review => 
+      review.professor_name === professorName && review.course_name === courseName
     );
     
     return filteredReviews.sort((a, b) => {
       switch (sortBy) {
         case 'Highest':
-          return b.overall - a.overall;
+          return b.overall_rating - a.overall_rating;
         case 'Lowest':
-          return a.overall - b.overall;
+          return a.overall_rating - b.overall_rating;
         case 'Most Recent':
         default:
-          if (a.year !== b.year) return parseInt(b.year) - parseInt(a.year);
-          return a.semester === 'Fall' ? -1 : 1;
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       }
     });
   };
@@ -493,6 +555,74 @@ export function ReviewsPage() {
     }
   };
 
+  // Rating component
+  const RatingInput = ({ 
+    label, 
+    value, 
+    onChange, 
+    icon 
+  }: { 
+    label: string; 
+    value: number; 
+    onChange: (value: number) => void; 
+    icon: React.ReactNode;
+  }) => (
+    <div className="space-y-1 p-2 bg-gray-50 rounded">
+      <Label className="flex items-center gap-1 text-xs font-medium">
+        {icon}
+        {label}
+      </Label>
+      <div className="flex items-center gap-1">
+        <span className="text-xs text-gray-500 w-2">1</span>
+        <div className="flex gap-0.5 flex-1">
+          {Array.from({ length: 10 }, (_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onChange(i + 1)}
+              className={`w-3 h-3 rounded-sm border transition-colors ${
+                i < value 
+                  ? 'bg-[#752432] border-[#752432]' 
+                  : 'bg-white border-gray-300 hover:border-[#752432]'
+              }`}
+            />
+          ))}
+        </div>
+        <span className="text-xs text-gray-500 w-2">10</span>
+        <span className="text-xs font-semibold ml-1 min-w-[1.5rem]">{value}/10</span>
+      </div>
+    </div>
+  );
+
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="h-full overflow-auto flex items-center justify-center" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#752432] mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading reviews...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="h-full overflow-auto flex items-center justify-center" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+        <div className="text-center">
+          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Reviews</h3>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()}>
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full overflow-auto" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
       <div className="max-w-full mx-auto p-6">
@@ -500,9 +630,19 @@ export function ReviewsPage() {
         {/* Header */}
         <div className="border-b border-gray-200 pb-6" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
           <div>
-            <div className="flex items-center mb-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
               <Star className="w-8 h-8 mr-3" style={{ color: '#752432' }} />
               <h1 className="text-2xl font-medium text-gray-800">Course Reviews</h1>
+              </div>
+              <Dialog open={showReviewForm} onOpenChange={setShowReviewForm}>
+                <DialogTrigger asChild>
+                  <Button className="bg-[#752432] hover:bg-[#752432]/90">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Write Review
+                  </Button>
+                </DialogTrigger>
+              </Dialog>
             </div>
             <p className="text-gray-600 mb-6">
               Browse professor reviews organized by overall rating and course-specific feedback.
@@ -640,9 +780,23 @@ export function ReviewsPage() {
                         <div className="text-center py-8">
                           <Star className="w-12 h-12 text-gray-400 mb-4" />
                           <h4 className="font-medium text-gray-700 mb-2">No Reviews Yet</h4>
-                          <p className="text-gray-600">
+                          <p className="text-gray-600 mb-4">
                             No reviews available for {prof.firstName} {prof.lastName}'s {selectedCourse} course.
                           </p>
+                          <Button 
+                            onClick={() => {
+                              setFormData(prev => ({
+                                ...prev,
+                                professor_name: prof.fullName,
+                                course_name: selectedCourse
+                              }));
+                              setShowReviewForm(true);
+                            }}
+                            className="bg-[#752432] hover:bg-[#752432]/90"
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add the First Review
+                          </Button>
                         </div>
                       ) : (
                         courseReviews.map(review => (
@@ -659,14 +813,14 @@ export function ReviewsPage() {
 
                                 {/* Course Details */}
                                 <div className="flex flex-wrap gap-4 text-xs text-gray-600 mb-4">
-                                  {review.laptopsAllowed !== undefined && (
-                                    <span>Laptops: {review.laptopsAllowed ? 'Allowed' : 'Not Allowed'}</span>
+                                  {review.laptops_allowed !== undefined && (
+                                    <span>Laptops: {review.laptops_allowed ? 'Allowed' : 'Not Allowed'}</span>
                                   )}
-                                  {review.assessmentType && (
-                                    <span>Assessment: {getAssessmentType(review.assessmentType)}</span>
+                                  {review.assessment_type && (
+                                    <span>Assessment: {getAssessmentType(review.assessment_type)}</span>
                                   )}
-                                  {review.hasColdCalls !== undefined && (
-                                    <span>Cold Calls: {review.hasColdCalls ? 'Yes' : 'No'}</span>
+                                  {review.has_cold_calls !== undefined && (
+                                    <span>Cold Calls: {review.has_cold_calls ? 'Yes' : 'No'}</span>
                                   )}
                                 </div>
                               </div>
@@ -683,27 +837,27 @@ export function ReviewsPage() {
                             <div className="space-y-4 mb-4">
                               {/* First row - Readings, Cold Calls, Exam */}
                               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                                {review.readings !== undefined && review.readingsReview && renderRatingBox(
-                                  review.readings, 
+                                {review.readings_review && renderRatingBox(
+                                  review.readings_rating, 
                                   'Readings', 
                                   <BookOpen className="w-4 h-4 text-gray-600" />,
-                                  review.readingsReview,
+                                  review.readings_review,
                                   'Light',
                                   'Heavy'
                                 )}
-                                {review.hasColdCalls && review.coldCalls !== undefined && review.coldCallsReview && renderRatingBox(
-                                  review.coldCalls, 
+                                {review.has_cold_calls && review.cold_calls_review && renderRatingBox(
+                                  review.cold_calls_rating, 
                                   'Cold Calls', 
                                   <MessageCircle className="w-4 h-4 text-gray-600" />,
-                                  review.coldCallsReview,
+                                  review.cold_calls_review,
                                   'Easy',
                                   'Hard'
                                 )}
-                                {review.exam !== undefined && review.examReview && renderRatingBox(
-                                  review.exam, 
+                                {review.exam_review && renderRatingBox(
+                                  review.exam_rating, 
                                   'Exam', 
                                   <FileText className="w-4 h-4 text-gray-600" />,
-                                  review.examReview,
+                                  review.exam_review,
                                   'Easy',
                                   'Hard'
                                 )}
@@ -712,10 +866,10 @@ export function ReviewsPage() {
                               {/* Second row - Overall (more prominent) */}
                               <div>
                                 {renderRatingBox(
-                                  review.overall, 
+                                  review.overall_rating, 
                                   'Overall', 
                                   <Award className="w-4 h-4 text-[#752432]" />,
-                                  review.overallReview,
+                                  review.overall_review,
                                   undefined,
                                   undefined,
                                   true
@@ -726,13 +880,27 @@ export function ReviewsPage() {
                             {/* Helpful/Unhelpful */}
                             <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                               <div className="flex items-center space-x-4">
-                                <button className="flex items-center space-x-1 text-sm text-gray-600 hover:text-green-600 transition-colors">
-                                  <ThumbsUp className="w-4 h-4" />
-                                  <span>Helpful ({review.helpful})</span>
+                                <button 
+                                  onClick={() => handleVote(review.id, 'helpful')}
+                                  className={`flex items-center space-x-1 text-sm transition-colors ${
+                                    userVotes[review.id] === 'helpful'
+                                      ? 'text-green-600 bg-green-50 px-2 py-1 rounded'
+                                      : 'text-gray-600 hover:text-green-600'
+                                  }`}
+                                >
+                                  <ThumbsUp className={`w-4 h-4 ${userVotes[review.id] === 'helpful' ? 'fill-current' : ''}`} />
+                                  <span>Helpful ({review.helpful_count})</span>
                                 </button>
-                                <button className="flex items-center space-x-1 text-sm text-gray-600 hover:text-red-600 transition-colors">
-                                  <ThumbsDown className="w-4 h-4" />
-                                  <span>Not Helpful ({review.unhelpful})</span>
+                                <button 
+                                  onClick={() => handleVote(review.id, 'not_helpful')}
+                                  className={`flex items-center space-x-1 text-sm transition-colors ${
+                                    userVotes[review.id] === 'not_helpful'
+                                      ? 'text-red-600 bg-red-50 px-2 py-1 rounded'
+                                      : 'text-gray-600 hover:text-red-600'
+                                  }`}
+                                >
+                                  <ThumbsDown className={`w-4 h-4 ${userVotes[review.id] === 'not_helpful' ? 'fill-current' : ''}`} />
+                                  <span>Not Helpful ({review.not_helpful_count})</span>
                                 </button>
                               </div>
                               <Button variant="outline" size="sm">
@@ -805,7 +973,10 @@ export function ReviewsPage() {
                               <div className="flex-1">
                                 <h4 className="font-medium text-gray-900">{courseInfo.name}</h4>
                                 <p className="text-sm text-gray-600 mt-1">
-                                  {courseInfo.reviewCount} review{courseInfo.reviewCount !== 1 ? 's' : ''}
+                                  {courseInfo.reviewCount === 0 
+                                    ? 'No reviews yet' 
+                                    : `${courseInfo.reviewCount} review${courseInfo.reviewCount !== 1 ? 's' : ''}`
+                                  }
                                 </p>
                               </div>
                               <div className="text-[#752432]">
@@ -878,7 +1049,7 @@ export function ReviewsPage() {
                                       setSelectedCourse(courseInfo.name);
                                     }}
                                   >
-                                    {courseInfo.name} ({courseInfo.reviewCount})
+                                    {courseInfo.name} ({courseInfo.reviewCount === 0 ? 'No reviews' : courseInfo.reviewCount})
                                   </Badge>
                                 ))}
                               </div>
@@ -897,6 +1068,20 @@ export function ReviewsPage() {
           </div>
         </div>
       </div>
+      
+      {/* Review Form Modal */}
+      <ReviewForm
+        showReviewForm={showReviewForm}
+        setShowReviewForm={setShowReviewForm}
+        formError={formError}
+        formLoading={formLoading}
+        formData={formData}
+        setFormData={setFormData}
+        professors={professors}
+        courses={courses}
+        professorCourses={professorCourses}
+        handleSubmitReview={handleSubmitReview}
+      />
     </div>
     </div>
   );

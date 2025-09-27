@@ -171,6 +171,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
   const handleAddCourse = () => {
     setShowCourseDialog(true);
+    setSelectedCourse(null); // Clear any previously selected course
+    setSearchQuery(''); // Clear search query
     fetchAllCourses();
   };
 
@@ -957,7 +959,10 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                       setSearchQuery(e.target.value);
                     }}
                     onFocus={() => setShowCourseDropdown(true)}
-                    onBlur={() => setTimeout(() => setShowCourseDropdown(false), 200)}
+                    onBlur={() => setTimeout(() => {
+                      setShowCourseDropdown(false);
+                      setSelectedCourse(null);
+                    }, 200)}
                     className="pl-10 w-full"
                   />
               </div>
@@ -975,15 +980,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                     {filteredCourses.map((course) => (
                       <div
                         key={course.id}
-                        className={`bg-white border-2 rounded-lg p-3 hover:shadow-sm transition-all cursor-pointer ${
-                          selectedCourse?.id === course.id 
-                            ? 'border-[#752531] bg-[#752531]/10 shadow-md' 
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                        style={{
-                          backgroundColor: selectedCourse?.id === course.id ? '#75253110' : 'white',
-                          borderColor: selectedCourse?.id === course.id ? '#752531' : '#e5e7eb'
-                        }}
+                        className="bg-white border-2 border-gray-200 rounded-lg p-3 hover:shadow-sm hover:border-gray-300 transition-all cursor-pointer"
                         onClick={() => handleCourseSelect(course)}
                       >
                         <div className="flex items-start justify-between">
@@ -1022,11 +1019,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                               )}
                             </div>
                           </div>
-                          {selectedCourse?.id === course.id && (
-                            <div className="ml-2 flex-shrink-0">
-                              <div className="w-3 h-3 bg-[#752531] rounded-full"></div>
-                            </div>
-                          )}
                         </div>
                       </div>
                     ))}

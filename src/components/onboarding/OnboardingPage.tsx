@@ -16,7 +16,7 @@ interface CourseData {
   courseName: string;
   professor: string;
   credits: number;
-  semester: 'Spring' | 'Fall' | 'Winter';
+  semester: 'Spring' | 'Fall' | 'Winter' | 'Spring 2026' | 'Fall 2025' | 'Winter 2026';
   days: string[];
   time: string;
   location?: string;
@@ -920,15 +920,14 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                   try {
                     // Transform selectedCourses to the required format
                     const classesData = selectedCourses.map(course => {
-                      // Map semester to correct format
-                      let semesterCode = '2025FA'; // default
-                      if (course.semester === 'Fall') {
-                        semesterCode = '2025FA';
-                      } else if (course.semester === 'Winter') {
-                        semesterCode = '2026WI';
-                      } else if (course.semester === 'Spring') {
-                        semesterCode = '2026SP';
-                      }
+                      // Use the actual semester value directly from the course
+                      const semesterCode = course.semester;
+                      
+                      console.log('Course semester:', {
+                        courseName: course.courseName,
+                        semester: course.semester
+                      });
+                      
 
                       return {
                         class: course.courseName,
@@ -1080,9 +1079,9 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                             </h4>
                             <div className="space-y-1">
                               <p className="text-xs text-gray-600 mb-0.5">Semester: {
-                                course.semester === 'Fall' ? '2025FA' :
-                                course.semester === 'Winter' ? '2026WI' :
-                                course.semester === 'Spring' ? '2026SP' :
+                                course.semester === 'Fall' || course.semester === 'Fall 2025' ? '2025FA' :
+                                course.semester === 'Winter' || course.semester === 'Winter 2026' ? '2026WI' :
+                                course.semester === 'Spring' || course.semester === 'Spring 2026' ? '2026SP' :
                                 course.semester
                               }</p>
                               <p className="text-xs text-gray-600 mb-0.5">Professor: {course.instructor || 'TBD'}</p>
@@ -1120,10 +1119,10 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                       courseName: selectedCourse.course_name,
                       professor: selectedCourse.instructor || 'TBA',
                       credits: selectedCourse.credits || 3,
-                      semester: 'Fall', // Default semester
+                      semester: selectedCourse.semester as 'Spring' | 'Fall' | 'Winter' || 'Fall', // Use actual semester from course data
                       days: selectedCourse.days ? selectedCourse.days.split(',').map((d: string) => d.trim()) : ['TBA'],
                       time: selectedCourse.times || 'TBA',
-                      location: selectedCourse.building,
+                      location: selectedCourse.location,
                       original_course_id: selectedCourse.original_course_id
                     };
                     

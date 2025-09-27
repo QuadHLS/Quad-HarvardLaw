@@ -19,8 +19,8 @@ interface CourseData {
   semester: 'Spring' | 'Fall' | 'Winter';
   days: string[];
   time: string;
-  building?: string;
-  room?: string;
+  location?: string;
+  original_course_id?: number;
 }
 
 
@@ -47,7 +47,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   // Form state for Page 2
   const [selectedCourses, setSelectedCourses] = useState<CourseData[]>([]);
   const [showCourseDialog, setShowCourseDialog] = useState(false);
-  const [showCourseDropdown, setShowCourseDropdown] = useState(false);
   const [currentSemester, setCurrentSemester] = useState<'Fall 2025' | 'Winter 2026' | 'Spring 2026'>('Fall 2025');
   const [allCourseData, setAllCourseData] = useState<any[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(false);
@@ -211,7 +210,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   const handleCourseSelect = (course: any) => {
     setSelectedCourse(course);
     setSearchQuery(course.course_name);
-    setShowCourseDropdown(false);
   };
 
   const filteredCourses = searchQuery 
@@ -421,6 +419,9 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
             .order('course_name');
 
           console.log('Course fetch response:', { courses, error });
+          console.log('First course sample:', courses?.[0]);
+          console.log('First course original_course_id:', courses?.[0]?.original_course_id);
+          console.log('All columns in first course:', Object.keys(courses?.[0] || {}));
 
           if (error) {
             console.error('Error fetching courses:', error);
@@ -441,10 +442,13 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
             credits: course.credits || 4,
             days: course.days || 'Monday;Wednesday;Friday',
             times: course.times || '9:00 AM-10:00 AM',
-            location: course.location || 'TBD'
+            location: course.location || 'TBD',
+            original_course_id: course.original_course_id
           }));
 
           console.log('Transformed courses:', transformedCourses);
+          console.log('First transformed course original_course_id:', transformedCourses[0]?.original_course_id);
+          console.log('All columns in first transformed course:', Object.keys(transformedCourses[0] || {}));
           setAllCourseData(transformedCourses);
         } catch (error) {
           console.error('Error fetching courses:', error);
@@ -496,15 +500,14 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
             const course = matchingCourses[0];
             
             const courseData: CourseData = {
-              id: `${courseName}-${i}`, // Use course name + index for unique ID
+              id: `${courseName}-${i}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Generate unique ID
               courseName: course.course_name,
               professor: course.instructor,
               credits: course.credits,
               semester: course.semester as 'Spring' | 'Fall' | 'Winter',
               days: course.days ? course.days.split(';').map((d: string) => d.trim()) : [],
               time: course.times ? course.times.split(';').map((t: string) => t.trim())[0] || 'TBD' : 'TBD',
-              building: course.location || undefined,
-              room: undefined
+              location: course.location || undefined
             };
 
             newSelectedCourses.push(courseData);
@@ -741,8 +744,9 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                       </div>
                               <p className="text-xs text-gray-600 mb-0.5">Semester: {course.semester}</p>
                               <p className="text-xs text-gray-600 mb-0.5">Professor: {course.professor}</p>
-                              <p className="text-xs text-gray-600 mb-0.5">{course.credits} Credits</p>
-                              <p className="text-xs text-gray-600">{course.days.join(', ')} {course.time}</p>
+                              <p className="text-xs text-gray-600 mb-0.5">{course.days.join(', ')} {course.time}</p>
+                              <p className="text-xs text-gray-600 mb-0.5">Location: {course.location || 'Location TBD'}</p>
+                              <p className="text-xs text-gray-600">{course.credits} Credits</p>
                     </div>
                           );
                         })
@@ -932,7 +936,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                           days: course.days.join(' • '),
                           times: course.time,
                           credits: course.credits,
-                          location: course.building && course.room ? `${course.building}${course.room}` : 'Location TBD',
+                          location: course.location || 'Location TBD',
                           semester: semesterCode,
                           instructor: course.professor,
                           course_name: course.courseName,
@@ -977,7 +981,14 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       </div>
 
       {/* Add Class Dialog */}
-      <Dialog open={showCourseDialog} onOpenChange={() => {}}>
+      <Dialog open={showCourseDialog} onOpenChange={(open) => {
+        if (!open) {
+          setShowCourseDialog(false);
+          setSelectedCourse(null);
+          setVisuallySelectedCourseIndex(null);
+          setSearchQuery('');
+        }
+      }}>
           <DialogContent 
             className="p-0 overflow-hidden [&>button]:hidden flex flex-col"
             style={{
@@ -1023,11 +1034,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                     onChange={(e) => {
                       setSearchQuery(e.target.value);
                     }}
-                    onFocus={() => setShowCourseDropdown(true)}
-                    onBlur={() => setTimeout(() => {
-                      setShowCourseDropdown(false);
-                      setSelectedCourse(null);
-                    }, 200)}
                     className="pl-10 w-full"
                   />
               </div>
@@ -1035,7 +1041,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
               {/* Course Results */}
               <div className="flex-1 overflow-y-auto min-h-0">
-                {(searchQuery || showCourseDropdown) && filteredCourses.length > 0 ? (
+                {filteredCourses.length > 0 ? (
                   <div className="p-3 space-y-2">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-sm font-medium text-gray-700">
@@ -1045,7 +1051,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                     {filteredCourses.map((course, index) => (
                       <div
                         key={course.id}
-                        className="bg-white border-2 border-gray-200 rounded-lg p-3 hover:shadow-md transition-all cursor-pointer"
+                        className="bg-white border-2 border-gray-200 rounded-lg p-4 hover:shadow-md transition-all cursor-pointer min-h-[120px]"
                         style={{
                           backgroundColor: visuallySelectedCourseIndex === index ? '#75253110' : 'white',
                           borderColor: visuallySelectedCourseIndex === index ? '#752531' : '#e5e7eb'
@@ -1072,55 +1078,29 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                             <h4 className="text-sm font-medium text-gray-900 mb-1">
                               {course.course_name}
                             </h4>
-                            {course.course_code && (
-                              <p className="text-xs text-gray-500 mb-2">{course.course_code}</p>
-                            )}
                             <div className="space-y-1">
-                              {course.semester && (
-                                <p className="text-xs text-gray-600">
-                                  <span className="font-medium">Semester:</span> {course.semester}
-                                </p>
-                              )}
-                              {course.credits && (
-                                <p className="text-xs text-gray-600">
-                                  <span className="font-medium">Credits:</span> {course.credits}
-                                </p>
-                              )}
-                              {course.instructor && (
-                                <p className="text-xs text-gray-600">
-                                  <span className="font-medium">Professor:</span> {course.instructor}
-                                </p>
-                              )}
-                              {course.days && course.times && (
-                                <p className="text-xs text-gray-600">
-                                  <span className="font-medium">Schedule:</span> {course.days} • {course.times}
-                                </p>
-                              )}
-                              {course.building && course.room && (
-                                <p className="text-xs text-gray-600">
-                                  <span className="font-medium">Location:</span> {course.building} • {course.room}
-                                </p>
-                              )}
+                              <p className="text-xs text-gray-600 mb-0.5">Semester: {
+                                course.semester === 'Fall' ? '2025FA' :
+                                course.semester === 'Winter' ? '2026WI' :
+                                course.semester === 'Spring' ? '2026SP' :
+                                course.semester
+                              }</p>
+                              <p className="text-xs text-gray-600 mb-0.5">Professor: {course.instructor || 'TBD'}</p>
+                              <p className="text-xs text-gray-600 mb-0.5">{course.days || 'TBA'} • {course.times || 'TBA'}</p>
+                              <p className="text-xs text-gray-600 mb-0.5">Location: {course.location && course.location !== 'null' ? course.location : 'Location TBD'}</p>
+                              <p className="text-xs text-gray-600">{course.credits || 3} Credits</p>
                             </div>
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
-                ) : searchQuery && filteredCourses.length === 0 ? (
+                ) : (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center text-gray-400">
                       <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
                       <p className="text-sm">No courses found</p>
                       <p className="text-xs">Try a different search term</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center text-gray-400">
-                      <Search className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                      <p className="text-sm font-medium mb-1">Course Selection</p>
-                      <p className="text-xs">Start typing to search for courses</p>
                     </div>
                   </div>
                 )}
@@ -1136,17 +1116,18 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                   if (selectedCourse) {
                     // Add the selected course to My Courses
                     const newCourse: CourseData = {
-                      id: selectedCourse.id,
+                      id: `${selectedCourse.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Generate unique ID
                       courseName: selectedCourse.course_name,
                       professor: selectedCourse.instructor || 'TBA',
                       credits: selectedCourse.credits || 3,
                       semester: 'Fall', // Default semester
                       days: selectedCourse.days ? selectedCourse.days.split(',').map((d: string) => d.trim()) : ['TBA'],
                       time: selectedCourse.times || 'TBA',
-                      building: selectedCourse.building,
-                      room: selectedCourse.room
+                      location: selectedCourse.building,
+                      original_course_id: selectedCourse.original_course_id
                     };
                     
+                    console.log('Adding course with original_course_id:', newCourse.original_course_id);
                     setSelectedCourses(prev => [...prev, newCourse]);
                     
                     // Close dialog and reset

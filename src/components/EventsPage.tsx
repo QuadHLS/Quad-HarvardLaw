@@ -841,7 +841,13 @@ export function EventsPage({ onAddToCalendar }: EventsPageProps) {
 
       {/* Event Detail Modal */}
       <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent 
+          className="max-w-2xl"
+          aria-describedby="event-detail-description"
+        >
+          <div id="event-detail-description" className="sr-only">
+            Event details for {selectedEvent?.title}
+          </div>
           {selectedEvent && (
             <>
               <DialogHeader>

@@ -25,7 +25,13 @@ export function FilePreviewModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl h-[90vh] p-0">
+      <DialogContent 
+        className="max-w-6xl h-[90vh] p-0"
+        aria-describedby="file-preview-description"
+      >
+        <div id="file-preview-description" className="sr-only">
+          File preview modal for {fileName}
+        </div>
         <div className="h-full">
           {isPDF && (
             <PDFViewer

@@ -511,7 +511,13 @@ export function FeedPage() {
                   </Card>
                 </DialogTrigger>
                 
-                <DialogContent className="w-[98vw] max-w-[1600px] max-h-[85vh] overflow-y-auto">
+                <DialogContent 
+                  className="w-[98vw] max-w-[1600px] max-h-[85vh] overflow-y-auto"
+                  aria-describedby="post-detail-description"
+                >
+                  <div id="post-detail-description" className="sr-only">
+                    Post details and comments
+                  </div>
                   <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                       {selectedPost?.flair && (

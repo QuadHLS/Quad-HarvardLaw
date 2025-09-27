@@ -56,6 +56,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [availableCourses, setAvailableCourses] = useState<any[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
+  const [visuallySelectedCourseIndex, setVisuallySelectedCourseIndex] = useState<number | null>(null);
 
   const handleNext = async () => {
     console.log('handleNext called', { currentPage, isStep1Valid: isStep1Valid(), user: user?.id });
@@ -172,6 +173,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   const handleAddCourse = () => {
     setShowCourseDialog(true);
     setSelectedCourse(null); // Clear any previously selected course
+    setVisuallySelectedCourseIndex(null); // Clear visual selection
     setSearchQuery(''); // Clear search query
     fetchAllCourses();
   };
@@ -977,11 +979,30 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                         {filteredCourses.length} course{filteredCourses.length !== 1 ? 's' : ''} found
                       </h3>
                     </div>
-                    {filteredCourses.map((course) => (
+                    {filteredCourses.map((course, index) => (
                       <div
                         key={course.id}
-                        className="bg-white border-2 border-gray-200 rounded-lg p-3 hover:shadow-sm hover:border-gray-300 transition-all cursor-pointer"
-                        onClick={() => handleCourseSelect(course)}
+                        className="bg-white border-2 border-gray-200 rounded-lg p-3 hover:shadow-md transition-all cursor-pointer"
+                        style={{
+                          backgroundColor: visuallySelectedCourseIndex === index ? '#75253110' : 'white',
+                          borderColor: visuallySelectedCourseIndex === index ? '#752531' : '#e5e7eb'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (visuallySelectedCourseIndex !== index) {
+                            e.currentTarget.style.backgroundColor = '#75253110';
+                            e.currentTarget.style.borderColor = '#752531';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (visuallySelectedCourseIndex !== index) {
+                            e.currentTarget.style.backgroundColor = 'white';
+                            e.currentTarget.style.borderColor = '#e5e7eb';
+                          }
+                        }}
+                        onClick={() => {
+                          setVisuallySelectedCourseIndex(index);
+                          handleCourseSelect(course);
+                        }}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
@@ -1068,6 +1089,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                     // Close dialog and reset
                     setShowCourseDialog(false);
                     setSelectedCourse(null);
+                    setVisuallySelectedCourseIndex(null);
                     setSearchQuery('');
                   }
                 }} 

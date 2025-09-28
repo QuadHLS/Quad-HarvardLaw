@@ -42,6 +42,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   const [phone, setPhone] = useState('');
   const [classYear, setClassYear] = useState<ClassYear | ''>('');
   const [section, setSection] = useState('');
+  const [lrwSection, setLrwSection] = useState<'A' | 'B' | ''>('');
   const [loading, setLoading] = useState(false);
 
   // Form state for Page 2
@@ -166,8 +167,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   // Check if course requirements are met
   const areRequirementsMet = () => {
     if (classYear === '1L') {
-      // 1L: Need 7 preselected required courses, 8th elective is optional
-      return selectedCourses.length >= 7 && selectedCourses.length <= 8;
+      // 1L: Need 8 required courses (7 initial + 1 LRW), 9th elective is optional
+      return selectedCourses.length >= 8 && selectedCourses.length <= 9;
     } else if (classYear === '2L' || classYear === '3L') {
       // 2L/3L: Need at least 3 required courses, max 10 total courses
       return selectedCourses.length >= 3 && selectedCourses.length <= 10;
@@ -176,6 +177,19 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   };
 
   const handleRemoveCourse = (courseId: string) => {
+    const courseToRemove = selectedCourses.find(course => course.id === courseId);
+    
+    // Check if this is a required course that cannot be removed
+    if (courseToRemove && classYear === '1L') {
+      const isRequired = selectedCourses.indexOf(courseToRemove) < 7 || 
+                        courseToRemove.courseName.includes('First Year Legal Research and Writing');
+      
+      if (isRequired) {
+        console.log('Cannot remove required course:', courseToRemove.courseName);
+        return; // Don't remove required courses
+      }
+    }
+    
     setSelectedCourses(prev => prev.filter(course => course.id !== courseId));
   };
 
@@ -558,6 +572,45 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     autoPopulate1L();
   }, [classYear, section, allCourseData]);
 
+  // Add/Update LRW course when user selects A or B
+  useEffect(() => {
+    const handleLRWCourse = async () => {
+      if (classYear === '1L' && section && lrwSection && allCourseData.length > 0) {
+        const lrwCourseName = `First Year Legal Research and Writing ${section}${lrwSection}`;
+        
+        // Remove any existing LRW courses first
+        const filteredCourses = selectedCourses.filter(course => 
+          !course.courseName.includes('First Year Legal Research and Writing')
+        );
+
+        // Find the course in the database
+        const matchingCourses = allCourseData.filter(
+          (course) => course.course_name === lrwCourseName
+        );
+
+        if (matchingCourses.length > 0) {
+          const course = matchingCourses[0];
+          
+          const courseData: CourseData = {
+            id: `${lrwCourseName}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            courseName: course.course_name,
+            professor: course.instructor,
+            credits: course.credits,
+            semester: course.semester as 'Spring' | 'Fall' | 'Winter',
+            days: course.days ? course.days.split(';').map((d: string) => d.trim()) : [],
+            time: course.times ? course.times.split(';').map((t: string) => t.trim())[0] || 'TBD' : 'TBD',
+            location: course.location || undefined
+          };
+
+          setSelectedCourses([...filteredCourses, courseData]);
+          console.log('Updated LRW course:', courseData);
+        }
+      }
+    };
+
+    handleLRWCourse();
+  }, [lrwSection, classYear, section, allCourseData]);
+
   return (
     <div className="min-h-screen py-8 px-4" style={{ backgroundColor: '#f9f5f0', minHeight: '100vh' }}>
       <div className={currentPage === 1 ? "max-w-4xl mx-auto" : "max-w-7xl mx-auto"}>
@@ -676,6 +729,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                       </div>
                     </div>
 
+
                   {/* Next Button */}
                   <div className="flex justify-end pt-6 border-t">
                     <Button
@@ -719,7 +773,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
             <div className="flex gap-8">
               {/* Left Side - My Courses */}
-              <div className="w-1/4 flex-shrink-0">
+              <div className="w-80 flex-shrink-0">
                 <Card className="shadow-lg">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-lg text-gray-900">
@@ -730,7 +784,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                     </p>
                     <p className="text-sm text-gray-600 mt-1">
                       {classYear === '1L'
-                        ? `7 Required + 1 Elective (${totalCredits} Credits)` 
+                        ? `8 Required + 1 Elective (${totalCredits} Credits)` 
                         : classYear === '2L' 
                         ? `3 Required | 10 Max (${totalCredits} Credits)` 
                         : `3 Required | 10 Max (${totalCredits} Credits)`
@@ -769,8 +823,11 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                         </div>
                       ) : (
                         selectedCourses.map((course, index) => {
-                          // Check if this is a 1L required course (first 7 courses)
-                          const isRequired1L = classYear === '1L' && index < 7;
+                          // Check if this is a 1L required course
+                          const isRequired1L = classYear === '1L' && (
+                            index < 7 || // First 7 courses are always required
+                            course.courseName.includes('First Year Legal Research and Writing') // LRW is always required
+                          );
                           
                           return (
                             <div key={course.id} className={`p-3 rounded-lg border ${isRequired1L ? 'bg-blue-50 border-blue-200' : 'bg-gray-50'}`}>
@@ -802,6 +859,43 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                         })
                       )}
                     </div>
+
+                    {/* LRW Section Selector - Only for 1L */}
+                    {classYear === '1L' && selectedCourses.length >= 7 && (
+                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-xs text-blue-800 font-medium mb-2">
+                          {!lrwSection ? 'Select LRW section:' : 'Change LRW section:'}
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setLrwSection('A')}
+                            className={`px-3 py-1 rounded-md text-xs font-medium ${
+                              lrwSection === 'A' 
+                                ? 'bg-blue-600 text-white' 
+                                : 'bg-white text-blue-800 border border-blue-300 hover:bg-blue-100'
+                            }`}
+                          >
+                            A
+                          </button>
+                          <button
+                            onClick={() => setLrwSection('B')}
+                            className={`px-3 py-1 rounded-md text-xs font-medium ${
+                              lrwSection === 'B' 
+                                ? 'bg-blue-600 text-white' 
+                                : 'bg-white text-blue-800 border border-blue-300 hover:bg-blue-100'
+                            }`}
+                          >
+                            B
+                          </button>
+                        </div>
+                        <p className="text-xs text-blue-700 mt-1">
+                          {!lrwSection 
+                            ? `Adds "LRW ${section}A" or "LRW ${section}B"`
+                            : `Current: "LRW ${section}${lrwSection}"`
+                          }
+                        </p>
+                      </div>
+                    )}
 
                     {/* Add Class Button */}
                     <button

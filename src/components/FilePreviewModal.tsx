@@ -1,7 +1,7 @@
 import React from 'react';
 import { Dialog, DialogContent } from './ui/dialog';
 import { PDFViewer } from './PDFViewer';
-import { OfficeWebViewer } from './OfficeWebViewer';
+import { DOCXViewer } from './DOCXViewer';
 
 interface FilePreviewModalProps {
   isOpen: boolean;
@@ -43,7 +43,7 @@ export function FilePreviewModal({
           )}
           
           {isDOCX && (
-            <OfficeWebViewer
+            <DOCXViewer
               fileUrl={fileUrl}
               fileName={fileName}
               onDownload={onDownload}

@@ -221,34 +221,48 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
 
   const getCoursesForTimeSlot = (day: string, timeSlot: string) => {
-    return selectedCourses.filter(course => {
+    const filteredCourses = selectedCourses.filter(course => {
+      // Filter by current semester
+      const semesterMap: { [key: string]: string[] } = {
+        'Fall 2025': ['Fall', 'Fall 2025', '2025FA'],
+        'Winter 2026': ['Winter', 'Winter 2026', '2026WI'],
+        'Spring 2026': ['Spring', 'Spring 2026', '2026SP']
+      };
+      
+      const validSemesters = semesterMap[currentSemester] || [];
+      if (!validSemesters.includes(course.semester)) {
+        return false;
+      }
+      
       const dayMap: { [key: string]: string } = {
-        'Mon': 'Monday',
-        'Tue': 'Tuesday', 
-        'Wed': 'Wednesday',
-        'Thu': 'Thursday',
-        'Fri': 'Friday'
+        'Mon': 'Mon',
+        'Tue': 'Tue', 
+        'Wed': 'Wed',
+        'Thu': 'Thu',
+        'Fri': 'Fri'
       };
       
       const courseDays = course.days.map(d => d);
       
       // Only show course in its starting time slot
-      if (!courseDays.includes(dayMap[day])) return false;
+      if (!courseDays.includes(dayMap[day])) {
+        return false;
+      }
       
-      // Parse course time range (e.g., "9:00-10:00 AM" or "6:00-8:00 PM" or "9:00 AM-1:00 PM")
+      // Parse course time range
       const timeParts = course.time.split('-');
       if (timeParts.length !== 2) return false;
       
       let startTime = timeParts[0].trim();
       let endTime = timeParts[1].trim();
       
-      // Handle cases where AM/PM is only on the end time (e.g., "9:00-10:00 AM")
+      // Handle cases where AM/PM is only on the end time
       const endAmPm = endTime.match(/(AM|PM)/i);
       if (endAmPm && !startTime.match(/(AM|PM)/i)) {
         startTime += ' ' + endAmPm[0];
       }
       
-      // Handle cases where both times have AM/PM (e.g., "9:00 AM-1:00 PM")
+      // Handle cases where both times have AM/PM
       if (course.time.includes('AM') && course.time.includes('PM')) {
         const fullTimeMatch = course.time.match(/(\d{1,2}:\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}:\d{2})\s*(AM|PM)/i);
         if (fullTimeMatch) {
@@ -277,13 +291,17 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       
       if (!courseStart || !slotTime) return false;
       
-      // For courses that don't start exactly on the hour, find the nearest hour slot
+      // Only show course in its starting time slot
       const courseStartHour = Math.floor(courseStart / 60) * 60; // Round DOWN to nearest hour
       const slotHour = slotTime;
       
       // Check if this slot is the starting slot for the course
-      return courseStartHour === slotHour;
+      const matches = courseStartHour === slotHour;
+      
+      return matches;
     });
+    
+    return filteredCourses;
   };
 
   // Calculate how many time slots a course spans
@@ -335,14 +353,24 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   // Check if a time slot should be hidden (part of a multi-hour course)
   const isTimeSlotOccupied = (day: string, timeSlot: string) => {
     const dayMap: { [key: string]: string } = {
-      'Mon': 'Monday',
-      'Tue': 'Tuesday', 
-      'Wed': 'Wednesday',
-      'Thu': 'Thursday',
-      'Fri': 'Friday'
+      'Mon': 'Mon',
+      'Tue': 'Tue', 
+      'Wed': 'Wed',
+      'Thu': 'Thu',
+      'Fri': 'Fri'
     };
 
     return selectedCourses.some(course => {
+      // Filter by current semester
+      const semesterMap: { [key: string]: string[] } = {
+        'Fall 2025': ['Fall', 'Fall 2025', '2025FA'],
+        'Winter 2026': ['Winter', 'Winter 2026', '2026WI'],
+        'Spring 2026': ['Spring', 'Spring 2026', '2026SP']
+      };
+      
+      const validSemesters = semesterMap[currentSemester] || [];
+      if (!validSemesters.includes(course.semester)) return false;
+      
       if (!course.days.includes(dayMap[day])) return false;
       
       const timeParts = course.time.split('-');
@@ -467,6 +495,23 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     const autoPopulate1L = () => {
       console.log('Auto-populate check:', { classYear, section, allCourseDataLength: allCourseData.length });
       
+      // Add a test course for debugging
+      if (selectedCourses.length === 0) {
+        const testCourse: CourseData = {
+          id: 'test-course-1',
+          courseName: 'Test Course',
+          professor: 'Test Professor',
+          credits: 3,
+          semester: 'Fall 2025',
+          days: ['Mon', 'Wed'],
+          time: '9:00 AM-10:00 AM',
+          location: 'Test Room'
+        };
+        console.log('Adding test course:', testCourse);
+        setSelectedCourses([testCourse]);
+        return;
+      }
+      
       if (classYear === '1L' && section && allCourseData.length > 0) {
         console.log('Auto-populating 1L Section', section, 'courses...');
         console.log('Available courses:', allCourseData.map(c => c.course_name));
@@ -509,6 +554,13 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
               time: course.times ? course.times.split(';').map((t: string) => t.trim())[0] || 'TBD' : 'TBD',
               location: course.location || undefined
             };
+            
+            console.log('Created course data:', {
+              ...courseData,
+              daysString: course.days,
+              timesString: course.times,
+              semesterString: course.semester
+            });
 
             newSelectedCourses.push(courseData);
             console.log('Added course:', courseData);
@@ -701,6 +753,21 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                         : `3 Required | 10 Max (${totalCredits} Credits)`
                       }
                     </p>
+                    {/* Debug info */}
+                    <div className="text-xs text-gray-500 mt-2 p-2 bg-gray-100 rounded">
+                      <div>Selected Courses: {selectedCourses.length}</div>
+                      <div>Current Semester: {currentSemester}</div>
+                      <div>Courses for {currentSemester}: {selectedCourses.filter(c => {
+                        const semesterMap: { [key: string]: string[] } = {
+                          'Fall 2025': ['Fall', 'Fall 2025', '2025FA'],
+                          'Winter 2026': ['Winter', 'Winter 2026', '2026WI'],
+                          'Spring 2026': ['Spring', 'Spring 2026', '2026SP']
+                        };
+                        const validSemesters = semesterMap[currentSemester] || [];
+                        return validSemesters.includes(c.semester);
+                      }).length}</div>
+                      <div>Course Semesters: {selectedCourses.map(c => c.semester).join(', ')}</div>
+                    </div>
                     <hr className="border-gray-200 mt-2" />
                   </CardHeader>
                   <CardContent className="pt-0 px-6 pb-6">
@@ -809,12 +876,12 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                     {/* Calendar Grid */}
                     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                       {/* Calendar Header Row */}
-                      <div className="grid grid-cols-6 gap-0 bg-[#752531] border-b border-gray-200">
-                        <div className="p-3 text-center font-medium text-white">Time</div>
+                      <div className="grid grid-cols-6 gap-0 border-b border-gray-200" style={{ backgroundColor: '#752531' }}>
+                        <div className="p-3 text-center font-semibold text-white text-sm">Time</div>
                         {days.map(day => (
                           <div 
                             key={day} 
-                            className="p-3 text-center font-medium text-white border-l border-white"
+                            className="p-3 text-center font-semibold text-white border-l border-white/30 text-sm"
                           >
                             {day}
                           </div>
@@ -826,7 +893,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                         {timeSlots.map((timeSlot) => (
                           <div key={timeSlot} className="grid grid-cols-6 gap-0 min-h-12">
                             {/* Time Label */}
-                            <div className="p-3 text-sm text-gray-600 bg-gray-50 border-r border-gray-200 flex items-center justify-center">
+                            <div className="p-3 text-sm font-medium text-gray-700 bg-gray-50 border-r border-gray-200 flex items-center justify-center">
                               {timeSlot}
                             </div>
                             
@@ -838,37 +905,91 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                               return (
                                 <div 
                                   key={`${day}-${timeSlot}`} 
-                                  className="min-h-12 border-r border-gray-200 p-1 relative last:border-r-0"
+                                  className="min-h-12 border-r border-gray-200 p-1 relative last:border-r-0 bg-white hover:bg-gray-50 transition-colors"
                                 >
                                   {courses.length > 0 && !isOccupied && (
                                     <>
-                                      {courses.map((course, index) => (
-                                        <div 
-                                          key={`${course.id}-${day}-${timeSlot}-${index}`}
-                                          className={`absolute text-white text-xs p-2 rounded flex flex-col justify-center z-10 ${
-                                            courses.length === 1 
-                                              ? 'inset-1 bg-[#752531]' 
-                                              : courses.length === 2
-                                              ? index === 0 
-                                                ? 'top-1 left-1 right-1 bottom-1/2 bg-[#752531]'
-                                                : 'top-1/2 left-1 right-1 bottom-1 bg-[#6B1F2A]'
-                                              : index === 0
-                                              ? 'top-1 left-1 right-1 h-1/3 bg-[#752531]'
-                                              : index === 1
-                                              ? 'top-1/3 left-1 right-1 h-1/3 bg-[#6B1F2A]'
-                                              : 'bottom-1 left-1 right-1 h-1/3 bg-[#5A1A23]'
-                                          }`}
-                                          style={{ 
-                                            height: courses.length === 1 ? `${Math.max(getCourseSpan(course) * 48 - 8, 60)}px` : undefined
-                                          }}
-                                        >
-                                          <div className="font-medium leading-tight mb-1 truncate">{course.courseName}</div>
-                                          <div className="text-xs opacity-90 leading-tight mb-1 truncate">{course.professor}</div>
-                                          {courses.length === 1 && (
-                                            <div className="text-xs opacity-75 leading-tight truncate">{course.time}</div>
-                                          )}
-                          </div>
-                                      ))}
+                                      {courses.map((course, index) => {
+                                        // Parse course time to get start and end times
+                                        const timeParts = course.time.split('-');
+                                        let startTime = timeParts[0]?.trim() || '';
+                                        let endTime = timeParts[1]?.trim() || '';
+                                        
+                                        // Handle cases where AM/PM is only on the end time
+                                        const endAmPm = endTime.match(/(AM|PM)/i);
+                                        if (endAmPm && !startTime.match(/(AM|PM)/i)) {
+                                          startTime += ' ' + endAmPm[0];
+                                        }
+                                        
+                                        // Handle cases where both times have AM/PM
+                                        if (course.time.includes('AM') && course.time.includes('PM')) {
+                                          const fullTimeMatch = course.time.match(/(\d{1,2}:\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}:\d{2})\s*(AM|PM)/i);
+                                          if (fullTimeMatch) {
+                                            startTime = `${fullTimeMatch[1]} ${fullTimeMatch[2]}`;
+                                            endTime = `${fullTimeMatch[3]} ${fullTimeMatch[4]}`;
+                                          }
+                                        }
+                                        
+                                        const convertTo24Hour = (time: string) => {
+                                          const match = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+                                          if (!match) return null;
+                                          
+                                          let hours = parseInt(match[1]);
+                                          const minutes = parseInt(match[2]);
+                                          const ampm = match[3].toUpperCase();
+                                          
+                                          if (ampm === 'PM' && hours !== 12) hours += 12;
+                                          if (ampm === 'AM' && hours === 12) hours = 0;
+                                          
+                                          return hours * 60 + minutes;
+                                        };
+                                        
+                                        const courseStart = convertTo24Hour(startTime);
+                                        const courseEnd = convertTo24Hour(endTime);
+                                        const slotTime = convertTo24Hour(timeSlot);
+                                        
+                                        if (!courseStart || !courseEnd || !slotTime) return null;
+                                        
+                                        // Calculate position within the starting hour slot
+                                        const slotStart = slotTime;
+                                        
+                                        // Calculate top position within the slot (where course starts)
+                                        const topPercent = ((courseStart - slotStart) / 60) * 100;
+                                        
+                                        // Calculate total height across all slots the course spans
+                                        const totalDurationMinutes = courseEnd - courseStart;
+                                        const totalHeightPixels = (totalDurationMinutes / 60) * 48; // 48px per hour
+                                        
+                                        return (
+                                          <div 
+                                            key={`${course.id}-${day}-${timeSlot}-${index}`}
+                                            className="absolute text-white text-xs p-1 rounded flex flex-col justify-center z-10 border border-white/20"
+                                            style={{ 
+                                              backgroundColor: '#752531',
+                                              top: `${topPercent}%`,
+                                              height: `${totalHeightPixels}px`,
+                                              width: 'calc(100% - 8px)',
+                                              left: '4px',
+                                              minHeight: '20px'
+                                            }}
+                                          >
+                                            {/* Course info */}
+                                            <div className="flex flex-col justify-center h-full">
+                                              <div className="font-medium leading-tight mb-1 truncate text-center">
+                                                {course.courseName}
+                                              </div>
+                                              <div className="text-xs opacity-75 leading-tight truncate text-center">
+                                                {startTime}-{endTime}
+                                              </div>
+                                              {course.location && (
+                                                <div className="text-xs opacity-75 leading-tight truncate text-center">
+                                                  {course.location}
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
                                       {courses.length > 1 && (
                                         <div className="absolute top-1 right-1 bg-white text-gray-700 text-xs px-1 py-0.5 rounded z-20">
                                           {courses.length}

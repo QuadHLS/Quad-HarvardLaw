@@ -715,6 +715,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
             {/* Progress Indicator */}
             <div className="mt-8 text-center">
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full border shadow-sm">
+                <span className="text-sm text-gray-600">Step 1 of 2 - Basic Information</span>
                 <div 
                   className="w-2 h-2 rounded-full" 
                   style={{ 
@@ -722,7 +723,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                   }}
                 ></div>
                 <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
-                <span className="text-sm text-gray-600">Step 1 of 2 - Basic Information</span>
                           </div>
                     </div>
                           </>
@@ -1013,8 +1013,9 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
         {/* Bottom Navigation and Progress Indicator - All in one line */}
         {currentPage === 2 && (
-          <div className="flex justify-between items-center mt-8">
+          <div className="flex items-center mt-8">
             {/* Back Button */}
+            <div className="flex-1 flex justify-start">
                   <Button
               onClick={handleBack}
               variant="outline"
@@ -1023,17 +1024,50 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
                   </Button>
+            </div>
 
             {/* Progress Indicator - Center */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full border shadow-sm">
-              <div className="w-2 h-2 bg-[#752531] rounded-full"></div>
-              <div className="w-2 h-2 bg-[#752531] rounded-full"></div>
-              <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
-              <span className="text-sm text-gray-600">Step 2 of 2 - Course Selection</span>
-                    </div>
+            <div className="flex-1 flex justify-center">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full border shadow-sm">
+                <span className="text-sm text-gray-600">Step 2 of 2 - Course Selection</span>
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#752531' }}></div>
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#752531' }}></div>
+              </div>
+            </div>
 
             {/* Complete Setup Button */}
-            <button
+            <div className="flex-1 flex justify-end gap-3">
+            <Button
+              className="text-white hover:bg-red-800"
+              style={{ backgroundColor: '#752531' }}
+              onClick={async () => {
+                // Save empty classes array to profiles table
+                if (user) {
+                  try {
+                    const { error } = await supabase
+                      .from('profiles')
+                      .update({ 
+                        classes: [] // Empty array instead of selected courses
+                      })
+                      .eq('id', user.id);
+
+                    if (error) {
+                      console.error('Error updating profile with empty classes:', error);
+                    } else {
+                      console.log('Profile updated with empty classes');
+                    }
+                  } catch (error) {
+                    console.error('Error saving empty classes:', error);
+                  }
+                }
+                
+                // Navigate to home page
+                onComplete();
+              }}
+            >
+              Skip for now
+            </Button>
+            <Button
               disabled={!areRequirementsMet()}
               onClick={async () => {
                 // Save selected courses to profiles table
@@ -1083,20 +1117,19 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                 
                 onComplete();
               }}
-              className={`px-6 py-2 text-sm font-medium rounded-md border ${
+              className={`${
                 areRequirementsMet() 
-                  ? 'text-white border-[#752531] cursor-pointer' 
-                  : 'text-gray-400 border-gray-300 cursor-not-allowed'
+                  ? 'text-white hover:bg-green-700' 
+                  : 'text-gray-500 cursor-not-allowed'
               }`}
-              style={{ 
-                backgroundColor: areRequirementsMet() ? '#752531' : '#f3f4f6',
-                minHeight: '36px',
-                minWidth: '120px'
+              style={{
+                backgroundColor: areRequirementsMet() ? '#00962c' : '#f3f4f6'
               }}
             >
               Complete Setup
-            </button>
-                  </div>
+            </Button>
+            </div>
+          </div>
                 )}
       </div>
 

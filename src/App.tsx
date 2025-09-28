@@ -133,7 +133,7 @@ function AppContent({ user }: { user: any }) {
   // Exam-specific state (mirroring outlines structure)
   const [exams, setExams] = useState<Outline[]>([]);
   const [examsLoading, setExamsLoading] = useState(true);
-  // const [selectedExam, setSelectedExam] = useState<Outline | null>(null); // TODO: Implement exam selection if needed
+  const [selectedExam, setSelectedExam] = useState<Outline | null>(null);
   // TODO: Implement outline selection callback in SearchSidebar
   // setSelectedExam will be used once SearchSidebar supports exam selection
   const [selectedCourseForExams, setSelectedCourseForExams] = useState('');

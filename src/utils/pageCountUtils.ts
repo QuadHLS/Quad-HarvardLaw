@@ -33,40 +33,21 @@ async function getPDFPageCount(fileUrl: string): Promise<number> {
 
 async function getDOCXPageCount(fileUrl: string): Promise<number> {
   try {
-    // Fetch the file
-    const response = await fetch(fileUrl);
+    // For DOCX files, we'll use a simple estimation based on file size
+    // This is a rough approximation since we can't easily parse DOCX without mammoth
+    const response = await fetch(fileUrl, { method: 'HEAD' });
     if (!response.ok) {
-      throw new Error('Failed to fetch file');
+      throw new Error('Failed to fetch file info');
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    
-    // Dynamically import mammoth
-    const mammoth = await import('mammoth');
-    
-    // Convert DOCX to HTML to estimate pages
-    const result = await mammoth.convertToHtml({ arrayBuffer });
-    
-    // Create a temporary DOM to analyze content
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = result.value;
-    
-    // Estimate pages based on content length and structure
-    const textContent = tempDiv.textContent || '';
-    const contentLength = textContent.length;
-    
-    // Look for headings which might indicate page breaks
-    const headings = tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6');
-    
-    // Estimate pages based on content length (roughly 1500-2000 chars per page)
-    let estimatedPages = Math.max(1, Math.ceil(contentLength / 1800));
-    
-    // If there are many headings, they might indicate page breaks
-    if (headings.length > 0) {
-      estimatedPages = Math.max(estimatedPages, Math.ceil(headings.length / 2));
+    const contentLength = response.headers.get('content-length');
+    if (contentLength) {
+      const fileSizeKB = parseInt(contentLength) / 1024;
+      // Rough estimation: 1 page per 50KB of file size (minimum 1 page)
+      return Math.max(1, Math.ceil(fileSizeKB / 50));
     }
     
-    return estimatedPages;
+    return 1; // Default fallback
   } catch (error) {
     console.error('Error getting DOCX page count:', error);
     return 1;

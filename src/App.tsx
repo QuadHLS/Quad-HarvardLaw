@@ -5,7 +5,6 @@ import { SearchSidebar } from './components/SearchSidebar';
 import { OutlineViewer } from './components/OutlineViewer';
 import { PDFViewer } from './components/PDFViewer';
 import { OfficeWebViewer } from './components/OfficeWebViewer';
-import { DOCXViewer } from './components/DOCXViewer';
 import { ReviewsPage } from './components/ReviewsPage';
 import { HomePage } from './components/HomePage';
 import { CoursePage } from './components/CoursePage';
@@ -851,7 +850,7 @@ function AppContent({ user }: { user: any }) {
                     hideDownload={true}
                   />
                 ) : previewFile?.type.toLowerCase() === 'docx' ? (
-                  <DOCXViewer
+                  <OfficeWebViewer
                     fileUrl={previewFile.url}
                     fileName={previewFile.name}
                     onDownload={() => {
@@ -865,10 +864,6 @@ function AppContent({ user }: { user: any }) {
                       setPreviewFile(null);
                       setUploadFormHasPreview(false);
                     }}
-                    hideSearch={true}
-                    hideFileName={true}
-                    hideDownload={true}
-                    showUploadNotice={true}
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full">
@@ -1030,7 +1025,7 @@ function AppContent({ user }: { user: any }) {
                     hideDownload={true}
                   />
                 ) : previewFile?.type.toLowerCase() === 'docx' ? (
-                  <DOCXViewer
+                  <OfficeWebViewer
                     fileUrl={previewFile.url}
                     fileName={previewFile.name}
                     onDownload={() => {
@@ -1044,10 +1039,6 @@ function AppContent({ user }: { user: any }) {
                       setPreviewFile(null);
                       setUploadFormHasPreview(false);
                     }}
-                    hideSearch={true}
-                    hideFileName={true}
-                    hideDownload={true}
-                    showUploadNotice={true}
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full">

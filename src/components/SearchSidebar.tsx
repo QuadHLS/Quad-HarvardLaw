@@ -65,6 +65,8 @@ interface SearchSidebarProps {
   setPreviewLoading: (loading: boolean) => void;
   uploadFormHasPreview: boolean;
   setUploadFormHasPreview: (hasPreview: boolean) => void;
+  bucketName?: string; // Add bucket name parameter
+  tableName?: string; // Add table name parameter
 }
 
 // Helper function to format outline display name
@@ -116,6 +118,8 @@ export function SearchSidebar({
   setPreviewLoading,
   uploadFormHasPreview,
   setUploadFormHasPreview,
+  bucketName = 'Outlines', // Default to 'Outlines' for backward compatibility
+  tableName = 'outlines', // Default to 'outlines' for backward compatibility
 }: SearchSidebarProps) {
   const [reviewingOutline, setReviewingOutline] =
     useState<Outline | null>(null);
@@ -191,7 +195,7 @@ export function SearchSidebar({
       
       // Get the file URL from Supabase Storage
       const { data, error } = await supabase.storage
-        .from('Outlines')
+        .from(bucketName)
         .createSignedUrl(filePath, 60); // 60 seconds expiry
 
       if (error) {
@@ -231,7 +235,7 @@ export function SearchSidebar({
       
       // Get the file URL from Supabase Storage
       const { data, error } = await supabase.storage
-        .from('Outlines')
+        .from(bucketName)
         .createSignedUrl(filePath, 60); // 60 seconds expiry
 
       if (error) {
@@ -369,52 +373,52 @@ export function SearchSidebar({
       // Check if the course folder exists
       const coursePath = `out/${course}/`;
       const { data: courseList } = await supabase.storage
-        .from('Outlines')
+        .from(bucketName)
         .list('out', { search: course });
       
       if (!courseList || courseList.length === 0) {
         // Create course folder by uploading an empty file (placeholder)
         await supabase.storage
-          .from('Outlines')
+          .from(bucketName)
           .upload(`${coursePath}.gitkeep`, new Blob([''], { type: 'text/plain' }));
       }
 
       // Check if the instructor folder exists
       const instructorPath = `out/${course}/${instructor}/`;
       const { data: instructorList } = await supabase.storage
-        .from('Outlines')
+        .from(bucketName)
         .list(`out/${course}`, { search: instructor });
       
       if (!instructorList || instructorList.length === 0) {
         // Create instructor folder
         await supabase.storage
-          .from('Outlines')
+          .from(bucketName)
           .upload(`${instructorPath}.gitkeep`, new Blob([''], { type: 'text/plain' }));
       }
 
       // Check if the year folder exists
       const yearPath = `out/${course}/${instructor}/${year}/`;
       const { data: yearList } = await supabase.storage
-        .from('Outlines')
+        .from(bucketName)
         .list(`out/${course}/${instructor}`, { search: year });
       
       if (!yearList || yearList.length === 0) {
         // Create year folder
         await supabase.storage
-          .from('Outlines')
+          .from(bucketName)
           .upload(`${yearPath}.gitkeep`, new Blob([''], { type: 'text/plain' }));
       }
 
       // Check if the grade folder exists
       const gradePath = `out/${course}/${instructor}/${year}/${grade}/`;
       const { data: gradeList } = await supabase.storage
-        .from('Outlines')
+        .from(bucketName)
         .list(`out/${course}/${instructor}/${year}`, { search: grade });
       
       if (!gradeList || gradeList.length === 0) {
         // Create grade folder
         await supabase.storage
-          .from('Outlines')
+          .from(bucketName)
           .upload(`${gradePath}.gitkeep`, new Blob([''], { type: 'text/plain' }));
       }
     } catch (error) {
@@ -452,7 +456,7 @@ export function SearchSidebar({
       
       // Upload file to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('Outlines')
+        .from(bucketName)
         .upload(filePath, uploadFile);
 
       if (uploadError) {
@@ -471,9 +475,9 @@ export function SearchSidebar({
       // This will be updated later by the background page counting process
       const pageCount = 1;
 
-      // Create new row in outlines table
+      // Create new row in table
       const { data: insertData, error: insertError } = await supabase
-        .from('outlines')
+        .from(tableName)
         .insert({
           title: formattedName,
           file_name: uploadFile.name, // Keep original filename for display
@@ -498,7 +502,7 @@ export function SearchSidebar({
         setUploadError(`Database error: ${insertError.message}`);
         
         // Try to clean up the uploaded file if database insert failed
-        await supabase.storage.from('Outlines').remove([filePath]);
+        await supabase.storage.from(bucketName).remove([filePath]);
         return;
       }
 

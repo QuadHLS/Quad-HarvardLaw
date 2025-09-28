@@ -13,7 +13,6 @@ import { BarReviewPage } from './components/BarReviewPage';
 import { CalendarPage } from './components/CalendarPage';
 import { ProfilePage } from './components/ProfilePage';
 import { MessagingPage } from './components/MessagingPage';
-import { ExamsPage } from './components/ExamsPage';
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/auth/AuthPage';
@@ -114,7 +113,7 @@ function AppContent({ user }: { user: any }) {
   // Outlines state
   const [outlines, setOutlines] = useState<Outline[]>([]);
   const [outlinesLoading, setOutlinesLoading] = useState(true);
-  
+
   const [selectedOutline, setSelectedOutline] = useState<Outline | null>(null);
   const [selectedCourse, setSelectedCourse] = useState('');
   const [selectedInstructor, setSelectedInstructor] = useState('');
@@ -130,6 +129,21 @@ function AppContent({ user }: { user: any }) {
     'search'
   );
   const [savedOutlines, setSavedOutlines] = useState<Outline[]>([]);
+
+  // Exam-specific state (mirroring outlines structure)
+  const [exams, setExams] = useState<Outline[]>([]);
+  const [examsLoading, setExamsLoading] = useState(true);
+  // const [selectedExam, setSelectedExam] = useState<Outline | null>(null); // TODO: Implement exam selection if needed
+  // TODO: Implement outline selection callback in SearchSidebar
+  // setSelectedExam will be used once SearchSidebar supports exam selection
+  const [selectedCourseForExams, setSelectedCourseForExams] = useState('');
+  const [selectedInstructorForExams, setSelectedInstructorForExams] = useState('');
+  const [selectedGradeForExams, setSelectedGradeForExams] = useState<string | undefined>(undefined);
+  const [selectedYearForExams, setSelectedYearForExams] = useState<string | undefined>(undefined);
+  const [showExams, setShowExams] = useState(true);
+  const [showExamAttacks, setShowExamAttacks] = useState(true);
+  const [activeExamTab, setActiveExamTab] = useState<'search' | 'saved' | 'upload'>('search');
+  const [savedExams, setSavedExams] = useState<Outline[]>([]);
 
   // Load saved outlines from database
   useEffect(() => {
@@ -244,6 +258,100 @@ function AppContent({ user }: { user: any }) {
 
     fetchOutlines();
   }, []);
+
+  // Fetch exams from Supabase with pagination
+  useEffect(() => {
+    const fetchExams = async () => {
+      try {
+        setExamsLoading(true);
+        const allExams: Outline[] = [];
+        const batchSize = 1000;
+        let from = 0;
+        let hasMore = true;
+
+        console.log('Starting to fetch exams with pagination...');
+
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from('exams')
+            .select('*')
+            .order('course', { ascending: true })
+            .range(from, from + batchSize - 1);
+
+          if (error) {
+            console.error('Error fetching exams batch:', error);
+            break;
+          }
+
+          if (data && data.length > 0) {
+            allExams.push(...data);
+            console.log(`Fetched exam batch: ${data.length} records (total: ${allExams.length})`);
+            
+            // If we got less than batchSize, we've reached the end
+            if (data.length < batchSize) {
+              hasMore = false;
+            } else {
+              from += batchSize;
+            }
+          } else {
+            hasMore = false;
+          }
+        }
+
+        console.log(`Finished fetching exams: ${allExams.length} total records`);
+        setExams(allExams);
+      } catch (error) {
+        console.error('Error fetching exams:', error);
+      } finally {
+        setExamsLoading(false);
+      }
+    };
+
+    fetchExams();
+  }, []);
+
+  // Load saved exams from database
+  useEffect(() => {
+    const loadSavedExams = async () => {
+      if (!user?.id) return;
+
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('saved_exams')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching saved exams:', error);
+          return;
+        }
+
+        const savedExamIds = profile?.saved_exams || [];
+        if (savedExamIds.length === 0) {
+          setSavedExams([]);
+          return;
+        }
+
+        // Fetch the actual exam objects
+        const { data: savedExamObjects, error: fetchError } = await supabase
+          .from('exams')
+          .select('*')
+          .in('id', savedExamIds);
+
+        if (fetchError) {
+          console.error('Error fetching saved exam objects:', fetchError);
+          return;
+        }
+
+        setSavedExams(savedExamObjects || []);
+      } catch (error) {
+        console.error('Error loading saved exams:', error);
+      }
+    };
+
+    loadSavedExams();
+  }, [user?.id, exams]);
 
   const handleNavigateToOutlines = (
     courseName: string,
@@ -446,6 +554,105 @@ function AppContent({ user }: { user: any }) {
     }
   };
 
+  // Exam-specific functions
+  const handleSaveExam = async (exam: Outline) => {
+    if (!user?.id) return;
+
+    // Check if exam is already saved locally
+    if (savedExams.some((saved) => saved.id === exam.id)) {
+      return; // Don't add duplicates
+    }
+
+    try {
+      // Get current saved exams from database
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('saved_exams')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) {
+        console.error('Error fetching current saved exams:', profileError);
+        return;
+      }
+
+      const currentSavedExams = profile?.saved_exams || [];
+      
+      // Add new exam ID to the array
+      const updatedSavedExams = [...currentSavedExams, exam.id];
+
+      // Update database
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ saved_exams: updatedSavedExams })
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Error saving exam:', updateError);
+        return;
+      }
+
+      // Update local state
+      setSavedExams((prev) => [...prev, exam]);
+    } catch (error) {
+      console.error('Error saving exam:', error);
+    }
+  };
+
+  const handleRemoveSavedExam = async (examId: string) => {
+    if (!user?.id) return;
+
+    try {
+      // Get current saved exams from database
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('saved_exams')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) {
+        console.error('Error fetching current saved exams:', profileError);
+        return;
+      }
+
+      const currentSavedExams = profile?.saved_exams || [];
+      
+      // Remove exam ID from the array
+      const updatedSavedExams = currentSavedExams.filter((id: string) => id !== examId);
+
+      // Update database
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ saved_exams: updatedSavedExams })
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Error removing saved exam:', updateError);
+        return;
+      }
+
+      // Update local state
+      setSavedExams((prev) =>
+        prev.filter((exam) => exam.id !== examId)
+      );
+    } catch (error) {
+      console.error('Error removing saved exam:', error);
+    }
+  };
+
+  const handleToggleSaveExam = async (exam: Outline) => {
+    if (!user?.id) return;
+
+    const isAlreadySaved = savedExams.some((saved) => saved.id === exam.id);
+    
+    if (isAlreadySaved) {
+      // Remove from saved
+      await handleRemoveSavedExam(exam.id);
+    } else {
+      // Add to saved
+      await handleSaveExam(exam);
+    }
+  };
 
 
   const handleSectionChange = (section: string) => {
@@ -572,6 +779,49 @@ function AppContent({ user }: { user: any }) {
           setPreviewLoading={setPreviewLoading}
           uploadFormHasPreview={uploadFormHasPreview}
           setUploadFormHasPreview={setUploadFormHasPreview}
+          bucketName="Outlines"
+          tableName="outlines"
+        />
+      )}
+
+      {/* Search Sidebar - Only show when in exams section */}
+      {activeSection === 'exams' && (
+        <SearchSidebar
+          outlines={exams.filter(exam => {
+            const matchesCourse = !selectedCourseForExams || exam.course === selectedCourseForExams;
+            const matchesInstructor = !selectedInstructorForExams || exam.instructor === selectedInstructorForExams;
+            const matchesGrade = !selectedGradeForExams || exam.grade === selectedGradeForExams;
+            const matchesYear = !selectedYearForExams || exam.year === selectedYearForExams;
+            return matchesCourse && matchesInstructor && matchesGrade && matchesYear;
+          })}
+          allOutlines={exams}
+          selectedCourse={selectedCourseForExams}
+          setSelectedCourse={setSelectedCourseForExams}
+          selectedInstructor={selectedInstructorForExams}
+          setSelectedInstructor={setSelectedInstructorForExams}
+          selectedGrade={selectedGradeForExams}
+          setSelectedGrade={setSelectedGradeForExams}
+          selectedYear={selectedYearForExams}
+          setSelectedYear={setSelectedYearForExams}
+          sortBy={sortBy}
+          setSortBy={setSortBy}
+          showOutlines={showExams}
+          setShowOutlines={setShowExams}
+          showAttacks={showExamAttacks}
+          setShowAttacks={setShowExamAttacks}
+          activeTab={activeExamTab}
+          setActiveTab={setActiveExamTab}
+          savedOutlines={savedExams}
+          onRemoveSavedOutline={handleRemoveSavedExam}
+          onToggleSaveOutline={handleToggleSaveExam}
+          loading={examsLoading}
+          previewFile={previewFile}
+          setPreviewFile={setPreviewFile}
+          setPreviewLoading={setPreviewLoading}
+          uploadFormHasPreview={uploadFormHasPreview}
+          setUploadFormHasPreview={setUploadFormHasPreview}
+          bucketName="Exams"
+          tableName="exams"
         />
       )}
 
@@ -757,7 +1007,184 @@ function AppContent({ user }: { user: any }) {
             />
           )
         ) : activeSection === 'exams' ? (
-          <ExamsPage />
+          activeExamTab === 'upload' ? (
+            uploadFormHasPreview ? (
+              // Show preview in main content area when upload form has preview
+              <div className="h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+                {previewFile?.type.toLowerCase() === 'pdf' ? (
+                  <PDFViewer
+                    fileUrl={previewFile.url}
+                    fileName={previewFile.name}
+                    onDownload={() => {
+                      const link = document.createElement('a');
+                      link.href = previewFile.url;
+                      link.download = previewFile.name;
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
+                    onClose={() => {
+                      setPreviewFile(null);
+                      setUploadFormHasPreview(false);
+                    }}
+                    hideSearch={true}
+                    hideDownload={true}
+                  />
+                ) : previewFile?.type.toLowerCase() === 'docx' ? (
+                  <DOCXViewer
+                    fileUrl={previewFile.url}
+                    fileName={previewFile.name}
+                    onDownload={() => {
+                      const link = document.createElement('a');
+                      link.href = previewFile.url;
+                      link.download = previewFile.name;
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
+                    onClose={() => {
+                      setPreviewFile(null);
+                      setUploadFormHasPreview(false);
+                    }}
+                    hideSearch={true}
+                    hideFileName={true}
+                    hideDownload={true}
+                    showUploadNotice={true}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <p className="text-gray-600 mb-4">
+                        Preview is not available for {previewFile?.type} files.
+                      </p>
+                      <button
+                        onClick={() => {
+                          if (previewFile) {
+                            const link = document.createElement('a');
+                            link.href = previewFile.url;
+                            link.download = previewFile.name;
+                            link.click();
+                            document.body.removeChild(link);
+                          }
+                        }}
+                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                      >
+                        Download File
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+                <div className="text-center p-8">
+                  <FileText className="w-24 h-24 text-gray-400 mx-auto mb-4" />
+                  <h2 className="text-2xl font-medium text-gray-700 mb-4">
+                    Upload Your Exam
+                  </h2>
+                  <p className="text-gray-600 mb-6 max-w-md">
+                    Use the upload form in the sidebar to share your exam
+                    materials with the community.
+                  </p>
+                  <div className="bg-white rounded-lg shadow-sm p-6 max-w-lg mx-auto">
+                    <h3 className="font-medium text-gray-800 mb-3">
+                      Upload Guidelines:
+                    </h3>
+                    <ul className="text-sm text-gray-600 space-y-2 text-left">
+                      <li>• Accepted formats: PDF and DOCX</li>
+                      <li>• Maximum file size: 10MB</li>
+                      <li>• Only upload your original work</li>
+                      <li>
+                        • Include accurate course, instructor, and grade information
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )
+          ) : previewLoading ? (
+            <div className="flex items-center justify-center h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+              <div className="text-center">
+                <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <h3 className="text-lg font-medium text-gray-700 mb-2">
+                  Loading Preview...
+                </h3>
+                <p className="text-gray-500 text-sm">
+                  Please wait while we load the file for preview.
+                </p>
+              </div>
+            </div>
+          ) : previewFile ? (
+            <div className="h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+              {previewFile.type.toLowerCase() === 'pdf' ? (
+                <PDFViewer
+                  fileUrl={previewFile.url}
+                  fileName={previewFile.name}
+                  onDownload={() => {
+                    const link = document.createElement('a');
+                    link.href = previewFile.url;
+                    link.download = previewFile.name;
+                    link.target = '_blank';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                  onClose={() => setPreviewFile(null)}
+                />
+              ) : previewFile.type.toLowerCase() === 'docx' ? (
+                <OfficeWebViewer
+                  fileUrl={previewFile.url}
+                  fileName={previewFile.name}
+                  onDownload={() => {
+                    const link = document.createElement('a');
+                    link.href = previewFile.url;
+                    link.download = previewFile.name;
+                    link.target = '_blank';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                  onClose={() => setPreviewFile(null)}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <FileText className="w-16 h-16 text-gray-400 mb-4 mx-auto" />
+                    <h3 className="text-lg font-medium text-gray-700 mb-2">
+                      Preview Not Available
+                    </h3>
+                    <p className="text-gray-500 text-sm mb-4">
+                      Preview is not available for {previewFile.type} files.
+                    </p>
+                    <button
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = previewFile.url;
+                        link.download = previewFile.name;
+                        link.target = '_blank';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                      Download File
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <OutlineViewer
+              outline={selectedExam}
+              onSaveOutline={handleSaveExam}
+              isSaved={
+                selectedExam
+                  ? savedExams.some(
+                      (saved) => saved.id === selectedExam.id
+                    )
+                  : false
+              }
+            />
+          )
         ) : activeSection === 'reviews' ? (
           <ReviewsPage />
         ) : activeSection === 'home' ? (

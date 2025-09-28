@@ -495,23 +495,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     const autoPopulate1L = () => {
       console.log('Auto-populate check:', { classYear, section, allCourseDataLength: allCourseData.length });
       
-      // Add a test course for debugging
-      if (selectedCourses.length === 0) {
-        const testCourse: CourseData = {
-          id: 'test-course-1',
-          courseName: 'Test Course',
-          professor: 'Test Professor',
-          credits: 3,
-          semester: 'Fall 2025',
-          days: ['Mon', 'Wed'],
-          time: '9:00 AM-10:00 AM',
-          location: 'Test Room'
-        };
-        console.log('Adding test course:', testCourse);
-        setSelectedCourses([testCourse]);
-        return;
-      }
-      
       if (classYear === '1L' && section && allCourseData.length > 0) {
         console.log('Auto-populating 1L Section', section, 'courses...');
         console.log('Available courses:', allCourseData.map(c => c.course_name));

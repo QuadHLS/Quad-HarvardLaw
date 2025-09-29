@@ -1144,6 +1144,20 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                               const courses = getCoursesForTimeSlot(day, timeSlot);
                               const isOccupied = isTimeSlotOccupied(day, timeSlot);
                               
+                              // Debug LRW courses
+                              if (courses.some(c => c.courseName.includes('First Year Legal Research and Writing'))) {
+                                console.log('LRW Calendar Render Debug:', {
+                                  day,
+                                  timeSlot,
+                                  courses: courses.map(c => ({
+                                    name: c.courseName,
+                                    time: c.time,
+                                    semester: c.semester
+                                  })),
+                                  isOccupied
+                                });
+                              }
+                              
                               return (
                                 <div 
                                   key={`${day}-${timeSlot}`} 

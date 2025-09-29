@@ -58,6 +58,26 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [visuallySelectedCourseIndex, setVisuallySelectedCourseIndex] = useState<number | null>(null);
 
+  // Display-only formatter: hide trailing section number (1-7) for 1L required courses.
+  const formatDisplayCourseName = (rawName: string): string => {
+    if (!rawName) return rawName;
+    const requiredPatterns = [
+      'Civil Procedure',
+      'Contracts',
+      'Criminal Law',
+      'Torts',
+      'Constitutional Law',
+      'Property',
+      'Legislation and Regulation'
+    ];
+    const pattern = new RegExp(`^(?:${requiredPatterns.join('|')})\\s([1-7])$`);
+    const match = rawName.match(pattern);
+    if (match) {
+      return rawName.replace(/\s[1-7]$/, '');
+    }
+    return rawName;
+  };
+
   const handleNext = async () => {
     console.log('handleNext called', { currentPage, isStep1Valid: isStep1Valid(), user: user?.id });
     
@@ -833,7 +853,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                             <div key={course.id} className={`p-3 rounded-lg border ${isRequired1L ? 'bg-blue-50 border-blue-200' : 'bg-gray-50'}`}>
                               <div className="flex justify-between items-start mb-1">
                                 <div className="flex items-center gap-2">
-                                  <h3 className="font-medium text-gray-900 text-sm">{course.courseName}</h3>
+                                  <h3 className="font-medium text-gray-900 text-sm">{formatDisplayCourseName(course.courseName)}</h3>
                                   {isRequired1L && (
                                     <span className="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full">
                                       Required
@@ -1053,7 +1073,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                                             {/* Course info */}
                                             <div className="flex flex-col justify-center h-full">
                                               <div className="font-medium leading-tight mb-1 truncate text-center">
-                                                {course.courseName}
+                                                {formatDisplayCourseName(course.courseName)}
                                               </div>
                                               <div className="text-xs opacity-75 leading-tight truncate text-center">
                                                 {startTime}-{endTime}
@@ -1305,8 +1325,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
-                            <h4 className="text-sm font-medium text-gray-900 mb-1">
-                              {course.course_name}
+                              <h4 className="text-sm font-medium text-gray-900 mb-1">
+                              {formatDisplayCourseName(course.course_name)}
                             </h4>
                             <div className="space-y-1">
                               <p className="text-xs text-gray-600 mb-0.5">Semester: {

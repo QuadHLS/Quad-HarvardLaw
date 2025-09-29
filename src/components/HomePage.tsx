@@ -47,6 +47,25 @@ interface CourseCardProps {
   onCourseClick?: (courseName: string) => void;
 }
 
+// Display-only formatter: hide trailing section number (1-7) for 1L required course names.
+const formatDisplayCourseName = (rawName: string): string => {
+  if (!rawName) return rawName;
+  const requiredPatterns = [
+    'Civil Procedure',
+    'Contracts',
+    'Criminal Law',
+    'Torts',
+    'Constitutional Law',
+    'Property',
+    'Legislation and Regulation'
+  ];
+  const pattern = new RegExp(`^(?:${requiredPatterns.join('|')})\\s([1-7])$`);
+  if (pattern.test(rawName)) {
+    return rawName.replace(/\s[1-7]$/, '');
+  }
+  return rawName;
+};
+
 interface TodoItemProps {
   todo: TodoItem;
   isEditing: boolean;
@@ -305,7 +324,7 @@ function CourseCard({
       >
         <div>
           <h3 className="text-xs font-semibold leading-none mb-0.5 truncate">
-            {title}
+            {formatDisplayCourseName(title)}
           </h3>
           <div className="flex items-center justify-between">
             <span className="text-white/75 text-[10px] font-medium">
@@ -1123,7 +1142,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                             height: `${timePosition.height}px`,
                           }}
                         >
-                          <div className="font-medium truncate">{course.class}</div>
+                          <div className="font-medium truncate">{formatDisplayCourseName(course.class)}</div>
                           <div className="text-white/90 mt-1 leading-none flex items-center">
                             <span>{course.schedule?.times || 'TBD'}</span>
                             {course.schedule?.location && course.schedule.location !== 'TBD' && (

@@ -11,6 +11,22 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { CourseSelectionPage } from './CourseSelectionPage';
 
+// Display-only formatter: hide trailing section number (1-7) for 1L required course names
+const formatDisplayCourseName = (rawName: string): string => {
+  if (!rawName) return rawName;
+  const requiredPatterns = [
+    'Civil Procedure',
+    'Contracts',
+    'Criminal Law',
+    'Torts',
+    'Constitutional Law',
+    'Property',
+    'Legislation and Regulation'
+  ];
+  const pattern = new RegExp(`^(?:${requiredPatterns.join('|')})\\s([1-7])$`);
+  return pattern.test(rawName) ? rawName.replace(/\s[1-7]$/, '') : rawName;
+};
+
 interface UserStats {
   outlinesSaved: number;
   outlinesUploaded: number;
@@ -119,7 +135,7 @@ function CourseCard({
       >
         <div>
           <h3 className="text-xs font-semibold leading-none mb-0.5 truncate">
-            {title}
+            {formatDisplayCourseName(title)}
           </h3>
           <div className="flex items-center justify-between">
             <span className="text-white/75 text-[10px] font-medium">
@@ -1502,7 +1518,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                             className="p-2 rounded text-white text-xs"
                             style={{ backgroundColor: '#752432' }}
                           >
-                            <div className="font-medium truncate">{classItem.course}</div>
+                            <div className="font-medium truncate">{formatDisplayCourseName(classItem.course)}</div>
                             <div className="opacity-90">{classItem.time}</div>
                           </div>
                         )) || (

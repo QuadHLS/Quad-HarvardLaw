@@ -74,6 +74,25 @@ export function ClassSelector({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Display-only formatter: hide trailing section number (1-7) for 1L required courses
+  const formatDisplayCourseName = (rawName: string): string => {
+    if (!rawName) return rawName;
+    const requiredPatterns = [
+      'Civil Procedure',
+      'Contracts',
+      'Criminal Law',
+      'Torts',
+      'Constitutional Law',
+      'Property',
+      'Legislation and Regulation'
+    ];
+    const pattern = new RegExp(`^(?:${requiredPatterns.join('|')})\\s([1-7])$`);
+    if (pattern.test(rawName)) {
+      return rawName.replace(/\s[1-7]$/, '');
+    }
+    return rawName;
+  };
+
   // Reset internal state when class year changes
   useEffect(() => {
     console.log('ClassSelector - classYear changed:', classYear);
@@ -227,7 +246,11 @@ export function ClassSelector({
           <Input
             ref={inputRef}
             type="text"
-            value={searchTerm}
+            value={
+              isReadOnly && classYear === '1L' && index < 7
+                ? formatDisplayCourseName(selectedClass?.name || '')
+                : searchTerm
+            }
             onChange={handleInputChange}
             onClick={() => {
               console.log('Input clicked:', {
@@ -302,7 +325,7 @@ export function ClassSelector({
                 }}
                 className="w-full px-3 py-2 text-left hover:bg-gray-100 text-sm border-b border-gray-100 last:border-b-0 bg-white"
               >
-                {lawClass.name}
+                {formatDisplayCourseName(lawClass.name)}
               </button>
             ))}
           </div>
@@ -419,7 +442,7 @@ export function ClassSelector({
                 }}
               >
                 <div className="p-2 text-xs text-gray-500 style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} border-b">
-                  Professors for {selectedClass?.name}:
+                  Professors for {formatDisplayCourseName(selectedClass?.name || '')}:
                 </div>
                 {selectedClass?.professors?.map((professor, profIndex) => {
                   console.log('Rendering professor option:', professor);

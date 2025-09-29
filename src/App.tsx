@@ -821,6 +821,7 @@ function AppContent({ user }: { user: any }) {
           setUploadFormHasPreview={setUploadFormHasPreview}
           bucketName="Exams"
           tableName="exams"
+          documentType="exam"
         />
       )}
 

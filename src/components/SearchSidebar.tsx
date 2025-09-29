@@ -67,6 +67,7 @@ interface SearchSidebarProps {
   setUploadFormHasPreview: (hasPreview: boolean) => void;
   bucketName?: string; // Add bucket name parameter
   tableName?: string; // Add table name parameter
+  documentType?: 'outline' | 'exam'; // Add document type parameter
 }
 
 // Helper function to format outline display name
@@ -120,6 +121,7 @@ export function SearchSidebar({
   setUploadFormHasPreview,
   bucketName = 'Outlines', // Default to 'Outlines' for backward compatibility
   tableName = 'outlines', // Default to 'outlines' for backward compatibility
+  documentType = 'outline', // Default to 'outline' for backward compatibility
 }: SearchSidebarProps) {
   const [reviewingOutline, setReviewingOutline] =
     useState<Outline | null>(null);
@@ -144,6 +146,13 @@ export function SearchSidebar({
   const [uploadSuccess, setUploadSuccess] = useState<string>("");
   
   // Page count functionality disabled - using data directly from Supabase
+
+  // Determine document type based on bucketName or explicit prop
+  const isExam = documentType === 'exam' || bucketName === 'Exams';
+  const documentTypeText = isExam ? 'exam' : 'outline';
+  const documentTypeTextCapitalized = isExam ? 'Exam' : 'Outline';
+  const documentTypeTextPlural = isExam ? 'exams' : 'outlines';
+  const documentTypeTextPluralCapitalized = isExam ? 'Exams' : 'Outlines';
 
   // Derive data from allOutlines for progressive filtering
   const availableCourses = allOutlines
@@ -519,7 +528,7 @@ export function SearchSidebar({
       setUploadError("");
       
       // Show success message in UI
-      setUploadSuccess("Outline uploaded successfully! 🎉");
+      setUploadSuccess(`${documentTypeTextCapitalized} uploaded successfully! 🎉`);
       
       // Clear success message after 5 seconds
       setTimeout(() => {
@@ -572,7 +581,7 @@ export function SearchSidebar({
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-            <p className="text-white/70">Loading outlines...</p>
+            <p className="text-white/70">Loading {documentTypeTextPlural}...</p>
           </div>
         </div>
       </div>
@@ -803,7 +812,7 @@ export function SearchSidebar({
                 }`}
               >
                 <Tag className="w-3 h-3" />
-                Outline ({'>'}25 pages)
+                {documentTypeTextCapitalized} ({'>'}25 pages)
               </button>
               <button
                 onClick={() => {
@@ -821,7 +830,7 @@ export function SearchSidebar({
             </div>
           </div>
 
-          {/* Outlines List */}
+          {/* {documentTypeTextPluralCapitalized} List */}
           <div className="flex-1 text-black overflow-y-auto" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
             {(() => {
               // First filter by course and instructor
@@ -866,14 +875,14 @@ export function SearchSidebar({
                     ? "No Course Selected"
                     : selectedInstructor === ""
                       ? "No Instructor Selected"
-                      : "No Outlines Found"}
+                      : `No ${documentTypeTextPluralCapitalized} Found`}
                 </h3>
                 <p className="text-gray-500 text-sm">
                   {selectedCourse === ""
-                    ? "Please select a course above to view available outlines."
+                    ? `Please select a course above to view available ${documentTypeTextPlural}.`
                     : selectedInstructor === ""
-                      ? "Please select an instructor to see specific outlines for this course."
-                      : "No outlines match your current search criteria."}
+                      ? `Please select an instructor to see specific ${documentTypeTextPlural} for this course.`
+                      : `No ${documentTypeTextPlural} match your current search criteria.`}
                 </p>
               </div>
             ) : (
@@ -964,7 +973,7 @@ export function SearchSidebar({
                           </span>
                         ) : (
                           <span className="bg-green-700 text-white px-2 py-1 rounded text-xs">
-                            Outline ({outline.pages} pages)
+                            {documentTypeTextCapitalized} ({outline.pages} pages)
                           </span>
                         )}
                       </div>
@@ -1223,7 +1232,7 @@ export function SearchSidebar({
                               </span>
                             ) : (
                               <span className="bg-green-700 text-white px-2 py-1 rounded text-xs">
-                                Outline ({outline.pages} pages)
+                                {documentTypeTextCapitalized} ({outline.pages} pages)
                               </span>
                             )}
                           </div>
@@ -1491,7 +1500,7 @@ export function SearchSidebar({
                     disabled={!uploadFile || !uploadCourse || !uploadInstructor || !uploadGrade || !uploadConfirmed}
                     onClick={handleUpload}
                   >
-                    Upload Outline
+                    Upload {documentTypeTextCapitalized}
                   </Button>
                   <p className="text-xs text-gray-500 text-center mt-1">
                     {!uploadFile || !uploadCourse || !uploadInstructor || !uploadGrade 

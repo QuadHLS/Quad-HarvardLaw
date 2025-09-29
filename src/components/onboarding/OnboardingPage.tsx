@@ -520,7 +520,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       const courseStartHour = Math.floor(courseStart / 60) * 60;
       
       // Check if this slot is within the course time but not the starting slot
-      return slotTime > courseStartHour && slotTime < courseEnd;
+      // A slot is occupied if it's part of a multi-hour course that started in a previous slot
+      return slotTime >= courseStartHour && slotTime < courseEnd && slotTime !== courseStartHour;
     });
   };
 
@@ -1143,20 +1144,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                             {days.map(day => {
                               const courses = getCoursesForTimeSlot(day, timeSlot);
                               const isOccupied = isTimeSlotOccupied(day, timeSlot);
-                              
-                              // Debug LRW courses
-                              if (courses.some(c => c.courseName.includes('First Year Legal Research and Writing'))) {
-                                console.log('LRW Calendar Render Debug:', {
-                                  day,
-                                  timeSlot,
-                                  courses: courses.map(c => ({
-                                    name: c.courseName,
-                                    time: c.time,
-                                    semester: c.semester
-                                  })),
-                                  isOccupied
-                                });
-                              }
                               
                               return (
                                 <div 

@@ -151,6 +151,7 @@ export function SearchSidebar({
     .filter((course, index, self) => course && self.indexOf(course) === index)
     .sort();
 
+
   const availableInstructors = allOutlines
     .filter(outline => !selectedCourse || outline.course === selectedCourse)
     .map(outline => outline.instructor)
@@ -825,9 +826,15 @@ export function SearchSidebar({
             {(() => {
               // First filter by course and instructor
               const courseInstructorFiltered = outlines.filter((outline) => {
-                if (selectedCourse === "" || selectedInstructor === "") {
-                  return false; // Don't show any if course/instructor not selected
+                // If no course is selected, don't show anything
+                if (selectedCourse === "") {
+                  return false;
                 }
+                // If course is selected but no instructor, show all for that course
+                if (selectedInstructor === "") {
+                  return outline.course === selectedCourse;
+                }
+                // If both are selected, filter by both
                 return outline.course === selectedCourse && outline.instructor === selectedInstructor;
               });
 
@@ -855,29 +862,33 @@ export function SearchSidebar({
               <div className="flex flex-col items-center justify-center h-full p-6 text-center">
                 <FileText className="w-16 h-16 text-gray-400 mb-4" />
                 <h3 className="text-lg font-medium text-gray-700 mb-2">
-                  {selectedCourse === "" || selectedInstructor === ""
-                    ? selectedCourse === "" && selectedInstructor === ""
-                      ? "No Filters Selected"
-                      : "Incomplete Selection"
-                    : "No Outlines Found"}
+                  {selectedCourse === ""
+                    ? "No Course Selected"
+                    : selectedInstructor === ""
+                      ? "No Instructor Selected"
+                      : "No Outlines Found"}
                 </h3>
                 <p className="text-gray-500 text-sm">
-                  {selectedCourse === "" || selectedInstructor === ""
-                    ? selectedCourse === "" && selectedInstructor === ""
-                      ? "Please select both a course and instructor above to view available outlines."
-                      : selectedCourse === ""
-                        ? "Please select a course to complete your search criteria."
-                        : "Please select an instructor to complete your search criteria."
-                    : "No outlines match your current search criteria."}
+                  {selectedCourse === ""
+                    ? "Please select a course above to view available outlines."
+                    : selectedInstructor === ""
+                      ? "Please select an instructor to see specific outlines for this course."
+                      : "No outlines match your current search criteria."}
                 </p>
               </div>
             ) : (
               (() => {
                 // First filter by course and instructor
                 const courseInstructorFiltered = outlines.filter((outline) => {
-                  if (selectedCourse === "" || selectedInstructor === "") {
-                    return false; // Don't show any if course/instructor not selected
+                  // If no course is selected, don't show anything
+                  if (selectedCourse === "") {
+                    return false;
                   }
+                  // If course is selected but no instructor, show all for that course
+                  if (selectedInstructor === "") {
+                    return outline.course === selectedCourse;
+                  }
+                  // If both are selected, filter by both
                   return outline.course === selectedCourse && outline.instructor === selectedInstructor;
                 });
 

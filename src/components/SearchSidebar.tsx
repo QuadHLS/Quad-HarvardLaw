@@ -182,6 +182,11 @@ export function SearchSidebar({
     .filter((course, index, self) => course && self.indexOf(course) === index)
     .sort();
 
+  // Filter courses based on search term
+  const filteredCourses = availableCourses.filter(course =>
+    course.toLowerCase().includes(courseSearchTerm.toLowerCase())
+  );
+
   // Debug logging for exams course search issues
   if (isExam) {
     console.log('Exams SearchSidebar Debug:', {
@@ -192,11 +197,6 @@ export function SearchSidebar({
       filteredCoursesLength: filteredCourses.length
     });
   }
-
-  // Filter courses based on search term
-  const filteredCourses = availableCourses.filter(course =>
-    course.toLowerCase().includes(courseSearchTerm.toLowerCase())
-  );
 
   // Update course search term when course is selected
   useEffect(() => {

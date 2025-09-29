@@ -8,13 +8,18 @@ interface OutlineViewerProps {
   outline: Outline | null;
   onSaveOutline: (outline: Outline) => void;
   isSaved: boolean;
+  documentType?: 'outline' | 'exam';
 }
 
-export function OutlineViewer({ outline, onSaveOutline, isSaved }: OutlineViewerProps) {
+export function OutlineViewer({ outline, onSaveOutline, isSaved, documentType = 'outline' }: OutlineViewerProps) {
   const [zoom, setZoom] = useState(100);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const totalPages = outline ? outline.pages : 0;
+
+  // Dynamic text based on document type
+  const documentTypeText = documentType === 'exam' ? 'exam' : 'outline';
+  const documentTypeTextCapitalized = documentType === 'exam' ? 'Exam' : 'Outline';
 
   // Reset to page 1 and clear search when a new outline is selected
   useEffect(() => {
@@ -30,8 +35,8 @@ export function OutlineViewer({ outline, onSaveOutline, isSaved }: OutlineViewer
       {!outline ? (
         <div className="flex items-center justify-center h-full">
           <div className="text-center">
-            <p className="text-gray-600 text-lg font-medium mb-2">Search and Select an Outline to Preview</p>
-            <p className="text-gray-500 text-sm">Use the search filters on the left to find and select an outline to view its content.</p>
+            <p className="text-gray-600 text-lg font-medium mb-2">Search and Select an {documentTypeTextCapitalized} to Preview</p>
+            <p className="text-gray-500 text-sm">Use the search filters on the left to find and select an {documentTypeText} to view its content.</p>
           </div>
         </div>
       ) : (

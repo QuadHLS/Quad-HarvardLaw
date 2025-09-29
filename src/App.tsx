@@ -1168,6 +1168,7 @@ function AppContent({ user }: { user: any }) {
             <OutlineViewer
               outline={selectedExam}
               onSaveOutline={handleSaveExam}
+              documentType="exam"
               isSaved={
                 selectedExam
                   ? savedExams.some(

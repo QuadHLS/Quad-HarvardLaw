@@ -88,6 +88,16 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     return v;
   };
 
+  // Normalize semester values for comparisons (handles codes, names, and whitespace)
+  const normalizeSemesterValue = (value: string | undefined | null): string => {
+    if (!value) return '';
+    const v = String(value).trim();
+    if (/^2025FA$/i.test(v) || /Fall/i.test(v)) return 'Fall';
+    if (/^2026WI$/i.test(v) || /Winter/i.test(v)) return 'Winter';
+    if (/^2026SP$/i.test(v) || /Spring/i.test(v)) return 'Spring';
+    return v;
+  };
+
   // Helper to extract a likely last name from an instructor string
   // Handles formats like "Last, First Middle" or "First Middle Last"
   const extractLastName = (instructor: string | undefined | null): string => {
@@ -104,6 +114,34 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     // Otherwise assume last token is last name
     const parts = value.split(/\s+/);
     return parts[parts.length - 1] || value;
+  };
+
+  // Normalize day strings to three-letter codes to match calendar dayMap
+  const normalizeDay = (day: string): string => {
+    const d = (day || '').trim();
+    const map: Record<string, string> = {
+      Monday: 'Mon', Mon: 'Mon',
+      Tuesday: 'Tue', Tue: 'Tue',
+      Wednesday: 'Wed', Wed: 'Wed',
+      Thursday: 'Thu', Thu: 'Thu',
+      Friday: 'Fri', Fri: 'Fri',
+    };
+    return map[d] || d;
+  };
+
+  // Normalize time ranges like "3:45PM – 5:45PM" → "3:45 PM-5:45 PM"
+  const normalizeTimeRange = (raw: string | undefined | null): string => {
+    if (!raw) return 'TBD';
+    let s = String(raw).trim();
+    // Replace en/em dashes with hyphen
+    s = s.replace(/[–—]/g, '-');
+    // Collapse spaces around hyphen
+    s = s.replace(/\s*-\s*/g, '-');
+    // Ensure space before AM/PM
+    s = s.replace(/(\d)\s*(AM|PM)\b/gi, '$1 $2');
+    // Uppercase AM/PM
+    s = s.replace(/\b(am|pm)\b/g, (m) => m.toUpperCase());
+    return s;
   };
 
   const handleNext = async () => {
@@ -291,11 +329,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         'Spring 2026': ['Spring', 'Spring 2026', '2026SP']
       };
       
-      const validSemesters = semesterMap[currentSemester] || [];
-      if (!validSemesters.includes(course.semester)) {
-        return false;
-      }
-      
       const dayMap: { [key: string]: string } = {
         'Mon': 'Mon',
         'Tue': 'Tue', 
@@ -311,6 +344,13 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         return false;
       }
       
+      // Filter by current semester (normalize values to be robust against spacing/case)
+      const validSemesters = (semesterMap[currentSemester] || []).map(normalizeSemesterValue);
+      const normalizedCourseSemester = normalizeSemesterValue(course.semester as unknown as string);
+      if (!validSemesters.includes(normalizedCourseSemester)) {
+        return false;
+      }
+
       // Parse course time range
       const timeParts = course.time.split('-');
       if (timeParts.length !== 2) return false;
@@ -430,8 +470,9 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         'Spring 2026': ['Spring', 'Spring 2026', '2026SP']
       };
       
-      const validSemesters = semesterMap[currentSemester] || [];
-      if (!validSemesters.includes(course.semester)) return false;
+      const validSemesters = (semesterMap[currentSemester] || []).map(normalizeSemesterValue);
+      const normalizedCourseSemester = normalizeSemesterValue(course.semester as unknown as string);
+      if (!validSemesters.includes(normalizedCourseSemester)) return false;
       
       if (!course.days.includes(dayMap[day])) return false;
       
@@ -595,8 +636,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
               professor: course.instructor,
               credits: course.credits,
               semester: course.semester as 'Spring' | 'Fall' | 'Winter',
-              days: course.days ? course.days.split(';').map((d: string) => d.trim()) : [],
-              time: course.times ? course.times.split(';').map((t: string) => t.trim())[0] || 'TBD' : 'TBD',
+              days: course.days ? course.days.split(';').map((d: string) => normalizeDay(d)) : [],
+              time: course.times ? normalizeTimeRange(course.times.split(';').map((t: string) => t.trim())[0]) : 'TBD',
               location: course.location || undefined
             };
             
@@ -624,34 +665,87 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   useEffect(() => {
     const handleLRWCourse = async () => {
       if (classYear === '1L' && section && lrwSection && allCourseData.length > 0) {
-        const lrwCourseName = `First Year Legal Research and Writing ${section}${lrwSection}`;
+        console.log('Handling LRW course selection:', { section, lrwSection, allCourseDataLength: allCourseData.length });
+        
+        // Support multiple naming variants and spacing, e.g.:
+        // "First Year Legal Research and Writing 1A", "First Year Legal Research and Writing 1 A",
+        // "Legal Research and Writing 1A", "LRW 1 A"
+        const lrwBases = [
+          'First Year Legal Research and Writing',
+          'Legal Research and Writing',
+          'LRW'
+        ];
         
         // Remove any existing LRW courses first
-        const filteredCourses = selectedCourses.filter(course => 
-          !course.courseName.includes('First Year Legal Research and Writing')
+        const filteredCourses = selectedCourses.filter(course =>
+          !/First Year Legal Research and Writing|Legal Research and Writing|^LRW\b/.test(course.courseName)
         );
 
-        // Find the course in the database
-        const matchingCourses = allCourseData.filter(
-          (course) => course.course_name === lrwCourseName
-        );
+        // Find both Fall and Spring LRW entries for the chosen section (same name, different semesters)
+        const matchingCourses = allCourseData.filter((course) => {
+          const name = String(course?.course_name || '').trim();
+          if (!name) return false;
+          
+          // Try exact matches first
+          const exactMatches = [
+            `First Year Legal Research and Writing ${section}${lrwSection}`,
+            `First Year Legal Research and Writing ${section} ${lrwSection}`,
+            `Legal Research and Writing ${section}${lrwSection}`,
+            `Legal Research and Writing ${section} ${lrwSection}`,
+            `LRW ${section}${lrwSection}`,
+            `LRW ${section} ${lrwSection}`
+          ];
+          
+          if (exactMatches.includes(name)) {
+            console.log('Found exact LRW match:', name, 'semester:', course.semester);
+            return true;
+          }
+          
+          // Fallback: match base + section and A/B suffix with optional space
+          const matches = lrwBases.some((base) => {
+            const pattern = new RegExp(`^${base}\\s+${section}\\s*${lrwSection}$`, 'i');
+            const isMatch = pattern.test(name);
+            if (isMatch) {
+              console.log('Found pattern LRW match:', name, 'semester:', course.semester);
+            }
+            return isMatch;
+          });
+          
+          return matches;
+        });
+
+        console.log('Found LRW matching courses:', matchingCourses.length, matchingCourses.map(c => ({ name: c.course_name, semester: c.semester })));
 
         if (matchingCourses.length > 0) {
-          const course = matchingCourses[0];
-          
-          const courseData: CourseData = {
-            id: `${lrwCourseName}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          const newLrwCourses: CourseData[] = matchingCourses.map((course: any) => ({
+            id: `${course.course_name}-${course.semester}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             courseName: course.course_name,
             professor: course.instructor,
             credits: course.credits,
             semester: course.semester as 'Spring' | 'Fall' | 'Winter',
-            days: course.days ? course.days.split(';').map((d: string) => d.trim()) : [],
-            time: course.times ? course.times.split(';').map((t: string) => t.trim())[0] || 'TBD' : 'TBD',
+            days: course.days ? course.days.split(';').map((d: string) => normalizeDay(d)) : [],
+            time: course.times ? normalizeTimeRange(course.times.split(';').map((t: string) => t.trim())[0]) : 'TBD',
             location: course.location || undefined
-          };
+          }));
 
-          setSelectedCourses([...filteredCourses, courseData]);
-          console.log('Updated LRW course:', courseData);
+          // Sort by semester priority: Fall first, then Spring
+          const sortBySemesterPriority = (a: CourseData, b: CourseData) => {
+            const priority = (s: string) => {
+              if (/Fall/i.test(s) || /FA$/i.test(s)) return 0;
+              if (/Spring/i.test(s) || /SP$/i.test(s)) return 1;
+              return 2;
+            };
+            return priority(a.semester) - priority(b.semester);
+          };
+          newLrwCourses.sort(sortBySemesterPriority);
+
+          setSelectedCourses([...filteredCourses, ...newLrwCourses]);
+          console.log('Updated LRW courses (Fall and Spring):', newLrwCourses.map(c => ({ name: c.courseName, semester: c.semester })));
+        } else {
+          console.log('No LRW courses found for section', section, lrwSection);
+          console.log('Available courses:', allCourseData.map(c => c.course_name).filter(name => 
+            /First Year Legal Research and Writing|Legal Research and Writing|^LRW\b/i.test(name)
+          ));
         }
       }
     };
@@ -898,12 +992,36 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                       <div className={`mb-4 p-3 rounded-lg border ${lrwSection ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-300'}`}>
                         {(() => {
                           // Build LRW options for the selected section from available course data
-                          const lrwPrefix = `First Year Legal Research and Writing ${section}`;
-                          const lrwCoursesForSection = allCourseData.filter(c =>
-                            typeof c?.course_name === 'string' && c.course_name.startsWith(lrwPrefix)
-                          );
-                          const optionA = lrwCoursesForSection.find((c: any) => /A\s*$/.test(c.course_name) || c.course_name.endsWith(`${section}A`));
-                          const optionB = lrwCoursesForSection.find((c: any) => /B\s*$/.test(c.course_name) || c.course_name.endsWith(`${section}B`));
+                          const lrwBases = [
+                            'First Year Legal Research and Writing',
+                            'Legal Research and Writing',
+                            'LRW'
+                          ];
+                          
+                          // Find all LRW courses for this section
+                          const lrwCoursesForSection = allCourseData.filter(c => {
+                            const name = String(c?.course_name || '').trim();
+                            if (!name) return false;
+                            
+                            return lrwBases.some(base => {
+                              const pattern = new RegExp(`^${base}\\s+${section}[AB]`, 'i');
+                              return pattern.test(name);
+                            });
+                          });
+                          
+                          // Find A and B options (prefer Fall semester for professor names)
+                          const optionA = lrwCoursesForSection.find((c: any) => {
+                            const name = String(c.course_name || '');
+                            return (/A\s*$/.test(name) || name.endsWith(`${section}A`)) && 
+                                   (/Fall/i.test(c.semester) || /FA$/i.test(c.semester));
+                          }) || lrwCoursesForSection.find((c: any) => /A\s*$/.test(c.course_name) || c.course_name.endsWith(`${section}A`));
+                          
+                          const optionB = lrwCoursesForSection.find((c: any) => {
+                            const name = String(c.course_name || '');
+                            return (/B\s*$/.test(name) || name.endsWith(`${section}B`)) && 
+                                   (/Fall/i.test(c.semester) || /FA$/i.test(c.semester));
+                          }) || lrwCoursesForSection.find((c: any) => /B\s*$/.test(c.course_name) || c.course_name.endsWith(`${section}B`));
+                          
                           const lastA = extractLastName(optionA?.instructor) || 'A';
                           const lastB = extractLastName(optionB?.instructor) || 'B';
                           return (
@@ -935,8 +1053,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                               </div>
                               <p className={`text-xs mt-1 ${lrwSection ? 'text-blue-700' : 'text-red-700'}`}>
                                 {!lrwSection
-                                  ? `Adds "LRW ${section}A" or "LRW ${section}B"`
-                                  : `Current: "LRW ${section}${lrwSection}"`}
+                                  ? `Adds "LRW ${section}A" and "LRW ${section}B" (Fall & Spring)`
+                                  : `Current: "LRW ${section}${lrwSection}" (Fall & Spring)`}
                               </p>
                             </>
                           );

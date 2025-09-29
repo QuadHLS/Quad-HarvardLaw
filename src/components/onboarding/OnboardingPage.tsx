@@ -347,19 +347,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       // Filter by current semester (normalize values to be robust against spacing/case)
       const validSemesters = (semesterMap[currentSemester] || []).map(normalizeSemesterValue);
       const normalizedCourseSemester = normalizeSemesterValue(course.semester as unknown as string);
-      
-      // Debug logging for LRW courses
-      if (course.courseName.includes('First Year Legal Research and Writing')) {
-        console.log('LRW Calendar Debug:', {
-          courseName: course.courseName,
-          originalSemester: course.semester,
-          normalizedSemester: normalizedCourseSemester,
-          currentSemester: currentSemester,
-          validSemesters: validSemesters,
-          isMatch: validSemesters.includes(normalizedCourseSemester)
-        });
-      }
-      
       if (!validSemesters.includes(normalizedCourseSemester)) {
         return false;
       }

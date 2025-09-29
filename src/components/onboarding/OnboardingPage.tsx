@@ -1150,7 +1150,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                                   key={`${day}-${timeSlot}`} 
                                   className="min-h-12 border-r border-gray-200 p-1 relative last:border-r-0 bg-white hover:bg-gray-50 transition-colors"
                                 >
-                                  {courses.length > 0 && !isOccupied && (
+                                  {courses.length > 0 && (
                                     <>
                                       {courses.map((course, index) => {
                                         // Parse course time to get start and end times
@@ -1203,6 +1203,10 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                                         const totalDurationMinutes = courseEnd - courseStart;
                                         const totalHeightPixels = (totalDurationMinutes / 60) * 48; // 48px per hour
                                         
+                                        // Calculate width and left position for multiple courses in same slot
+                                        const courseWidth = courses.length > 1 ? `calc(${100/courses.length}% - 4px)` : 'calc(100% - 8px)';
+                                        const courseLeft = courses.length > 1 ? `${(index * 100/courses.length) + 2}%` : '4px';
+                                        
                                         return (
                                           <div 
                                             key={`${course.id}-${day}-${timeSlot}-${index}`}
@@ -1211,8 +1215,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                                               backgroundColor: '#752531',
                                               top: `${topPercent}%`,
                                               height: `${totalHeightPixels}px`,
-                                              width: 'calc(100% - 8px)',
-                                              left: '4px',
+                                              width: courseWidth,
+                                              left: courseLeft,
                                               minHeight: '20px'
                                             }}
                                           >

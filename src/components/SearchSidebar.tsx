@@ -190,7 +190,7 @@ export function SearchSidebar({
   // Debug logging for exams course search issues
   if (isExam) {
     console.log('Exams SearchSidebar Debug:', {
-      allOutlinesLength: allOutlines.length,
+      allExamsLength: allOutlines.length, // allOutlines is actually exams data in this context
       availableCoursesLength: availableCourses.length,
       loading: loading,
       availableCourses: availableCourses.slice(0, 5), // First 5 courses

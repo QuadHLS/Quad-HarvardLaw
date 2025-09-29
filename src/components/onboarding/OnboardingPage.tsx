@@ -78,6 +78,24 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     return rawName;
   };
 
+  // Helper to extract a likely last name from an instructor string
+  // Handles formats like "Last, First Middle" or "First Middle Last"
+  const extractLastName = (instructor: string | undefined | null): string => {
+    if (!instructor) return '';
+    // If multiple instructors are present, use the first one's last name
+    const firstInstructor = instructor.split(';')[0]?.trim() || '';
+    const value = firstInstructor;
+    if (!value) return '';
+    if (value.includes(',')) {
+      // Current format is "First, Last" → take the part after the comma
+      const parts = value.split(',');
+      return (parts[1] || '').trim() || value.trim();
+    }
+    // Otherwise assume last token is last name
+    const parts = value.split(/\s+/);
+    return parts[parts.length - 1] || value;
+  };
+
   const handleNext = async () => {
     console.log('handleNext called', { currentPage, isStep1Valid: isStep1Valid(), user: user?.id });
     
@@ -880,40 +898,54 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                       )}
                     </div>
 
-                    {/* LRW Section Selector - Only for 1L */}
+                    {/* LRW Selection - Only for 1L. Show two professor last names for the selected section. */}
                     {classYear === '1L' && selectedCourses.length >= 7 && (
-                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-xs text-blue-800 font-medium mb-2">
-                          {!lrwSection ? 'Select LRW section:' : 'Change LRW section:'}
-                        </p>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => setLrwSection('A')}
-                            className={`px-3 py-1 rounded-md text-xs font-medium ${
-                              lrwSection === 'A' 
-                                ? 'bg-blue-600 text-white' 
-                                : 'bg-white text-blue-800 border border-blue-300 hover:bg-blue-100'
-                            }`}
-                          >
-                            A
-                          </button>
-                          <button
-                            onClick={() => setLrwSection('B')}
-                            className={`px-3 py-1 rounded-md text-xs font-medium ${
-                              lrwSection === 'B' 
-                                ? 'bg-blue-600 text-white' 
-                                : 'bg-white text-blue-800 border border-blue-300 hover:bg-blue-100'
-                            }`}
-                          >
-                            B
-                          </button>
-                        </div>
-                        <p className="text-xs text-blue-700 mt-1">
-                          {!lrwSection 
-                            ? `Adds "LRW ${section}A" or "LRW ${section}B"`
-                            : `Current: "LRW ${section}${lrwSection}"`
-                          }
-                        </p>
+                      <div className={`mb-4 p-3 rounded-lg border ${lrwSection ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-300'}`}>
+                        {(() => {
+                          // Build LRW options for the selected section from available course data
+                          const lrwPrefix = `First Year Legal Research and Writing ${section}`;
+                          const lrwCoursesForSection = allCourseData.filter(c =>
+                            typeof c?.course_name === 'string' && c.course_name.startsWith(lrwPrefix)
+                          );
+                          const optionA = lrwCoursesForSection.find((c: any) => /A\s*$/.test(c.course_name) || c.course_name.endsWith(`${section}A`));
+                          const optionB = lrwCoursesForSection.find((c: any) => /B\s*$/.test(c.course_name) || c.course_name.endsWith(`${section}B`));
+                          const lastA = extractLastName(optionA?.instructor) || 'A';
+                          const lastB = extractLastName(optionB?.instructor) || 'B';
+                          return (
+                            <>
+                              <p className={`text-xs font-medium mb-2 ${lrwSection ? 'text-blue-800' : 'text-red-800'}`}>
+                                {!lrwSection ? 'Select your LRW professor:' : 'Change LRW professor:'}
+                              </p>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => setLrwSection('A')}
+                                  className={`px-3 py-1 rounded-md text-xs font-medium ${
+                                    lrwSection === 'A'
+                                      ? 'bg-blue-600 text-white'
+                                      : 'bg-white text-blue-800 border border-blue-300 hover:bg-blue-100'
+                                  }`}
+                                >
+                                  {lastA}
+                                </button>
+                                <button
+                                  onClick={() => setLrwSection('B')}
+                                  className={`px-3 py-1 rounded-md text-xs font-medium ${
+                                    lrwSection === 'B'
+                                      ? 'bg-blue-600 text-white'
+                                      : 'bg-white text-blue-800 border border-blue-300 hover:bg-blue-100'
+                                  }`}
+                                >
+                                  {lastB}
+                                </button>
+                              </div>
+                              <p className={`text-xs mt-1 ${lrwSection ? 'text-blue-700' : 'text-red-700'}`}>
+                                {!lrwSection
+                                  ? `Adds "LRW ${section}A" or "LRW ${section}B"`
+                                  : `Current: "LRW ${section}${lrwSection}"`}
+                              </p>
+                            </>
+                          );
+                        })()}
                       </div>
                     )}
 

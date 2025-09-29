@@ -182,6 +182,17 @@ export function SearchSidebar({
     .filter((course, index, self) => course && self.indexOf(course) === index)
     .sort();
 
+  // Debug logging for exams course search issues
+  if (isExam) {
+    console.log('Exams SearchSidebar Debug:', {
+      allOutlinesLength: allOutlines.length,
+      availableCoursesLength: availableCourses.length,
+      loading: loading,
+      availableCourses: availableCourses.slice(0, 5), // First 5 courses
+      filteredCoursesLength: filteredCourses.length
+    });
+  }
+
   // Filter courses based on search term
   const filteredCourses = availableCourses.filter(course =>
     course.toLowerCase().includes(courseSearchTerm.toLowerCase())
@@ -677,11 +688,12 @@ export function SearchSidebar({
                     }}
                     onFocus={() => setShowCourseDropdown(true)}
                     className="pl-10 pr-10 bg-black/20 border-white/30 text-white placeholder:text-white/70 h-10"
-                    disabled={availableCourses.length === 0}
+                    disabled={loading || availableCourses.length === 0}
                   />
                   <button
                     onClick={() => setShowCourseDropdown(!showCourseDropdown)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white"
+                    disabled={loading || availableCourses.length === 0}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <ChevronDown className={`w-4 h-4 transition-transform ${showCourseDropdown ? 'rotate-180' : ''}`} />
                   </button>

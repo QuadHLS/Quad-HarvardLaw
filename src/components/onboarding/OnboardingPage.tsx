@@ -78,6 +78,16 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     return rawName;
   };
 
+  // Display-only formatter: map semester codes to names
+  const formatDisplaySemester = (value: string | undefined | null): string => {
+    if (!value) return 'TBD';
+    const v = value.trim();
+    if (/^2025FA$/i.test(v) || /Fall/i.test(v)) return 'Fall';
+    if (/^2026WI$/i.test(v) || /Winter/i.test(v)) return 'Winter';
+    if (/^2026SP$/i.test(v) || /Spring/i.test(v)) return 'Spring';
+    return v;
+  };
+
   // Helper to extract a likely last name from an instructor string
   // Handles formats like "Last, First Middle" or "First Middle Last"
   const extractLastName = (instructor: string | undefined | null): string => {
@@ -887,7 +897,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                                   </button>
                         )}
                       </div>
-                              <p className="text-xs text-gray-600 mb-0.5">Semester: {course.semester}</p>
+                              <p className="text-xs text-gray-600 mb-0.5">Semester: {formatDisplaySemester(course.semester)}</p>
                               <p className="text-xs text-gray-600 mb-0.5">Professor: {course.professor}</p>
                               <p className="text-xs text-gray-600 mb-0.5">{course.days.join(', ')} {course.time}</p>
                               <p className="text-xs text-gray-600 mb-0.5">Location: {course.location || 'Location TBD'}</p>
@@ -1361,12 +1371,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                               {formatDisplayCourseName(course.course_name)}
                             </h4>
                             <div className="space-y-1">
-                              <p className="text-xs text-gray-600 mb-0.5">Semester: {
-                                course.semester === 'Fall' || course.semester === 'Fall 2025' ? '2025FA' :
-                                course.semester === 'Winter' || course.semester === 'Winter 2026' ? '2026WI' :
-                                course.semester === 'Spring' || course.semester === 'Spring 2026' ? '2026SP' :
-                                course.semester
-                              }</p>
+                              <p className="text-xs text-gray-600 mb-0.5">Semester: {formatDisplaySemester(course.semester)}</p>
                               <p className="text-xs text-gray-600 mb-0.5">Professor: {course.instructor || 'TBD'}</p>
                               <p className="text-xs text-gray-600 mb-0.5">{course.days || 'TBA'} • {course.times || 'TBA'}</p>
                               <p className="text-xs text-gray-600 mb-0.5">Location: {course.location && course.location !== 'null' ? course.location : 'Location TBD'}</p>

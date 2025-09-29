@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import {
   Download,
@@ -11,6 +11,8 @@ import {
   Trash2,
   Bookmark,
   EyeIcon,
+  Search,
+  ChevronDown,
 } from "lucide-react";
 import {
   Select,
@@ -145,6 +147,25 @@ export function SearchSidebar({
   const [uploadConfirmed, setUploadConfirmed] = useState<boolean>(false);
   const [uploadSuccess, setUploadSuccess] = useState<string>("");
   
+  // Course search state
+  const [courseSearchTerm, setCourseSearchTerm] = useState("");
+  const [showCourseDropdown, setShowCourseDropdown] = useState(false);
+  const courseDropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Click outside handler for course dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (courseDropdownRef.current && !courseDropdownRef.current.contains(event.target as Node)) {
+        setShowCourseDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+  
   // Page count functionality disabled - using data directly from Supabase
 
   // Determine document type based on bucketName or explicit prop
@@ -159,6 +180,18 @@ export function SearchSidebar({
     .map(outline => outline.course)
     .filter((course, index, self) => course && self.indexOf(course) === index)
     .sort();
+
+  // Filter courses based on search term
+  const filteredCourses = availableCourses.filter(course =>
+    course.toLowerCase().includes(courseSearchTerm.toLowerCase())
+  );
+
+  // Update course search term when course is selected
+  useEffect(() => {
+    if (selectedCourse && !courseSearchTerm) {
+      setCourseSearchTerm(selectedCourse);
+    }
+  }, [selectedCourse, courseSearchTerm]);
 
 
   const availableInstructors = allOutlines
@@ -629,35 +662,60 @@ export function SearchSidebar({
           {/* Search Tab Content */}
             {/* Course Filter */}
             <div className="p-3 space-y-3 bg-[rgba(117,36,50,1)]">
-              <div className="relative">
-                <Select
-                  key={`course-${selectedCourse || "empty"}`}
-                  value={selectedCourse || undefined}
-                  onValueChange={(value) => {
-                    setSelectedCourse(value);
-                    // Clear instructor when changing course
-                    setSelectedInstructor("");
-                  }}
-                  disabled={availableCourses.length === 0}
-                >
-                  <SelectTrigger className="bg-black/20 border-white/30 text-white placeholder:text-white/70 data-[placeholder]:text-white/70 [&>svg]:text-white h-10 disabled:opacity-50 disabled:cursor-not-allowed">
-                    <SelectValue placeholder="Select Course" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableCourses.length > 0 ? availableCourses.map((course) => (
-                      <SelectItem key={course} value={course}>
+              <div className="relative" ref={courseDropdownRef}>
+                {/* Course Search Input */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/70 w-4 h-4" />
+                  <Input
+                    type="text"
+                    placeholder="Search courses..."
+                    value={courseSearchTerm}
+                    onChange={(e) => {
+                      setCourseSearchTerm(e.target.value);
+                      setShowCourseDropdown(true);
+                    }}
+                    onFocus={() => setShowCourseDropdown(true)}
+                    className="pl-10 pr-10 bg-black/20 border-white/30 text-white placeholder:text-white/70 h-10"
+                    disabled={availableCourses.length === 0}
+                  />
+                  <button
+                    onClick={() => setShowCourseDropdown(!showCourseDropdown)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white"
+                  >
+                    <ChevronDown className={`w-4 h-4 transition-transform ${showCourseDropdown ? 'rotate-180' : ''}`} />
+                  </button>
+                </div>
+
+                {/* Course Dropdown */}
+                {showCourseDropdown && filteredCourses.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto z-50">
+                    {filteredCourses.map((course) => (
+                      <button
+                        key={course}
+                        onClick={() => {
+                          setSelectedCourse(course);
+                          setCourseSearchTerm(course);
+                          setShowCourseDropdown(false);
+                          setSelectedInstructor("");
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-gray-100 text-gray-900 text-sm"
+                      >
                         {course}
-                      </SelectItem>
-                    )) : null}
-                  </SelectContent>
-                </Select>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Clear button */}
                 {selectedCourse && (
                   <button
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
                       setSelectedCourse("");
+                      setCourseSearchTerm("");
                       setSelectedInstructor("");
+                      setShowCourseDropdown(false);
                     }}
                     className="absolute right-8 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white z-10"
                   >

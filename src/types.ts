@@ -1,4 +1,5 @@
-export interface Outline {
+// Base interface for common properties
+interface BaseDocument {
   id: string;
   title: string;
   file_name: string;
@@ -8,7 +9,6 @@ export interface Outline {
   course: string;
   instructor: string;
   year: string;
-  grade: string; // 'H', 'P', 'DS' from database
   pages: number;
   description: string | null;
   rating: number;
@@ -16,6 +16,18 @@ export interface Outline {
   download_count: number;
   created_at: string;
   updated_at: string;
+}
+
+// Specific interface for outlines
+export interface Outline extends BaseDocument {
+  grade: string; // 'H', 'P', 'DS' from database
+  type?: 'outline' | 'attack'; // Determined by page count
+}
+
+// Specific interface for exams
+export interface Exam extends BaseDocument {
+  semester?: string; // Exams might have semester info
+  exam_type?: 'midterm' | 'final' | 'quiz' | 'practice'; // Exam-specific type
 }
 
 export interface Instructor {

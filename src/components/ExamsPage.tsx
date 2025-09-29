@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Filter } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
+import { getExamFilterOptions, type ExamFilterOptions } from '../utils/examFilterUtils';
 
 interface ExamsPageProps {
   // No props needed for now - completely independent
@@ -20,11 +21,43 @@ export function ExamsPage({}: ExamsPageProps) {
   const [selectedInstructor, setSelectedInstructor] = useState('all');
   const [selectedYear, setSelectedYear] = useState('all');
   const [selectedSemester, setSelectedSemester] = useState('all');
+  
+  // Dynamic data from database
+  const [filterOptions, setFilterOptions] = useState<ExamFilterOptions>({
+    courses: [],
+    instructors: [],
+    years: [],
+    semesters: [],
+    examTypes: []
+  });
+  const [loading, setLoading] = useState(true);
 
-  const courses = ['Contracts', 'Torts', 'Criminal Law', 'Constitutional Law'];
-  const instructors = ['Professor Smith', 'Professor Johnson', 'Professor Williams'];
-  const years = ['2023', '2022', '2021', '2020'];
-  const semesters = ['Fall', 'Spring', 'Summer'];
+  // Fetch exam filter data from database
+  useEffect(() => {
+    const fetchExamFilterData = async () => {
+      try {
+        setLoading(true);
+        
+        const options = await getExamFilterOptions();
+        setFilterOptions(options);
+
+        console.log('Fetched exam filter data:', {
+          courses: options.courses.length,
+          instructors: options.instructors.length,
+          years: options.years.length,
+          semesters: options.semesters.length,
+          examTypes: options.examTypes.length
+        });
+
+      } catch (error) {
+        console.error('Error fetching exam filter data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchExamFilterData();
+  }, []);
 
   return (
     <div className="h-full flex" style={{ backgroundColor: '#f9f5f0' }}>
@@ -53,13 +86,13 @@ export function ExamsPage({}: ExamsPageProps) {
         <div className="p-4 space-y-4 flex-1">
           <div>
             <label className="text-sm font-medium text-gray-700 mb-2 block">Course</label>
-            <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+            <Select value={selectedCourse} onValueChange={setSelectedCourse} disabled={loading}>
               <SelectTrigger>
-                <SelectValue placeholder="Select course" />
+                <SelectValue placeholder={loading ? "Loading courses..." : "Select course"} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Courses</SelectItem>
-                {courses.map(course => (
+                {filterOptions.courses.map(course => (
                   <SelectItem key={course} value={course}>{course}</SelectItem>
                 ))}
               </SelectContent>
@@ -68,13 +101,13 @@ export function ExamsPage({}: ExamsPageProps) {
 
           <div>
             <label className="text-sm font-medium text-gray-700 mb-2 block">Instructor</label>
-            <Select value={selectedInstructor} onValueChange={setSelectedInstructor}>
+            <Select value={selectedInstructor} onValueChange={setSelectedInstructor} disabled={loading}>
               <SelectTrigger>
-                <SelectValue placeholder="Select instructor" />
+                <SelectValue placeholder={loading ? "Loading instructors..." : "Select instructor"} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Instructors</SelectItem>
-                {instructors.map(instructor => (
+                {filterOptions.instructors.map(instructor => (
                   <SelectItem key={instructor} value={instructor}>{instructor}</SelectItem>
                 ))}
               </SelectContent>
@@ -83,13 +116,13 @@ export function ExamsPage({}: ExamsPageProps) {
 
           <div>
             <label className="text-sm font-medium text-gray-700 mb-2 block">Year</label>
-            <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <Select value={selectedYear} onValueChange={setSelectedYear} disabled={loading}>
               <SelectTrigger>
-                <SelectValue placeholder="Select year" />
+                <SelectValue placeholder={loading ? "Loading years..." : "Select year"} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Years</SelectItem>
-                {years.map(year => (
+                {filterOptions.years.map(year => (
                   <SelectItem key={year} value={year}>{year}</SelectItem>
                 ))}
               </SelectContent>
@@ -98,22 +131,22 @@ export function ExamsPage({}: ExamsPageProps) {
 
           <div>
             <label className="text-sm font-medium text-gray-700 mb-2 block">Semester</label>
-            <Select value={selectedSemester} onValueChange={setSelectedSemester}>
+            <Select value={selectedSemester} onValueChange={setSelectedSemester} disabled={loading}>
               <SelectTrigger>
-                <SelectValue placeholder="Select semester" />
+                <SelectValue placeholder={loading ? "Loading semesters..." : "Select semester"} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Semesters</SelectItem>
-                {semesters.map(semester => (
+                {filterOptions.semesters.map(semester => (
                   <SelectItem key={semester} value={semester}>{semester}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          <Button className="w-full" variant="outline">
+          <Button className="w-full" variant="outline" disabled={loading}>
             <Filter className="w-4 h-4 mr-2" />
-            Apply Filters
+            {loading ? "Loading..." : "Apply Filters"}
           </Button>
         </div>
       </div>

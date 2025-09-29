@@ -838,21 +838,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                         : `3 Required | 10 Max (${totalCredits} Credits)`
                       }
                     </p>
-                    {/* Debug info */}
-                    <div className="text-xs text-gray-500 mt-2 p-2 bg-gray-100 rounded">
-                      <div>Selected Courses: {selectedCourses.length}</div>
-                      <div>Current Semester: {currentSemester}</div>
-                      <div>Courses for {currentSemester}: {selectedCourses.filter(c => {
-                        const semesterMap: { [key: string]: string[] } = {
-                          'Fall 2025': ['Fall', 'Fall 2025', '2025FA'],
-                          'Winter 2026': ['Winter', 'Winter 2026', '2026WI'],
-                          'Spring 2026': ['Spring', 'Spring 2026', '2026SP']
-                        };
-                        const validSemesters = semesterMap[currentSemester] || [];
-                        return validSemesters.includes(c.semester);
-                      }).length}</div>
-                      <div>Course Semesters: {selectedCourses.map(c => c.semester).join(', ')}</div>
-                    </div>
                     <hr className="border-gray-200 mt-2" />
                   </CardHeader>
                   <CardContent className="pt-0 px-6 pb-6">

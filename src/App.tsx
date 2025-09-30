@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { FileText } from 'lucide-react';
 import { NavigationSidebar } from './components/NavigationSidebar';
 import { SearchSidebar } from './components/SearchSidebar';
@@ -67,7 +67,7 @@ function AppContent({ user }: { user: any }) {
           .from('profiles')
           .select('access_code_verified, classes_filled')
           .eq('id', currentUser.id)
-          .single();
+          .maybeSingle();
 
         if (error) {
           console.error('Error fetching profile:', error);
@@ -82,7 +82,7 @@ function AppContent({ user }: { user: any }) {
 
         if (isMounted) {
           // Set verification status based on database
-          setIsVerified(profile.access_code_verified === true);
+          setIsVerified(profile?.access_code_verified === true);
           // Temporarily disable database check for testing - always start with onboarding
           setHasCompletedOnboarding(false);
           setAuthLoading(false);
@@ -128,6 +128,7 @@ function AppContent({ user }: { user: any }) {
     'search'
   );
   const [savedOutlines, setSavedOutlines] = useState<Outline[]>([]);
+  const fetchedOutlinesOnceRef = useRef(false);
 
   // Exam-specific state (mirroring outlines structure)
   const [exams, setExams] = useState<Outline[]>([]);
@@ -143,6 +144,7 @@ function AppContent({ user }: { user: any }) {
   const [showExamAttacks, setShowExamAttacks] = useState(true);
   const [activeExamTab, setActiveExamTab] = useState<'search' | 'saved' | 'upload'>('search');
   const [savedExams, setSavedExams] = useState<Outline[]>([]);
+  const fetchedExamsOnceRef = useRef(false);
 
   // Load saved outlines from database
   useEffect(() => {
@@ -207,9 +209,19 @@ function AppContent({ user }: { user: any }) {
   // Shared calendar events state
   const [calendarEvents] = useState<CalendarEvent[]>([]);
 
-  // Fetch outlines from Supabase with pagination
+  // Fetch outlines from Supabase with pagination (only after login)
   useEffect(() => {
     const fetchOutlines = async () => {
+      // Wait for authentication to be ready and a user session to exist
+      if (authLoading || !user) {
+        return;
+      }
+
+      // Prevent duplicate fetches on auth state changes
+      if (fetchedOutlinesOnceRef.current) {
+        return;
+      }
+
       try {
         setOutlinesLoading(true);
         const allOutlines: Outline[] = [];
@@ -248,6 +260,7 @@ function AppContent({ user }: { user: any }) {
 
         console.log(`Finished fetching outlines: ${allOutlines.length} total records`);
         setOutlines(allOutlines);
+        fetchedOutlinesOnceRef.current = true;
       } catch (error) {
         console.error('Error fetching outlines:', error);
       } finally {
@@ -256,11 +269,21 @@ function AppContent({ user }: { user: any }) {
     };
 
     fetchOutlines();
-  }, []);
+  }, [authLoading, user]);
 
   // Fetch exams from Supabase with pagination
   useEffect(() => {
     const fetchExams = async () => {
+      // Wait for authentication to be ready and a user session to exist
+      if (authLoading || !user) {
+        return;
+      }
+
+      // Prevent duplicate fetches on auth state changes
+      if (fetchedExamsOnceRef.current) {
+        return;
+      }
+
       try {
         setExamsLoading(true);
         const allExams: Outline[] = [];
@@ -299,6 +322,7 @@ function AppContent({ user }: { user: any }) {
 
         console.log(`Finished fetching exams: ${allExams.length} total records`);
         setExams(allExams);
+        fetchedExamsOnceRef.current = true;
       } catch (error) {
         console.error('Error fetching exams:', error);
       } finally {
@@ -307,7 +331,7 @@ function AppContent({ user }: { user: any }) {
     };
 
     fetchExams();
-  }, []);
+  }, [authLoading, user]);
 
   // Load saved exams from database
   useEffect(() => {

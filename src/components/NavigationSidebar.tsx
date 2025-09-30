@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, FileText, Star, Beer, Calendar, Menu, User, MessageCircle, Archive, ChevronDown, ChevronRight, BookOpen, LogOut, Sun, Moon, Palette } from 'lucide-react';
+import { Home, FileText, Star, Beer, Calendar, Menu, User, MessageCircle, Archive, ChevronDown, ChevronRight, BookOpen, LogOut, Sun, Moon, Palette, MessageSquare } from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -113,6 +113,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
 
   const menuItems = [
     { id: 'home', label: 'Home', icon: Home },
+    { id: 'feed', label: 'Feed', icon: MessageSquare },
   ];
 
   const resourceItems = [
@@ -179,6 +180,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeSection === item.id;
+              const isFeed = item.id === 'feed';
               
               return (
                 <button
@@ -194,7 +196,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
                   }}
                 >
                   <Icon 
-                    className="w-5 h-5 mr-2" 
+                    className={`${isFeed ? 'w-5 h-[1.75rem]' : 'w-5 h-5'} mr-2`} 
                     style={{ color: '#752432' }}
                   />
                   <span className="font-medium text-sm">{item.label}</span>
@@ -418,6 +420,21 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
               }}
             >
               <Home className="w-5 h-5" style={{ color: '#752432' }} />
+            </button>
+
+            {/* Feed */}
+            <button
+              onClick={() => onSectionChange('feed')}
+              className={`w-full flex items-center justify-center py-2 ${
+                activeSection === 'feed'
+                  ? 'bg-white text-gray-800 border-r-2' 
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-white'
+              }`}
+              style={{
+                borderRightColor: activeSection === 'feed' ? '#752432' : 'transparent'
+              }}
+            >
+              <MessageSquare className="w-5 h-[1.75rem]" style={{ color: '#752432' }} />
             </button>
 
             {/* Resources - Click to show dropdown */}

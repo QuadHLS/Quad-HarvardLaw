@@ -2,9 +2,7 @@ import { useState, useEffect } from 'react';
 import { 
   Download,
   Bookmark,
-  MoreHorizontal,
   FileText,
-  Eye,
   Grid,
   List,
   Calendar,
@@ -25,7 +23,6 @@ import { Card, CardContent, CardHeader } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { ScrollArea } from './ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import { Checkbox } from './ui/checkbox';
@@ -96,6 +93,10 @@ export function OutlinePage({
   const [previewOutline, setPreviewOutline] = useState<Outline | null>(selectedOutline);
   const [searchSearchTerm, setSearchSearchTerm] = useState('');
   const [savedCourseFilter, setSavedCourseFilter] = useState<string>('');
+  // Separate filter states for saved tab
+  const [savedGradeFilter, setSavedGradeFilter] = useState<string | undefined>(undefined);
+  const [savedYearFilter, setSavedYearFilter] = useState<string | undefined>(undefined);
+  const [savedTagsFilter, setSavedTagsFilter] = useState<string[]>(['Attack', 'Outline']);
   // Combobox states
   const [courseComboboxOpen, setCourseComboboxOpen] = useState(false);
   const [professorComboboxOpen, setProfessorComboboxOpen] = useState(false);
@@ -125,6 +126,16 @@ export function OutlinePage({
       setSelectedYear(undefined);
     }
   }, [selectedCourse, selectedInstructor, selectedGrade, selectedYear]);
+
+  // Reset grade and year when saved course filter changes
+  useEffect(() => {
+    if (savedGradeFilter && !availableGradesForSaved.includes(savedGradeFilter)) {
+      setSavedGradeFilter(undefined);
+    }
+    if (savedYearFilter && !availableYearsForSaved.includes(savedYearFilter)) {
+      setSavedYearFilter(undefined);
+    }
+  }, [savedCourseFilter, savedGradeFilter, savedYearFilter]);
 
   // When the search results are empty (Discover state), clear the preview so the right panel shows the empty state
   useEffect(() => {
@@ -266,6 +277,38 @@ export function OutlinePage({
 
   const savedCourses = Array.from(new Set(savedOutlines.map(outline => outline.course))).sort();
 
+  // Available years for saved outlines based on selected course
+  const availableYearsForSaved = savedCourseFilter
+    ? Array.from(
+        new Set(
+          savedOutlines
+            .filter(outline => outline.course === savedCourseFilter)
+            .map(outline => outline.year)
+        )
+      ).sort((a, b) => parseInt(b) - parseInt(a))
+    : Array.from(
+        new Set(savedOutlines.map(outline => outline.year))
+      ).sort((a, b) => parseInt(b) - parseInt(a));
+
+  // Available grades for saved outlines based on selected course
+  const availableGradesForSaved = savedCourseFilter
+    ? Array.from(
+        new Set(
+          savedOutlines
+            .filter(outline => outline.course === savedCourseFilter)
+            .map(outline => outline.grade)
+        )
+      ).sort((a, b) => {
+        const gradeOrder: Record<string, number> = { 'DS': 0, 'H': 1, 'P': 2 };
+        return (gradeOrder[a] || 3) - (gradeOrder[b] || 3);
+      })
+    : Array.from(
+        new Set(savedOutlines.map(outline => outline.grade))
+      ).sort((a, b) => {
+        const gradeOrder: Record<string, number> = { 'DS': 0, 'H': 1, 'P': 2 };
+        return (gradeOrder[a] || 3) - (gradeOrder[b] || 3);
+      });
+
   const handleTagToggle = (tag: string) => {
     setSelectedTags(prev => 
       prev.includes(tag) 
@@ -382,20 +425,34 @@ export function OutlinePage({
     }
   };
 
-  const clearFilters = () => {
+  const clearSearchFilters = () => {
     setSelectedCourse('');
     setSelectedInstructor('');
     setSelectedGrade(undefined);
     setSelectedYear(undefined);
-    setSelectedTags([]);
+    setSelectedTags(['Attack', 'Outline']); // Keep both selected by default
   };
 
-  const activeFilterCount = [
+  const clearSavedFilters = () => {
+    setSavedCourseFilter('');
+    setSavedGradeFilter(undefined);
+    setSavedYearFilter(undefined);
+    setSavedTagsFilter(['Attack', 'Outline']); // Keep both selected by default
+  };
+
+  const activeSearchFilterCount = [
     selectedCourse && selectedCourse !== '' ? 1 : 0,
     selectedInstructor && selectedInstructor !== '' ? 1 : 0,
     selectedGrade && selectedGrade !== '' ? 1 : 0,
     selectedYear && selectedYear !== '' ? 1 : 0,
-    selectedTags.length
+    selectedTags.length !== 2 ? 1 : 0 // Only count if not both Attack and Outline selected
+  ].reduce((sum, count) => sum + count, 0);
+
+  const activeSavedFilterCount = [
+    savedCourseFilter && savedCourseFilter !== '' ? 1 : 0,
+    savedGradeFilter && savedGradeFilter !== '' ? 1 : 0,
+    savedYearFilter && savedYearFilter !== '' ? 1 : 0,
+    savedTagsFilter.length !== 2 ? 1 : 0 // Only count if not both Attack and Outline selected
   ].reduce((sum, count) => sum + count, 0);
 
   const OutlineListItem = ({ outline }: { outline: Outline }) => (
@@ -434,34 +491,18 @@ export function OutlinePage({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <MoreHorizontal className="h-3 w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={(e) => {
-                e.stopPropagation();
-                onToggleSaveOutline(outline);
-              }}>
-                <Bookmark className="mr-2 h-4 w-4" />
-                {savedOutlines.some(saved => saved.id === outline.id) ? 'Unsave' : 'Save'}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => {
-                e.stopPropagation();
-                onHideOutline(outline.id);
-              }}>
-                <Eye className="mr-2 h-4 w-4" />
-                Hide
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleSaveOutline(outline);
+            }}
+          >
+            <Bookmark className="h-3 w-3 mr-1" />
+            {savedOutlines.some(saved => saved.id === outline.id) ? 'Unsave' : 'Save'}
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -529,34 +570,18 @@ export function OutlinePage({
           <div className="flex items-center gap-1.5 text-xs text-gray-500">
             <FileText className="w-3 h-3 flex-shrink-0" />
             <span>{outline.file_type?.toUpperCase?.() || outline.file_type}</span>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity ml-1"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <MoreHorizontal className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleSaveOutline(outline);
-                }}>
-                  <Bookmark className="mr-2 h-4 w-4" />
-                  {savedOutlines.some(saved => saved.id === outline.id) ? 'Unsave' : 'Save'}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => {
-                  e.stopPropagation();
-                  onHideOutline(outline.id);
-                }}>
-                  <Eye className="mr-2 h-4 w-4" />
-                  Hide
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 text-xs px-2 opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleSaveOutline(outline);
+              }}
+            >
+              <Bookmark className="h-3 w-3 mr-1" />
+              {savedOutlines.some(saved => saved.id === outline.id) ? 'Unsave' : 'Save'}
+            </Button>
           </div>
           <Button
             variant="outline"
@@ -1023,13 +1048,13 @@ export function OutlinePage({
                       <Award className="w-4 h-4" />
                       Grade:
                     </label>
-                    <Select value={selectedGrade || 'all-grades'} onValueChange={(value) => setSelectedGrade(value === 'all-grades' ? undefined : value)}>
+                    <Select value={savedGradeFilter || 'all-grades'} onValueChange={(value) => setSavedGradeFilter(value === 'all-grades' ? undefined : value)}>
                       <SelectTrigger className="w-32 bg-input-background border-border hover:bg-gray-100 transition-colors">
                         <SelectValue placeholder="All" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all-grades">All</SelectItem>
-                        {availableGradesForSelection.map(grade => (
+                        {availableGradesForSaved.map(grade => (
                           <SelectItem key={grade} value={grade}>{grade}</SelectItem>
                         ))}
                       </SelectContent>
@@ -1041,13 +1066,13 @@ export function OutlinePage({
                       <Calendar className="w-4 h-4" />
                       Year:
                     </label>
-                    <Select value={selectedYear || 'all-years'} onValueChange={(value) => setSelectedYear(value === 'all-years' ? undefined : value)}>
+                    <Select value={savedYearFilter || 'all-years'} onValueChange={(value) => setSavedYearFilter(value === 'all-years' ? undefined : value)}>
                       <SelectTrigger className="w-32 bg-input-background border-border hover:bg-gray-100 transition-colors">
                         <SelectValue placeholder="All" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all-years">All</SelectItem>
-                        {availableYearsForSelection.map(year => (
+                        {availableYearsForSaved.map(year => (
                           <SelectItem key={year} value={year}>{year}</SelectItem>
                         ))}
                       </SelectContent>
@@ -1064,11 +1089,17 @@ export function OutlinePage({
                         <Badge
                           key={tag}
                           className={`cursor-pointer transition-all duration-200 border ${
-                            selectedTags.includes(tag)
+                            savedTagsFilter.includes(tag)
                               ? 'bg-white text-[#752432] border-white hover:bg-gray-50 hover:shadow-sm'
                               : 'bg-gray-300 text-gray-700 border-gray-400 hover:bg-gray-400 hover:text-gray-800'
                           }`}
-                          onClick={() => handleTagToggle(tag)}
+                          onClick={() => {
+                            setSavedTagsFilter(prev => 
+                              prev.includes(tag) 
+                                ? prev.filter(t => t !== tag)
+                                : [...prev, tag]
+                            );
+                          }}
                         >
                           {tag}
                         </Badge>
@@ -1080,15 +1111,27 @@ export function OutlinePage({
 
               <div className="flex-1"></div>
 
-              {activeFilterCount > 0 && (
+              {activeTab === 'search' && activeSearchFilterCount > 0 && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={clearFilters}
+                  onClick={clearSearchFilters}
                   className="bg-input-background border-border text-gray-700 hover:bg-gray-100 hover:border-gray-300 hover:text-gray-900 h-7 text-xs px-3 mr-4 transition-all hover:shadow-sm active:scale-95"
                 >
                   <X className="w-3 h-3 mr-1" />
-                  Clear ({activeFilterCount})
+                  Clear ({activeSearchFilterCount})
+                </Button>
+              )}
+
+              {activeTab === 'saved' && activeSavedFilterCount > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearSavedFilters}
+                  className="bg-input-background border-border text-gray-700 hover:bg-gray-100 hover:border-gray-300 hover:text-gray-900 h-7 text-xs px-3 mr-4 transition-all hover:shadow-sm active:scale-95"
+                >
+                  <X className="w-3 h-3 mr-1" />
+                  Clear ({activeSavedFilterCount})
                 </Button>
               )}
 

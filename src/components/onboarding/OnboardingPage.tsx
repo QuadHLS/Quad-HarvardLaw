@@ -773,7 +773,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
           <div className="mb-4">
             <div className="flex justify-center">
               <img 
-                src="/Quad Logo.png" 
+                src="/Quad SVG.svg" 
                 alt="Quad Logo" 
                 className="w-auto object-contain"
                 style={{ height: '80px' }}

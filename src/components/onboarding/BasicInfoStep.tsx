@@ -109,7 +109,7 @@ export function BasicInfoStep({ onNext }: BasicInfoStepProps) {
           <div className="mb-4">
             <div className="flex justify-center">
               <img 
-                src="/Quad Logo.png" 
+                src="/Quad SVG.svg" 
                 alt="Quad Logo" 
                 className="w-auto object-contain"
                 style={{ height: '90px', marginTop: '30px' }}

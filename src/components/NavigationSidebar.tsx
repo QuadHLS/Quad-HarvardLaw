@@ -135,7 +135,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
             className="flex items-center justify-center flex-shrink-0 hover:opacity-80 cursor-pointer w-12 h-12 relative z-20"
           >
             <img 
-              src="/Quad Logo.png" 
+              src="/Quad SVG.svg" 
               alt="Quad Logo" 
               className="w-auto object-contain h-10 relative z-20"
             />

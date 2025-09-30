@@ -680,7 +680,7 @@ export function SearchSidebar({
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/70 w-4 h-4" />
                   <Input
                     type="text"
-                    placeholder="Search courses..."
+                    placeholder={loading ? "Loading courses..." : availableCourses.length === 0 ? "No courses available" : "Search courses..."}
                     value={courseSearchTerm}
                     onChange={(e) => {
                       setCourseSearchTerm(e.target.value);
@@ -736,6 +736,13 @@ export function SearchSidebar({
                   </button>
                 )}
               </div>
+
+              {/* Error message when no courses available */}
+              {availableCourses.length === 0 && !loading && (
+                <div className="text-xs text-amber-200 bg-amber-900/30 p-2 rounded border border-amber-700/50">
+                  Unable to load courses. Please refresh the page or try logging in again.
+                </div>
+              )}
 
               {/* Instructor Filter */}
               <div className="relative">

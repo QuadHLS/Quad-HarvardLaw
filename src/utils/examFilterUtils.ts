@@ -15,30 +15,6 @@ export async function getExamFilterOptions(): Promise<ExamFilterOptions> {
   try {
     console.log('getExamFilterOptions: Starting to fetch exam filter options...');
     
-    // Test database connection
-    const { data: testData, error: testError } = await supabase
-      .from('exams')
-      .select('*')
-      .limit(5);
-    
-    console.log('getExamFilterOptions: Test query result:', { testData, testError });
-    
-    if (testError) {
-      console.error('Database connection error:', testError);
-      throw testError;
-    }
-    
-    if (!testData || testData.length === 0) {
-      console.error('No data found in exams table');
-      return { 
-        courses: [], 
-        instructors: [], 
-        years: [], 
-        semesters: [],
-        examTypes: []
-      };
-    }
-    
     // Fetch all exam data
     const { data: examsData, error: examsError } = await supabase
       .from('exams')
@@ -47,6 +23,17 @@ export async function getExamFilterOptions(): Promise<ExamFilterOptions> {
     if (examsError) {
       console.error('Error fetching exam data:', examsError);
       throw examsError;
+    }
+
+    if (!examsData || examsData.length === 0) {
+      console.log('No exam data found');
+      return { 
+        courses: [], 
+        instructors: [], 
+        years: [], 
+        semesters: [],
+        examTypes: []
+      };
     }
 
     // Extract unique values

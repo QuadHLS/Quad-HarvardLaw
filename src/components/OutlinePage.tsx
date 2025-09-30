@@ -13,7 +13,6 @@ import {
   X,
   Upload,
   Clock,
-  FolderOpen,
   CloudUpload,
   ChevronDown
 } from 'lucide-react';
@@ -25,7 +24,6 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { ScrollArea } from './ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
-import { Checkbox } from './ui/checkbox';
 import { Label } from './ui/label';
 import { supabase } from '../lib/supabase';
 import type { Outline, Instructor } from '../types';
@@ -46,7 +44,7 @@ interface OutlinePageProps {
   selectedYear?: string;
   setSelectedYear: (year: string | undefined) => void;
   selectedTags: string[];
-  setSelectedTags: (tags: string[]) => void;
+  setSelectedTags: (tags: string[] | ((prev: string[]) => string[])) => void;
   myCourses: string[];
   selectedOutline: Outline | null;
   onSelectOutline: (outline: Outline) => void;
@@ -104,11 +102,15 @@ export function OutlinePage({
   const [uploadForm, setUploadForm] = useState({
     course: '',
     professor: '',
-    year: '',
+    year: new Date().getFullYear().toString(),
     grade: '',
     termsAccepted: false
   });
   const [dragActive, setDragActive] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadError, setUploadError] = useState<string>('');
+  const [uploadSuccess, setUploadSuccess] = useState<string>('');
+  const [uploading, setUploading] = useState(false);
 
   const displaySelectedCourse = selectedCourse || 'all-courses';
   const displaySelectedInstructor = selectedInstructor || 'all-professors';
@@ -177,6 +179,89 @@ export function OutlinePage({
       case 'H': return '#fd9906';
       case 'P': return '#63758e';
       default: return '#9ca3af';
+    }
+  };
+
+  // Upload helper functions
+  const formatOutlineDisplayName = (course: string, instructor: string, year: string, grade: string): string => {
+    // Get first letter of course name
+    const courseInitial = course.charAt(0).toUpperCase();
+    
+    // Get instructor initials (first letter of each word)
+    const instructorInitials = instructor
+      .split(' ')
+      .map(name => name.charAt(0).toUpperCase())
+      .join('');
+    
+    // Get last 2 digits of year
+    const lastTwoDigits = year.slice(-2);
+    
+    // Generate random 3-digit number
+    const randomNumber = Math.floor(Math.random() * 900) + 100; // 100-999
+    
+    // Format as continuous text: CourseInitial + InstructorInitials + Last2Digits + Grade + Random3Digits
+    return `${courseInitial}${instructorInitials}${lastTwoDigits}${grade}${randomNumber}`;
+  };
+
+  const ensureFolderStructure = async (course: string, instructor: string, year: string, grade: string) => {
+    try {
+      const bucketName = 'Outlines';
+      
+      // Check if the course folder exists
+      const coursePath = `out/${course}/`;
+      const { data: courseList } = await supabase.storage
+        .from(bucketName)
+        .list('out', { search: course });
+      
+      if (!courseList || courseList.length === 0) {
+        // Create course folder by uploading an empty file (placeholder)
+        await supabase.storage
+          .from(bucketName)
+          .upload(`${coursePath}.gitkeep`, new Blob([''], { type: 'text/plain' }));
+      }
+
+      // Check if the instructor folder exists
+      const instructorPath = `out/${course}/${instructor}/`;
+      const { data: instructorList } = await supabase.storage
+        .from(bucketName)
+        .list(`out/${course}`, { search: instructor });
+      
+      if (!instructorList || instructorList.length === 0) {
+        // Create instructor folder
+        await supabase.storage
+          .from(bucketName)
+          .upload(`${instructorPath}.gitkeep`, new Blob([''], { type: 'text/plain' }));
+      }
+
+      // Check if the year folder exists
+      const yearPath = `out/${course}/${instructor}/${year}/`;
+      const { data: yearList } = await supabase.storage
+        .from(bucketName)
+        .list(`out/${course}/${instructor}`, { search: year });
+      
+      if (!yearList || yearList.length === 0) {
+        // Create year folder
+        await supabase.storage
+          .from(bucketName)
+          .upload(`${yearPath}.gitkeep`, new Blob([''], { type: 'text/plain' }));
+      }
+
+      // Check if the grade folder exists
+      const gradePath = `out/${course}/${instructor}/${year}/${grade}/`;
+      const { data: gradeList } = await supabase.storage
+        .from(bucketName)
+        .list(`out/${course}/${instructor}/${year}`, { search: grade });
+      
+      if (!gradeList || gradeList.length === 0) {
+        // Create grade folder
+        await supabase.storage
+          .from(bucketName)
+          .upload(`${gradePath}.gitkeep`, new Blob([''], { type: 'text/plain' }));
+      }
+    } catch (error) {
+      console.error('Error ensuring folder structure:', error);
+      // Don't throw error here, let the upload continue
+      // The upload will create the folders if they don't exist
     }
   };
 
@@ -310,14 +395,156 @@ export function OutlinePage({
       });
 
   const handleTagToggle = (tag: string) => {
-    setSelectedTags(prev => 
+    setSelectedTags((prev: string[]) => 
       prev.includes(tag) 
-        ? prev.filter(t => t !== tag)
+        ? prev.filter((t: string) => t !== tag)
         : [...prev, tag]
     );
   };
 
   // Handle download
+  const handleFileSelect = (file: File) => {
+    // Validate file type
+    const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowedTypes.includes(file.type)) {
+      setUploadError('Please select a PDF or DOCX file.');
+      return;
+    }
+
+    // Validate file size (max 50MB)
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    if (file.size > maxSize) {
+      setUploadError('File size must be less than 50MB.');
+      return;
+    }
+
+    setUploadFile(file);
+    setUploadError('');
+  };
+
+  const handleFileDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      handleFileSelect(files[0]);
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      handleFileSelect(files[0]);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!uploadFile || !uploadForm.course || !uploadForm.professor || !uploadForm.grade) {
+      setUploadError("Please fill in all required fields and select a file.");
+      return;
+    }
+
+    if (!uploadForm.termsAccepted) {
+      setUploadError("Please confirm that you agree to the terms before uploading.");
+      return;
+    }
+
+    try {
+      setUploading(true);
+      setUploadError("");
+      
+      // Create a unique filename to avoid conflicts
+      const timestamp = Date.now();
+      const fileExtension = uploadFile.name.split('.').pop();
+      const baseFileName = uploadFile.name.replace(/\.[^/.]+$/, ""); // Remove extension
+      const uniqueFileName = `${baseFileName}_${timestamp}.${fileExtension}`;
+      
+      // Create the file path using the existing folder structure: out/Course/Instructor/Year/Grade/
+      const filePath = `out/${uploadForm.course}/${uploadForm.professor}/${uploadForm.year}/${uploadForm.grade}/${uniqueFileName}`;
+      
+      // Ensure the folder structure exists by creating missing folders
+      await ensureFolderStructure(uploadForm.course, uploadForm.professor, uploadForm.year, uploadForm.grade);
+      
+      // Upload file to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('Outlines')
+        .upload(filePath, uploadFile);
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        setUploadError(`Upload failed: ${uploadError.message}`);
+        return;
+      }
+
+      // Generate the formatted display name
+      const formattedName = formatOutlineDisplayName(uploadForm.course, uploadForm.professor, uploadForm.year, uploadForm.grade);
+      
+      // Get file size and page count
+      const fileSize = uploadFile.size;
+      
+      // Set page count to 1 to satisfy database constraint (pages > 0)
+      // This will be updated later by the background page counting process
+      const pageCount = 1;
+
+      // Create new row in outlines table
+      const { error: insertError } = await supabase
+        .from('outlines')
+        .insert({
+          title: formattedName,
+          file_name: uploadFile.name, // Keep original filename for display
+          course: uploadForm.course,
+          instructor: uploadForm.professor,
+          year: uploadForm.year,
+          grade: uploadForm.grade,
+          file_path: filePath, // This uses the unique filename for storage
+          file_size: fileSize,
+          file_type: fileExtension,
+          pages: pageCount,
+          rating: 0,
+          rating_count: 0,
+          download_count: 0,
+          description: null
+        })
+        .select();
+
+      if (insertError) {
+        console.error('Database insert error:', insertError);
+        setUploadError(`Database error: ${insertError.message}`);
+        
+        // Try to clean up the uploaded file if database insert failed
+        await supabase.storage.from('Outlines').remove([filePath]);
+        return;
+      }
+
+      // Success! Clear the form
+      setUploadFile(null);
+      setUploadForm({
+        course: '',
+        professor: '',
+        year: new Date().getFullYear().toString(),
+        grade: '',
+        termsAccepted: false
+      });
+      setUploadError("");
+      
+      // Show success message in UI
+      setUploadSuccess(`Outline uploaded successfully! 🎉`);
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => {
+        setUploadSuccess("");
+      }, 5000);
+
+    } catch (error) {
+      console.error('Upload error:', error);
+      setUploadError(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleDownload = async (outline: Outline) => {
     try {
       // Try different possible file path formats
@@ -330,7 +557,7 @@ export function OutlinePage({
         outline.file_path?.replace(/^outlines\//, ''), // Remove 'outlines/' prefix if present
         `out/${outline.file_path?.replace(/^out\//, '')}`, // Ensure single 'out/' prefix
         `out/${outline.file_name?.replace(/^out\//, '')}` // Ensure single 'out/' prefix for file_name
-      ].filter(Boolean);
+      ].filter((f): f is string => Boolean(f));
 
       for (const path of possiblePaths) {
         try {
@@ -382,7 +609,7 @@ export function OutlinePage({
         outline.file_path?.replace(/^outlines\//, ''), // Remove 'outlines/' prefix if present
         `out/${outline.file_path?.replace(/^out\//, '')}`, // Ensure single 'out/' prefix
         `out/${outline.file_name?.replace(/^out\//, '')}` // Ensure single 'out/' prefix for file_name
-      ].filter(Boolean);
+      ].filter((f): f is string => Boolean(f));
 
       console.log('Trying paths:', possiblePaths);
 
@@ -411,7 +638,7 @@ export function OutlinePage({
           .list('', { limit: 10 });
         
         if (!listError && files) {
-          console.log('Available files in bucket:', files.map(f => f.name));
+          console.log('Available files in bucket:', files.map((f: any) => f.name));
         }
       } catch (listError) {
         console.log('Could not list bucket contents:', listError);
@@ -1135,7 +1362,7 @@ export function OutlinePage({
                 </Button>
               )}
 
-              {activeTab !== 'upload' && (
+              {(activeTab === 'search' || activeTab === 'saved') && (
                 <div className="flex items-center gap-1">
                   <Button
                     variant="ghost"
@@ -1223,8 +1450,8 @@ export function OutlinePage({
                       {groupOutlinesByYear(outlines).map(({ year, outlines: yearOutlines }) => {
                         const sortedYearOutlines = viewMode === 'list' 
                           ? [...yearOutlines].sort((a, b) => {
-                              const gradeOrder = { 'DS': 0, 'H': 1, 'P': 2 } as const;
-                              return gradeOrder[a.grade] - gradeOrder[b.grade];
+                              const gradeOrder: Record<string, number> = { 'DS': 0, 'H': 1, 'P': 2 };
+                              return (gradeOrder[a.grade] || 3) - (gradeOrder[b.grade] || 3);
                             })
                           : yearOutlines;
 
@@ -1311,8 +1538,8 @@ export function OutlinePage({
                       {groupOutlinesByCourse(filteredSavedOutlines).map(({ course, outlines: courseOutlines }) => {
                         const sortedCourseOutlines = viewMode === 'list' 
                           ? [...courseOutlines].sort((a, b) => {
-                              const gradeOrder = { 'DS': 0, 'H': 1, 'P': 2 } as const;
-                              return gradeOrder[a.grade] - gradeOrder[b.grade];
+                              const gradeOrder: Record<string, number> = { 'DS': 0, 'H': 1, 'P': 2 };
+                              return (gradeOrder[a.grade] || 3) - (gradeOrder[b.grade] || 3);
                             })
                           : courseOutlines;
 
@@ -1353,20 +1580,20 @@ export function OutlinePage({
           )}
 
           {activeTab === 'upload' && (
-            <div className="p-8 h-full flex flex-col">
-              <div className="text-center mb-8">
-                <div className="flex items-center justify-center mb-4">
-                  <div className="w-16 h-16 rounded-full bg-[#752432] flex items-center justify-center">
-                    <Upload className="w-8 h-8 text-white" />
+            <div className="p-6 h-full flex flex-col">
+              <div className="text-center mb-6">
+                <div className="flex items-center justify-center mb-3">
+                  <div className="w-12 h-12 rounded-full bg-[#752432] flex items-center justify-center">
+                    <Upload className="w-6 h-6 text-white" />
                   </div>
                 </div>
-                <h2 className="text-2xl font-semibold text-gray-800 mb-2">Upload Outline</h2>
-                <p className="text-gray-600">Share your study materials with the community</p>
+                <h2 className="text-xl font-semibold text-gray-800 mb-1">Upload Outline</h2>
+                <p className="text-sm text-gray-600">Share your study materials with the community</p>
               </div>
 
               <div className="flex-1 max-w-2xl mx-auto w-full">
                 <div
-                  className={`border-2 border-dashed rounded-lg p-12 mb-8 text-center transition-colors bg-white ${
+                  className={`border-2 border-dashed rounded-lg p-8 mb-6 text-center transition-colors bg-white ${
                     dragActive 
                       ? 'border-[#752432] bg-[#752432]/5' 
                       : 'border-gray-300 hover:border-[#752432]/50 hover:bg-[#752432]/5'
@@ -1385,30 +1612,55 @@ export function OutlinePage({
                     e.preventDefault();
                     e.stopPropagation();
                   }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setDragActive(false);
-                  }}
+                  onDrop={handleFileDrop}
                 >
                   <div className="flex flex-col items-center justify-center">
-                    <CloudUpload className={`${dragActive ? 'text-[#752432]' : 'text-gray-400'} w-16 h-16 mb-4`} />
-                    <h3 className="text-lg font-medium text-gray-700 mb-2">Drop your files here</h3>
-                    <p className="text-gray-500 mb-4">or click to browse</p>
-                    <p className="text-sm text-gray-400">Supports PDF and DOC files only</p>
-                    <Button 
-                      variant="outline" 
-                      className="mt-4 border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white transition-all hover:shadow-sm active:scale-95"
-                    >
-                      Browse Files
-                    </Button>
+                    <CloudUpload className={`${dragActive ? 'text-[#752432]' : 'text-gray-400'} w-12 h-12 mb-3`} />
+                    {uploadFile ? (
+                      <div className="text-center">
+                        <h3 className="text-base font-medium text-gray-700 mb-1">File Selected</h3>
+                        <p className="text-sm text-gray-500 mb-1">{uploadFile.name}</p>
+                        <p className="text-xs text-gray-400 mb-3">{(uploadFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition-all hover:shadow-sm active:scale-95"
+                          onClick={() => setUploadFile(null)}
+                        >
+                          Remove File
+                        </Button>
+                      </div>
+                    ) : (
+                      <div>
+                        <h3 className="text-base font-medium text-gray-700 mb-1">Drop your files here</h3>
+                        <p className="text-sm text-gray-500 mb-2">or click to browse</p>
+                        <p className="text-xs text-gray-400">Supports PDF and DOCX files only</p>
+                        <input
+                          type="file"
+                          accept=".pdf,.docx"
+                          onChange={handleFileInputChange}
+                          className="hidden"
+                          id="file-upload"
+                        />
+                        <label htmlFor="file-upload">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="mt-3 border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white transition-all hover:shadow-sm active:scale-95 cursor-pointer" 
+                            asChild
+                          >
+                            <span>Browse Files</span>
+                          </Button>
+                        </label>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <div className="space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label htmlFor="course" className="text-sm font-medium text-gray-700 mb-2 block">
+                      <Label htmlFor="course" className="text-sm font-medium text-gray-700 mb-1 block">
                         Course *
                       </Label>
                       <Select value={uploadForm.course} onValueChange={(value) => 
@@ -1426,7 +1678,7 @@ export function OutlinePage({
                     </div>
 
                     <div>
-                      <Label htmlFor="professor" className="text-sm font-medium text-gray-700 mb-2 block">
+                      <Label htmlFor="professor" className="text-sm font-medium text-gray-700 mb-1 block">
                         Professor *
                       </Label>
                       <Select 
@@ -1454,9 +1706,9 @@ export function OutlinePage({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label htmlFor="year" className="text-sm font-medium text-gray-700 mb-2 block">
+                      <Label htmlFor="year" className="text-sm font-medium text-gray-700 mb-1 block">
                         Year *
                       </Label>
                       <Select value={uploadForm.year} onValueChange={(value) => 
@@ -1474,7 +1726,7 @@ export function OutlinePage({
                     </div>
 
                     <div>
-                      <Label htmlFor="grade" className="text-sm font-medium text-gray-700 mb-2 block">
+                      <Label htmlFor="grade" className="text-sm font-medium text-gray-700 mb-1 block">
                         Grade Received *
                       </Label>
                       <Select value={uploadForm.grade} onValueChange={(value) => 
@@ -1492,33 +1744,60 @@ export function OutlinePage({
                     </div>
                   </div>
 
-                  <div className="flex items-start space-x-3 p-4 bg-[#F8F4ED] rounded-lg border-l-4 border-[#752432]">
-                    <Checkbox 
+                  <div className="flex items-start space-x-3 p-3 bg-[#F8F4ED] rounded-lg border-l-4 border-[#752432]">
+                    <input
+                      type="checkbox"
                       id="terms"
                       checked={uploadForm.termsAccepted}
-                      onCheckedChange={(checked) => 
-                        setUploadForm(prev => ({ ...prev, termsAccepted: checked as boolean }))
+                      onChange={(e) => 
+                        setUploadForm(prev => ({ ...prev, termsAccepted: e.target.checked }))
                       }
-                      className="mt-1"
+                      className="mt-0.5 w-4 h-4 rounded border-2 border-gray-300 bg-white cursor-pointer accent-emerald-600"
+                      style={{
+                        accentColor: '#059669'
+                      }}
                     />
                     <div className="flex-1">
                       <Label htmlFor="terms" className="text-sm font-medium text-gray-700 cursor-pointer">
                         I have read and agree to the Terms of Service *
                       </Label>
-                      <p className="text-xs text-gray-600 mt-1">
+                      <p className="text-xs text-gray-600 mt-0.5">
                         By uploading, you confirm this content is original or you have permission to share it.
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex justify-center pt-4">
+                  {/* Error and Success Messages */}
+                  {uploadError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-red-700 text-sm">{uploadError}</p>
+                    </div>
+                  )}
+                  
+                  {uploadSuccess && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-green-700 text-sm">{uploadSuccess}</p>
+                    </div>
+                  )}
+
+                  <div className="flex justify-center pt-3">
                     <Button 
-                      size="lg"
-                      disabled={!uploadForm.course || !uploadForm.professor || !uploadForm.year || !uploadForm.grade || !uploadForm.termsAccepted}
-                      className="bg-[#752432] hover:bg-[#5a1a26] text-white px-8 transition-all hover:shadow-md active:scale-95"
+                      size="default"
+                      disabled={!uploadFile || !uploadForm.course || !uploadForm.professor || !uploadForm.year || !uploadForm.grade || !uploadForm.termsAccepted || uploading}
+                      onClick={handleUpload}
+                      className="bg-[#752432] hover:bg-[#5a1a26] text-white px-6 transition-all hover:shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Upload className="w-5 h-5 mr-2" />
-                      Upload Outline
+                      {uploading ? (
+                        <>
+                          <div className="w-5 h-5 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-5 h-5 mr-2" />
+                          Upload Outline
+                        </>
+                      )}
                     </Button>
                   </div>
                 </div>

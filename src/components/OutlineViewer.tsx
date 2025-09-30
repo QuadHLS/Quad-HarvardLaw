@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ZoomIn, ZoomOut, Download, Share, Bookmark, Search } from 'lucide-react';
+import { ZoomIn, ZoomOut, Download, Share, Bookmark, Search, X, FolderOpen } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import type { Outline } from '../types';
@@ -8,10 +8,11 @@ interface OutlineViewerProps {
   outline: Outline | null;
   onSaveOutline: (outline: Outline) => void;
   isSaved: boolean;
+  onClose?: () => void;
   documentType?: 'outline' | 'exam';
 }
 
-export function OutlineViewer({ outline, onSaveOutline, isSaved, documentType = 'outline' }: OutlineViewerProps) {
+export function OutlineViewer({ outline, onSaveOutline, isSaved, documentType = 'outline', onClose }: OutlineViewerProps) {
   const [zoom, setZoom] = useState(100);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
@@ -33,10 +34,48 @@ export function OutlineViewer({ outline, onSaveOutline, isSaved, documentType = 
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: '#f9f5f0' }}>
       {!outline ? (
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <p className="text-gray-600 text-lg font-medium mb-2">Search and Select an {documentTypeTextCapitalized} to Preview</p>
-            <p className="text-gray-500 text-sm">Use the search filters on the left to find and select an {documentTypeText} to view its content.</p>
+        <div className="h-full flex flex-col relative overflow-hidden" style={{ backgroundColor: '#000000' }}>
+          {/* Starfield Background */}
+          <div className="absolute inset-0">
+            {Array.from({ length: 100 }).map((_, i) => {
+              const size = Math.random() * 3 + 1;
+              const x = Math.random() * 100;
+              const y = Math.random() * 100;
+              const delay = Math.random() * 3;
+              return (
+                <div
+                  key={i}
+                  className="absolute bg-white rounded-full animate-pulse"
+                  style={{
+                    width: `${size}px`,
+                    height: `${size}px`,
+                    left: `${x}%`,
+                    top: `${y}%`,
+                    animationDelay: `${delay}s`,
+                    animationDuration: `${2 + Math.random() * 2}s`
+                  }}
+                />
+              );
+            })}
+          </div>
+          
+          <div className="h-full flex items-center justify-center relative z-10">
+            <div className="text-center p-8 max-w-lg">
+              <div className="relative mb-8">
+                <img 
+                  src="/Screenshot%202025-09-30%20at%203.59.32%E2%80%AFPM.png" 
+                  alt="Document Icon" 
+                  className="mx-auto w-40 h-auto object-contain drop-shadow-lg"
+                  style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))' }}
+                />
+              </div>
+              <div className="space-y-4">
+                <h2 className="text-2xl font-semibold text-white">Pull an Outline from the Void 🚀</h2>
+                <p className="text-gray-300 leading-relaxed max-w-md mx-auto">
+                  Select any outline from the library to preview its content before downloading.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       ) : (
@@ -141,6 +180,16 @@ export function OutlineViewer({ outline, onSaveOutline, isSaved, documentType = 
                 >
                   <Download className="w-4 h-4" />
                 </Button>
+                {onClose && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0 text-white hover:bg-gray-600 bg-gray-800"
+                    onClick={() => onClose()}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                )}
               </div>
             </div>
           </div>

@@ -1,0 +1,1466 @@
+import { useState, useEffect } from 'react';
+import { 
+  Download,
+  Bookmark,
+  MoreHorizontal,
+  FileText,
+  Eye,
+  Grid,
+  List,
+  Calendar,
+  User,
+  BookOpen,
+  Tags,
+  Award,
+  X,
+  Upload,
+  Clock,
+  FolderOpen,
+  CloudUpload,
+  ChevronDown
+} from 'lucide-react';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Card, CardContent, CardHeader } from './ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
+import { ScrollArea } from './ui/scroll-area';
+import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
+import { Checkbox } from './ui/checkbox';
+import { Label } from './ui/label';
+import { supabase } from '../lib/supabase';
+import type { Outline, Instructor } from '../types';
+
+interface OutlinePageProps {
+  outlines: Outline[];
+  allOutlines: Outline[];
+  courses: string[];
+  instructors: Instructor[];
+  searchTerm: string;
+  setSearchTerm: (term: string) => void;
+  selectedCourse: string;
+  setSelectedCourse: (course: string) => void;
+  selectedInstructor: string;
+  setSelectedInstructor: (instructor: string) => void;
+  selectedGrade?: string;
+  setSelectedGrade: (grade: string | undefined) => void;
+  selectedYear?: string;
+  setSelectedYear: (year: string | undefined) => void;
+  selectedTags: string[];
+  setSelectedTags: (tags: string[]) => void;
+  myCourses: string[];
+  selectedOutline: Outline | null;
+  onSelectOutline: (outline: Outline) => void;
+  activeTab: 'search' | 'saved' | 'upload';
+  setActiveTab: (tab: 'search' | 'saved' | 'upload') => void;
+  savedOutlines: Outline[];
+  onRemoveSavedOutline: (id: string) => void;
+  onToggleSaveOutline: (outline: Outline) => void;
+  hiddenOutlines: string[];
+  onHideOutline: (id: string) => void;
+  onUnhideAllOutlines: () => void;
+}
+
+export function OutlinePage({
+  outlines,
+  allOutlines,
+  courses,
+  instructors,
+  searchTerm,
+  setSearchTerm,
+  selectedCourse,
+  setSelectedCourse,
+  selectedInstructor,
+  setSelectedInstructor,
+  selectedGrade,
+  setSelectedGrade,
+  selectedYear,
+  setSelectedYear,
+  selectedTags,
+  setSelectedTags,
+  myCourses,
+  selectedOutline,
+  onSelectOutline,
+  activeTab,
+  setActiveTab,
+  savedOutlines,
+  onRemoveSavedOutline,
+  onToggleSaveOutline,
+  hiddenOutlines,
+  onHideOutline,
+  onUnhideAllOutlines
+}: OutlinePageProps) {
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [previewOutline, setPreviewOutline] = useState<Outline | null>(selectedOutline);
+  const [searchSearchTerm, setSearchSearchTerm] = useState('');
+  const [savedCourseFilter, setSavedCourseFilter] = useState<string>('');
+  // Combobox states
+  const [courseComboboxOpen, setCourseComboboxOpen] = useState(false);
+  const [professorComboboxOpen, setProfessorComboboxOpen] = useState(false);
+
+  const [uploadForm, setUploadForm] = useState({
+    course: '',
+    professor: '',
+    year: '',
+    grade: '',
+    termsAccepted: false
+  });
+  const [dragActive, setDragActive] = useState(false);
+
+  const displaySelectedCourse = selectedCourse || 'all-courses';
+  const displaySelectedInstructor = selectedInstructor || 'all-professors';
+
+  useEffect(() => {
+    setPreviewOutline(selectedOutline);
+  }, [selectedOutline]);
+
+  // Reset grade and year when course or professor changes
+  useEffect(() => {
+    if (selectedGrade && !availableGradesForSelection.includes(selectedGrade)) {
+      setSelectedGrade(undefined);
+    }
+    if (selectedYear && !availableYearsForSelection.includes(selectedYear)) {
+      setSelectedYear(undefined);
+    }
+  }, [selectedCourse, selectedInstructor, selectedGrade, selectedYear]);
+
+  // When the search results are empty (Discover state), clear the preview so the right panel shows the empty state
+  useEffect(() => {
+    if (activeTab === 'search' && outlines.length === 0) {
+      setPreviewOutline(null);
+    }
+  }, [activeTab, outlines]);
+
+  const getGradeColor = (grade: string) => {
+    switch (grade) {
+      case 'DS': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      case 'H': return 'bg-amber-50 text-amber-700 border-amber-200';
+      case 'P': return 'bg-slate-50 text-slate-700 border-slate-200';
+      default: return 'bg-gray-50 text-gray-700 border-gray-200';
+    }
+  };
+
+  const getGradeBorderClass = (grade: string) => {
+    switch (grade) {
+      case 'DS': return 'border-l-4 border-l-emerald-500';
+      case 'H': return 'border-l-4 border-l-amber-500';
+      case 'P': return 'border-l-4 border-l-slate-500';
+      default: return 'border-l-4 border-l-gray-300';
+    }
+  };
+
+  const filteredInstructors = instructors.filter(instructor =>
+    selectedCourse === '' || instructor.courses.includes(selectedCourse)
+  );
+
+  const availableYears = Array.from(
+    new Set(allOutlines.map(outline => outline.year))
+  ).sort((a, b) => parseInt(b) - parseInt(a));
+
+  // Available years for selected course and professor
+  const availableYearsForSelection = selectedCourse && selectedInstructor 
+    ? Array.from(
+        new Set(
+          allOutlines
+            .filter(outline => outline.course === selectedCourse && outline.instructor === selectedInstructor)
+            .map(outline => outline.year)
+        )
+      ).sort((a, b) => parseInt(b) - parseInt(a))
+    : selectedCourse
+    ? Array.from(
+        new Set(
+          allOutlines
+            .filter(outline => outline.course === selectedCourse)
+            .map(outline => outline.year)
+        )
+      ).sort((a, b) => parseInt(b) - parseInt(a))
+    : availableYears;
+
+  // Available grades for selected course and professor
+  const availableGradesForSelection = selectedCourse && selectedInstructor
+    ? Array.from(
+        new Set(
+          allOutlines
+            .filter(outline => outline.course === selectedCourse && outline.instructor === selectedInstructor)
+            .map(outline => outline.grade)
+        )
+      ).sort((a, b) => {
+        const gradeOrder: Record<string, number> = { 'DS': 0, 'H': 1, 'P': 2 };
+        return (gradeOrder[a] || 3) - (gradeOrder[b] || 3);
+      })
+    : selectedCourse
+    ? Array.from(
+        new Set(
+          allOutlines
+            .filter(outline => outline.course === selectedCourse)
+            .map(outline => outline.grade)
+        )
+      ).sort((a, b) => {
+        const gradeOrder: Record<string, number> = { 'DS': 0, 'H': 1, 'P': 2 };
+        return (gradeOrder[a] || 3) - (gradeOrder[b] || 3);
+      })
+    : ['DS', 'H', 'P'];
+
+  const groupOutlinesByYear = (inputOutlines: Outline[]) => {
+    const grouped = inputOutlines.reduce((acc, outline) => {
+      if (!acc[outline.year]) {
+        acc[outline.year] = [];
+      }
+      acc[outline.year].push(outline);
+      return acc;
+    }, {} as Record<string, Outline[]>);
+
+    return Object.entries(grouped)
+      .sort(([a], [b]) => parseInt(b) - parseInt(a))
+      .map(([year, outlinesForYear]) => ({ year, outlines: outlinesForYear }));
+  };
+
+  const groupOutlinesByCourse = (inputOutlines: Outline[]) => {
+    const grouped = inputOutlines.reduce((acc, outline) => {
+      if (!acc[outline.course]) {
+        acc[outline.course] = [];
+      }
+      acc[outline.course].push(outline);
+      return acc;
+    }, {} as Record<string, Outline[]>);
+
+    return Object.entries(grouped)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([course, outlinesForCourse]) => ({ course, outlines: outlinesForCourse }));
+  };
+
+  const handleTabChange = (tab: 'search' | 'saved' | 'upload') => {
+    if (activeTab === 'search' && tab === 'saved') {
+      setSearchSearchTerm(searchTerm);
+      setSearchTerm('');
+    } else if (activeTab === 'saved' && tab === 'search') {
+      setSearchTerm(searchSearchTerm);
+    }
+    setActiveTab(tab);
+  };
+
+  const filteredSavedOutlines = savedOutlines.filter(outline => {
+    if (!savedCourseFilter) return true;
+    return outline.course === savedCourseFilter;
+  });
+
+  const savedCourses = Array.from(new Set(savedOutlines.map(outline => outline.course))).sort();
+
+  const handleTagToggle = (tag: string) => {
+    setSelectedTags(prev => 
+      prev.includes(tag) 
+        ? prev.filter(t => t !== tag)
+        : [...prev, tag]
+    );
+  };
+
+  // Handle download
+  const handleDownload = async (outline: Outline) => {
+    try {
+      // Try different possible file path formats
+      const possiblePaths = [
+        outline.file_path,
+        outline.file_name,
+        `out/${outline.file_name}`,
+        `out/${outline.file_path}`,
+        outline.file_path?.replace(/^out\//, ''), // Remove 'out/' prefix if present
+        outline.file_path?.replace(/^outlines\//, ''), // Remove 'outlines/' prefix if present
+        `out/${outline.file_path?.replace(/^out\//, '')}`, // Ensure single 'out/' prefix
+        `out/${outline.file_name?.replace(/^out\//, '')}` // Ensure single 'out/' prefix for file_name
+      ].filter(Boolean);
+
+      for (const path of possiblePaths) {
+        try {
+          const { data, error } = await supabase.storage
+            .from('Outlines')
+            .createSignedUrl(path, 3600); // 1 hour expiry
+
+          if (!error && data?.signedUrl) {
+            // Create a temporary link and trigger download
+            const link = document.createElement('a');
+            link.href = data.signedUrl;
+            link.download = `${outline.title}.${outline.file_type?.toLowerCase() || 'pdf'}`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            console.log(`Successfully downloaded file from path: ${path}`);
+            return;
+          }
+        } catch (pathError) {
+          console.log(`Failed to download from path: ${path}`, pathError);
+          continue;
+        }
+      }
+
+      console.error('All download path attempts failed for outline:', outline.title);
+    } catch (error) {
+      console.error('Error downloading outline:', error);
+    }
+  };
+
+  // Get document viewer URL
+  const getDocumentViewerUrl = async (outline: Outline) => {
+    try {
+      // Debug: Log the outline data
+      console.log('Attempting to create viewer URL for outline:', {
+        title: outline.title,
+        file_name: outline.file_name,
+        file_path: outline.file_path,
+        file_type: outline.file_type
+      });
+
+      // Try different possible file path formats
+      const possiblePaths = [
+        outline.file_path,
+        outline.file_name,
+        `out/${outline.file_name}`,
+        `out/${outline.file_path}`,
+        outline.file_path?.replace(/^out\//, ''), // Remove 'out/' prefix if present
+        outline.file_path?.replace(/^outlines\//, ''), // Remove 'outlines/' prefix if present
+        `out/${outline.file_path?.replace(/^out\//, '')}`, // Ensure single 'out/' prefix
+        `out/${outline.file_name?.replace(/^out\//, '')}` // Ensure single 'out/' prefix for file_name
+      ].filter(Boolean);
+
+      console.log('Trying paths:', possiblePaths);
+
+      for (const path of possiblePaths) {
+        try {
+          const { data, error } = await supabase.storage
+            .from('Outlines')
+            .createSignedUrl(path, 3600);
+
+          if (!error && data?.signedUrl) {
+            console.log(`✅ Successfully created viewer URL for path: ${path}`);
+            return data.signedUrl;
+          } else {
+            console.log(`❌ Failed to create URL for path: ${path}`, error);
+          }
+        } catch (pathError) {
+          console.log(`❌ Exception for path: ${path}`, pathError);
+          continue;
+        }
+      }
+
+      // If all paths fail, try to list files in the bucket to debug
+      try {
+        const { data: files, error: listError } = await supabase.storage
+          .from('Outlines')
+          .list('', { limit: 10 });
+        
+        if (!listError && files) {
+          console.log('Available files in bucket:', files.map(f => f.name));
+        }
+      } catch (listError) {
+        console.log('Could not list bucket contents:', listError);
+      }
+
+      console.error('All file path attempts failed for outline:', outline.title);
+      return null;
+    } catch (error) {
+      console.error('Error getting document viewer URL:', error);
+      return null;
+    }
+  };
+
+  const clearFilters = () => {
+    setSelectedCourse('');
+    setSelectedInstructor('');
+    setSelectedGrade(undefined);
+    setSelectedYear(undefined);
+    setSelectedTags([]);
+  };
+
+  const activeFilterCount = [
+    selectedCourse && selectedCourse !== '' ? 1 : 0,
+    selectedInstructor && selectedInstructor !== '' ? 1 : 0,
+    selectedGrade && selectedGrade !== '' ? 1 : 0,
+    selectedYear && selectedYear !== '' ? 1 : 0,
+    selectedTags.length
+  ].reduce((sum, count) => sum + count, 0);
+
+  const OutlineListItem = ({ outline }: { outline: Outline }) => (
+    <div 
+      className={`group cursor-pointer transition-all duration-200 hover:bg-[#F5F1E8] border-l-4 ${
+        outline.grade === 'DS' ? 'border-l-emerald-500' : 
+        outline.grade === 'H' ? 'border-l-amber-500' : 'border-l-slate-500'
+      } ${
+        previewOutline?.id === outline.id ? 'bg-[#F5F1E8] shadow-sm' : 'bg-[#FEFBF6]'
+      }`}
+      onClick={() => {
+        onSelectOutline(outline);
+        setPreviewOutline(outline);
+      }}
+    >
+      <div className="px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-gray-900 truncate text-sm">
+              {outline.title}
+            </h3>
+            <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+              <Badge className={`${getGradeColor(outline.grade)} border font-medium px-1.5 py-0.5 text-xs`}>
+                {outline.grade}
+              </Badge>
+              <span>•</span>
+              <User className="w-3 h-3" />
+              <span>{outline.instructor}</span>
+              <span>•</span>
+              <FileText className="w-3 h-3" />
+              <span>{outline.file_type?.toUpperCase?.() || outline.file_type}</span>
+              <span>•</span>
+              <span>{outline.pages} pages</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreHorizontal className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={(e) => {
+                e.stopPropagation();
+                onToggleSaveOutline(outline);
+              }}>
+                <Bookmark className="mr-2 h-4 w-4" />
+                {savedOutlines.some(saved => saved.id === outline.id) ? 'Unsave' : 'Save'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={(e) => {
+                e.stopPropagation();
+                onHideOutline(outline.id);
+              }}>
+                <Eye className="mr-2 h-4 w-4" />
+                Hide
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDownload(outline);
+            }}
+          >
+            <Download className="h-3 w-3 mr-1" />
+            Download
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const OutlineCard = ({ outline }: { outline: Outline }) => (
+    <Card 
+      className={`group cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${getGradeBorderClass(outline.grade)} overflow-hidden ${
+        previewOutline?.id === outline.id ? 'ring-2 ring-[#752432] shadow-xl transform -translate-y-1' : ''
+      }`}
+      style={{ 
+        backgroundColor: previewOutline?.id === outline.id ? '#F5F1E8' : '#FEFBF6' 
+      }}
+      onClick={() => {
+        onSelectOutline(outline);
+        setPreviewOutline(outline);
+      }}
+    >
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="font-semibold text-gray-900 truncate text-sm">
+                {outline.title}
+              </h3>
+              <div className="text-xs text-gray-600 ml-2 flex-shrink-0">
+                <span className="font-medium">{outline.pages}</span>p
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+              <User className="w-3 h-3 flex-shrink-0" />
+              <span className="truncate">{outline.instructor}</span>
+              <span>•</span>
+              <Calendar className="w-3 h-3 flex-shrink-0" />
+              <span>{outline.year}</span>
+            </div>
+          </div>
+        </div>
+      </CardHeader>
+      
+      <CardContent className="pt-0">
+        <div className="flex items-center justify-between mb-2">
+          <Badge className={`${getGradeColor(outline.grade)} border font-medium px-2 py-0.5 text-xs`}>
+            {outline.grade}
+          </Badge>
+        </div>
+        
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+            <FileText className="w-3 h-3 flex-shrink-0" />
+            <span>{outline.file_type?.toUpperCase?.() || outline.file_type}</span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity ml-1"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreHorizontal className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleSaveOutline(outline);
+                }}>
+                  <Bookmark className="mr-2 h-4 w-4" />
+                  {savedOutlines.some(saved => saved.id === outline.id) ? 'Unsave' : 'Save'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => {
+                  e.stopPropagation();
+                  onHideOutline(outline.id);
+                }}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Hide
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs px-2 opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDownload(outline);
+            }}
+          >
+            <Download className="h-3 w-3 mr-1" />
+            Download
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  // Document Viewer Component with PDF and Word support
+  const DocumentViewer = ({ outline }: { outline: Outline }) => {
+    const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+      const loadViewer = async () => {
+        setLoading(true);
+        setError(null);
+        
+        try {
+          const url = await getDocumentViewerUrl(outline);
+          if (url) {
+            setViewerUrl(url);
+          } else {
+            setError('Failed to load document');
+          }
+        } catch (err) {
+          setError('Error loading document');
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      loadViewer();
+    }, [outline.id]);
+
+    if (loading) {
+      return (
+        <div className="h-full flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+            <p className="text-white">Loading document...</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (error || !viewerUrl) {
+      return (
+        <div className="h-full flex items-center justify-center">
+          <div className="text-center p-8">
+            <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FileText className="w-8 h-8 text-red-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-white mb-2">Preview Unavailable</h3>
+            <p className="text-gray-300 mb-6">Unable to load document preview</p>
+            <Button
+              onClick={() => handleDownload(outline)}
+              className="bg-[#752432] hover:bg-[#5a1a26] text-white"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Download Instead
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    const fileType = outline.file_type?.toLowerCase() || 'pdf';
+    
+    if (fileType === 'pdf') {
+      return (
+        <div className="h-full flex flex-col">
+          {/* PDF Viewer Header */}
+          <div className="flex items-center justify-between px-4 py-2 border-b border-gray-600 bg-gray-800">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 bg-red-500 rounded flex items-center justify-center">
+                <FileText className="w-3 h-3 text-white" />
+              </div>
+              <div>
+                <h3 className="text-white font-medium text-sm">{outline.title}</h3>
+                <p className="text-gray-400 text-xs">PDF Document</p>
+              </div>
+            </div>
+            <Button
+              onClick={() => handleDownload(outline)}
+              size="sm"
+              className="bg-[#752432] hover:bg-[#5a1a26] text-white h-7 px-3 text-xs"
+            >
+              <Download className="w-3 h-3 mr-1" />
+              Download
+            </Button>
+          </div>
+          
+          {/* PDF Embed */}
+          <div className="flex-1">
+            <iframe
+              src={`${viewerUrl}#toolbar=1&navpanes=1&scrollbar=1`}
+              className="w-full h-full border-0"
+              title={`PDF Preview: ${outline.title}`}
+            />
+          </div>
+        </div>
+      );
+    } else if (fileType === 'docx' || fileType === 'doc') {
+      return (
+        <div className="h-full flex flex-col">
+          {/* Word Viewer Header */}
+          <div className="flex items-center justify-between px-4 py-2 border-b border-gray-600 bg-gray-800">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 bg-blue-500 rounded flex items-center justify-center">
+                <FileText className="w-3 h-3 text-white" />
+              </div>
+              <div>
+                <h3 className="text-white font-medium text-sm">{outline.title}</h3>
+                <p className="text-gray-400 text-xs">Word Document</p>
+              </div>
+            </div>
+            <Button
+              onClick={() => handleDownload(outline)}
+              size="sm"
+              className="bg-[#752432] hover:bg-[#5a1a26] text-white h-7 px-3 text-xs"
+            >
+              <Download className="w-3 h-3 mr-1" />
+              Download
+            </Button>
+          </div>
+          
+          {/* Word Document Viewer using Office Online */}
+          <div className="flex-1">
+            <iframe
+              src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(viewerUrl)}`}
+              className="w-full h-full border-0"
+              title={`Word Preview: ${outline.title}`}
+            />
+          </div>
+        </div>
+      );
+    } else {
+      // Unsupported file type
+      return (
+        <div className="h-full flex items-center justify-center">
+          <div className="text-center p-8">
+            <div className="w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FileText className="w-8 h-8 text-yellow-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-white mb-2">Preview Not Supported</h3>
+            <p className="text-gray-300 mb-6">This file type cannot be previewed in the browser</p>
+            <Button
+              onClick={() => handleDownload(outline)}
+              className="bg-[#752432] hover:bg-[#5a1a26] text-white"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Download File
+            </Button>
+          </div>
+        </div>
+      );
+    }
+  };
+
+  const FilePreview = () => (
+    <div className="h-full flex flex-col relative overflow-hidden" style={{ backgroundColor: '#000000' }}>
+      <div className="absolute inset-0">
+        {Array.from({ length: 100 }).map((_, i) => {
+          const size = Math.random() * 3 + 1;
+          const x = Math.random() * 100;
+          const y = Math.random() * 100;
+          const delay = Math.random() * 3;
+          return (
+            <div
+              key={i}
+              className="absolute bg-white rounded-full animate-pulse"
+              style={{
+                width: `${size}px`,
+                height: `${size}px`,
+                left: `${x}%`,
+                top: `${y}%`,
+                animationDelay: `${delay}s`,
+                animationDuration: `${2 + Math.random() * 2}s`
+              }}
+            />
+          );
+        })}
+      </div>
+      
+      {previewOutline ? (
+        <div className="h-full relative z-10">
+          <DocumentViewer outline={previewOutline} />
+        </div>
+      ) : (
+        <div className="h-full flex items-center justify-center relative z-10">
+          <div className="text-center p-8 max-w-lg">
+            <div className="relative mb-8">
+              <img 
+                src="/Screenshot%202025-09-30%20at%203.59.32%E2%80%AFPM.png" 
+                alt="Document Icon" 
+                className="mx-auto object-contain drop-shadow-lg"
+                style={{ 
+                  width: '180px',
+                  height: 'auto',
+                  filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))' 
+                }}
+              />
+            </div>
+            
+            <div className="space-y-4">
+              <h2 className="text-2xl font-semibold text-white">
+                Pull an Outline from the Void 🚀
+              </h2>
+              <p className="text-gray-300 leading-relaxed max-w-md mx-auto">
+                Select any outline from the library to preview its content before downloading.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="h-screen flex flex-col bg-[#F8F4ED] w-full">
+      <div className="border-b border-gray-200 shadow-sm" style={{ backgroundColor: '#752432' }}>
+        <div className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <h1 className="text-2xl font-semibold text-white">
+                {activeTab === 'saved' 
+                  ? 'Saved Outlines'
+                  : activeTab === 'upload'
+                    ? 'Upload Outline'
+                    : selectedCourse && selectedInstructor 
+                      ? `${selectedCourse} • ${selectedInstructor.split(' ').pop()}`
+                      : 'Outline Library'
+                }
+              </h1>
+              {activeTab !== 'upload' && (
+                <>
+                  {activeTab === 'saved' && savedOutlines.length > 0 && (
+                    <Badge variant="secondary" className="bg-white text-[#752432]">
+                      {savedOutlines.length} found
+                    </Badge>
+                  )}
+                  {activeTab === 'search' && selectedCourse && selectedInstructor && (
+                    <Badge variant="secondary" className="bg-white text-[#752432]">
+                      {outlines.length} found
+                    </Badge>
+                  )}
+                </>
+              )}
+            </div>
+            
+            <Tabs value={activeTab} onValueChange={(value) => handleTabChange(value as 'search' | 'saved' | 'upload')}>
+              <TabsList className="bg-white/10 border-0 rounded-md shadow-sm">
+                <TabsTrigger value="search" className="rounded-sm data-[state=active]:bg-white data-[state=active]:text-[#752432] text-white hover:bg-white/20 transition-all active:scale-95">Search</TabsTrigger>
+                <TabsTrigger value="saved" className="rounded-sm data-[state=active]:bg-white data-[state=active]:text-[#752432] text-white hover:bg-white/20 transition-all active:scale-95">Saved</TabsTrigger>
+                <TabsTrigger value="upload" className="rounded-sm data-[state=active]:bg-white data-[state=active]:text-[#752432] text-white hover:bg-white/20 transition-all active:scale-95">Upload</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        </div>
+        
+        {/* Filters Row - Only show for Search and Saved tabs */}
+        {activeTab !== 'upload' && (
+          <div className="p-4 border-t-0">
+            <div className="flex items-center gap-4 flex-wrap">
+              {activeTab === 'search' && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium flex items-center gap-1 text-white">
+                      <BookOpen className="w-4 h-4" />
+                      Course:
+                    </label>
+                    <Popover open={courseComboboxOpen} onOpenChange={setCourseComboboxOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={courseComboboxOpen}
+                          className="w-48 justify-between bg-input-background border-border hover:bg-gray-100 transition-colors"
+                        >
+                          {displaySelectedCourse === 'all-courses' ? 'All Courses' : displaySelectedCourse}
+                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-48 p-0">
+                        <Command>
+                          <CommandInput placeholder="Search courses..." />
+                          <CommandList>
+                            <CommandEmpty>No course found.</CommandEmpty>
+                            <CommandGroup>
+                              <CommandItem
+                                value="all-courses"
+                                onSelect={() => {
+                                  setSelectedCourse('');
+                                  setCourseComboboxOpen(false);
+                                }}
+                              >
+                                All Courses
+                              </CommandItem>
+                              {courses.map((course) => (
+                                <CommandItem
+                                  key={course}
+                                  value={course}
+                                  onSelect={() => {
+                                    setSelectedCourse(course);
+                                    setCourseComboboxOpen(false);
+                                  }}
+                                >
+                                  {course}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium flex items-center gap-1 text-white">
+                      <User className="w-4 h-4" />
+                      Professor:
+                    </label>
+                    <Popover open={professorComboboxOpen} onOpenChange={setProfessorComboboxOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={professorComboboxOpen}
+                          className="w-48 justify-between bg-input-background border-border hover:bg-gray-100 transition-colors"
+                          disabled={!selectedCourse}
+                        >
+                          {displaySelectedInstructor === 'all-professors' ? 'All Professors' : displaySelectedInstructor}
+                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-48 p-0">
+                        <Command>
+                          <CommandInput placeholder="Search professors..." />
+                          <CommandList>
+                            <CommandEmpty>No professor found.</CommandEmpty>
+                            <CommandGroup>
+                              <CommandItem
+                                value="all-professors"
+                                onSelect={() => {
+                                  setSelectedInstructor('');
+                                  setProfessorComboboxOpen(false);
+                                }}
+                              >
+                                All Professors
+                              </CommandItem>
+                              {filteredInstructors.map((instructor) => (
+                                <CommandItem
+                                  key={instructor.id}
+                                  value={instructor.name}
+                                  onSelect={() => {
+                                    setSelectedInstructor(instructor.name);
+                                    setProfessorComboboxOpen(false);
+                                  }}
+                                >
+                                  {instructor.name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium flex items-center gap-1 text-white">
+                      <Award className="w-4 h-4" />
+                      Grade:
+                    </label>
+                    <Select value={selectedGrade || 'all-grades'} onValueChange={(value) => setSelectedGrade(value === 'all-grades' ? undefined : value)}>
+                      <SelectTrigger className="w-32 bg-input-background border-border hover:bg-gray-100 transition-colors">
+                        <SelectValue placeholder="All" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all-grades">All</SelectItem>
+                        {availableGradesForSelection.map(grade => (
+                          <SelectItem key={grade} value={grade}>{grade}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium flex items-center gap-1 text-white">
+                      <Calendar className="w-4 h-4" />
+                      Year:
+                    </label>
+                    <Select value={selectedYear || 'all-years'} onValueChange={(value) => setSelectedYear(value === 'all-years' ? undefined : value)}>
+                      <SelectTrigger className="w-32 bg-input-background border-border hover:bg-gray-100 transition-colors">
+                        <SelectValue placeholder="All" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all-years">All</SelectItem>
+                        {availableYearsForSelection.map(year => (
+                          <SelectItem key={year} value={year}>{year}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium flex items-center gap-1 text-white">
+                      <Tags className="w-4 h-4" />
+                      Type:
+                    </label>
+                    <div className="flex gap-2">
+                      {['Attack', 'Outline'].map(tag => (
+                        <Badge
+                          key={tag}
+                          className={`cursor-pointer transition-all duration-200 border ${
+                            selectedTags.includes(tag)
+                              ? 'bg-white text-[#752432] border-border hover:bg-gray-50 hover:shadow-sm'
+                              : 'bg-input-background text-gray-800 border-border hover:bg-gray-100'
+                          }`}
+                          onClick={() => handleTagToggle(tag)}
+                        >
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {activeTab === 'saved' && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium flex items-center gap-1 text-white">
+                      <BookOpen className="w-4 h-4" />
+                      Course:
+                    </label>
+                    <Select value={savedCourseFilter || 'all-courses'} onValueChange={(value) => setSavedCourseFilter(value === 'all-courses' ? '' : value)}>
+                      <SelectTrigger className="w-48 bg-input-background border-border hover:bg-gray-100 transition-colors">
+                        <SelectValue placeholder="All courses..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all-courses">All Courses</SelectItem>
+                        {savedCourses.map(course => (
+                          <SelectItem key={course} value={course}>{course}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium flex items-center gap-1 text-white">
+                      <Award className="w-4 h-4" />
+                      Grade:
+                    </label>
+                    <Select value={selectedGrade || 'all-grades'} onValueChange={(value) => setSelectedGrade(value === 'all-grades' ? undefined : value)}>
+                      <SelectTrigger className="w-32 bg-input-background border-border hover:bg-gray-100 transition-colors">
+                        <SelectValue placeholder="All" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all-grades">All</SelectItem>
+                        {availableGradesForSelection.map(grade => (
+                          <SelectItem key={grade} value={grade}>{grade}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium flex items-center gap-1 text-white">
+                      <Calendar className="w-4 h-4" />
+                      Year:
+                    </label>
+                    <Select value={selectedYear || 'all-years'} onValueChange={(value) => setSelectedYear(value === 'all-years' ? undefined : value)}>
+                      <SelectTrigger className="w-32 bg-input-background border-border hover:bg-gray-100 transition-colors">
+                        <SelectValue placeholder="All" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all-years">All</SelectItem>
+                        {availableYearsForSelection.map(year => (
+                          <SelectItem key={year} value={year}>{year}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium flex items-center gap-1 text-white">
+                      <Tags className="w-4 h-4" />
+                      Type:
+                    </label>
+                    <div className="flex gap-2">
+                      {['Attack', 'Outline'].map(tag => (
+                        <Badge
+                          key={tag}
+                          className={`cursor-pointer transition-all duration-200 border ${
+                            selectedTags.includes(tag)
+                              ? 'bg-white text-[#752432] border-border hover:bg-gray-50 hover:shadow-sm'
+                              : 'bg-input-background text-gray-800 border-border hover:bg-gray-100'
+                          }`}
+                          onClick={() => handleTagToggle(tag)}
+                        >
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="flex-1"></div>
+
+              {activeFilterCount > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearFilters}
+                  className="bg-input-background border-border text-gray-700 hover:bg-gray-100 hover:border-gray-300 hover:text-gray-900 h-7 text-xs px-3 mr-4 transition-all hover:shadow-sm active:scale-95"
+                >
+                  <X className="w-3 h-3 mr-1" />
+                  Clear ({activeFilterCount})
+                </Button>
+              )}
+
+              {activeTab !== 'upload' && (
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setViewMode('list')}
+                    className={`p-2 transition-transform active:scale-95 ${
+                      viewMode === 'list' 
+                        ? 'bg-white text-[#752432] hover:bg-white/90' 
+                        : 'text-white hover:bg-white/20'
+                    }`}
+                  >
+                    <List className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setViewMode('grid')}
+                    className={`p-2 transition-transform active:scale-95 ${
+                      viewMode === 'grid' 
+                        ? 'bg-white text-[#752432] hover:bg-white/90' 
+                        : 'text-white hover:bg-white/20'
+                    }`}
+                  >
+                    <Grid className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-1 overflow-hidden">
+        <div className={`${activeTab === 'upload' ? 'flex-1' : 'w-[600px] flex-shrink-0'} overflow-auto bg-[#F8F4ED]`}>
+          {activeTab === 'search' && (
+            <div className="h-full flex flex-col">
+              {outlines.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center px-8">
+                  <div className="relative mb-8">
+                    <img
+                      src="/Screenshot%202025-09-30%20at%201.46.44%E2%80%AFPM.png"
+                      alt="Outlines hero"
+                      className="h-auto object-contain"
+                      style={{ width: '160px' }}
+                    />
+                  </div>
+                  
+                  <div className="text-center max-w-md">
+                    <h3 className="text-2xl font-semibold text-gray-800 mb-3">
+                      Discover Law Outlines
+                    </h3>
+                    <p className="text-gray-600 mb-6 leading-relaxed">
+                      Browse our comprehensive database of {allOutlines.length}+ law outlines. 
+                      Select a course and professor above to begin exploring.
+                    </p>
+                    
+                    <div className="flex justify-center gap-8 mb-8">
+                      <div className="text-center">
+                        <div className="text-xl font-semibold text-[#752432]">{courses.length}</div>
+                        <div className="text-sm text-gray-500">Courses</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-xl font-semibold text-[#752432]">{instructors.length}</div>
+                        <div className="text-sm text-gray-500">Professors</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-xl font-semibold text-[#752432]">{allOutlines.length}</div>
+                        <div className="text-sm text-gray-500">Outlines</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <ScrollArea className="flex-1">
+                  <div className="p-6">
+                    <div className="space-y-8">
+                      {groupOutlinesByYear(outlines).map(({ year, outlines: yearOutlines }) => {
+                        const sortedYearOutlines = viewMode === 'list' 
+                          ? [...yearOutlines].sort((a, b) => {
+                              const gradeOrder = { 'DS': 0, 'H': 1, 'P': 2 } as const;
+                              return gradeOrder[a.grade] - gradeOrder[b.grade];
+                            })
+                          : yearOutlines;
+
+                        return (
+                          <div key={year}>
+                            <div className="flex items-center gap-4 mb-6">
+                              <div className="flex items-center gap-2">
+                                <Clock className="w-4 h-4 text-gray-500" />
+                                <h2 className="text-lg font-semibold text-gray-900">{year}</h2>
+                              </div>
+                              <div className="flex-1 h-px bg-gray-200"></div>
+                              <Badge variant="secondary" className="text-xs" style={{ backgroundColor: '#F8F4ED', color: '#752432' }}>
+                                {yearOutlines.length} outline{yearOutlines.length !== 1 ? 's' : ''}
+                              </Badge>
+                            </div>
+                            
+                            {viewMode === 'grid' ? (
+                              <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3">
+                                {sortedYearOutlines.map(outline => (
+                                  <OutlineCard key={outline.id} outline={outline} />
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="space-y-1 border border-border rounded-lg overflow-hidden bg-card shadow-sm">
+                                {sortedYearOutlines.map(outline => (
+                                  <OutlineListItem key={outline.id} outline={outline} />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </ScrollArea>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'saved' && (
+            <div className="h-full flex flex-col">
+              {savedOutlines.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center px-8">
+                  <div className="relative mb-8">
+                    <div className="w-40 h-40 rounded-full bg-gradient-to-br from-[#752432]/10 to-[#752432]/20 flex items-center justify-center">
+                      <div className="w-32 h-32 rounded-full bg-gradient-to-br from-[#F8F4ED] to-[#F5F1E8] flex items:center justify:center shadow-lg">
+                        <div className="relative">
+                          <Bookmark className="w-16 h-16 text-[#752432]/60" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="absolute top-4 right-8 w-3 h-3 bg-[#752432]/30 rounded-full animate-pulse"></div>
+                    <div className="absolute bottom-8 left-6 w-2 h-2 bg-[#752432]/20 rounded-full animate-pulse delay-300"></div>
+                    <div className="absolute top-12 left-4 w-1.5 h-1.5 bg-[#752432]/40 rounded-full animate-pulse delay-700"></div>
+                  </div>
+                  
+                  <div className="text-center max-w-md">
+                    <h3 className="text-2xl font-semibold text-gray-800 mb-3">
+                      Build Your Collection
+                    </h3>
+                    <p className="text-gray-600 mb-6 leading-relaxed">
+                      Save your favorite outlines for quick access. Your saved outlines will appear here for easy reference during study sessions.
+                    </p>
+                    
+                    <div className="bg-[#F8F4ED] border-l-4 border-[#752432] p-4 rounded-r-lg">
+                      <div className="flex items-start gap-3">
+                        <div className="w-6 h-6 bg-[#752432] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Bookmark className="w-3 h-3 text-white" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-sm font-medium text-gray-800 mb-1">How to Save Outlines:</p>
+                          <p className="text-xs text-gray-600">
+                            Browse outlines in the Search tab, then click the bookmark button on any outline to save it to this collection.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <ScrollArea className="flex-1">
+                  <div className="p-6">
+                    <div className="space-y-8">
+                      {groupOutlinesByCourse(filteredSavedOutlines).map(({ course, outlines: courseOutlines }) => {
+                        const sortedCourseOutlines = viewMode === 'list' 
+                          ? [...courseOutlines].sort((a, b) => {
+                              const gradeOrder = { 'DS': 0, 'H': 1, 'P': 2 } as const;
+                              return gradeOrder[a.grade] - gradeOrder[b.grade];
+                            })
+                          : courseOutlines;
+
+                        return (
+                          <div key={course}>
+                            <div className="flex items-center gap-4 mb-6">
+                              <div className="flex items-center gap-2">
+                                <BookOpen className="w-4 h-4 text-gray-500" />
+                                <h2 className="text-lg font-semibold text-gray-900">{course}</h2>
+                              </div>
+                              <div className="flex-1 h-px bg-gray-200"></div>
+                              <Badge variant="secondary" className="text-xs" style={{ backgroundColor: '#F8F4ED', color: '#752432' }}>
+                                {courseOutlines.length} outline{courseOutlines.length !== 1 ? 's' : ''}
+                              </Badge>
+                            </div>
+                            
+                            {viewMode === 'grid' ? (
+                              <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3">
+                                {sortedCourseOutlines.map(outline => (
+                                  <OutlineCard key={outline.id} outline={outline} />
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="space-y-1 border border-border rounded-lg overflow-hidden bg-card shadow-sm">
+                                {sortedCourseOutlines.map(outline => (
+                                  <OutlineListItem key={outline.id} outline={outline} />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </ScrollArea>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'upload' && (
+            <div className="p-8 h-full flex flex-col">
+              <div className="text-center mb-8">
+                <div className="flex items-center justify-center mb-4">
+                  <div className="w-16 h-16 rounded-full bg-[#752432] flex items-center justify-center">
+                    <Upload className="w-8 h-8 text-white" />
+                  </div>
+                </div>
+                <h2 className="text-2xl font-semibold text-gray-800 mb-2">Upload Outline</h2>
+                <p className="text-gray-600">Share your study materials with the community</p>
+              </div>
+
+              <div className="flex-1 max-w-2xl mx-auto w-full">
+                <div
+                  className={`border-2 border-dashed rounded-lg p-12 mb-8 text-center transition-colors bg-white ${
+                    dragActive 
+                      ? 'border-[#752432] bg-[#752432]/5' 
+                      : 'border-gray-300 hover:border-[#752432]/50 hover:bg-[#752432]/5'
+                  }`}
+                  onDragEnter={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDragActive(true);
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDragActive(false);
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDragActive(false);
+                  }}
+                >
+                  <div className="flex flex-col items-center justify-center">
+                    <CloudUpload className={`${dragActive ? 'text-[#752432]' : 'text-gray-400'} w-16 h-16 mb-4`} />
+                    <h3 className="text-lg font-medium text-gray-700 mb-2">Drop your files here</h3>
+                    <p className="text-gray-500 mb-4">or click to browse</p>
+                    <p className="text-sm text-gray-400">Supports PDF and DOC files only</p>
+                    <Button 
+                      variant="outline" 
+                      className="mt-4 border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white transition-all hover:shadow-sm active:scale-95"
+                    >
+                      Browse Files
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="course" className="text-sm font-medium text-gray-700 mb-2 block">
+                        Course *
+                      </Label>
+                      <Select value={uploadForm.course} onValueChange={(value) => 
+                        setUploadForm(prev => ({ ...prev, course: value }))
+                      }>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select course..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {courses.map(course => (
+                            <SelectItem key={course} value={course}>{course}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="professor" className="text-sm font-medium text-gray-700 mb-2 block">
+                        Professor *
+                      </Label>
+                      <Select 
+                        value={uploadForm.professor} 
+                        onValueChange={(value) => 
+                          setUploadForm(prev => ({ ...prev, professor: value }))
+                        }
+                        disabled={!uploadForm.course}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select professor..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {instructors
+                            .filter(instructor => 
+                              !uploadForm.course || instructor.courses.includes(uploadForm.course)
+                            )
+                            .map(instructor => (
+                              <SelectItem key={instructor.id} value={instructor.name}>
+                                {instructor.name}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="year" className="text-sm font-medium text-gray-700 mb-2 block">
+                        Year *
+                      </Label>
+                      <Select value={uploadForm.year} onValueChange={(value) => 
+                        setUploadForm(prev => ({ ...prev, year: value }))
+                      }>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select year..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableYears.map(year => (
+                            <SelectItem key={year} value={year}>{year}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="grade" className="text-sm font-medium text-gray-700 mb-2 block">
+                        Grade Received *
+                      </Label>
+                      <Select value={uploadForm.grade} onValueChange={(value) => 
+                        setUploadForm(prev => ({ ...prev, grade: value }))
+                      }>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select grade..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="DS">Distinguished (DS)</SelectItem>
+                          <SelectItem value="H">Honors (H)</SelectItem>
+                          <SelectItem value="P">Pass (P)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start space-x-3 p-4 bg-[#F8F4ED] rounded-lg border-l-4 border-[#752432]">
+                    <Checkbox 
+                      id="terms"
+                      checked={uploadForm.termsAccepted}
+                      onCheckedChange={(checked) => 
+                        setUploadForm(prev => ({ ...prev, termsAccepted: checked as boolean }))
+                      }
+                      className="mt-1"
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="terms" className="text-sm font-medium text-gray-700 cursor-pointer">
+                        I have read and agree to the Terms of Service *
+                      </Label>
+                      <p className="text-xs text-gray-600 mt-1">
+                        By uploading, you confirm this content is original or you have permission to share it.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-center pt-4">
+                    <Button 
+                      size="lg"
+                      disabled={!uploadForm.course || !uploadForm.professor || !uploadForm.year || !uploadForm.grade || !uploadForm.termsAccepted}
+                      className="bg-[#752432] hover:bg-[#5a1a26] text-white px-8 transition-all hover:shadow-md active:scale-95"
+                    >
+                      <Upload className="w-5 h-5 mr-2" />
+                      Upload Outline
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {activeTab !== 'upload' && (
+          <div className="flex-1 border-l border-border bg-black">
+            <FilePreview />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+

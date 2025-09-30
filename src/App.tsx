@@ -1,8 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { FileText } from 'lucide-react';
 import { NavigationSidebar } from './components/NavigationSidebar';
-import { SearchSidebar } from './components/SearchSidebar';
-import { OutlineViewer } from './components/OutlineViewer';
+import { OutlinePage } from './components/OutlinePage';
 import { PDFViewer } from './components/PDFViewer';
 import { OfficeWebViewer } from './components/OfficeWebViewer';
 import { ReviewsPage } from './components/ReviewsPage';
@@ -122,8 +121,7 @@ function AppContent({ user }: { user: any }) {
   const [selectedYear, setSelectedYear] = useState<string | undefined>(
     undefined
   );
-  const [showOutlines, setShowOutlines] = useState(true);
-  const [showAttacks, setShowAttacks] = useState(true);
+  const [selectedTags, setSelectedTags] = useState<string[]>(['Attack', 'Outline']);
   const [activeTab, setActiveTab] = useState<'search' | 'saved' | 'upload'>(
     'search'
   );
@@ -204,7 +202,7 @@ function AppContent({ user }: { user: any }) {
     useState<string>('');
   const [selectedStudent, setSelectedStudent] = useState<string>('');
 
-  const [sortBy, setSortBy] = useState('Highest Rated');
+  const [sortBy] = useState('Highest Rated');
 
   // Shared calendar events state
   const [calendarEvents] = useState<CalendarEvent[]>([]);
@@ -259,7 +257,31 @@ function AppContent({ user }: { user: any }) {
         }
 
         console.log(`Finished fetching outlines: ${allOutlines.length} total records`);
-        setOutlines(allOutlines);
+        
+        // Transform database data to match Outline interface
+        const transformedOutlines = allOutlines.map((item: any): Outline => ({
+          id: item.id,
+          title: item.title,
+          file_name: item.file_name,
+          file_path: item.file_path,
+          file_type: item.file_type,
+          file_size: item.file_size,
+          course: item.course,
+          instructor: item.instructor,
+          year: item.year,
+          pages: item.pages || 0,
+          description: item.description,
+          rating: item.rating || 0,
+          rating_count: item.rating_count || 0,
+          download_count: item.download_count || 0,
+          created_at: item.created_at,
+          updated_at: item.updated_at,
+          grade: item.grade || 'P', // Use database 'grade' field directly
+          type: item.pages <= 25 ? 'attack' : 'outline' // Determine type based on page count
+        }));
+        
+        console.log('Transformed outlines sample:', transformedOutlines.slice(0, 3));
+        setOutlines(transformedOutlines);
         fetchedOutlinesOnceRef.current = true;
       } catch (error) {
         console.error('Error fetching outlines:', error);
@@ -436,32 +458,29 @@ function AppContent({ user }: { user: any }) {
 
   // Filter outlines based on search criteria
   const filteredOutlines = outlines.filter((outline) => {
-    // Don't show any outlines unless BOTH a course AND instructor are selected
+    // Require BOTH a course AND instructor selection
     if (selectedCourseForSearch === '' || selectedInstructor === '') {
       return false;
     }
-
-
-    const matchesSearch = true; // No search term filtering for now
 
     const matchesCourse = outline.course === selectedCourseForSearch;
     const matchesInstructor = outline.instructor === selectedInstructor;
     const matchesGrade = !selectedGrade || outline.grade === selectedGrade;
     const matchesYear = !selectedYear || outline.year === selectedYear;
 
-    // Filter by Outline/Attack type based on page count
+    // Tag filtering: 'Attack' = pages <= 25, 'Outline' = pages > 25
     const isAttack = outline.pages <= 25;
     const isOutline = outline.pages > 25;
-    const matchesType =
-      (isAttack && showAttacks) || (isOutline && showOutlines);
+    const matchesTags =
+      selectedTags.length === 0 ||
+      selectedTags.some((tag) => (tag === 'Attack' && isAttack) || (tag === 'Outline' && isOutline));
 
     return (
-      matchesSearch &&
       matchesCourse &&
       matchesInstructor &&
       matchesGrade &&
       matchesYear &&
-      matchesType
+      matchesTags
     );
   });
 
@@ -772,40 +791,7 @@ function AppContent({ user }: { user: any }) {
       {/* Toast Notifications */}
       <Toaster position="top-right" />
 
-      {/* Search Sidebar - Only show when in outlines section */}
-      {activeSection === 'outlines' && (
-        <SearchSidebar
-          outlines={sortedOutlines}
-          allOutlines={outlines}
-          selectedCourse={selectedCourseForSearch}
-          setSelectedCourse={setSelectedCourseForSearch}
-          selectedInstructor={selectedInstructor}
-          setSelectedInstructor={setSelectedInstructor}
-          selectedGrade={selectedGrade}
-          setSelectedGrade={setSelectedGrade}
-          selectedYear={selectedYear}
-          setSelectedYear={setSelectedYear}
-          sortBy={sortBy}
-          setSortBy={setSortBy}
-          showOutlines={showOutlines}
-          setShowOutlines={setShowOutlines}
-          showAttacks={showAttacks}
-          setShowAttacks={setShowAttacks}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          savedOutlines={savedOutlines}
-          onRemoveSavedOutline={handleRemoveSavedOutline}
-          onToggleSaveOutline={handleToggleSaveOutline}
-          loading={outlinesLoading}
-          previewFile={previewFile}
-          setPreviewFile={setPreviewFile}
-          setPreviewLoading={setPreviewLoading}
-          uploadFormHasPreview={uploadFormHasPreview}
-          setUploadFormHasPreview={setUploadFormHasPreview}
-          bucketName="Outlines"
-          tableName="outlines"
-        />
-      )}
+      {/* OutlinePage manages its own header/filters; no left sidebar */}
 
       {/* Search Sidebar - Only show when in exams section */}
       {activeSection === 'exams' && (
@@ -852,180 +838,35 @@ function AppContent({ user }: { user: any }) {
       {/* Main Content */}
       <div className={`flex-1 border-l border-gray-300 overflow-hidden ${sidebarCollapsed ? 'ml-16' : 'ml-40'}`} style={{ transition: 'margin-left 300ms ease-in-out' }}>
         {activeSection === 'outlines' ? (
-          activeTab === 'upload' ? (
-            uploadFormHasPreview ? (
-              // Show preview in main content area when upload form has preview
-              <div className="h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-                {previewFile?.type.toLowerCase() === 'pdf' ? (
-                  <PDFViewer
-                    fileUrl={previewFile.url}
-                    fileName={previewFile.name}
-                    onDownload={() => {
-                      const link = document.createElement('a');
-                      link.href = previewFile.url;
-                      link.download = previewFile.name;
-                      link.click();
-                      document.body.removeChild(link);
-                    }}
-                    onClose={() => {
-                      setPreviewFile(null);
-                      setUploadFormHasPreview(false);
-                    }}
-                    hideSearch={true}
-                    hideDownload={true}
-                  />
-                ) : previewFile?.type.toLowerCase() === 'docx' ? (
-                  <OfficeWebViewer
-                    fileUrl={previewFile.url}
-                    fileName={previewFile.name}
-                    onDownload={() => {
-                      const link = document.createElement('a');
-                      link.href = previewFile.url;
-                      link.download = previewFile.name;
-                      link.click();
-                      document.body.removeChild(link);
-                    }}
-                    onClose={() => {
-                      setPreviewFile(null);
-                      setUploadFormHasPreview(false);
-                    }}
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center">
-                      <p className="text-gray-600 mb-4">
-                        Preview is not available for {previewFile?.type} files.
-                      </p>
-                      <button
-                        onClick={() => {
-                          if (previewFile) {
-                            const link = document.createElement('a');
-                            link.href = previewFile.url;
-                            link.download = previewFile.name;
-                            link.click();
-                            document.body.removeChild(link);
-                          }
-                        }}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                      >
-                        Download File
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-                <div className="text-center p-8">
-                  <FileText className="w-24 h-24 text-gray-400 mx-auto mb-4" />
-                  <h2 className="text-2xl font-medium text-gray-700 mb-4">
-                    Upload Your Outline
-                  </h2>
-                  <p className="text-gray-600 mb-6 max-w-md">
-                    Use the upload form in the sidebar to share your study
-                    materials with the community.
-                  </p>
-                  <div className="bg-white rounded-lg shadow-sm p-6 max-w-lg mx-auto">
-                    <h3 className="font-medium text-gray-800 mb-3">
-                      Upload Guidelines:
-                    </h3>
-                    <ul className="text-sm text-gray-600 space-y-2 text-left">
-                      <li>• Accepted formats: PDF and DOCX</li>
-                      <li>• Maximum file size: 10MB</li>
-                      <li>• Only upload your original work</li>
-                      <li>
-                        • Include accurate course, instructor, and grade information
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            )
-          ) : previewLoading ? (
-            <div className="flex items-center justify-center h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-              <div className="text-center">
-                <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <h3 className="text-lg font-medium text-gray-700 mb-2">
-                  Loading Preview...
-                </h3>
-                <p className="text-gray-500 text-sm">
-                  Please wait while we load the file for preview.
-                </p>
-              </div>
-            </div>
-          ) : previewFile ? (
-            <div className="h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-              {previewFile.type.toLowerCase() === 'pdf' ? (
-                <PDFViewer
-                  fileUrl={previewFile.url}
-                  fileName={previewFile.name}
-                  onDownload={() => {
-                    const link = document.createElement('a');
-                    link.href = previewFile.url;
-                    link.download = previewFile.name;
-                    link.target = '_blank';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                  }}
-                  onClose={() => setPreviewFile(null)}
-                />
-              ) : previewFile.type.toLowerCase() === 'docx' ? (
-                <OfficeWebViewer
-                  fileUrl={previewFile.url}
-                  fileName={previewFile.name}
-                  onDownload={() => {
-                    const link = document.createElement('a');
-                    link.href = previewFile.url;
-                    link.download = previewFile.name;
-                    link.target = '_blank';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                  }}
-                  onClose={() => setPreviewFile(null)}
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <FileText className="w-16 h-16 text-gray-400 mb-4 mx-auto" />
-                    <h3 className="text-lg font-medium text-gray-700 mb-2">
-                      Preview Not Available
-                    </h3>
-                    <p className="text-gray-500 text-sm mb-4">
-                      Preview is not available for {previewFile.type} files.
-                    </p>
-                    <button
-                      onClick={() => {
-                        const link = document.createElement('a');
-                        link.href = previewFile.url;
-                        link.download = previewFile.name;
-                        link.target = '_blank';
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                      }}
-                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                    >
-                      Download File
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <OutlineViewer
-              outline={selectedOutline}
-              onSaveOutline={handleSaveOutline}
-              isSaved={
-                selectedOutline
-                  ? savedOutlines.some(
-                      (saved) => saved.id === selectedOutline.id
-                    )
-                  : false
-              }
-            />
-          )
+          <OutlinePage
+            outlines={sortedOutlines}
+            allOutlines={outlines}
+            courses={[...new Set(outlines.map(o => o.course))].sort()}
+            instructors={[...new Map(outlines.map(o => [o.instructor, { id: o.instructor, name: o.instructor, courses: Array.from(new Set(outlines.filter(x => x.instructor === o.instructor).map(x => x.course))) }])).values()] as any}
+            searchTerm={''}
+            setSearchTerm={() => {}}
+            selectedCourse={selectedCourseForSearch}
+            setSelectedCourse={setSelectedCourseForSearch}
+            selectedInstructor={selectedInstructor}
+            setSelectedInstructor={setSelectedInstructor}
+            selectedGrade={selectedGrade}
+            setSelectedGrade={setSelectedGrade}
+            selectedYear={selectedYear}
+            setSelectedYear={setSelectedYear}
+            selectedTags={selectedTags}
+            setSelectedTags={setSelectedTags}
+            myCourses={[]}
+            selectedOutline={selectedOutline}
+            onSelectOutline={setSelectedOutline}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            savedOutlines={savedOutlines}
+            onRemoveSavedOutline={handleRemoveSavedOutline}
+            onToggleSaveOutline={handleToggleSaveOutline}
+            hiddenOutlines={[]}
+            onHideOutline={() => {}}
+            onUnhideAllOutlines={() => {}}
+          />
         ) : activeSection === 'exams' ? (
           activeExamTab === 'upload' ? (
             uploadFormHasPreview ? (
@@ -1193,6 +1034,7 @@ function AppContent({ user }: { user: any }) {
               outline={selectedExam}
               onSaveOutline={handleSaveExam}
               documentType="exam"
+              onClose={() => setSelectedExam(null)}
               isSaved={
                 selectedExam
                   ? savedExams.some(

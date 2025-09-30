@@ -135,19 +135,37 @@ export function OutlinePage({
 
   const getGradeColor = (grade: string) => {
     switch (grade) {
-      case 'DS': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-      case 'H': return 'bg-amber-50 text-amber-700 border-amber-200';
-      case 'P': return 'bg-slate-50 text-slate-700 border-slate-200';
+      case 'DS': return 'bg-green-50 border-green-200';
+      case 'H': return 'bg-amber-50 border-amber-200';
+      case 'P': return '';
       default: return 'bg-gray-50 text-gray-700 border-gray-200';
+    }
+  };
+
+  const getGradeBadgeStyle = (grade: string) => {
+    switch (grade) {
+      case 'DS': return { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0', color: '#00bc7c' };
+      case 'H': return { backgroundColor: '#fffbeb', borderColor: '#fed7aa', color: '#fd9906' };
+      case 'P': return { backgroundColor: '#f8fafc', borderColor: '#e8ecf2', color: '#63758e' };
+      default: return {};
     }
   };
 
   const getGradeBorderClass = (grade: string) => {
     switch (grade) {
-      case 'DS': return 'border-l-4 border-l-emerald-500';
-      case 'H': return 'border-l-4 border-l-amber-500';
-      case 'P': return 'border-l-4 border-l-slate-500';
-      default: return 'border-l-4 border-l-gray-300';
+      case 'DS': return 'border-l-4';
+      case 'H': return 'border-l-4';
+      case 'P': return 'border-l-4';
+      default: return 'border-l-4';
+    }
+  };
+
+  const getGradeBorderColor = (grade: string) => {
+    switch (grade) {
+      case 'DS': return '#00bc7c';
+      case 'H': return '#fd9906';
+      case 'P': return '#63758e';
+      default: return '#9ca3af';
     }
   };
 
@@ -383,11 +401,9 @@ export function OutlinePage({
   const OutlineListItem = ({ outline }: { outline: Outline }) => (
     <div 
       className={`group cursor-pointer transition-all duration-200 hover:bg-[#F5F1E8] border-l-4 ${
-        outline.grade === 'DS' ? 'border-l-emerald-500' : 
-        outline.grade === 'H' ? 'border-l-amber-500' : 'border-l-slate-500'
-      } ${
         previewOutline?.id === outline.id ? 'bg-[#F5F1E8] shadow-sm' : 'bg-[#FEFBF6]'
       }`}
+      style={{ borderLeftColor: getGradeBorderColor(outline.grade) }}
       onClick={() => {
         onSelectOutline(outline);
         setPreviewOutline(outline);
@@ -400,7 +416,10 @@ export function OutlinePage({
               {outline.title}
             </h3>
             <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-              <Badge className={`${getGradeColor(outline.grade)} border font-medium px-1.5 py-0.5 text-xs`}>
+              <Badge 
+                className={`${getGradeColor(outline.grade)} border font-medium px-1.5 py-0.5 text-xs`}
+                style={getGradeBadgeStyle(outline.grade)}
+              >
                 {outline.grade}
               </Badge>
               <span>•</span>
@@ -466,7 +485,8 @@ export function OutlinePage({
         previewOutline?.id === outline.id ? 'ring-2 ring-[#752432] shadow-xl transform -translate-y-1' : ''
       }`}
       style={{ 
-        backgroundColor: previewOutline?.id === outline.id ? '#F5F1E8' : '#FEFBF6' 
+        backgroundColor: previewOutline?.id === outline.id ? '#F5F1E8' : '#FEFBF6',
+        borderLeftColor: getGradeBorderColor(outline.grade)
       }}
       onClick={() => {
         onSelectOutline(outline);
@@ -497,7 +517,10 @@ export function OutlinePage({
       
       <CardContent className="pt-0">
         <div className="flex items-center justify-between mb-2">
-          <Badge className={`${getGradeColor(outline.grade)} border font-medium px-2 py-0.5 text-xs`}>
+          <Badge 
+            className={`${getGradeColor(outline.grade)} border font-medium px-2 py-0.5 text-xs`}
+            style={getGradeBadgeStyle(outline.grade)}
+          >
             {outline.grade}
           </Badge>
         </div>
@@ -962,8 +985,8 @@ export function OutlinePage({
                           key={tag}
                           className={`cursor-pointer transition-all duration-200 border ${
                             selectedTags.includes(tag)
-                              ? 'bg-white text-[#752432] border-border hover:bg-gray-50 hover:shadow-sm'
-                              : 'bg-input-background text-gray-800 border-border hover:bg-gray-100'
+                              ? 'bg-white text-[#752432] border-white hover:bg-gray-50 hover:shadow-sm'
+                              : 'bg-gray-300 text-gray-700 border-gray-400 hover:bg-gray-400 hover:text-gray-800'
                           }`}
                           onClick={() => handleTagToggle(tag)}
                         >
@@ -1042,8 +1065,8 @@ export function OutlinePage({
                           key={tag}
                           className={`cursor-pointer transition-all duration-200 border ${
                             selectedTags.includes(tag)
-                              ? 'bg-white text-[#752432] border-border hover:bg-gray-50 hover:shadow-sm'
-                              : 'bg-input-background text-gray-800 border-border hover:bg-gray-100'
+                              ? 'bg-white text-[#752432] border-white hover:bg-gray-50 hover:shadow-sm'
+                              : 'bg-gray-300 text-gray-700 border-gray-400 hover:bg-gray-400 hover:text-gray-800'
                           }`}
                           onClick={() => handleTagToggle(tag)}
                         >
@@ -1118,12 +1141,20 @@ export function OutlinePage({
                   </div>
                   
                   <div className="text-center max-w-md">
-                    <h3 className="text-2xl font-semibold text-gray-800 mb-3">
+                    <h3 className="text-2xl font-semibold text-gray-800 mb-3 -mt-2">
                       Discover Law Outlines
                     </h3>
+                    <p className="text-gray-600 mb-1 leading-relaxed">
+                      Browse our comprehensive database of {allOutlines.length}+ law outlines.
+                    </p>
                     <p className="text-gray-600 mb-6 leading-relaxed">
-                      Browse our comprehensive database of {allOutlines.length}+ law outlines. 
-                      Select a course and professor above to begin exploring.
+                      {!selectedCourse && !selectedInstructor ? (
+                        <>Select a course and professor above to begin exploring.</>
+                      ) : selectedCourse && !selectedInstructor ? (
+                        <>Select a professor above to begin exploring.</>
+                      ) : (
+                        <>No outlines found for the selected criteria.</>
+                      )}
                     </p>
                     
                     <div className="flex justify-center gap-8 mb-8">

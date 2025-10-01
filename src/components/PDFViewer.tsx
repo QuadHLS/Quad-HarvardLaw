@@ -320,8 +320,13 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose, hideSearch =
       const page = await pdfRef.current.getPage(currentPage);
       const container = canvasRef.current.parentElement?.parentElement; // Get the scrollable container
       const containerWidth = container?.clientWidth || 800;
+      const containerHeight = container?.clientHeight || 600;
       const viewport = page.getViewport({ scale: 1.0 });
-      const newScale = (containerWidth - 80) / viewport.width; // 80px padding (40px on each side)
+      
+      // Calculate scale to fit both width and height, with some padding
+      const scaleX = (containerWidth - 80) / viewport.width; // 80px padding (40px on each side)
+      const scaleY = (containerHeight - 80) / viewport.height; // 80px padding (40px top/bottom)
+      const newScale = Math.min(scaleX, scaleY); // Use the smaller scale to fit both dimensions
       
       // Ensure scale doesn't go below 0.3 or above 3.0
       const clampedScale = Math.max(0.3, Math.min(3.0, newScale));
@@ -698,7 +703,7 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose, hideSearch =
   }
 
   return (
-    <div ref={containerRef} className="h-full flex flex-col overflow-hidden" style={{ backgroundColor: '#f9f5f0' }} onKeyDown={handleKeyDown} tabIndex={0}>
+    <div ref={containerRef} className="h-full w-full flex flex-col overflow-hidden" style={{ backgroundColor: '#f9f5f0' }} onKeyDown={handleKeyDown} tabIndex={0}>
       {/* Search Bar */}
       {!hideSearch && (
         <div className="p-2 bg-white border-b">
@@ -828,7 +833,7 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose, hideSearch =
             variant="outline"
             size="sm"
             className="h-7 px-2 text-xs"
-            title="Fit to Width"
+            title="Fit to Container"
           >
             Fit
           </Button>
@@ -852,16 +857,16 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose, hideSearch =
       {/* PDF Canvas */}
       <div 
         ref={scrollContainerRef}
-        className="flex-1 overflow-auto p-4" 
-        style={{ backgroundColor: '#f9f5f0' }}
+        className="flex-1 overflow-auto p-4 w-full" 
+        style={{ backgroundColor: '#f9f5f0', minHeight: 0 }}
       >
-        <div className="flex justify-center w-full">
+        <div className="flex justify-center w-full h-full">
           <canvas
             ref={canvasRef}
-            className="shadow-lg bg-white"
+            className="shadow-lg bg-white max-w-full"
             style={{ 
               maxWidth: '100%', 
-              maxHeight: 'none', // Allow canvas to be taller than container
+              maxHeight: '100%',
               height: 'auto',
               width: 'auto',
               imageRendering: '-webkit-optimize-contrast'

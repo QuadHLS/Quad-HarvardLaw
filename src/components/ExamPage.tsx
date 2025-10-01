@@ -209,11 +209,24 @@ export function ExamPage({
   const ensureFolderStructure = async (course: string, instructor: string, year: string, grade: string) => {
     try {
       
+      // Check if the Exam folder exists
+      const examPath = 'Exam/';
+      const { data: examList } = await supabase.storage
+        .from(bucketName)
+        .list('', { search: 'Exam' });
+      
+      if (!examList || examList.length === 0) {
+        // Create Exam folder by uploading an empty file (placeholder)
+        await supabase.storage
+          .from(bucketName)
+          .upload(`${examPath}.gitkeep`, new Blob([''], { type: 'text/plain' }));
+      }
+      
       // Check if the course folder exists
-      const coursePath = `${course}/`;
+      const coursePath = `Exam/${course}/`;
       const { data: courseList } = await supabase.storage
         .from(bucketName)
-        .list('', { search: course });
+        .list('Exam', { search: course });
       
       if (!courseList || courseList.length === 0) {
         // Create course folder by uploading an empty file (placeholder)
@@ -223,10 +236,10 @@ export function ExamPage({
       }
 
       // Check if the instructor folder exists
-      const instructorPath = `${course}/${instructor}/`;
+      const instructorPath = `Exam/${course}/${instructor}/`;
       const { data: instructorList } = await supabase.storage
         .from(bucketName)
-        .list(`${course}`, { search: instructor });
+        .list(`Exam/${course}`, { search: instructor });
       
       if (!instructorList || instructorList.length === 0) {
         // Create instructor folder
@@ -236,10 +249,10 @@ export function ExamPage({
       }
 
       // Check if the year folder exists
-      const yearPath = `${course}/${instructor}/${year}/`;
+      const yearPath = `Exam/${course}/${instructor}/${year}/`;
       const { data: yearList } = await supabase.storage
         .from(bucketName)
-        .list(`${course}/${instructor}`, { search: year });
+        .list(`Exam/${course}/${instructor}`, { search: year });
       
       if (!yearList || yearList.length === 0) {
         // Create year folder
@@ -249,10 +262,10 @@ export function ExamPage({
       }
 
       // Check if the grade folder exists
-      const gradePath = `${course}/${instructor}/${year}/${grade}/`;
+      const gradePath = `Exam/${course}/${instructor}/${year}/${grade}/`;
       const { data: gradeList } = await supabase.storage
         .from(bucketName)
-        .list(`${course}/${instructor}/${year}`, { search: grade });
+        .list(`Exam/${course}/${instructor}/${year}`, { search: grade });
       
       if (!gradeList || gradeList.length === 0) {
         // Create grade folder
@@ -456,8 +469,8 @@ export function ExamPage({
       const baseFileName = uploadFile.name.replace(/\.[^/.]+$/, ""); // Remove extension
       const uniqueFileName = `${baseFileName}_${timestamp}.${fileExtension}`;
       
-      // Create the file path directly in the Exams bucket: Course/Instructor/Year/Grade/
-      const filePath = `${uploadForm.course}/${uploadForm.professor}/${uploadForm.year}/${uploadForm.grade}/${uniqueFileName}`;
+      // Create the file path in the Exams bucket: Exam/Course/Instructor/Year/Grade/
+      const filePath = `Exam/${uploadForm.course}/${uploadForm.professor}/${uploadForm.year}/${uploadForm.grade}/${uniqueFileName}`;
       
       // Ensure the folder structure exists by creating missing folders
       await ensureFolderStructure(uploadForm.course, uploadForm.professor, uploadForm.year, uploadForm.grade);
@@ -546,6 +559,8 @@ export function ExamPage({
       const possiblePaths = [
         exam.file_path,
         exam.file_name,
+        `Exam/${exam.file_path}`,
+        `Exam/${exam.file_name}`,
         exam.file_path?.replace(/^out\//, ''), // Remove 'out/' prefix if present
         exam.file_path?.replace(/^exams\//, ''), // Remove 'exams/' prefix if present
         exam.file_name?.replace(/^out\//, ''), // Remove 'out/' prefix from file_name
@@ -596,6 +611,8 @@ export function ExamPage({
       const possiblePaths = [
         exam.file_path,
         exam.file_name,
+        `Exam/${exam.file_path}`,
+        `Exam/${exam.file_name}`,
         exam.file_path?.replace(/^out\//, ''), // Remove 'out/' prefix if present
         exam.file_path?.replace(/^exams\//, ''), // Remove 'exams/' prefix if present
         exam.file_name?.replace(/^out\//, ''), // Remove 'out/' prefix from file_name

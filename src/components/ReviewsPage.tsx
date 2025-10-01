@@ -3,7 +3,7 @@ import * as React from 'react';
 import { Star, Search, Calendar, ThumbsUp, ThumbsDown, BookOpen, MessageCircle, FileText, Award, Plus, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Card } from './ui/card';
+import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -625,76 +625,73 @@ export function ReviewsPage() {
 
   return (
     <div className="h-full overflow-auto" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-      <div className="max-w-full mx-auto p-6">
-        <div className="h-full flex flex-col">
-        {/* Header */}
-        <div className="border-b border-gray-200 pb-6" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center">
-              <Star className="w-8 h-8 mr-3" style={{ color: '#752432' }} />
-              <h1 className="text-2xl font-medium text-gray-800">Course Reviews</h1>
-              </div>
-              <Dialog open={showReviewForm} onOpenChange={setShowReviewForm}>
-                <DialogTrigger asChild>
-                  <Button className="bg-[#752432] hover:bg-[#752432]/90">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Write Review
-                  </Button>
-                </DialogTrigger>
-              </Dialog>
+      {/* Header - Full Width */}
+      <div className="border-b border-gray-200 pt-6 pb-6 px-6" style={{ backgroundColor: '#752531' }}>
+        <div className="max-w-full mx-auto">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+            <h1 className="text-2xl font-medium text-white">Professor Reviews</h1>
             </div>
-            <p className="text-gray-600 mb-6">
-              Browse professor reviews organized by overall rating and course-specific feedback.
-            </p>
-            
-            {/* Search and A-Z Navigation */}
-            <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-6">
-              <div className="w-full lg:max-w-md lg:flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    placeholder="Search professors..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
+            <Dialog open={showReviewForm} onOpenChange={setShowReviewForm}>
+              <DialogTrigger asChild>
+                <Button className="bg-[#752432] hover:bg-[#752432]/90">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Write Review
+                </Button>
+              </DialogTrigger>
+            </Dialog>
+          </div>
+          
+          {/* Search and A-Z Navigation */}
+          <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-6">
+            <div className="w-full lg:max-w-md lg:flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  placeholder="Search professors..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
               </div>
-              
-              {/* A-Z Navigation */}
-              {!selectedProfessor && (
-                <div className="w-full lg:w-auto">
-                  <div className="flex flex-col lg:flex-row items-start lg:items-center gap-2 lg:gap-4">
-                    <span className="text-sm text-gray-600 whitespace-nowrap">Jump to:</span>
-                    <div className="flex flex-wrap items-center gap-1 lg:gap-2 max-w-full overflow-hidden">
-                      {Array.from({ length: 26 }, (_, i) => {
-                        const letter = String.fromCharCode(65 + i);
-                        const hasProfs = availableLetters.includes(letter);
-                        return (
-                          <button
-                            key={letter}
-                            onClick={() => hasProfs && scrollToLetter(letter)}
-                            disabled={!hasProfs}
-                            className={`px-1.5 lg:px-2 py-1 text-xs lg:text-sm font-medium transition-colors flex-shrink-0 ${
-                              hasProfs
-                                ? 'text-[#752432] hover:text-[#752432]/80 cursor-pointer'
-                                : 'text-gray-400 cursor-not-allowed'
-                            }`}
-                          >
-                            {letter}
-                          </button>
-                        );
-                      })}
-                    </div>
+            </div>
+            
+            {/* A-Z Navigation */}
+            {!selectedProfessor && (
+              <div className="w-full lg:w-auto">
+                <div className="flex flex-col lg:flex-row items-start lg:items-center gap-2 lg:gap-4">
+                  <span className="text-sm text-white whitespace-nowrap">Jump to:</span>
+                  <div className="flex flex-wrap items-center gap-1 lg:gap-2 max-w-full overflow-hidden">
+                    {Array.from({ length: 26 }, (_, i) => {
+                      const letter = String.fromCharCode(65 + i);
+                      const hasProfs = availableLetters.includes(letter);
+                      return (
+                        <button
+                          key={letter}
+                          onClick={() => hasProfs && scrollToLetter(letter)}
+                          disabled={!hasProfs}
+                          className={`px-1.5 lg:px-2 py-1 text-xs lg:text-sm font-medium transition-colors flex-shrink-0 ${
+                            hasProfs
+                              ? 'text-white hover:text-gray-200 cursor-pointer'
+                              : 'text-gray-400 cursor-not-allowed'
+                          }`}
+                        >
+                          {letter}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
+      </div>
 
-        {/* Main Content */}
+      {/* Main Content */}
+      <div className="max-w-full mx-auto p-6">
+        <div className="h-full flex flex-col">
+
         <div className="flex-1 overflow-y-auto pt-6">
           <div className="min-w-0">
             {filteredProfessors.length === 0 ? (
@@ -799,116 +796,111 @@ export function ReviewsPage() {
                           </Button>
                         </div>
                       ) : (
-                        courseReviews.map(review => (
-                          <Card key={review.id} className="p-6">
-                            <div className="flex items-start justify-between mb-4">
-                              <div className="flex-1">
-                                <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
-                                  <div className="flex items-center">
-                                    <Calendar className="w-4 h-4 mr-1" />
-                                    {review.semester} {review.year}
+                        courseReviews.map(review => {
+                          // Get the color for this professor's letter
+                          const colorPattern = ['#00962c', '#ffb100', '#0277c5', '#f71417'];
+                          const letterIndex = selectedProfessor!.charCodeAt(0) - 65;
+                          const getCourseColor = (professorName: string) => colorPattern[letterIndex % 4];
+                          
+                          return (
+                            <Card 
+                              key={review.id} 
+                              className="transition-all duration-200 hover:shadow-md border-l-4" 
+                              style={{ 
+                                backgroundColor: '#FEFBF6',
+                                borderLeftColor: getCourseColor(selectedProfessor!)
+                              }}
+                            >
+                              <CardContent className="p-6">
+                                {/* Header with rating */}
+                                <div className="flex items-center justify-between mb-4">
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-1">
+                                      {Array.from({ length: 5 }, (_, i) => (
+                                        <Star
+                                          key={i}
+                                          className={`w-4 h-4 ${
+                                            i < Math.floor(review.overall_rating / 2) ? 'fill-current' : 'text-gray-300'
+                                          }`}
+                                          style={{
+                                            color: i < Math.floor(review.overall_rating / 2) ? getCourseColor(selectedProfessor!) : undefined
+                                          }}
+                                        />
+                                      ))}
+                                    </div>
+                                    <span className="text-sm font-medium text-gray-600">
+                                      {review.overall_rating}/10
+                                    </span>
                                   </div>
-
+                                  
+                                  {/* Grade Badge */}
+                                  <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${getGradeColor(review.grade)}`}>
+                                    {review.grade}
+                                  </span>
                                 </div>
 
-                                {/* Course Details */}
-                                <div className="flex flex-wrap gap-4 text-xs text-gray-600 mb-4">
+                                {/* Course details - simple and at the top */}
+                                <div className="flex items-center gap-6 mb-4 text-sm text-gray-600 border-b border-gray-200 pb-3">
+                                  <div className="flex items-center gap-2">
+                                    <Calendar className="w-4 h-4" />
+                                    <span>{review.semester} {review.year}</span>
+                                  </div>
                                   {review.laptops_allowed !== undefined && (
-                                    <span>Laptops: {review.laptops_allowed ? 'Allowed' : 'Not Allowed'}</span>
+                                    <div className="flex items-center gap-2">
+                                      <span>Laptops: <span className="font-medium">{review.laptops_allowed ? 'Allowed' : 'Not Allowed'}</span></span>
+                                    </div>
                                   )}
                                   {review.assessment_type && (
-                                    <span>Assessment: {getAssessmentType(review.assessment_type)}</span>
+                                    <div className="flex items-center gap-2">
+                                      <span>Assessment: <span className="font-medium">{getAssessmentType(review.assessment_type)}</span></span>
+                                    </div>
                                   )}
                                   {review.has_cold_calls !== undefined && (
-                                    <span>Cold Calls: {review.has_cold_calls ? 'Yes' : 'No'}</span>
+                                    <div className="flex items-center gap-2">
+                                      <span>Cold Calls: <span className="font-medium">{review.has_cold_calls ? 'Yes' : 'No'}</span></span>
+                                    </div>
                                   )}
                                 </div>
-                              </div>
-                              
-                              {/* Grade Badge */}
-                              <div className="ml-4">
-                                <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${getGradeColor(review.grade)}`}>
-                                  {review.grade}
-                                </span>
-                              </div>
-                            </div>
 
-                            {/* Rating Boxes */}
-                            <div className="space-y-4 mb-4">
-                              {/* First row - Readings, Cold Calls, Exam */}
-                              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                                {review.readings_review && renderRatingBox(
-                                  review.readings_rating, 
-                                  'Readings', 
-                                  <BookOpen className="w-4 h-4 text-gray-600" />,
-                                  review.readings_review,
-                                  'Light',
-                                  'Heavy'
-                                )}
-                                {review.has_cold_calls && review.cold_calls_review && renderRatingBox(
-                                  review.cold_calls_rating, 
-                                  'Cold Calls', 
-                                  <MessageCircle className="w-4 h-4 text-gray-600" />,
-                                  review.cold_calls_review,
-                                  'Easy',
-                                  'Hard'
-                                )}
-                                {review.exam_review && renderRatingBox(
-                                  review.exam_rating, 
-                                  'Exam', 
-                                  <FileText className="w-4 h-4 text-gray-600" />,
-                                  review.exam_review,
-                                  'Easy',
-                                  'Hard'
-                                )}
-                              </div>
-                              
-                              {/* Second row - Overall (more prominent) */}
-                              <div>
-                                {renderRatingBox(
-                                  review.overall_rating, 
-                                  'Overall', 
-                                  <Award className="w-4 h-4 text-[#752432]" />,
-                                  review.overall_review,
-                                  undefined,
-                                  undefined,
-                                  true
-                                )}
-                              </div>
-                            </div>
+                                {/* Review text */}
+                                <p className="text-gray-700 leading-relaxed text-base mb-4">
+                                  {review.overall_review}
+                                </p>
 
-                            {/* Helpful/Unhelpful */}
-                            <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                              <div className="flex items-center space-x-4">
-                                <button 
-                                  onClick={() => handleVote(review.id, 'helpful')}
-                                  className={`flex items-center space-x-1 text-sm transition-colors ${
-                                    userVotes[review.id] === 'helpful'
-                                      ? 'text-green-600 bg-green-50 px-2 py-1 rounded'
-                                      : 'text-gray-600 hover:text-green-600'
-                                  }`}
-                                >
-                                  <ThumbsUp className={`w-4 h-4 ${userVotes[review.id] === 'helpful' ? 'fill-current' : ''}`} />
-                                  <span>Helpful ({review.helpful_count})</span>
-                                </button>
-                                <button 
-                                  onClick={() => handleVote(review.id, 'not_helpful')}
-                                  className={`flex items-center space-x-1 text-sm transition-colors ${
-                                    userVotes[review.id] === 'not_helpful'
-                                      ? 'text-red-600 bg-red-50 px-2 py-1 rounded'
-                                      : 'text-gray-600 hover:text-red-600'
-                                  }`}
-                                >
-                                  <ThumbsDown className={`w-4 h-4 ${userVotes[review.id] === 'not_helpful' ? 'fill-current' : ''}`} />
-                                  <span>Not Helpful ({review.not_helpful_count})</span>
-                                </button>
-                              </div>
-                              <Button variant="outline" size="sm">
-                                Report
-                              </Button>
-                            </div>
-                          </Card>
-                        ))
+                                {/* Helpful/Unhelpful */}
+                                <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                                  <div className="flex items-center space-x-4">
+                                    <button 
+                                      onClick={() => handleVote(review.id, 'helpful')}
+                                      className={`flex items-center space-x-1 text-sm transition-colors ${
+                                        userVotes[review.id] === 'helpful'
+                                          ? 'text-green-600 bg-green-50 px-2 py-1 rounded'
+                                          : 'text-gray-600 hover:text-green-600'
+                                      }`}
+                                    >
+                                      <ThumbsUp className={`w-4 h-4 ${userVotes[review.id] === 'helpful' ? 'fill-current' : ''}`} />
+                                      <span>Helpful ({review.helpful_count})</span>
+                                    </button>
+                                    <button 
+                                      onClick={() => handleVote(review.id, 'not_helpful')}
+                                      className={`flex items-center space-x-1 text-sm transition-colors ${
+                                        userVotes[review.id] === 'not_helpful'
+                                          ? 'text-red-600 bg-red-50 px-2 py-1 rounded'
+                                          : 'text-gray-600 hover:text-red-600'
+                                      }`}
+                                    >
+                                      <ThumbsDown className={`w-4 h-4 ${userVotes[review.id] === 'not_helpful' ? 'fill-current' : ''}`} />
+                                      <span>Not Helpful ({review.not_helpful_count})</span>
+                                    </button>
+                                  </div>
+                                  <Button variant="outline" size="sm">
+                                    Report
+                                  </Button>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })
                       )}
                     </div>
                   );
@@ -993,76 +985,110 @@ export function ReviewsPage() {
             ) : (
               /* Show alphabetically grouped professors */
               <div className="space-y-8">
-                {availableLetters.map((letter) => (
-                  <div key={letter} id={`letter-${letter}`}>
-                    {/* Letter Divider */}
-                    <div className="flex items-center mb-4">
-                      <div className="w-12 h-12 rounded-full bg-[#752432] flex items-center justify-center mr-4">
-                        <span className="text-white text-lg font-medium">{letter}</span>
+                {availableLetters.map((letter) => {
+                  // Color pattern: A=#00962c, B=#ffb100, C=#0277c5, D=#f71417, repeat
+                  const colorPattern = ['#00962c', '#ffb100', '#0277c5', '#f71417'];
+                  const letterIndex = letter.charCodeAt(0) - 65; // A=0, B=1, C=2, D=3, etc.
+                  
+                  return (
+                    <div key={letter} id={`letter-${letter}`}>
+                      {/* Letter Divider */}
+                      <div className="flex items-center mb-4">
+                        <div 
+                          className="w-12 h-12 rounded-full flex items-center justify-center mr-4"
+                          style={{ backgroundColor: colorPattern[letterIndex % 4] }}
+                        >
+                          <span className="text-white text-lg font-medium">{letter}</span>
+                        </div>
+                        <div className="flex-1 h-px bg-gray-300"></div>
                       </div>
-                      <div className="flex-1 h-px bg-gray-300"></div>
-                    </div>
                     
                     {/* Professors in this letter group */}
                     <div className="grid gap-4">
-                      {groupedProfessors[letter].map((prof) => (
-                        <Card 
-                          key={prof.fullName}
-                          className="p-6 cursor-pointer hover:bg-gray-50 transition-colors border"
-                          onClick={() => setSelectedProfessor(prof.fullName)}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                                {prof.firstName} {prof.lastName}
-                              </h3>
-                              <div className="flex items-center space-x-4 mb-3">
-                                <div className="flex items-center">
-                                  <div className="flex items-center mr-2">
-                                    {Array.from({ length: 5 }, (_, i) => (
-                                      <Star
-                                        key={i}
-                                        className={`w-4 h-4 ${
-                                          i < Math.floor(prof.overallRating / 2) 
-                                            ? 'text-[#752432] fill-current' 
-                                            : 'text-gray-300'
-                                        }`}
-                                      />
-                                    ))}
+                      {groupedProfessors[letter].map((prof) => {
+                        // Color pattern: A=#00962c, B=#ffb100, C=#0277c5, D=#f71417, repeat
+                        const colorPattern = ['#00962c', '#ffb100', '#0277c5', '#f71417'];
+                        const letterIndex = letter.charCodeAt(0) - 65; // A=0, B=1, C=2, D=3, etc.
+                        const currentColor = colorPattern[letterIndex % 4];
+                        return (
+                          <Card 
+                            key={prof.fullName}
+                            className="transition-all duration-200 hover:shadow-lg border-l-4"
+                            style={{ 
+                              backgroundColor: '#FEFBF6',
+                              borderLeftColor: currentColor
+                            }}
+                          >
+                            <CardContent className="p-6">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <h3 className="text-xl font-semibold text-gray-900 mb-4">
+                                    {prof.firstName} {prof.lastName}
+                                  </h3>
+                                  
+                                  {/* Rating and review count */}
+                                  <div className="flex items-center space-x-4 mb-4">
+                                    <div className="flex items-center">
+                                      <div className="flex items-center mr-2">
+                                        {Array.from({ length: 5 }, (_, i) => (
+                                          <Star
+                                            key={i}
+                                            className={`w-4 h-4 ${
+                                              i < Math.floor(prof.overallRating / 2) 
+                                                ? 'text-[#752432] fill-current' 
+                                                : 'text-gray-300'
+                                            }`}
+                                          />
+                                        ))}
+                                      </div>
+                                      <span className="font-medium text-gray-900">{prof.overallRating.toFixed(1)}</span>
+                                      <span className="text-gray-600 ml-1">out of 10</span>
+                                    </div>
+                                    <span className="text-gray-600">•</span>
+                                    <span className="text-gray-600">{prof.totalReviews} reviews</span>
                                   </div>
-                                  <span className="font-medium text-gray-900">{prof.overallRating.toFixed(1)}</span>
-                                  <span className="text-gray-600 ml-1">out of 10</span>
+                                  
+                                  {/* Courses - more prominent and clickable */}
+                                  <div className="space-y-2">
+                                    <h4 className="text-sm font-medium text-gray-600 mb-3">Click a course to view reviews:</h4>
+                                    <div className="flex flex-wrap gap-3">
+                                      {prof.courses.map((courseInfo) => {
+                                        return (
+                                          <button
+                                            key={courseInfo.name}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setSelectedProfessor(prof.fullName);
+                                              setSelectedCourse(courseInfo.name);
+                                            }}
+                                            className="px-4 py-3 text-white font-medium rounded-lg transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2"
+                                            style={{ 
+                                              backgroundColor: currentColor,
+                                              '--tw-ring-color': currentColor
+                                            }}
+                                            onMouseEnter={(e) => {
+                                              e.currentTarget.style.backgroundColor = currentColor + 'DD';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                              e.currentTarget.style.backgroundColor = currentColor;
+                                            }}
+                                          >
+                                            {courseInfo.name} ({courseInfo.reviewCount === 0 ? 'No reviews' : courseInfo.reviewCount})
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
                                 </div>
-                                <span className="text-gray-600">•</span>
-                                <span className="text-gray-600">{prof.totalReviews} reviews</span>
                               </div>
-                              
-                              <div className="flex flex-wrap gap-2">
-                                {prof.courses.map((courseInfo) => (
-                                  <Badge 
-                                    key={courseInfo.name} 
-                                    variant="secondary" 
-                                    className="text-xs bg-[#752432] text-white hover:bg-[#752432]/90 cursor-pointer transition-colors"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedProfessor(prof.fullName);
-                                      setSelectedCourse(courseInfo.name);
-                                    }}
-                                  >
-                                    {courseInfo.name} ({courseInfo.reviewCount === 0 ? 'No reviews' : courseInfo.reviewCount})
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                            <div className="text-[#752432] ml-4">
-                              →
-                            </div>
-                          </div>
-                        </Card>
-                      ))}
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
                     </div>
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

@@ -821,30 +821,30 @@ function AppContent({ user }: { user: any }) {
       <div className={`flex-1 border-l border-gray-300 overflow-hidden ${sidebarCollapsed ? 'ml-16' : 'ml-40'}`} style={{ transition: 'margin-left 300ms ease-in-out' }}>
         {activeSection === 'outlines' ? (
           <OutlinePage
-            outlines={sortedOutlines}
-            allOutlines={outlines}
+          outlines={sortedOutlines}
+          allOutlines={outlines}
             courses={[...new Set(outlines.map(o => o.course))].sort()}
             instructors={[...new Map(outlines.map(o => [o.instructor, { id: o.instructor, name: o.instructor, courses: Array.from(new Set(outlines.filter(x => x.instructor === o.instructor).map(x => x.course))) }])).values()] as any}
             searchTerm={''}
             setSearchTerm={() => {}}
-            selectedCourse={selectedCourseForSearch}
-            setSelectedCourse={setSelectedCourseForSearch}
-            selectedInstructor={selectedInstructor}
-            setSelectedInstructor={setSelectedInstructor}
-            selectedGrade={selectedGrade}
-            setSelectedGrade={setSelectedGrade}
-            selectedYear={selectedYear}
-            setSelectedYear={setSelectedYear}
+          selectedCourse={selectedCourseForSearch}
+          setSelectedCourse={setSelectedCourseForSearch}
+          selectedInstructor={selectedInstructor}
+          setSelectedInstructor={setSelectedInstructor}
+          selectedGrade={selectedGrade}
+          setSelectedGrade={setSelectedGrade}
+          selectedYear={selectedYear}
+          setSelectedYear={setSelectedYear}
             selectedTags={selectedTags}
             setSelectedTags={setSelectedTags}
             myCourses={[]}
             selectedOutline={selectedOutline}
             onSelectOutline={setSelectedOutline}
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            savedOutlines={savedOutlines}
-            onRemoveSavedOutline={handleRemoveSavedOutline}
-            onToggleSaveOutline={handleToggleSaveOutline}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          savedOutlines={savedOutlines}
+          onRemoveSavedOutline={handleRemoveSavedOutline}
+          onToggleSaveOutline={handleToggleSaveOutline}
             hiddenOutlines={[]}
             onHideOutline={() => {}}
             onUnhideAllOutlines={() => {}}
@@ -857,21 +857,21 @@ function AppContent({ user }: { user: any }) {
             instructors={examInstructors}
             searchTerm={examSearchTerm}
             setSearchTerm={() => {}}
-            selectedCourse={selectedCourseForExams}
-            setSelectedCourse={setSelectedCourseForExams}
-            selectedInstructor={selectedInstructorForExams}
-            setSelectedInstructor={setSelectedInstructorForExams}
-            selectedGrade={selectedGradeForExams}
-            setSelectedGrade={setSelectedGradeForExams}
-            selectedYear={selectedYearForExams}
-            setSelectedYear={setSelectedYearForExams}
+          selectedCourse={selectedCourseForExams}
+          setSelectedCourse={setSelectedCourseForExams}
+          selectedInstructor={selectedInstructorForExams}
+          setSelectedInstructor={setSelectedInstructorForExams}
+          selectedGrade={selectedGradeForExams}
+          setSelectedGrade={setSelectedGradeForExams}
+          selectedYear={selectedYearForExams}
+          setSelectedYear={setSelectedYearForExams}
             selectedTags={selectedTagsForExams}
             setSelectedTags={setSelectedTagsForExams}
             myCourses={examMyCourses}
             selectedExam={selectedExam}
             onSelectExam={setSelectedExam}
-            activeTab={activeExamTab}
-            setActiveTab={setActiveExamTab}
+          activeTab={activeExamTab}
+          setActiveTab={setActiveExamTab}
             savedExams={savedExams}
             onRemoveSavedExam={handleRemoveSavedExam}
             onToggleSaveExam={handleToggleSaveExam}

@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { NavigationSidebar } from './components/NavigationSidebar';
 import { OutlinePage } from './components/OutlinePage';
+import { ExamPage } from './components/ExamPage';
 import { ReviewsPage } from './components/ReviewsPage';
 import { HomePage } from './components/HomePage';
 import { CoursePage } from './components/CoursePage';
@@ -139,7 +140,39 @@ function AppContent({ user }: { user: any }) {
   const [showExamAttacks, setShowExamAttacks] = useState(true);
   const [activeExamTab, setActiveExamTab] = useState<'search' | 'saved' | 'upload'>('search');
   const [savedExams, setSavedExams] = useState<Outline[]>([]);
+  const [selectedTagsForExams, setSelectedTagsForExams] = useState<string[]>(['Attack', 'Outline']);
   const fetchedExamsOnceRef = useRef(false);
+
+  // Derive courses and instructors from exams data
+  const examCourses = [...new Set(exams.map(e => e.course))].sort();
+  const examInstructors = [...new Map(exams.map(e => [e.instructor, { id: e.instructor, name: e.instructor, courses: Array.from(new Set(exams.filter(x => x.instructor === e.instructor).map(x => x.course))) }])).values()] as any;
+  
+  // Exam-specific search term and myCourses (empty for now)
+  const examSearchTerm = '';
+  const examMyCourses: string[] = [];
+
+  // Filter exams based on search criteria
+  const filteredExams = exams.filter((exam) => {
+    // Require BOTH a course AND instructor selection
+    if (selectedCourseForExams === '' || selectedInstructorForExams === '') {
+      return false;
+    }
+
+    const matchesCourse = exam.course === selectedCourseForExams;
+    const matchesInstructor = exam.instructor === selectedInstructorForExams;
+    const matchesGrade = !selectedGradeForExams || exam.grade === selectedGradeForExams;
+    const matchesYear = !selectedYearForExams || exam.year === selectedYearForExams;
+
+    // Tag filtering: 'Attack' = pages <= 25, 'Outline' = pages > 25
+    const isAttack = exam.pages <= 25;
+    const isOutline = exam.pages > 25;
+    const matchesTags =
+      selectedTagsForExams.length === 0 ||
+      (selectedTagsForExams.includes('Attack') && isAttack) ||
+      (selectedTagsForExams.includes('Outline') && isOutline);
+
+    return matchesCourse && matchesInstructor && matchesGrade && matchesYear && matchesTags;
+  });
 
 
   // Load saved outlines from database
@@ -817,30 +850,35 @@ function AppContent({ user }: { user: any }) {
             onUnhideAllOutlines={() => {}}
           />
         ) : activeSection === 'exams' ? (
-          <div className="flex items-center justify-center h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-            <div className="text-center p-8">
-              <div className="w-24 h-24 bg-gray-300 rounded-full mx-auto mb-4 flex items-center justify-center">
-                <span className="text-2xl text-gray-600">📝</span>
-              </div>
-              <h2 className="text-2xl font-medium text-gray-700 mb-4">
-                Exams Section
-              </h2>
-              <p className="text-gray-600 mb-6 max-w-md">
-                Exam functionality is being rebuilt. The exam data is being fetched ({exams.length} exams loaded) and ready for the new interface.
-              </p>
-              <div className="bg-white rounded-lg shadow-sm p-6 max-w-lg mx-auto">
-                <h3 className="font-medium text-gray-800 mb-3">
-                  Coming Soon:
-                </h3>
-                <ul className="text-sm text-gray-600 space-y-2 text-left">
-                  <li>• Modern exam search and filtering</li>
-                  <li>• Save and organize exams</li>
-                  <li>• Upload new exam materials</li>
-                  <li>• Preview and download functionality</li>
-                </ul>
-              </div>
-            </div>
-          </div>
+          <ExamPage
+            exams={filteredExams}
+            allExams={exams}
+            courses={examCourses}
+            instructors={examInstructors}
+            searchTerm={examSearchTerm}
+            setSearchTerm={() => {}}
+            selectedCourse={selectedCourseForExams}
+            setSelectedCourse={setSelectedCourseForExams}
+            selectedInstructor={selectedInstructorForExams}
+            setSelectedInstructor={setSelectedInstructorForExams}
+            selectedGrade={selectedGradeForExams}
+            setSelectedGrade={setSelectedGradeForExams}
+            selectedYear={selectedYearForExams}
+            setSelectedYear={setSelectedYearForExams}
+            selectedTags={selectedTagsForExams}
+            setSelectedTags={setSelectedTagsForExams}
+            myCourses={examMyCourses}
+            selectedExam={selectedExam}
+            onSelectExam={setSelectedExam}
+            activeTab={activeExamTab}
+            setActiveTab={setActiveExamTab}
+            savedExams={savedExams}
+            onRemoveSavedExam={handleRemoveSavedExam}
+            onToggleSaveExam={handleToggleSaveExam}
+            hiddenExams={[]}
+            onHideExam={() => {}}
+            onUnhideAllExams={() => {}}
+          />
         ) : activeSection === 'reviews' ? (
           <ReviewsPage />
         ) : activeSection === 'home' ? (

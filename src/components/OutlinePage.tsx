@@ -111,6 +111,10 @@ export function OutlinePage({
   const [uploadError, setUploadError] = useState<string>('');
   const [uploadSuccess, setUploadSuccess] = useState<string>('');
   const [uploading, setUploading] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
+
+  // Define bucket name for this component
+  const bucketName = 'Outlines';
 
   const displaySelectedCourse = selectedCourse || 'all-courses';
   const displaySelectedInstructor = selectedInstructor || 'all-professors';
@@ -205,7 +209,6 @@ export function OutlinePage({
 
   const ensureFolderStructure = async (course: string, instructor: string, year: string, grade: string) => {
     try {
-      const bucketName = 'Outlines';
       
       // Check if the course folder exists
       const coursePath = `out/${course}/`;
@@ -469,7 +472,7 @@ export function OutlinePage({
       
       // Upload file to Supabase Storage
       const { error: uploadError } = await supabase.storage
-        .from('Outlines')
+        .from(bucketName)
         .upload(filePath, uploadFile);
 
       if (uploadError) {
@@ -514,7 +517,7 @@ export function OutlinePage({
         setUploadError(`Database error: ${insertError.message}`);
         
         // Try to clean up the uploaded file if database insert failed
-        await supabase.storage.from('Outlines').remove([filePath]);
+        await supabase.storage.from(bucketName).remove([filePath]);
         return;
       }
 
@@ -562,7 +565,7 @@ export function OutlinePage({
       for (const path of possiblePaths) {
         try {
           const { data, error } = await supabase.storage
-            .from('Outlines')
+            .from(bucketName)
             .createSignedUrl(path, 3600); // 1 hour expiry
 
           if (!error && data?.signedUrl) {
@@ -616,7 +619,7 @@ export function OutlinePage({
       for (const path of possiblePaths) {
         try {
           const { data, error } = await supabase.storage
-            .from('Outlines')
+            .from(bucketName)
             .createSignedUrl(path, 3600);
 
           if (!error && data?.signedUrl) {
@@ -634,7 +637,7 @@ export function OutlinePage({
       // If all paths fail, try to list files in the bucket to debug
       try {
         const { data: files, error: listError } = await supabase.storage
-          .from('Outlines')
+          .from(bucketName)
           .list('', { limit: 10 });
         
         if (!listError && files) {
@@ -1497,9 +1500,14 @@ export function OutlinePage({
                 <div className="flex-1 flex flex-col items-center justify-center px-8">
                   <div className="relative mb-8">
                     <div className="w-40 h-40 rounded-full bg-gradient-to-br from-[#752432]/10 to-[#752432]/20 flex items-center justify-center">
-                      <div className="w-32 h-32 rounded-full bg-gradient-to-br from-[#F8F4ED] to-[#F5F1E8] flex items:center justify:center shadow-lg">
+                      <div className="w-32 h-32 rounded-full bg-gradient-to-br from-[#F8F4ED] to-[#F5F1E8] flex items:center justify:center">
                         <div className="relative">
-                          <Bookmark className="w-16 h-16 text-[#752432]/60" />
+                          <img
+                            src="/Screenshot%202025-09-30%20at%207.55.26%E2%80%AFPM.png"
+                            alt="Saved outlines icon"
+                            className="h-auto object-contain"
+                            style={{ width: '160px' }}
+                          />
                         </div>
                       </div>
                     </div>
@@ -1593,15 +1601,18 @@ export function OutlinePage({
 
               <div className="flex-1 max-w-2xl mx-auto w-full">
                 <div
-                  className={`border-2 border-dashed rounded-lg p-8 mb-6 text-center transition-colors bg-white ${
+                  className={`border-2 border-dashed rounded-lg p-8 mb-6 text-center transition-colors duration-200 cursor-pointer ${
                     dragActive 
                       ? 'border-[#752432] bg-[#752432]/5' 
-                      : 'border-gray-300 hover:border-[#752432]/50 hover:bg-[#752432]/5'
+                      : isHovering
+                        ? 'border-gray-300 bg-[#f1eae6]'
+                        : 'border-gray-300 bg-[#F8F4ED]'
                   }`}
                   onDragEnter={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     setDragActive(true);
+                    setIsHovering(false);
                   }}
                   onDragLeave={(e) => {
                     e.preventDefault();
@@ -1612,7 +1623,21 @@ export function OutlinePage({
                     e.preventDefault();
                     e.stopPropagation();
                   }}
-                  onDrop={handleFileDrop}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDragActive(false);
+                    setIsHovering(false);
+                    handleFileDrop(e);
+                  }}
+                  onMouseEnter={() => {
+                    if (!dragActive) {
+                      setIsHovering(true);
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    setIsHovering(false);
+                  }}
                 >
                   <div className="flex flex-col items-center justify-center">
                     <CloudUpload className={`${dragActive ? 'text-[#752432]' : 'text-gray-400'} w-12 h-12 mb-3`} />

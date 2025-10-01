@@ -113,6 +113,9 @@ export function ExamPage({
   const [uploading, setUploading] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
 
+  // Define bucket name for this component
+  const bucketName = 'Exams';
+
   const displaySelectedCourse = selectedCourse || 'all-courses';
   const displaySelectedInstructor = selectedInstructor || 'all-professors';
 
@@ -206,7 +209,6 @@ export function ExamPage({
 
   const ensureFolderStructure = async (course: string, instructor: string, year: string, grade: string) => {
     try {
-      const bucketName = 'Exams';
       
       // Check if the course folder exists
       const coursePath = `out/${course}/`;
@@ -470,7 +472,7 @@ export function ExamPage({
       
       // Upload file to Supabase Storage
       const { error: uploadError } = await supabase.storage
-        .from('Exams')
+        .from(bucketName)
         .upload(filePath, uploadFile);
 
       if (uploadError) {
@@ -515,7 +517,7 @@ export function ExamPage({
         setUploadError(`Database error: ${insertError.message}`);
         
         // Try to clean up the uploaded file if database insert failed
-        await supabase.storage.from('Exams').remove([filePath]);
+        await supabase.storage.from(bucketName).remove([filePath]);
         return;
       }
 
@@ -563,7 +565,7 @@ export function ExamPage({
       for (const path of possiblePaths) {
         try {
           const { data, error } = await supabase.storage
-            .from('Exams')
+            .from(bucketName)
             .createSignedUrl(path, 3600); // 1 hour expiry
 
           if (!error && data?.signedUrl) {
@@ -617,7 +619,7 @@ export function ExamPage({
       for (const path of possiblePaths) {
         try {
           const { data, error } = await supabase.storage
-            .from('Exams')
+            .from(bucketName)
             .createSignedUrl(path, 3600);
 
           if (!error && data?.signedUrl) {
@@ -635,7 +637,7 @@ export function ExamPage({
       // If all paths fail, try to list files in the bucket to debug
       try {
         const { data: files, error: listError } = await supabase.storage
-          .from('Exams')
+          .from(bucketName)
           .list('', { limit: 10 });
         
         if (!listError && files) {

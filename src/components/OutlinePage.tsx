@@ -1784,7 +1784,7 @@ export function OutlinePage({
                           <SelectValue placeholder="Select grade..." />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="DS">Distinguished (DS)</SelectItem>
+                          <SelectItem value="DS">Dean’s Scholar Prize (DS)</SelectItem>
                           <SelectItem value="H">Honors (H)</SelectItem>
                           <SelectItem value="P">Pass (P)</SelectItem>
                         </SelectContent>

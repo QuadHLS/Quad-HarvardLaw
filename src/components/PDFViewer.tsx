@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize, Download, Search, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download, Search, X } from 'lucide-react';
 
 interface PDFViewerProps {
   fileUrl: string;
@@ -12,11 +12,15 @@ interface PDFViewerProps {
   hideDownload?: boolean;
 }
 
-export function PDFViewer({ fileUrl, fileName, onDownload, onClose, hideSearch = false, hideDownload = false }: PDFViewerProps) {
+export function PDFViewer({ fileUrl, fileName: _fileName, onDownload, onClose, hideSearch = false, hideDownload = false }: PDFViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
-  const [scale, setScale] = useState(1.0); // Start with original scale, will auto-fit
+  // zoom model: renderScale = baseScale (fit) * scale (user zoom factor)
+  const [scale, setScale] = useState(1.0); // user zoom factor (1.0 => 100%)
+  const [baseScale, setBaseScale] = useState<number | null>(null); // last fit-to-container scale
+  const scaleRef = useRef<number>(1.0);
+  useEffect(() => { scaleRef.current = scale; }, [scale]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -25,80 +29,27 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose, hideSearch =
   const [isSearching, setIsSearching] = useState(false);
   const pdfRef = useRef<any>(null);
   const currentRenderTaskRef = useRef<any>(null);
-  const scrollAccumulatorRef = useRef<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const isRenderingRef = useRef<boolean>(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [scrollPosition, setScrollPosition] = useState(0);
   const boundaryScrollAccumulatorRef = useRef<number>(0);
+  // Suppress re-fit shortly after user zoom to avoid multiple increments per click
+  const suppressRefitUntilRef = useRef<number>(0);
 
-  // Handle wheel events with proper event listener
+  // Disable wheel scrolling/page switching entirely
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const handleWheelEvent = (e: WheelEvent) => {
-      // Only handle wheel events when not holding Ctrl/Cmd (to allow zoom)
-      if (e.ctrlKey || e.metaKey) {
-        return; // Let browser handle zoom
-      }
-
-      e.preventDefault();
-      
-      const scrollContainer = scrollContainerRef.current;
-      if (!scrollContainer) return;
-
-      const scrollDelta = e.deltaY;
-      const currentScrollTop = scrollContainer.scrollTop;
-      const scrollHeight = scrollContainer.scrollHeight;
-      const clientHeight = scrollContainer.clientHeight;
-      
-      // Check if we're at the exact boundaries
-      const isAtTop = currentScrollTop <= 0;
-      const isAtBottom = currentScrollTop + clientHeight >= scrollHeight - 1;
-      
-      if (scrollDelta > 0) {
-        // Scrolling down
-        if (isAtBottom && currentPage < totalPages) {
-          // At bottom of current page, accumulate scroll to switch pages
-          boundaryScrollAccumulatorRef.current += scrollDelta;
-          
-          // Require 150px of accumulated scroll before switching pages
-          if (boundaryScrollAccumulatorRef.current >= 150) {
-            boundaryScrollAccumulatorRef.current = 0;
-            goToPage(currentPage + 1);
-          }
-        } else {
-          // Scroll within current page
-          boundaryScrollAccumulatorRef.current = 0; // Reset accumulator
-          scrollContainer.scrollTop += scrollDelta;
-        }
-      } else {
-        // Scrolling up
-        if (isAtTop && currentPage > 1) {
-          // At top of current page, accumulate scroll to switch pages
-          boundaryScrollAccumulatorRef.current += Math.abs(scrollDelta);
-          
-          // Require 150px of accumulated scroll before switching pages
-          if (boundaryScrollAccumulatorRef.current >= 150) {
-            boundaryScrollAccumulatorRef.current = 0;
-            goToPage(currentPage - 1);
-          }
-        } else {
-          // Scroll within current page
-          boundaryScrollAccumulatorRef.current = 0; // Reset accumulator
-          scrollContainer.scrollTop += scrollDelta;
-        }
+    const handleWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
       }
     };
 
-    // Add event listener with { passive: false } to allow preventDefault
-    container.addEventListener('wheel', handleWheelEvent, { passive: false });
-
-    return () => {
-      container.removeEventListener('wheel', handleWheelEvent);
-    };
-  }, [currentPage, totalPages]);
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel as any);
+  }, []);
 
   useEffect(() => {
     const loadPDF = async () => {
@@ -127,9 +78,9 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose, hideSearch =
         setLoading(false);
       } catch (err) {
         console.error('Error loading PDF:', err);
-        if (err.message && (err.message.includes('worker') || err.message.includes('Setting up fake worker'))) {
+        if (err instanceof Error && (err.message.includes('worker') || err.message.includes('Setting up fake worker'))) {
           setError('PDF worker failed to load. Please refresh the page and try again.');
-        } else if (err.message && err.message.includes('Failed to fetch')) {
+        } else if (err instanceof Error && err.message.includes('Failed to fetch')) {
           setError('Network error loading PDF. Please check your connection and try again.');
         } else {
           setError('Failed to load PDF. Please check if the file is accessible and try again.');
@@ -154,29 +105,38 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose, hideSearch =
     };
   }, []);
 
-  // Handle canvas resize with debouncing
+  // Handle container/window resize with debouncing; re-fit baseline then restore user zoom
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
+    const target = scrollContainerRef.current || containerRef.current;
     let resizeTimeout: NodeJS.Timeout;
-    
-    const resizeObserver = new ResizeObserver(() => {
-      // Debounce resize events to prevent multiple rapid renders
+
+    const scheduleFit = () => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(() => {
-        if (totalPages > 0 && currentPage > 0) {
-          // Auto-fit to width when container is resized
-          fitToWidth();
+        const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+        if (now < suppressRefitUntilRef.current) {
+          return; // ignore resize events during suppression window
         }
-      }, 100);
-    });
+        if (totalPages > 0 && currentPage > 0) {
+          const prev = scaleRef.current; // remember current zoom
+          fitToWidth().then(() => {
+            setScale(prev);
+            renderPage(currentPage);
+          });
+        }
+      }, 120);
+    };
 
-    resizeObserver.observe(canvas);
+    const ro = target ? new ResizeObserver(scheduleFit) : null;
+    if (ro && target) ro.observe(target);
+
+    const handleWindowResize = scheduleFit;
+    window.addEventListener('resize', handleWindowResize);
 
     return () => {
       clearTimeout(resizeTimeout);
-      resizeObserver.disconnect();
+      if (ro && target) ro.disconnect();
+      window.removeEventListener('resize', handleWindowResize);
     };
   }, [totalPages, currentPage]);
 
@@ -215,7 +175,8 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose, hideSearch =
 
       // Get device pixel ratio for high-DPI displays
       const devicePixelRatio = window.devicePixelRatio || 1;
-      const renderScale = customScale !== undefined ? customScale : scale;
+      const effectiveBase = baseScale ?? 1.0;
+      const renderScale = customScale !== undefined ? customScale : effectiveBase * (scaleRef.current ?? scale);
       
       // Create viewport with the desired scale
       const viewport = page.getViewport({ scale: renderScale });
@@ -249,7 +210,6 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose, hideSearch =
       context.scale(devicePixelRatio, devicePixelRatio);
 
       // Enable better text rendering
-      context.textRenderingOptimization = 'optimizeQuality';
       context.imageSmoothingEnabled = true;
       context.imageSmoothingQuality = 'high';
 
@@ -277,7 +237,7 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose, hideSearch =
         }
       } catch (renderErr) {
         // Check if it's a cancellation error
-        if (renderErr.name === 'RenderingCancelledException') {
+        if ((renderErr as any).name === 'RenderingCancelledException') {
           console.log('Render was cancelled, this is expected');
           isRenderingRef.current = false;
           return;
@@ -287,7 +247,7 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose, hideSearch =
       
     } catch (err) {
       console.error('Error rendering page:', err);
-      if (err.name !== 'RenderingCancelledException') {
+      if ((err as any).name !== 'RenderingCancelledException') {
         setError('Failed to render page. Please try again.');
       }
     } finally {
@@ -298,7 +258,11 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose, hideSearch =
   const goToPage = (pageNum: number) => {
     if (pageNum >= 1 && pageNum <= totalPages) {
       setCurrentPage(pageNum);
-      renderPage(pageNum);
+      // Suppress resize-driven re-fit briefly after page switches
+      suppressRefitUntilRef.current = (typeof performance !== 'undefined' ? performance.now() : Date.now()) + 250;
+      // Use latest zoom * base scale (avoid stale closure)
+      const base = baseScale ?? 1.0;
+      renderPage(pageNum, base * (scaleRef.current ?? 1.0));
       // Reset scroll position to top when changing pages
       if (scrollContainerRef.current) {
         scrollContainerRef.current.scrollTop = 0;
@@ -308,9 +272,17 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose, hideSearch =
     }
   };
 
+  const clampScale = (value: number) => Math.max(0.1, Math.min(4.0, value));
+
   const changeScale = (newScale: number) => {
-    setScale(newScale);
-    renderPage(currentPage, newScale);
+    const clamped = clampScale(newScale);
+    scaleRef.current = clamped;
+    setScale(clamped);
+    // Suppress re-fit triggered by ResizeObserver shortly after zoom click
+    suppressRefitUntilRef.current = (typeof performance !== 'undefined' ? performance.now() : Date.now()) + 250;
+    // render with clamped scale; do not trigger fit during this render
+    const effectiveBase = baseScale ?? 1.0;
+    renderPage(currentPage, effectiveBase * clamped);
   };
 
   const fitToWidth = async () => {
@@ -318,48 +290,34 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose, hideSearch =
     
     try {
       const page = await pdfRef.current.getPage(currentPage);
-      const container = canvasRef.current.parentElement?.parentElement; // Get the scrollable container
-      const containerWidth = container?.clientWidth || 800;
-      const containerHeight = container?.clientHeight || 600;
+      // Prefer the scroll container, then the outer container
+      const container = (scrollContainerRef.current || containerRef.current || canvasRef.current.parentElement?.parentElement) as HTMLElement | null;
+      let containerWidth = container?.clientWidth ?? 0;
+      let containerHeight = container?.clientHeight ?? 0;
+      if (!containerWidth || !containerHeight) {
+        const rect = container?.getBoundingClientRect();
+        containerWidth = rect?.width || window.innerWidth;
+        containerHeight = rect?.height || window.innerHeight;
+      }
+      // Guard against zero sizes on first paint
+      containerWidth = Math.max(200, containerWidth);
+      containerHeight = Math.max(200, containerHeight);
       const viewport = page.getViewport({ scale: 1.0 });
       
       // Calculate scale to fit both width and height, with some padding
       const scaleX = (containerWidth - 40) / viewport.width; // 40px padding (20px on each side)
       const scaleY = (containerHeight - 40) / viewport.height; // 40px padding (20px top/bottom)
-      const newScale = Math.min(scaleX, scaleY); // Use the smaller scale to fit both dimensions
-      
-      // Ensure scale doesn't go below 0.3 or above 3.0
-      const clampedScale = Math.max(0.3, Math.min(3.0, newScale));
-      
-      setScale(clampedScale);
-      renderPage(currentPage, clampedScale);
+      const newBase = Math.min(scaleX, scaleY); // Use the smaller scale to fit both dimensions
+      const clampedBase = Math.max(0.3, Math.min(3.0, newBase));
+      setBaseScale(clampedBase);
+      // Render with preserved user zoom factor
+      renderPage(currentPage, clampedBase * (scaleRef.current ?? 1.0));
     } catch (err) {
       console.error('Error fitting to width:', err);
     }
   };
 
-  const fitToPage = async () => {
-    if (!pdfRef.current || !canvasRef.current) return;
-    
-    try {
-      const page = await pdfRef.current.getPage(currentPage);
-      const container = canvasRef.current.parentElement;
-      if (!container) return;
-      
-      const containerWidth = container.clientWidth - 40; // 40px padding
-      const containerHeight = container.clientHeight - 40; // 40px padding
-      const viewport = page.getViewport({ scale: 1.0 });
-      
-      const scaleX = containerWidth / viewport.width;
-      const scaleY = containerHeight / viewport.height;
-      const newScale = Math.min(scaleX, scaleY, 3.0); // Max 300% zoom
-      
-      setScale(newScale);
-      renderPage(currentPage, newScale);
-    } catch (err) {
-      console.error('Error fitting to page:', err);
-    }
-  };
+  // (fitToPage removed - not used)
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -562,87 +520,7 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose, hideSearch =
     }
   };
 
-  const highlightSearchResult = async (result: any) => {
-    const canvas = canvasRef.current;
-    if (!canvas || !result.textItem) return;
-
-    try {
-      // Get the current page to access text item coordinates
-      const page = await pdfRef.current.getPage(result.page);
-      const viewport = page.getViewport({ scale });
-      
-      // Get text item coordinates
-      const textItem = result.textItem;
-      const transform = textItem.transform;
-      
-      // Calculate the position of the searched term within the text item
-      const searchedText = result.text;
-      const fullText = textItem.str;
-      const charOffset = result.charOffset || 0;
-      
-      // Calculate the width of text before the searched term
-      const context = canvas.getContext('2d');
-      if (!context) return;
-      
-      // Set the same font as the text item for accurate measurement
-      context.font = `${textItem.height}px ${textItem.fontName || 'sans-serif'}`;
-      
-      // Measure text before the searched term
-      const textBefore = fullText.substring(0, charOffset);
-      const textWidthBefore = context.measureText(textBefore).width;
-      
-      // Measure the searched term width
-      const searchedTextWidth = context.measureText(searchedText).width;
-      
-      // Calculate highlight rectangle for just the searched term
-      const x = transform[4] + textWidthBefore;
-      const y = viewport.height - transform[5] - textItem.height;
-      const width = searchedTextWidth;
-      const height = textItem.height;
-      
-      
-      // Create a temporary canvas for highlighting
-      const highlightCanvas = document.createElement('canvas');
-      highlightCanvas.width = canvas.width;
-      highlightCanvas.height = canvas.height;
-      const highlightContext = highlightCanvas.getContext('2d');
-      
-      if (!highlightContext) return;
-      
-      // Draw the original canvas content
-      highlightContext.drawImage(canvas, 0, 0);
-      
-      // Draw highlight overlay only for the searched term
-      highlightContext.fillStyle = 'rgba(255, 165, 0, 0.6)'; // Orange highlight with higher opacity
-      highlightContext.fillRect(x, y, width, height);
-      
-      // Add a subtle border to make it more prominent
-      highlightContext.strokeStyle = 'rgba(255, 140, 0, 0.8)'; // Darker orange border
-      highlightContext.lineWidth = 1;
-      highlightContext.strokeRect(x, y, width, height);
-      
-      // Replace the original canvas content
-      const originalContext = canvas.getContext('2d');
-      if (originalContext) {
-        originalContext.clearRect(0, 0, canvas.width, canvas.height);
-        originalContext.drawImage(highlightCanvas, 0, 0);
-      }
-      
-      // Scroll to the highlighted area
-      const container = canvas.parentElement;
-      if (container) {
-        const rect = canvas.getBoundingClientRect();
-        const containerRect = container.getBoundingClientRect();
-        const scrollTop = container.scrollTop + (y * scale) - (containerRect.height / 2);
-        container.scrollTo({ top: scrollTop, behavior: 'smooth' });
-      }
-      
-    } catch (err) {
-      console.error('Error highlighting search result:', err);
-      // Fallback: just scroll the canvas into view
-      canvas.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  };
+  // highlightSearchResult removed (unused)
 
   const clearSearch = () => {
     setSearchTerm('');
@@ -857,20 +735,14 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose, hideSearch =
       {/* PDF Canvas */}
       <div 
         ref={scrollContainerRef}
-        className="flex-1 overflow-auto p-4 w-full" 
+        className="flex-1 overflow-hidden p-4 w-full" 
         style={{ backgroundColor: '#f9f5f0', minHeight: 0 }}
       >
         <div className="flex justify-center w-full h-full">
           <canvas
             ref={canvasRef}
-            className="shadow-lg bg-white max-w-full"
-            style={{ 
-              maxWidth: '100%', 
-              maxHeight: '100%',
-              height: 'auto',
-              width: 'auto',
-              imageRendering: '-webkit-optimize-contrast'
-            }}
+            className="shadow-lg bg-white"
+            style={{ imageRendering: '-webkit-optimize-contrast', display: 'block' }}
           />
         </div>
       </div>

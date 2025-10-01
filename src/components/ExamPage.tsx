@@ -932,7 +932,7 @@ export function ExamPage({
               fileName={exam.title}
               onDownload={() => handleDownload(exam)}
               onClose={() => setPreviewExam(null)}
-              hideSearch={false}
+              hideSearch={true}
               hideDownload={true}
             />
           </div>

@@ -701,9 +701,12 @@ export function OutlinePage({
   const OutlineListItem = ({ outline }: { outline: Outline }) => (
     <div 
       className={`group cursor-pointer transition-all duration-200 hover:bg-[#F5F1E8] border-l-4 ${
-        previewOutline?.id === outline.id ? 'bg-[#F5F1E8] shadow-sm' : 'bg-[#FEFBF6]'
+        previewOutline?.id === outline.id ? 'bg-[#F5F1E8] shadow-sm' : 'bg-[#FFFBF8]'
       }`}
-      style={{ borderLeftColor: getGradeBorderColor(outline.grade) }}
+      style={{ 
+        borderLeftColor: getGradeBorderColor(outline.grade),
+        backgroundColor: previewOutline?.id === outline.id ? '#F5F1E8' : '#FFFBF8'
+      }}
       onClick={() => {
         onSelectOutline(outline);
         setPreviewOutline(outline);
@@ -769,7 +772,7 @@ export function OutlinePage({
         previewOutline?.id === outline.id ? 'ring-2 ring-[#752432] shadow-xl transform -translate-y-1' : ''
       }`}
       style={{ 
-        backgroundColor: previewOutline?.id === outline.id ? '#F5F1E8' : '#FEFBF6',
+        backgroundColor: previewOutline?.id === outline.id ? '#F5F1E8' : '#FFFBF8',
         borderLeftColor: getGradeBorderColor(outline.grade)
       }}
       onClick={() => {
@@ -1515,7 +1518,7 @@ export function OutlinePage({
                                 ))}
                               </div>
                             ) : (
-                              <div className="space-y-1 border border-border rounded-lg overflow-hidden bg-card shadow-sm">
+                              <div className="space-y-1 border border-border rounded-lg overflow-hidden shadow-sm" style={{ backgroundColor: '#f9f5f0' }}>
                                 {sortedYearOutlines.map(outline => (
                                   <OutlineListItem key={outline.id} outline={outline} />
                                 ))}
@@ -1608,7 +1611,7 @@ export function OutlinePage({
                                 ))}
                               </div>
                             ) : (
-                              <div className="space-y-1 border border-border rounded-lg overflow-hidden bg-card shadow-sm">
+                              <div className="space-y-1 border border-border rounded-lg overflow-hidden shadow-sm" style={{ backgroundColor: '#f9f5f0' }}>
                                 {sortedCourseOutlines.map(outline => (
                                   <OutlineListItem key={outline.id} outline={outline} />
                                 ))}

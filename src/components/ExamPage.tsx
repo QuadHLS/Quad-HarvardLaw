@@ -697,9 +697,12 @@ export function ExamPage({
   const ExamListItem = ({ exam }: { exam: Outline }) => (
     <div 
       className={`group cursor-pointer transition-all duration-200 hover:bg-[#F5F1E8] border-l-4 ${
-        previewExam?.id === exam.id ? 'bg-[#F5F1E8] shadow-sm' : 'bg-[#FEFBF6]'
+        previewExam?.id === exam.id ? 'bg-[#F5F1E8] shadow-sm' : 'bg-[#FFFBF8]'
       }`}
-      style={{ borderLeftColor: getGradeBorderColor(exam.grade) }}
+      style={{ 
+        borderLeftColor: getGradeBorderColor(exam.grade),
+        backgroundColor: previewExam?.id === exam.id ? '#F5F1E8' : '#FFFBF8'
+      }}
       onClick={() => {
         onSelectExam(exam);
         setPreviewExam(exam);
@@ -724,8 +727,7 @@ export function ExamPage({
               <span>•</span>
               <FileText className="w-3 h-3" />
               <span>{exam.file_type?.toUpperCase?.() || exam.file_type}</span>
-              <span>•</span>
-              <span>{exam.pages} pages</span>
+              
             </div>
           </div>
         </div>
@@ -765,7 +767,7 @@ export function ExamPage({
         previewExam?.id === exam.id ? 'ring-2 ring-[#752432] shadow-xl transform -translate-y-1' : ''
       }`}
       style={{ 
-        backgroundColor: previewExam?.id === exam.id ? '#F5F1E8' : '#FEFBF6',
+        backgroundColor: previewExam?.id === exam.id ? '#F5F1E8' : '#FFFBF8',
         borderLeftColor: getGradeBorderColor(exam.grade)
       }}
       onClick={() => {
@@ -780,9 +782,7 @@ export function ExamPage({
               <h3 className="font-semibold text-gray-900 truncate text-sm">
                 {exam.title}
               </h3>
-              <div className="text-xs text-gray-600 ml-2 flex-shrink-0">
-                <span className="font-medium">{exam.pages}</span>p
-              </div>
+              
             </div>
             <div className="flex items-center gap-1.5 text-xs text-gray-500">
               <User className="w-3 h-3 flex-shrink-0" />
@@ -1463,7 +1463,7 @@ export function ExamPage({
                                 ))}
                               </div>
                             ) : (
-                              <div className="space-y-1 border border-border rounded-lg overflow-hidden bg-card shadow-sm">
+                              <div className="space-y-1 border border-border rounded-lg overflow-hidden shadow-sm" style={{ backgroundColor: '#f9f5f0' }}>
                                 {sortedYearOutlines.map(exam => (
                                   <ExamListItem key={exam.id} exam={exam} />
                                 ))}
@@ -1556,7 +1556,7 @@ export function ExamPage({
                                 ))}
                               </div>
                             ) : (
-                              <div className="space-y-1 border border-border rounded-lg overflow-hidden bg-card shadow-sm">
+                              <div className="space-y-1 border border-border rounded-lg overflow-hidden shadow-sm" style={{ backgroundColor: '#f9f5f0' }}>
                                 {sortedCourseExams.map(exam => (
                                   <ExamListItem key={exam.id} exam={exam} />
                                 ))}

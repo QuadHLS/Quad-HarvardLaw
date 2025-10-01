@@ -572,13 +572,22 @@ export function OutlinePage({
             .createSignedUrl(path, 3600); // 1 hour expiry
 
           if (!error && data?.signedUrl) {
-            // Create a temporary link and trigger download
+            // Fetch the file as a blob to force download
+            const response = await fetch(data.signedUrl);
+            const blob = await response.blob();
+            
+            // Create a blob URL and trigger download
+            const blobUrl = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
-            link.href = data.signedUrl;
+            link.href = blobUrl;
             link.download = `${outline.title}.${outline.file_type?.toLowerCase() || 'pdf'}`;
+            link.style.display = 'none';
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            
+            // Clean up the blob URL
+            window.URL.revokeObjectURL(blobUrl);
             console.log(`Successfully downloaded file from path: ${path}`);
             return;
           }

@@ -26,6 +26,7 @@ import { ScrollArea } from './ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import { Label } from './ui/label';
 import { supabase } from '../lib/supabase';
+import { PDFViewer } from './PDFViewer';
 import type { Outline, Instructor } from '../types';
 
 interface OutlinePageProps {
@@ -928,12 +929,15 @@ export function OutlinePage({
             </Button>
           </div>
           
-          {/* PDF Embed */}
+          {/* PDF Viewer */}
           <div className="flex-1">
-            <iframe
-              src={`${viewerUrl}#toolbar=1&navpanes=1&scrollbar=1`}
-              className="w-full h-full border-0"
-              title={`PDF Preview: ${outline.title}`}
+            <PDFViewer
+              fileUrl={viewerUrl}
+              fileName={outline.title}
+              onDownload={() => handleDownload(outline)}
+              onClose={() => {}}
+              hideSearch={false}
+              hideDownload={true}
             />
           </div>
         </div>

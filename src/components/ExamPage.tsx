@@ -94,7 +94,7 @@ export function ExamPage({
   // Separate filter states for saved tab
   const [savedGradeFilter, setSavedGradeFilter] = useState<string | undefined>(undefined);
   const [savedYearFilter, setSavedYearFilter] = useState<string | undefined>(undefined);
-  const [savedTagsFilter, setSavedTagsFilter] = useState<string[]>(['Attack', 'Outline']);
+  const [savedTagsFilter, setSavedTagsFilter] = useState<string[]>(['Midterm', 'Final', 'Quiz', 'Practice']);
   // Combobox states
   const [courseComboboxOpen, setCourseComboboxOpen] = useState(false);
   const [professorComboboxOpen, setProfessorComboboxOpen] = useState(false);
@@ -660,14 +660,14 @@ export function ExamPage({
     setSelectedInstructor('');
     setSelectedGrade(undefined);
     setSelectedYear(undefined);
-    setSelectedTags(['Attack', 'Outline']); // Keep both selected by default
+    setSelectedTags(['Midterm', 'Final', 'Quiz', 'Practice']); // Keep all exam types selected by default
   };
 
   const clearSavedFilters = () => {
     setSavedCourseFilter('');
     setSavedGradeFilter(undefined);
     setSavedYearFilter(undefined);
-    setSavedTagsFilter(['Attack', 'Outline']); // Keep both selected by default
+    setSavedTagsFilter(['Midterm', 'Final', 'Quiz', 'Practice']); // Keep all exam types selected by default
   };
 
   const activeSearchFilterCount = [
@@ -675,17 +675,17 @@ export function ExamPage({
     selectedInstructor && selectedInstructor !== '' ? 1 : 0,
     selectedGrade && selectedGrade !== '' ? 1 : 0,
     selectedYear && selectedYear !== '' ? 1 : 0,
-    selectedTags.length !== 2 ? 1 : 0 // Only count if not both Attack and Outline selected
+    selectedTags.length !== 4 ? 1 : 0 // Only count if not all exam types selected
   ].reduce((sum, count) => sum + count, 0);
 
   const activeSavedFilterCount = [
     savedCourseFilter && savedCourseFilter !== '' ? 1 : 0,
     savedGradeFilter && savedGradeFilter !== '' ? 1 : 0,
     savedYearFilter && savedYearFilter !== '' ? 1 : 0,
-    savedTagsFilter.length !== 2 ? 1 : 0 // Only count if not both Attack and Outline selected
+    savedTagsFilter.length !== 4 ? 1 : 0 // Only count if not all exam types selected
   ].reduce((sum, count) => sum + count, 0);
 
-  const OutlineListItem = ({ exam }: { exam: Outline }) => (
+  const ExamListItem = ({ exam }: { exam: Outline }) => (
     <div 
       className={`group cursor-pointer transition-all duration-200 hover:bg-[#F5F1E8] border-l-4 ${
         previewExam?.id === exam.id ? 'bg-[#F5F1E8] shadow-sm' : 'bg-[#FEFBF6]'
@@ -750,7 +750,7 @@ export function ExamPage({
     </div>
   );
 
-  const OutlineCard = ({ exam }: { exam: Outline }) => (
+  const ExamCard = ({ exam }: { exam: Outline }) => (
     <Card 
       className={`group cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${getGradeBorderClass(exam.grade)} overflow-hidden ${
         previewExam?.id === exam.id ? 'ring-2 ring-[#752432] shadow-xl transform -translate-y-1' : ''
@@ -1235,7 +1235,7 @@ export function ExamPage({
                       Type:
                     </label>
                     <div className="flex gap-2">
-                      {['Attack', 'Outline'].map(tag => (
+                      {['Midterm', 'Final', 'Quiz', 'Practice'].map(tag => (
                         <Badge
                           key={tag}
                           className={`cursor-pointer transition-all duration-200 border ${
@@ -1315,7 +1315,7 @@ export function ExamPage({
                       Type:
                     </label>
                     <div className="flex gap-2">
-                      {['Attack', 'Outline'].map(tag => (
+                      {['Midterm', 'Final', 'Quiz', 'Practice'].map(tag => (
                         <Badge
                           key={tag}
                           className={`cursor-pointer transition-all duration-200 border ${
@@ -1474,13 +1474,13 @@ export function ExamPage({
                             {viewMode === 'grid' ? (
                               <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3">
                                 {sortedYearOutlines.map(exam => (
-                                  <OutlineCard key={exam.id} exam={exam} />
+                                  <ExamCard key={exam.id} exam={exam} />
                                 ))}
                               </div>
                             ) : (
                               <div className="space-y-1 border border-border rounded-lg overflow-hidden bg-card shadow-sm">
                                 {sortedYearOutlines.map(exam => (
-                                  <OutlineListItem key={exam.id} exam={exam} />
+                                  <ExamListItem key={exam.id} exam={exam} />
                                 ))}
                               </div>
                             )}
@@ -1543,13 +1543,13 @@ export function ExamPage({
                 <ScrollArea className="flex-1">
                   <div className="p-6">
                     <div className="space-y-8">
-                      {groupExamsByCourse(filteredSavedExams).map(({ course, exams: courseOutlines }) => {
-                        const sortedCourseOutlines = viewMode === 'list' 
-                          ? [...courseOutlines].sort((a, b) => {
+                      {groupExamsByCourse(filteredSavedExams).map(({ course, exams: courseExams }) => {
+                        const sortedCourseExams = viewMode === 'list' 
+                          ? [...courseExams].sort((a, b) => {
                               const gradeOrder: Record<string, number> = { 'DS': 0, 'H': 1, 'P': 2 };
                               return (gradeOrder[a.grade] || 3) - (gradeOrder[b.grade] || 3);
                             })
-                          : courseOutlines;
+                          : courseExams;
 
                         return (
                           <div key={course}>
@@ -1560,20 +1560,20 @@ export function ExamPage({
                               </div>
                               <div className="flex-1 h-px bg-gray-200"></div>
                               <Badge variant="secondary" className="text-xs" style={{ backgroundColor: '#F8F4ED', color: '#752432' }}>
-                                {courseOutlines.length} exam{courseOutlines.length !== 1 ? 's' : ''}
+                                {courseExams.length} exam{courseExams.length !== 1 ? 's' : ''}
                               </Badge>
                             </div>
                             
                             {viewMode === 'grid' ? (
                               <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3">
-                                {sortedCourseOutlines.map(exam => (
-                                  <OutlineCard key={exam.id} exam={exam} />
+                                {sortedCourseExams.map(exam => (
+                                  <ExamCard key={exam.id} exam={exam} />
                                 ))}
                               </div>
                             ) : (
                               <div className="space-y-1 border border-border rounded-lg overflow-hidden bg-card shadow-sm">
-                                {sortedCourseOutlines.map(exam => (
-                                  <OutlineListItem key={exam.id} exam={exam} />
+                                {sortedCourseExams.map(exam => (
+                                  <ExamListItem key={exam.id} exam={exam} />
                                 ))}
                               </div>
                             )}

@@ -935,7 +935,7 @@ export function OutlinePage({
               fileUrl={viewerUrl}
               fileName={outline.title}
               onDownload={() => handleDownload(outline)}
-              onClose={() => {}}
+              onClose={() => setPreviewOutline(null)}
               hideSearch={false}
               hideDownload={true}
             />

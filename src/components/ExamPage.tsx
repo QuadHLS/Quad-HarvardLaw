@@ -931,7 +931,7 @@ export function ExamPage({
               fileUrl={viewerUrl}
               fileName={exam.title}
               onDownload={() => handleDownload(exam)}
-              onClose={() => {}}
+              onClose={() => setPreviewExam(null)}
               hideSearch={false}
               hideDownload={true}
             />

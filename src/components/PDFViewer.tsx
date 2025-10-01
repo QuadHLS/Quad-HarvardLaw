@@ -324,8 +324,8 @@ export function PDFViewer({ fileUrl, fileName, onDownload, onClose, hideSearch =
       const viewport = page.getViewport({ scale: 1.0 });
       
       // Calculate scale to fit both width and height, with some padding
-      const scaleX = (containerWidth - 80) / viewport.width; // 80px padding (40px on each side)
-      const scaleY = (containerHeight - 80) / viewport.height; // 80px padding (40px top/bottom)
+      const scaleX = (containerWidth - 40) / viewport.width; // 40px padding (20px on each side)
+      const scaleY = (containerHeight - 40) / viewport.height; // 40px padding (20px top/bottom)
       const newScale = Math.min(scaleX, scaleY); // Use the smaller scale to fit both dimensions
       
       // Ensure scale doesn't go below 0.3 or above 3.0

@@ -188,8 +188,14 @@ export function OutlinePage({
 
   // Upload helper functions
   const formatOutlineDisplayName = (course: string, instructor: string, year: string, grade: string): string => {
-    // Get first letter of course name
-    const courseInitial = course.charAt(0).toUpperCase();
+    // Get last 2 digits of year
+    const lastTwoDigits = year.slice(-2);
+    
+    // Get first 2 letters of every word in course name
+    const courseInitials = course
+      .split(' ')
+      .map(word => word.substring(0, 2).toUpperCase())
+      .join('');
     
     // Get instructor initials (first letter of each word)
     const instructorInitials = instructor
@@ -197,14 +203,11 @@ export function OutlinePage({
       .map(name => name.charAt(0).toUpperCase())
       .join('');
     
-    // Get last 2 digits of year
-    const lastTwoDigits = year.slice(-2);
-    
     // Generate random 3-digit number
     const randomNumber = Math.floor(Math.random() * 900) + 100; // 100-999
     
-    // Format as continuous text: CourseInitial + InstructorInitials + Last2Digits + Grade + Random3Digits
-    return `${courseInitial}${instructorInitials}${lastTwoDigits}${grade}${randomNumber}`;
+    // Format: [YY] CC PP (G) #XXX
+    return `[${lastTwoDigits}] ${courseInitials} ${instructorInitials} (${grade}) #${randomNumber}`;
   };
 
   const ensureFolderStructure = async (course: string, instructor: string, year: string, grade: string) => {

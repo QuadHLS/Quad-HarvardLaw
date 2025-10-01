@@ -117,8 +117,8 @@ export function OutlinePage({
   // Define bucket name for this component
   const bucketName = 'Outlines';
 
-  const displaySelectedCourse = selectedCourse || 'all-courses';
-  const displaySelectedInstructor = selectedInstructor || 'all-professors';
+  const displaySelectedCourse = selectedCourse || '';
+  const displaySelectedInstructor = selectedInstructor || '';
 
   useEffect(() => {
     setPreviewOutline(selectedOutline);
@@ -740,25 +740,25 @@ export function OutlinePage({
           <Button
             variant="outline"
             size="sm"
-            className="h-7 text-xs opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
+            className="h-[14px] px-1 text-[8px] opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
             onClick={(e) => {
               e.stopPropagation();
               onToggleSaveOutline(outline);
             }}
           >
-            <Bookmark className="h-3 w-3 mr-1" />
+            <Bookmark className="h-[8px] w-[8px] mr-1" />
             {savedOutlines.some(saved => saved.id === outline.id) ? 'Unsave' : 'Save'}
           </Button>
           <Button
             variant="outline"
             size="sm"
-            className="h-7 text-xs opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
+            className="h-[14px] px-1 text-[8px] opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
             onClick={(e) => {
               e.stopPropagation();
               handleDownload(outline);
             }}
           >
-            <Download className="h-3 w-3 mr-1" />
+            <Download className="h-[8px] w-[8px] mr-1" />
             Download
           </Button>
         </div>
@@ -1137,7 +1137,7 @@ export function OutlinePage({
                           aria-expanded={courseComboboxOpen}
                           className="w-48 justify-between bg-input-background border-border hover:bg-gray-100 transition-colors"
                         >
-                          {displaySelectedCourse === 'all-courses' ? 'All Courses' : displaySelectedCourse}
+                          {displaySelectedCourse ? displaySelectedCourse : 'Select Course'}
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
@@ -1147,21 +1147,13 @@ export function OutlinePage({
                           <CommandList>
                             <CommandEmpty>No course found.</CommandEmpty>
                             <CommandGroup>
-                              <CommandItem
-                                value="all-courses"
-                                onSelect={() => {
-                                  setSelectedCourse('');
-                                  setCourseComboboxOpen(false);
-                                }}
-                              >
-                                All Courses
-                              </CommandItem>
                               {courses.map((course) => (
                                 <CommandItem
                                   key={course}
                                   value={course}
                                   onSelect={() => {
                                     setSelectedCourse(course);
+                                    setSelectedInstructor('');
                                     setCourseComboboxOpen(false);
                                   }}
                                 >
@@ -1189,7 +1181,7 @@ export function OutlinePage({
                           className="w-48 justify-between bg-input-background border-border hover:bg-gray-100 transition-colors"
                           disabled={!selectedCourse}
                         >
-                          {displaySelectedInstructor === 'all-professors' ? 'All Professors' : displaySelectedInstructor}
+                          {displaySelectedInstructor ? displaySelectedInstructor : 'Select Professor'}
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
@@ -1199,15 +1191,6 @@ export function OutlinePage({
                           <CommandList>
                             <CommandEmpty>No professor found.</CommandEmpty>
                             <CommandGroup>
-                              <CommandItem
-                                value="all-professors"
-                                onSelect={() => {
-                                  setSelectedInstructor('');
-                                  setProfessorComboboxOpen(false);
-                                }}
-                              >
-                                All Professors
-                              </CommandItem>
                               {filteredInstructors.map((instructor) => (
                                 <CommandItem
                                   key={instructor.id}

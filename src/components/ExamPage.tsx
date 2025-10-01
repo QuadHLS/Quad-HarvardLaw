@@ -8,7 +8,6 @@ import {
   Calendar,
   User,
   BookOpen,
-  Tags,
   Award,
   X,
   Upload,
@@ -94,7 +93,7 @@ export function ExamPage({
   // Separate filter states for saved tab
   const [savedGradeFilter, setSavedGradeFilter] = useState<string | undefined>(undefined);
   const [savedYearFilter, setSavedYearFilter] = useState<string | undefined>(undefined);
-  const [savedTagsFilter, setSavedTagsFilter] = useState<string[]>(['Midterm', 'Final', 'Quiz', 'Practice']);
+  const [savedTagsFilter, setSavedTagsFilter] = useState<string[]>([]);
   // Combobox states
   const [courseComboboxOpen, setCourseComboboxOpen] = useState(false);
   const [professorComboboxOpen, setProfessorComboboxOpen] = useState(false);
@@ -397,13 +396,6 @@ export function ExamPage({
         return (gradeOrder[a] || 3) - (gradeOrder[b] || 3);
       });
 
-  const handleTagToggle = (tag: string) => {
-    setSelectedTags((prev: string[]) => 
-      prev.includes(tag) 
-        ? prev.filter((t: string) => t !== tag)
-        : [...prev, tag]
-    );
-  };
 
   // Handle download
   const handleFileSelect = (file: File) => {
@@ -660,14 +652,14 @@ export function ExamPage({
     setSelectedInstructor('');
     setSelectedGrade(undefined);
     setSelectedYear(undefined);
-    setSelectedTags(['Midterm', 'Final', 'Quiz', 'Practice']); // Keep all exam types selected by default
+    setSelectedTags([]); // No exam type tags
   };
 
   const clearSavedFilters = () => {
     setSavedCourseFilter('');
     setSavedGradeFilter(undefined);
     setSavedYearFilter(undefined);
-    setSavedTagsFilter(['Midterm', 'Final', 'Quiz', 'Practice']); // Keep all exam types selected by default
+    setSavedTagsFilter([]); // No exam type tags
   };
 
   const activeSearchFilterCount = [
@@ -675,14 +667,14 @@ export function ExamPage({
     selectedInstructor && selectedInstructor !== '' ? 1 : 0,
     selectedGrade && selectedGrade !== '' ? 1 : 0,
     selectedYear && selectedYear !== '' ? 1 : 0,
-    selectedTags.length !== 4 ? 1 : 0 // Only count if not all exam types selected
+    selectedTags.length > 0 ? 1 : 0 // Count if any tags selected
   ].reduce((sum, count) => sum + count, 0);
 
   const activeSavedFilterCount = [
     savedCourseFilter && savedCourseFilter !== '' ? 1 : 0,
     savedGradeFilter && savedGradeFilter !== '' ? 1 : 0,
     savedYearFilter && savedYearFilter !== '' ? 1 : 0,
-    savedTagsFilter.length !== 4 ? 1 : 0 // Only count if not all exam types selected
+    savedTagsFilter.length > 0 ? 1 : 0 // Count if any tags selected
   ].reduce((sum, count) => sum + count, 0);
 
   const ExamListItem = ({ exam }: { exam: Outline }) => (
@@ -1229,27 +1221,6 @@ export function ExamPage({
                     </Select>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium flex items-center gap-1 text-white">
-                      <Tags className="w-4 h-4" />
-                      Type:
-                    </label>
-                    <div className="flex gap-2">
-                      {['Midterm', 'Final', 'Quiz', 'Practice'].map(tag => (
-                        <Badge
-                          key={tag}
-                          className={`cursor-pointer transition-all duration-200 border ${
-                            selectedTags.includes(tag)
-                              ? 'bg-white text-[#752432] border-white hover:bg-gray-50 hover:shadow-sm'
-                              : 'bg-gray-300 text-gray-700 border-gray-400 hover:bg-gray-400 hover:text-gray-800'
-                          }`}
-                          onClick={() => handleTagToggle(tag)}
-                        >
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
                 </>
               )}
 
@@ -1309,33 +1280,6 @@ export function ExamPage({
                     </Select>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium flex items-center gap-1 text-white">
-                      <Tags className="w-4 h-4" />
-                      Type:
-                    </label>
-                    <div className="flex gap-2">
-                      {['Midterm', 'Final', 'Quiz', 'Practice'].map(tag => (
-                        <Badge
-                          key={tag}
-                          className={`cursor-pointer transition-all duration-200 border ${
-                            savedTagsFilter.includes(tag)
-                              ? 'bg-white text-[#752432] border-white hover:bg-gray-50 hover:shadow-sm'
-                              : 'bg-gray-300 text-gray-700 border-gray-400 hover:bg-gray-400 hover:text-gray-800'
-                          }`}
-                          onClick={() => {
-                            setSavedTagsFilter(prev => 
-                              prev.includes(tag) 
-                                ? prev.filter(t => t !== tag)
-                                : [...prev, tag]
-                            );
-                          }}
-                        >
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
                 </>
               )}
 

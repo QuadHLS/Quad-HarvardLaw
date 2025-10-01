@@ -76,17 +76,17 @@ export function OutlinePage({
   setSelectedYear,
   selectedTags,
   setSelectedTags,
-  myCourses,
+  myCourses: _myCourses,
   selectedOutline,
   onSelectOutline,
   activeTab,
   setActiveTab,
   savedOutlines,
-  onRemoveSavedOutline,
+  onRemoveSavedOutline: _onRemoveSavedOutline,
   onToggleSaveOutline,
-  hiddenOutlines,
-  onHideOutline,
-  onUnhideAllOutlines
+  hiddenOutlines: _hiddenOutlines,
+  onHideOutline: _onHideOutline,
+  onUnhideAllOutlines: _onUnhideAllOutlines
 }: OutlinePageProps) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [previewOutline, setPreviewOutline] = useState<Outline | null>(selectedOutline);
@@ -1092,9 +1092,24 @@ export function OutlinePage({
             
             <Tabs value={activeTab} onValueChange={(value) => handleTabChange(value as 'search' | 'saved' | 'upload')}>
               <TabsList className="bg-white/10 border-0 rounded-md shadow-sm">
-                <TabsTrigger value="search" className="rounded-sm data-[state=active]:bg-white data-[state=active]:text-[#752432] text-white hover:bg-white/20 transition-all active:scale-95">Search</TabsTrigger>
-                <TabsTrigger value="saved" className="rounded-sm data-[state=active]:bg-white data-[state=active]:text-[#752432] text-white hover:bg-white/20 transition-all active:scale-95">Saved</TabsTrigger>
-                <TabsTrigger value="upload" className="rounded-sm data-[state=active]:bg-white data-[state=active]:text-[#752432] text-white hover:bg-white/20 transition-all active:scale-95">Upload</TabsTrigger>
+                <TabsTrigger 
+                  value="search" 
+                  className={`rounded-sm text-white hover:bg-white/20 transition-all active:scale-95 data-[state=active]:bg-white data-[state=active]:text-[#752432] ${activeTab === 'search' ? 'bg-white text-[#752432]' : ''}`}
+                >
+                  Search
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="saved" 
+                  className={`rounded-sm text-white hover:bg-white/20 transition-all active:scale-95 data-[state=active]:bg-white data-[state=active]:text-[#752432] ${activeTab === 'saved' ? 'bg-white text-[#752432]' : ''}`}
+                >
+                  Saved
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="upload" 
+                  className={`rounded-sm text-white hover:bg-white/20 transition-all active:scale-95 data-[state=active]:bg-white data-[state=active]:text-[#752432] ${activeTab === 'upload' ? 'bg-white text-[#752432]' : ''}`}
+                >
+                  Upload
+                </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -1250,20 +1265,34 @@ export function OutlinePage({
                       <Tags className="w-4 h-4" />
                       Type:
                     </label>
-                    <div className="flex gap-2">
-                      {['Attack', 'Outline'].map(tag => (
-                        <Badge
-                          key={tag}
-                          className={`cursor-pointer transition-all duration-200 border ${
-                            selectedTags.includes(tag)
-                              ? 'bg-white text-[#752432] border-white hover:bg-gray-50 hover:shadow-sm'
-                              : 'bg-gray-300 text-gray-700 border-gray-400 hover:bg-gray-400 hover:text-gray-800'
-                          }`}
-                          onClick={() => handleTagToggle(tag)}
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-2">
+                        {['Attack', 'Outline'].map(tag => (
+                          <Badge
+                            key={tag}
+                            className={`cursor-pointer transition-all duration-200 border ${
+                              selectedTags.includes(tag)
+                                ? 'bg-white text-[#752432] border-white hover:bg-gray-50 hover:shadow-sm'
+                                : 'bg-gray-300 text-gray-700 border-gray-400 hover:bg-gray-400 hover:text-gray-800'
+                            }`}
+                            onClick={() => handleTagToggle(tag)}
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                      {activeSearchFilterCount > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={clearSearchFilters}
+                          className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:border-white/50 h-7 px-2 py-0 flex items-center gap-1 transition-all active:scale-95"
+                          title="Clear filters"
                         >
-                          {tag}
-                        </Badge>
-                      ))}
+                          <X className="w-3 h-3" />
+                          <span className="text-xs">{activeSearchFilterCount}</span>
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </>
@@ -1330,26 +1359,40 @@ export function OutlinePage({
                       <Tags className="w-4 h-4" />
                       Type:
                     </label>
-                    <div className="flex gap-2">
-                      {['Attack', 'Outline'].map(tag => (
-                        <Badge
-                          key={tag}
-                          className={`cursor-pointer transition-all duration-200 border ${
-                            savedTagsFilter.includes(tag)
-                              ? 'bg-white text-[#752432] border-white hover:bg-gray-50 hover:shadow-sm'
-                              : 'bg-gray-300 text-gray-700 border-gray-400 hover:bg-gray-400 hover:text-gray-800'
-                          }`}
-                          onClick={() => {
-                            setSavedTagsFilter(prev => 
-                              prev.includes(tag) 
-                                ? prev.filter(t => t !== tag)
-                                : [...prev, tag]
-                            );
-                          }}
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-2">
+                        {['Attack', 'Outline'].map(tag => (
+                          <Badge
+                            key={tag}
+                            className={`cursor-pointer transition-all duration-200 border ${
+                              savedTagsFilter.includes(tag)
+                                ? 'bg-white text-[#752432] border-white hover:bg-gray-50 hover:shadow-sm'
+                                : 'bg-gray-300 text-gray-700 border-gray-400 hover:bg-gray-400 hover:text-gray-800'
+                            }`}
+                            onClick={() => {
+                              setSavedTagsFilter(prev => 
+                                prev.includes(tag) 
+                                  ? prev.filter(t => t !== tag)
+                                  : [...prev, tag]
+                              );
+                            }}
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                      {activeSavedFilterCount > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={clearSavedFilters}
+                          className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:border-white/50 h-7 px-2 py-0 flex items-center gap-1 transition-all active:scale-95"
+                          title="Clear saved filters"
                         >
-                          {tag}
-                        </Badge>
-                      ))}
+                          <X className="w-3 h-3" />
+                          <span className="text-xs">{activeSavedFilterCount}</span>
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </>
@@ -1357,29 +1400,7 @@ export function OutlinePage({
 
               <div className="flex-1"></div>
 
-              {activeTab === 'search' && activeSearchFilterCount > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={clearSearchFilters}
-                  className="bg-input-background border-border text-gray-700 hover:bg-gray-100 hover:border-gray-300 hover:text-gray-900 h-7 text-xs px-3 mr-4 transition-all hover:shadow-sm active:scale-95"
-                >
-                  <X className="w-3 h-3 mr-1" />
-                  Clear ({activeSearchFilterCount})
-                </Button>
-              )}
-
-              {activeTab === 'saved' && activeSavedFilterCount > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={clearSavedFilters}
-                  className="bg-input-background border-border text-gray-700 hover:bg-gray-100 hover:border-gray-300 hover:text-gray-900 h-7 text-xs px-3 mr-4 transition-all hover:shadow-sm active:scale-95"
-                >
-                  <X className="w-3 h-3 mr-1" />
-                  Clear ({activeSavedFilterCount})
-                </Button>
-              )}
+              {/* Right-side clear buttons removed; using compact X next to Type */}
 
               {(activeTab === 'search' || activeTab === 'saved') && (
                 <div className="flex items-center gap-1">

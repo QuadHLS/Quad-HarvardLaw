@@ -75,17 +75,17 @@ export function ExamPage({
   setSelectedYear,
   selectedTags,
   setSelectedTags,
-  myCourses,
+  myCourses: _myCourses,
   selectedExam,
   onSelectExam,
   activeTab,
   setActiveTab,
   savedExams,
-  onRemoveSavedExam,
+  onRemoveSavedExam: _onRemoveSavedExam,
   onToggleSaveExam,
-  hiddenExams,
-  onHideExam,
-  onUnhideAllExams
+  hiddenExams: _hiddenExams,
+  onHideExam: _onHideExam,
+  onUnhideAllExams: _onUnhideAllExams
 }: ExamPageProps) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [previewExam, setPreviewExam] = useState<Outline | null>(selectedExam);
@@ -1088,9 +1088,24 @@ export function ExamPage({
             
             <Tabs value={activeTab} onValueChange={(value) => handleTabChange(value as 'search' | 'saved' | 'upload')}>
               <TabsList className="bg-white/10 border-0 rounded-md shadow-sm">
-                <TabsTrigger value="search" className="rounded-sm data-[state=active]:bg-white data-[state=active]:text-[#752432] text-white hover:bg-white/20 transition-all active:scale-95">Search</TabsTrigger>
-                <TabsTrigger value="saved" className="rounded-sm data-[state=active]:bg-white data-[state=active]:text-[#752432] text-white hover:bg-white/20 transition-all active:scale-95">Saved</TabsTrigger>
-                <TabsTrigger value="upload" className="rounded-sm data-[state=active]:bg-white data-[state=active]:text-[#752432] text-white hover:bg-white/20 transition-all active:scale-95">Upload</TabsTrigger>
+                <TabsTrigger 
+                  value="search" 
+                  className={`rounded-sm text-white hover:bg-white/20 transition-all active:scale-95 data-[state=active]:bg-white data-[state=active]:text-[#752432] ${activeTab === 'search' ? 'bg-white text-[#752432]' : ''}`}
+                >
+                  Search
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="saved" 
+                  className={`rounded-sm text-white hover:bg-white/20 transition-all active:scale-95 data-[state=active]:bg-white data-[state=active]:text-[#752432] ${activeTab === 'saved' ? 'bg-white text-[#752432]' : ''}`}
+                >
+                  Saved
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="upload" 
+                  className={`rounded-sm text-white hover:bg-white/20 transition-all active:scale-95 data-[state=active]:bg-white data-[state=active]:text-[#752432] ${activeTab === 'upload' ? 'bg-white text-[#752432]' : ''}`}
+                >
+                  Upload
+                </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -1228,17 +1243,31 @@ export function ExamPage({
                       <Calendar className="w-4 h-4" />
                       Year:
                     </label>
-                    <Select value={selectedYear || 'all-years'} onValueChange={(value) => setSelectedYear(value === 'all-years' ? undefined : value)}>
-                      <SelectTrigger className="w-32 bg-input-background border-border hover:bg-gray-100 transition-colors">
-                        <SelectValue placeholder="All" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all-years">All</SelectItem>
-                        {availableYearsForSelection.map(year => (
-                          <SelectItem key={year} value={year}>{year}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-2">
+                      <Select value={selectedYear || 'all-years'} onValueChange={(value) => setSelectedYear(value === 'all-years' ? undefined : value)}>
+                        <SelectTrigger className="w-32 bg-input-background border-border hover:bg-gray-100 transition-colors">
+                          <SelectValue placeholder="All" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all-years">All</SelectItem>
+                          {availableYearsForSelection.map(year => (
+                            <SelectItem key={year} value={year}>{year}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {activeSearchFilterCount > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={clearSearchFilters}
+                          className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:border-white/50 h-7 px-2 py-0 flex items-center gap-1 transition-all active:scale-95"
+                          title="Clear filters"
+                        >
+                          <X className="w-3 h-3" />
+                          <span className="text-xs">{activeSearchFilterCount}</span>
+                        </Button>
+                      )}
+                    </div>
                   </div>
 
                 </>
@@ -1287,17 +1316,31 @@ export function ExamPage({
                       <Calendar className="w-4 h-4" />
                       Year:
                     </label>
-                    <Select value={savedYearFilter || 'all-years'} onValueChange={(value) => setSavedYearFilter(value === 'all-years' ? undefined : value)}>
-                      <SelectTrigger className="w-32 bg-input-background border-border hover:bg-gray-100 transition-colors">
-                        <SelectValue placeholder="All" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all-years">All</SelectItem>
-                        {availableYearsForSaved.map(year => (
-                          <SelectItem key={year} value={year}>{year}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-2">
+                      <Select value={savedYearFilter || 'all-years'} onValueChange={(value) => setSavedYearFilter(value === 'all-years' ? undefined : value)}>
+                        <SelectTrigger className="w-32 bg-input-background border-border hover:bg-gray-100 transition-colors">
+                          <SelectValue placeholder="All" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all-years">All</SelectItem>
+                          {availableYearsForSaved.map(year => (
+                            <SelectItem key={year} value={year}>{year}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {activeSavedFilterCount > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={clearSavedFilters}
+                          className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:border-white/50 h-7 px-2 py-0 flex items-center gap-1 transition-all active:scale-95"
+                          title="Clear saved filters"
+                        >
+                          <X className="w-3 h-3" />
+                          <span className="text-xs">{activeSavedFilterCount}</span>
+                        </Button>
+                      )}
+                    </div>
                   </div>
 
                 </>
@@ -1305,29 +1348,7 @@ export function ExamPage({
 
               <div className="flex-1"></div>
 
-              {activeTab === 'search' && activeSearchFilterCount > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={clearSearchFilters}
-                  className="bg-input-background border-border text-gray-700 hover:bg-gray-100 hover:border-gray-300 hover:text-gray-900 h-7 text-xs px-3 mr-4 transition-all hover:shadow-sm active:scale-95"
-                >
-                  <X className="w-3 h-3 mr-1" />
-                  Clear ({activeSearchFilterCount})
-                </Button>
-              )}
-
-              {activeTab === 'saved' && activeSavedFilterCount > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={clearSavedFilters}
-                  className="bg-input-background border-border text-gray-700 hover:bg-gray-100 hover:border-gray-300 hover:text-gray-900 h-7 text-xs px-3 mr-4 transition-all hover:shadow-sm active:scale-95"
-                >
-                  <X className="w-3 h-3 mr-1" />
-                  Clear ({activeSavedFilterCount})
-                </Button>
-              )}
+              {/* Right-side clear buttons removed; compact X placed next to Year */}
 
               {(activeTab === 'search' || activeTab === 'saved') && (
                 <div className="flex items-center gap-1">

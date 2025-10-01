@@ -731,7 +731,7 @@ export function ExamPage({
         </div>
         <div className="flex items-center gap-2">
           <Button
-            variant="exam"
+            variant="outline"
             size="sm"
             className="h-7 text-xs opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
             onClick={(e) => {
@@ -743,7 +743,7 @@ export function ExamPage({
             {savedExams.some(saved => saved.id === exam.id) ? 'Unsave' : 'Save'}
           </Button>
           <Button
-            variant="exam"
+            variant="outline"
             size="sm"
             className="h-7 text-xs opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
             onClick={(e) => {
@@ -810,7 +810,7 @@ export function ExamPage({
             <FileText className="w-3 h-3 flex-shrink-0" />
             <span>{exam.file_type?.toUpperCase?.() || exam.file_type}</span>
             <Button
-              variant="exam"
+              variant="outline"
               size="sm"
               className="h-6 text-xs px-2 opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
               onClick={(e) => {
@@ -823,7 +823,7 @@ export function ExamPage({
             </Button>
           </div>
           <Button
-            variant="exam"
+            variant="outline"
             size="sm"
             className="h-7 text-xs px-2 opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
             onClick={(e) => {
@@ -1110,7 +1110,7 @@ export function ExamPage({
                     <Popover open={courseComboboxOpen} onOpenChange={setCourseComboboxOpen}>
                       <PopoverTrigger asChild>
                         <Button
-                          variant="exam"
+                          variant="outline"
                           role="combobox"
                           aria-expanded={courseComboboxOpen}
                           className="w-48 justify-between bg-input-background border-border hover:bg-gray-100 transition-colors"
@@ -1161,7 +1161,7 @@ export function ExamPage({
                     <Popover open={professorComboboxOpen} onOpenChange={setProfessorComboboxOpen}>
                       <PopoverTrigger asChild>
                         <Button
-                          variant="exam"
+                          variant="outline"
                           role="combobox"
                           aria-expanded={professorComboboxOpen}
                           className="w-48 justify-between bg-input-background border-border hover:bg-gray-100 transition-colors"
@@ -1307,7 +1307,7 @@ export function ExamPage({
 
               {activeTab === 'search' && activeSearchFilterCount > 0 && (
                 <Button
-                  variant="exam"
+                  variant="outline"
                   size="sm"
                   onClick={clearSearchFilters}
                   className="bg-input-background border-border text-gray-700 hover:bg-gray-100 hover:border-gray-300 hover:text-gray-900 h-7 text-xs px-3 mr-4 transition-all hover:shadow-sm active:scale-95"
@@ -1319,7 +1319,7 @@ export function ExamPage({
 
               {activeTab === 'saved' && activeSavedFilterCount > 0 && (
                 <Button
-                  variant="exam"
+                  variant="outline"
                   size="sm"
                   onClick={clearSavedFilters}
                   className="bg-input-background border-border text-gray-700 hover:bg-gray-100 hover:border-gray-300 hover:text-gray-900 h-7 text-xs px-3 mr-4 transition-all hover:shadow-sm active:scale-95"
@@ -1611,7 +1611,7 @@ export function ExamPage({
                         <p className="text-sm text-gray-500 mb-1">{uploadFile.name}</p>
                         <p className="text-xs text-gray-400 mb-3">{(uploadFile.size / 1024 / 1024).toFixed(2)} MB</p>
                         <Button 
-                          variant="exam" 
+                          variant="outline" 
                           size="sm"
                           className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition-all hover:shadow-sm active:scale-95"
                           onClick={() => setUploadFile(null)}

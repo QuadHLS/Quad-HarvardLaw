@@ -53,14 +53,15 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
   const { user } = useAuth();
   const [section, setSection] = useState<string>('');
   const [classYear, setClassYear] = useState<ClassYear | ''>('');
+  const createSelectedClasses = (count: number): SelectedClass[] =>
+    Array.from({ length: count }, (): SelectedClass => ({
+      lawClass: null,
+      professor: null,
+      scheduleOption: null,
+    }));
+
   const [selectedClasses, setSelectedClasses] = useState<SelectedClass[]>(
-    Array(10)
-      .fill(null)
-      .map(() => ({
-        lawClass: null,
-        professor: null,
-        scheduleOption: null,
-      }))
+    createSelectedClasses(10)
   );
   const [loading, setLoading] = useState(false);
   const [apiCourses, setApiCourses] = useState<LawClass[]>([]);
@@ -96,13 +97,7 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
           
           // Pre-populate selected classes if they exist
           if (profile.classes && Array.isArray(profile.classes)) {
-            const newSelectedClasses = Array(10)
-              .fill(null)
-              .map(() => ({
-                lawClass: null,
-                professor: null,
-                scheduleOption: null,
-              }));
+            const newSelectedClasses: SelectedClass[] = createSelectedClasses(10);
 
             profile.classes.forEach((classData: any, index: number) => {
               if (index < 10 && classData.class && classData.professor) {
@@ -252,13 +247,7 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
         ];
 
         // Create new selected classes array
-        const newSelectedClasses = Array(8)
-          .fill(null)
-          .map(() => ({
-            lawClass: null,
-            professor: null,
-            scheduleOption: null,
-          }));
+        const newSelectedClasses: SelectedClass[] = createSelectedClasses(8);
 
         // Auto-populate the first 7 slots with required courses
         for (let i = 0; i < 7; i++) {
@@ -358,23 +347,11 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
       // Set up the correct number of slots based on class year
       if (classYear === '1L') {
         // 1L: 7 required + 1 optional = 8 total
-        const newSelectedClasses = Array(8)
-          .fill(null)
-          .map(() => ({
-            lawClass: null,
-            professor: null,
-            scheduleOption: null,
-          }));
+        const newSelectedClasses: SelectedClass[] = createSelectedClasses(8);
         setSelectedClasses(newSelectedClasses);
       } else if (classYear === '2L' || classYear === '3L') {
         // 2L/3L: 3 required + up to 7 more = 10 total maximum
-        const newSelectedClasses = Array(10)
-          .fill(null)
-          .map(() => ({
-            lawClass: null,
-            professor: null,
-            scheduleOption: null,
-          }));
+        const newSelectedClasses: SelectedClass[] = createSelectedClasses(10);
         setSelectedClasses(newSelectedClasses);
       }
 
@@ -382,7 +359,7 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
     }
   }, [classYear]);
 
-  const getAvailableClassesForSlot = (excludeIds: string[]): LawClass[] => {
+  const getAvailableClassesForSlot = (_excludeIds: string[]): LawClass[] => {
     // Return empty array if no class year is selected
     if (!classYear) {
       return [];

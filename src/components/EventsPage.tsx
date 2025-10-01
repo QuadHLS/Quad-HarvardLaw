@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Calendar, MapPin, Clock, Users, Building, Utensils, X, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Calendar, MapPin, Clock, Users, Building, Utensils, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -7,7 +7,7 @@ import { Input } from './ui/input';
 import { Switch } from './ui/switch';
 import { Label } from './ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface CampusEvent {
   id: string;
@@ -231,7 +231,7 @@ export function EventsPage({ onAddToCalendar }: EventsPageProps) {
       case 'firm':
         return 'bg-blue-600 text-white';
       default:
-        return 'style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}0 text-white';
+        return 'bg-gray-600 text-white';
     }
   };
 
@@ -261,7 +261,7 @@ export function EventsPage({ onAddToCalendar }: EventsPageProps) {
       case 'information':
         return 'bg-yellow-100 text-yellow-800';
       default:
-        return 'style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} text-gray-800';
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -415,9 +415,9 @@ export function EventsPage({ onAddToCalendar }: EventsPageProps) {
                   <button
                     key={i}
                     onClick={() => setCurrentDate(dayDate)}
-                    className={`p-2 text-sm rounded hover:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}/10 transition-colors ${
-                      isSelected ? 'style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}/20 text-white' : 
-                      isToday ? 'style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}/10 text-white' : 
+                  className={`p-2 text-sm rounded hover:bg-white/10 transition-colors ${
+                      isSelected ? 'bg-white/20 text-white' : 
+                      isToday ? 'bg-white/10 text-white' : 
                       'text-white/80'
                     }`}
                   >
@@ -496,14 +496,14 @@ export function EventsPage({ onAddToCalendar }: EventsPageProps) {
 
         {/* Submit Event Button */}
         <div className="p-6 mt-auto">
-          <Button className="w-full style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} text-[#752432] hover:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}/90">
+          <Button className="w-full bg-white text-[#752432] hover:bg-white/90">
             Submit an Event
           </Button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}">
+      <div className="flex-1 flex flex-col bg-[#f9f5f0]">
         {/* Main Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center gap-4">
@@ -711,9 +711,9 @@ export function EventsPage({ onAddToCalendar }: EventsPageProps) {
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-1 text-sm text-gray-500">
                                 <Users className="w-4 h-4" />
-                                <span>{event.attendeeCount} attending</span>
-                                {event.maxAttendees && (
-                                  <span>• {event.maxAttendees - event.attendeeCount} spots left</span>
+                                <span>{event.attendeeCount ?? 0} attending</span>
+                                {typeof event.maxAttendees === 'number' && (
+                                  <span>• {(event.maxAttendees ?? 0) - (event.attendeeCount ?? 0)} spots left</span>
                                 )}
                               </div>
                             </div>
@@ -914,11 +914,11 @@ export function EventsPage({ onAddToCalendar }: EventsPageProps) {
                     <div className="space-y-2 text-sm">
                       <div className="flex items-center gap-2">
                         <Users className="w-4 h-4 text-gray-400" />
-                        <span>{selectedEvent.attendeeCount} registered</span>
+            <span>{selectedEvent.attendeeCount ?? 0} registered</span>
                       </div>
-                      {selectedEvent.maxAttendees && (
+                      {typeof selectedEvent.maxAttendees === 'number' && (
                         <div className="text-gray-600">
-                          {selectedEvent.maxAttendees - selectedEvent.attendeeCount} spots remaining
+                          {(selectedEvent.maxAttendees ?? 0) - (selectedEvent.attendeeCount ?? 0)} spots remaining
                         </div>
                       )}
                     </div>

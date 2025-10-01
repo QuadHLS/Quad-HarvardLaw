@@ -1415,12 +1415,12 @@ export function ExamPage({
                   <div className="p-6">
                     <div className="space-y-8">
                       {groupExamsByYear(exams).map(({ year, exams: yearOutlines }) => {
-                        const sortedYearOutlines = viewMode === 'list' 
-                          ? [...yearOutlines].sort((a, b) => {
-                              const gradeOrder: Record<string, number> = { 'DS': 0, 'H': 1, 'P': 2 };
-                              return (gradeOrder[a.grade] || 3) - (gradeOrder[b.grade] || 3);
-                            })
-                          : yearOutlines;
+                        const sortedYearOutlines = [...yearOutlines].sort((a, b) => {
+                          const gradeOrder: Record<string, number> = { DS: 0, H: 1, P: 2 };
+                          const aKey = (a.grade || '').trim().toUpperCase();
+                          const bKey = (b.grade || '').trim().toUpperCase();
+                          return (gradeOrder[aKey] ?? 3) - (gradeOrder[bKey] ?? 3);
+                        });
 
                         return (
                           <div key={year}>
@@ -1508,12 +1508,12 @@ export function ExamPage({
                   <div className="p-6">
                     <div className="space-y-8">
                       {groupExamsByCourse(filteredSavedExams).map(({ course, exams: courseExams }) => {
-                        const sortedCourseExams = viewMode === 'list' 
-                          ? [...courseExams].sort((a, b) => {
-                              const gradeOrder: Record<string, number> = { 'DS': 0, 'H': 1, 'P': 2 };
-                              return (gradeOrder[a.grade] || 3) - (gradeOrder[b.grade] || 3);
-                            })
-                          : courseExams;
+                        const sortedCourseExams = [...courseExams].sort((a, b) => {
+                          const gradeOrder: Record<string, number> = { DS: 0, H: 1, P: 2 };
+                          const aKey = (a.grade || '').trim().toUpperCase();
+                          const bKey = (b.grade || '').trim().toUpperCase();
+                          return (gradeOrder[aKey] ?? 3) - (gradeOrder[bKey] ?? 3);
+                        });
 
                         return (
                           <div key={course}>

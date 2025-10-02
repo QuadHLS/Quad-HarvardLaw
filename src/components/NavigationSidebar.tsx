@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, FileText, Star, Beer, Calendar, Menu, User, MessageCircle, Archive, ChevronDown, ChevronRight, BookOpen, LogOut, Sun, Moon, Palette, MessageSquare } from 'lucide-react';
+import { Home, FileText, Star, Beer, Calendar, Menu, User, MessageCircle, Archive, ChevronDown, ChevronRight, BookOpen, Sun, Moon, Palette, MessageSquare } from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -12,8 +12,7 @@ interface NavigationSidebarProps {
 }
 
 export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed, onToggleCollapsed }: NavigationSidebarProps) {
-  const { user, signOut } = useAuth();
-  const [isSigningOut, setIsSigningOut] = useState(false);
+  const { user } = useAuth();
   const [isResourcesExpanded, setIsResourcesExpanded] = useState(false);
   const [isResourcesCollapsedExpanded, setIsResourcesCollapsedExpanded] = useState(false);
   const [userName, setUserName] = useState('User');
@@ -98,11 +97,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
     }
   };
 
-  const handleSignOut = async () => {
-    setIsSigningOut(true);
-    await signOut();
-    setIsSigningOut(false);
-  };
+  
 
   // Auto-expand resources section when any resource sub-item is active
   React.useEffect(() => {
@@ -141,7 +136,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
             <img 
               src="/Quad SVG.svg" 
               alt="Quad Logo" 
-              className="w-auto object-contain h-10 relative z-20"
+              className="w-auto object-contain h-12 relative z-20"
             />
           </button>
           {showMenuButton && (
@@ -177,7 +172,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
           {/* Navigation Items */}
           <nav className="py-4 px-3">
             <div className="space-y-2">
-            {menuItems.map((item) => {
+            {menuItems.filter(item => item.id !== 'feed').map((item) => {
               const Icon = item.icon;
               const isActive = activeSection === item.id;
               const isFeed = item.id === 'feed';
@@ -262,6 +257,25 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
               )}
             </div>
 
+            {/* Feed */}
+            <button
+              onClick={() => onSectionChange('feed')}
+              className={`w-full flex items-center px-3 py-2 text-left ${
+                activeSection === 'feed' 
+                  ? 'bg-white text-gray-800 border-r-2' 
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-white'
+              }`}
+              style={{
+                borderRightColor: activeSection === 'feed' ? '#752432' : 'transparent'
+              }}
+            >
+              <MessageSquare 
+                className="w-5 h-[1.75rem] mr-2" 
+                style={{ color: '#752432' }}
+              />
+              <span className="font-medium text-sm">Feed</span>
+            </button>
+
             {/* Bar Review */}
             <button
               onClick={() => onSectionChange('barreview')}
@@ -286,7 +300,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
           {/* Spacer to push bottom section down */}
           <div className="flex-1" />
 
-          {/* Bottom Section - Profile, Theme, Sign Out (Calendar/Messaging disabled for MVP) */}
+          {/* Bottom Section - Theme, Profile (Calendar/Messaging disabled for MVP) */}
           <div className="border-t border-gray-200">
             {/* Calendar/Messaging temporarily hidden */}
             {enableCalendar && (
@@ -336,10 +350,40 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
               </button>
             )}
             
-            {/* Profile Section */}
+            {/* Theme Toggle Section */}
+            <div className="border-t border-gray-200 p-4">
+              <div className="flex items-center justify-center gap-2">
+                <Button
+                  onClick={() => handleThemeChange('light')}
+                  variant="ghost"
+                  size="sm"
+                  className={`p-2 ${theme === 'light' ? 'bg-white' : ''}`}
+                >
+                  <Sun className="w-3 h-3" style={{ color: theme === 'light' ? '#000000' : '#6b7280' }} />
+                </Button>
+                <Button
+                  onClick={() => handleThemeChange('beige')}
+                  variant="ghost"
+                  size="sm"
+                  className={`p-2 ${theme === 'beige' ? 'bg-white' : ''}`}
+                >
+                  <Palette className="w-3 h-3" style={{ color: theme === 'beige' ? '#000000' : '#6b7280' }} />
+                </Button>
+                <Button
+                  onClick={() => handleThemeChange('dark')}
+                  variant="ghost"
+                  size="sm"
+                  className={`p-2 ${theme === 'dark' ? 'bg-white' : ''}`}
+                >
+                  <Moon className="w-3 h-3" style={{ color: theme === 'dark' ? '#000000' : '#6b7280' }} />
+                </Button>
+              </div>
+            </div>
+
+            {/* Profile Section (centered under theme) */}
             <button
               onClick={() => onSectionChange('profile')}
-              className={`w-full flex items-center px-3 py-2 text-left ${
+              className={`w-full flex items-center justify-center gap-2 py-2 mb-4 ${
                 activeSection === 'profile'
                   ? 'bg-white text-gray-800 border-r-2' 
                   : 'text-gray-600 hover:text-gray-800 hover:bg-white'
@@ -349,56 +393,11 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
               }}
             >
               <User 
-                className="w-5 h-5 mr-2" 
+                className="w-5 h-5" 
                 style={{ color: '#752432' }}
               />
-              <span className="font-medium text-sm">{userName}</span>
+              <span className="font-medium text-sm">{isCollapsed ? userName : userName.replace(/\.$/, '')}</span>
             </button>
-
-            {/* Theme Toggle Section */}
-            <div className="border-t border-gray-200 p-4">
-              <div className="flex items-center justify-center gap-2">
-                <Button
-                  onClick={() => handleThemeChange('light')}
-                  variant="ghost"
-                  size="sm"
-                  className={`p-2 ${theme === 'light' ? 'bg-gray-100' : ''}`}
-                >
-                  <Sun className="w-4 h-4" style={{ color: theme === 'light' ? '#000000' : '#6b7280' }} />
-                </Button>
-                <Button
-                  onClick={() => handleThemeChange('beige')}
-                  variant="ghost"
-                  size="sm"
-                  className={`p-2 ${theme === 'beige' ? 'bg-gray-100' : ''}`}
-                >
-                  <Palette className="w-4 h-4" style={{ color: theme === 'beige' ? '#000000' : '#6b7280' }} />
-                </Button>
-                <Button
-                  onClick={() => handleThemeChange('dark')}
-                  variant="ghost"
-                  size="sm"
-                  className={`p-2 ${theme === 'dark' ? 'bg-gray-100' : ''}`}
-                >
-                  <Moon className="w-4 h-4" style={{ color: theme === 'dark' ? '#000000' : '#6b7280' }} />
-                </Button>
-              </div>
-            </div>
-
-            {/* Sign Out Button */}
-            <div className="border-t border-gray-200 p-4">
-              <Button
-                onClick={handleSignOut}
-                disabled={isSigningOut}
-                variant="ghost"
-                className="w-full justify-start text-gray-600 hover:text-red-600 hover:bg-red-50"
-              >
-                <LogOut className="w-5 h-5 mr-3" />
-                <span className="font-medium">
-                  {isSigningOut ? 'Signing out...' : 'Sign Out'}
-                </span>
-              </Button>
-            </div>
           </div>
         </div>
       </div>
@@ -420,21 +419,6 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
               }}
             >
               <Home className="w-5 h-5" style={{ color: '#752432' }} />
-            </button>
-
-            {/* Feed */}
-            <button
-              onClick={() => onSectionChange('feed')}
-              className={`w-full flex items-center justify-center py-2 ${
-                activeSection === 'feed'
-                  ? 'bg-white text-gray-800 border-r-2' 
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-white'
-              }`}
-              style={{
-                borderRightColor: activeSection === 'feed' ? '#752432' : 'transparent'
-              }}
-            >
-              <MessageSquare className="w-5 h-[1.75rem]" style={{ color: '#752432' }} />
             </button>
 
             {/* Resources - Click to show dropdown */}
@@ -485,6 +469,21 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
                 </div>
               )}
             </div>
+
+            {/* Feed */}
+            <button
+              onClick={() => onSectionChange('feed')}
+              className={`w-full flex items-center justify-center py-2 ${
+                activeSection === 'feed'
+                  ? 'bg-white text-gray-800 border-r-2' 
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-white'
+              }`}
+              style={{
+                borderRightColor: activeSection === 'feed' ? '#752432' : 'transparent'
+              }}
+            >
+              <MessageSquare className="w-5 h-[1.75rem]" style={{ color: '#752432' }} />
+            </button>
 
             {/* Bar Review */}
             <button
@@ -557,10 +556,18 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
               </button>
             )}
             
-            {/* Profile Icon */}
+            {/* Theme Toggle Icon */}
+            <button
+              onClick={handleThemeToggle}
+              className="w-full flex items-center justify-center py-2 text-gray-600 hover:text-gray-800 hover:bg-white"
+            >
+              {theme === 'light' && <Sun className="w-4 h-4" style={{ color: '#000000' }} />}
+              {theme === 'beige' && <Palette className="w-4 h-4" style={{ color: '#000000' }} />}
+              {theme === 'dark' && <Moon className="w-4 h-4" style={{ color: '#ffffff' }} />}
+            </button>
             <button
               onClick={() => onSectionChange('profile')}
-              className={`w-full flex items-center justify-center py-2 ${
+              className={`w-full flex items-center justify-center py-2 mb-2 ${
                 activeSection === 'profile'
                   ? 'bg-white text-gray-800 border-r-2' 
                   : 'text-gray-600 hover:text-gray-800 hover:bg-white'
@@ -574,28 +581,6 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
                 style={{ color: '#752432' }}
               />
             </button>
-
-            {/* Theme Toggle Icon */}
-            <button
-              onClick={handleThemeToggle}
-              className="w-full flex items-center justify-center py-2 text-gray-600 hover:text-gray-800 hover:bg-white"
-            >
-              {theme === 'light' && <Sun className="w-5 h-5" style={{ color: '#000000' }} />}
-              {theme === 'beige' && <Palette className="w-5 h-5" style={{ color: '#000000' }} />}
-              {theme === 'dark' && <Moon className="w-5 h-5" style={{ color: '#ffffff' }} />}
-            </button>
-
-            {/* Sign Out Button */}
-            <div className="border-t border-gray-200 w-full pt-2">
-              <Button
-                onClick={handleSignOut}
-                disabled={isSigningOut}
-                variant="ghost"
-                className="w-full justify-center text-gray-600 hover:text-red-600 hover:bg-red-50"
-              >
-                <LogOut className="w-4 h-4" />
-              </Button>
-            </div>
           </div>
         </div>
       )}

@@ -1569,7 +1569,7 @@ export function ExamPage({
 
               <div className="flex-1 max-w-2xl mx-auto w-full">
                 <div
-                  className={`border-2 border-dashed rounded-lg p-8 mb-6 text-center transition-colors duration-200 cursor-pointer ${
+                  className={`border-2 border-dashed rounded-lg p-6 mb-6 text-center transition-colors duration-200 cursor-pointer ${
                     dragActive 
                       ? 'border-[#752432] bg-[#752432]/5' 
                       : isHovering
@@ -1737,7 +1737,7 @@ export function ExamPage({
                     </div>
                   </div>
 
-                  <div className="flex items-start space-x-3 p-3 bg-[#F8F4ED] rounded-lg border-l-4 border-[#752432]">
+                  <div className="flex items-start space-x-2 p-2 bg-[#F8F4ED] rounded-lg border-l-4 border-[#752432]">
                     <input
                       type="checkbox"
                       id="terms"
@@ -1745,13 +1745,13 @@ export function ExamPage({
                       onChange={(e) => 
                         setUploadForm(prev => ({ ...prev, termsAccepted: e.target.checked }))
                       }
-                      className="mt-0.5 w-4 h-4 rounded border-2 border-gray-300 bg-white cursor-pointer accent-emerald-600"
+                      className="mt-0.5 w-3.5 h-3.5 rounded border-2 border-gray-300 bg-white cursor-pointer accent-emerald-600"
                       style={{
                         accentColor: '#059669'
                       }}
                     />
                     <div className="flex-1">
-                      <Label htmlFor="terms" className="text-sm font-medium text-gray-700 cursor-pointer">
+                      <Label htmlFor="terms" className="text-[10px] font-medium text-gray-700 cursor-pointer">
                         I have read and agree to the Terms of Service *
                       </Label>
                       <p className="text-xs text-gray-600 mt-0.5">
@@ -1773,7 +1773,7 @@ export function ExamPage({
                     </div>
                   )}
 
-                  <div className="flex justify-center pt-3">
+                  <div className="flex justify-center pt-1">
                     <Button 
                       size="default"
                       disabled={!uploadFile || !uploadForm.course || !uploadForm.professor || !uploadForm.year || !uploadForm.grade || !uploadForm.termsAccepted || uploading}

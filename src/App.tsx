@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-unused-expressions */
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { NavigationSidebar } from './components/NavigationSidebar';
 import { OutlinePage } from './components/OutlinePage';
 import { ExamPage } from './components/ExamPage';
@@ -728,19 +728,31 @@ function AppContent({ user }: { user: any }) {
     setSidebarCollapsed((prev) => !prev);
   };
 
+  // Debounced auth loading indicator (only show if >150ms)
+  const [showAuthLoading, setShowAuthLoading] = React.useState(false);
+  React.useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    if (authLoading) {
+      timer = setTimeout(() => setShowAuthLoading(true), 150);
+    } else {
+      setShowAuthLoading(false);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [authLoading]);
+
   // Show loading state while checking authentication
-  if (authLoading) {
+  if (showAuthLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+      <div className="fixed inset-0 flex items-center justify-center z-50 fade-in-overlay" style={{ backgroundColor: '#faf3ef' }}>
         <div className="text-center">
-          <div
-            className="inline-flex items-center justify-center w-16 h-16 text-white rounded-full mb-4"
-            style={{ backgroundColor: '#752432' }}
-          >
-            <span className="text-2xl font-semibold">HLS</span>
-          </div>
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <img
+            src="/Quad SVG.svg"
+            alt="Quad Logo"
+            className="w-24 h-24 mx-auto"
+          />
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-700 mx-auto mt-4"></div>
         </div>
       </div>
     );

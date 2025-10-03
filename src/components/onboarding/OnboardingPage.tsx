@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -36,6 +36,7 @@ const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   const { user, signOut } = useAuth();
   const [currentPage, setCurrentPage] = useState(1);
+  const courseListRef = useRef<HTMLDivElement>(null);
   
   // Form state for Page 1
   const [name, setName] = useState('');
@@ -923,69 +924,68 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                       My Courses
                     </CardTitle>
                     <p className="text-sm text-gray-600 mt-1">
-                      {classYear} | Section {section}
-                    </p>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {classYear === '1L'
-                        ? `8 Required + 1 Elective (${totalCredits} Credits)` 
-                        : classYear === '2L' 
-                        ? `3 Required | 10 Max (${totalCredits} Credits)` 
-                        : `3 Required | 10 Max (${totalCredits} Credits)`
-                      }
+                      {classYear} | Section {section} | {totalCredits} Credits
                     </p>
                     <hr className="border-gray-200 mt-2" />
                   </CardHeader>
-                  <CardContent className="pt-0 px-6 pb-6">
-                    {/* Course Cards */}
-                    <div className="space-y-4 mb-6">
-                      {coursesLoading ? (
-                        <div className="text-center py-8 text-gray-500">
-                          <p className="text-sm">Loading courses...</p>
+                  <CardContent className="pt-0 px-6 pb-6 flex flex-col h-full">
+                    {/* Course Cards - Scrollable */}
+                    <div className="relative">
+                      <div ref={courseListRef} className="overflow-y-auto mb-4" style={{ maxHeight: '480px' }}>
+                        <div className="space-y-4">
+                        {coursesLoading ? (
+                          <div className="text-center py-8 text-gray-500">
+                            <p className="text-sm">Loading courses...</p>
+                          </div>
+                        ) : selectedCourses.length === 0 ? (
+                          <div className="text-center py-8 text-gray-500">
+                            <p className="text-sm">No courses selected yet</p>
+                            <p className="text-xs mt-1">
+                              {classYear === '1L' ? 'Courses will auto-populate when section is selected' : 'Click "Add Class" to get started'}
+                            </p>
+                          </div>
+                        ) : (
+                          selectedCourses.map((course, index) => {
+                            // Check if this is a 1L required course
+                            const isRequired1L = classYear === '1L' && (
+                              index < 7 || // First 7 courses are always required
+                              course.courseName.includes('First Year Legal Research and Writing') // LRW is always required
+                            );
+                            
+                            return (
+                              <div key={course.id} className={`p-3 rounded-lg border ${isRequired1L ? 'bg-blue-50 border-blue-200' : 'bg-gray-50'}`}>
+                                <div className="flex justify-between items-start mb-1">
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="font-medium text-gray-900 text-sm">{formatDisplayCourseName(course.courseName)}</h3>
+                                    {isRequired1L && (
+                                      <span className="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full">
+                                        Required
+                          </span>
+                                    )}
                         </div>
-                      ) : selectedCourses.length === 0 ? (
-                        <div className="text-center py-8 text-gray-500">
-                          <p className="text-sm">No courses selected yet</p>
-                          <p className="text-xs mt-1">
-                            {classYear === '1L' ? 'Courses will auto-populate when section is selected' : 'Click "Add Class" to get started'}
-                          </p>
+                                  {!isRequired1L && (
+                                    <button
+                                      onClick={() => handleRemoveCourse(course.id)}
+                                      className="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-red-100 transition-colors ml-6"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+                          )}
                         </div>
-                      ) : (
-                        selectedCourses.map((course, index) => {
-                          // Check if this is a 1L required course
-                          const isRequired1L = classYear === '1L' && (
-                            index < 7 || // First 7 courses are always required
-                            course.courseName.includes('First Year Legal Research and Writing') // LRW is always required
-                          );
-                          
-                          return (
-                            <div key={course.id} className={`p-3 rounded-lg border ${isRequired1L ? 'bg-blue-50 border-blue-200' : 'bg-gray-50'}`}>
-                              <div className="flex justify-between items-start mb-1">
-                                <div className="flex items-center gap-2">
-                                  <h3 className="font-medium text-gray-900 text-sm">{formatDisplayCourseName(course.courseName)}</h3>
-                                  {isRequired1L && (
-                                    <span className="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full">
-                                      Required
-                        </span>
-                                  )}
+                                <p className="text-xs text-gray-600 mb-0.5">Semester: {formatDisplaySemester(course.semester)}</p>
+                                <p className="text-xs text-gray-600 mb-0.5">Professor: {course.professor}</p>
+                                <p className="text-xs text-gray-600 mb-0.5">{course.days.join(', ')} {course.time}</p>
+                                <p className="text-xs text-gray-600 mb-0.5">Location: {course.location || 'Location TBD'}</p>
+                                <p className="text-xs text-gray-600">{course.credits} Credits</p>
                       </div>
-                                {!isRequired1L && (
-                                  <button
-                                    onClick={() => handleRemoveCourse(course.id)}
-                                    className="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-red-100 transition-colors ml-6"
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </button>
+                            );
+                          })
                         )}
+                        </div>
                       </div>
-                              <p className="text-xs text-gray-600 mb-0.5">Semester: {formatDisplaySemester(course.semester)}</p>
-                              <p className="text-xs text-gray-600 mb-0.5">Professor: {course.professor}</p>
-                              <p className="text-xs text-gray-600 mb-0.5">{course.days.join(', ')} {course.time}</p>
-                              <p className="text-xs text-gray-600 mb-0.5">Location: {course.location || 'Location TBD'}</p>
-                              <p className="text-xs text-gray-600">{course.credits} Credits</p>
-                    </div>
-                          );
-                        })
-                      )}
+                      {/* Fade overlays */}
+                      <div className="absolute top-0 left-0 right-0 h-8 pointer-events-none bg-gradient-to-b from-white to-transparent"></div>
+                      <div className="absolute bottom-0 left-0 right-0 h-8 pointer-events-none bg-gradient-to-t from-white to-transparent" style={{ marginBottom: '1rem' }}></div>
                     </div>
 
                     {/* LRW Selection - Only for 1L. Show two professor last names for the selected section. */}
@@ -1063,15 +1063,13 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                       </div>
                     )}
 
-                    {/* Add Class Button */}
+                    {/* Add Class Button - Outside scroll area */}
                     <button
                       onClick={handleAddCourse}
-                      className="w-full text-white py-2 text-sm font-medium rounded-md border border-[#752531]"
+                      className="w-full text-white py-2 text-sm font-medium rounded-md border border-[#752531] flex-shrink-0"
                       style={{ 
                         backgroundColor: '#752531',
-                        minHeight: '36px',
-                        display: 'block',
-                        marginTop: '16px'
+                        minHeight: '36px'
                       }}
                     >
                       + Add Class
@@ -1524,6 +1522,13 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                     
                     console.log('Adding course with original_course_id:', newCourse.original_course_id);
                     setSelectedCourses(prev => [...prev, newCourse]);
+                    
+                    // Scroll to bottom of course list
+                    setTimeout(() => {
+                      if (courseListRef.current) {
+                        courseListRef.current.scrollTop = courseListRef.current.scrollHeight;
+                      }
+                    }, 100);
                     
                     // Close dialog and reset
                     setShowCourseDialog(false);

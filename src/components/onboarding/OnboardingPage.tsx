@@ -58,6 +58,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   const [availableCourses, setAvailableCourses] = useState<any[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [visuallySelectedCourseIndex, setVisuallySelectedCourseIndex] = useState<number | null>(null);
+  const [showMaxCourseWarning, setShowMaxCourseWarning] = useState(false);
+  const [showScrollIndicator, setShowScrollIndicator] = useState(true);
 
   // Display-only formatter: hide trailing section number (1-7) for 1L required courses.
   const formatDisplayCourseName = (rawName: string): string => {
@@ -254,8 +256,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   // Check if course requirements are met
   const areRequirementsMet = () => {
     if (classYear === '1L') {
-      // 1L: Need 8 required courses (7 initial + 1 LRW), 9th elective is optional
-      return selectedCourses.length >= 8 && selectedCourses.length <= 9;
+      // 1L: Need 9 required courses (7 initial + 2 LRW), 10th elective is optional
+      return selectedCourses.length >= 9 && selectedCourses.length <= 10;
     } else if (classYear === '2L' || classYear === '3L') {
       // 2L/3L: Need at least 3 required courses, max 10 total courses
       return selectedCourses.length >= 3 && selectedCourses.length <= 10;
@@ -269,7 +271,9 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     // Check if this is a required course that cannot be removed
     if (courseToRemove && classYear === '1L') {
       const isRequired = selectedCourses.indexOf(courseToRemove) < 7 || 
-                        courseToRemove.courseName.includes('First Year Legal Research and Writing');
+                        courseToRemove.courseName.includes('First Year Legal Research and Writing') ||
+                        courseToRemove.courseName.includes('Legal Research and Writing') ||
+                        courseToRemove.courseName.includes('LRW');
       
       if (isRequired) {
         console.log('Cannot remove required course:', courseToRemove.courseName);
@@ -931,7 +935,23 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                   <CardContent className="pt-0 px-6 pb-6 flex flex-col h-full">
                     {/* Course Cards - Scrollable */}
                     <div className="relative">
-                      <div ref={courseListRef} className="overflow-y-auto mb-4" style={{ maxHeight: '480px' }}>
+                      {/* Scroll indicator - show for all class years when they have more than 4 courses */}
+                      {showScrollIndicator && selectedCourses.length > 4 && (
+                        <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none mb-5 animate-bounce opacity-70">
+                          <div className="bg-gray-800 text-white rounded-full px-3 py-1 text-xs flex items-center gap-1 shadow-lg">
+                            <span>Scroll</span>
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </div>
+                        </div>
+                      )}
+                      <div 
+                        ref={courseListRef} 
+                        className="overflow-y-auto mb-4" 
+                        style={{ maxHeight: '480px', scrollBehavior: 'smooth' }}
+                        onScroll={() => setShowScrollIndicator(false)}
+                      >
                         <div className="space-y-4">
                         {coursesLoading ? (
                           <div className="text-center py-8 text-gray-500">
@@ -949,7 +969,9 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                             // Check if this is a 1L required course
                             const isRequired1L = classYear === '1L' && (
                               index < 7 || // First 7 courses are always required
-                              course.courseName.includes('First Year Legal Research and Writing') // LRW is always required
+                              course.courseName.includes('First Year Legal Research and Writing') || // LRW is always required
+                              course.courseName.includes('Legal Research and Writing') ||
+                              course.courseName.includes('LRW')
                             );
                             
                             return (
@@ -990,7 +1012,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
                     {/* LRW Selection - Only for 1L. Show two professor last names for the selected section. */}
                     {classYear === '1L' && selectedCourses.length >= 7 && (
-                      <div className={`mb-4 p-3 rounded-lg border ${lrwSection ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-300'}`}>
+                      <div className={`mb-4 p-4 rounded-lg border-2 ${lrwSection ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-400'}`}>
                         {(() => {
                           // Build LRW options for the selected section from available course data
                           const lrwBases = [
@@ -1027,35 +1049,53 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                           const lastB = extractLastName(optionB?.instructor) || 'B';
                           return (
                             <>
-                              <p className={`text-xs font-medium mb-2 ${lrwSection ? 'text-blue-800' : 'text-red-800'}`}>
-                                {!lrwSection ? 'Select your LRW professor:' : 'Change LRW professor:'}
+                              <p className={`text-sm font-semibold mb-3 ${lrwSection ? 'text-blue-800' : 'text-red-700'}`}>
+                                {!lrwSection ? '⚠️ Select your LRW professor:' : 'LRW Professor:'}
                               </p>
-                              <div className="flex gap-2">
+                              <div className="flex gap-3">
                                 <button
-                                  onClick={() => setLrwSection('A')}
-                                  className={`px-3 py-1 rounded-md text-xs font-medium ${
+                                  onClick={() => {
+                                    setLrwSection('A');
+                                    setTimeout(() => {
+                                      if (courseListRef.current) {
+                                        courseListRef.current.scrollTop = courseListRef.current.scrollHeight;
+                                      }
+                                    }, 100);
+                                  }}
+                                  className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${
                                     lrwSection === 'A'
-                                      ? 'bg-blue-600 text-white'
+                                      ? 'bg-blue-600 text-white shadow-md'
+                                      : !lrwSection
+                                      ? 'bg-white text-red-700 border-2 border-red-400 hover:bg-red-50 hover:border-red-500'
                                       : 'bg-white text-blue-800 border border-blue-300 hover:bg-blue-100'
                                   }`}
                                 >
                                   {lastA}
                                 </button>
                                 <button
-                                  onClick={() => setLrwSection('B')}
-                                  className={`px-3 py-1 rounded-md text-xs font-medium ${
+                                  onClick={() => {
+                                    setLrwSection('B');
+                                    setTimeout(() => {
+                                      if (courseListRef.current) {
+                                        courseListRef.current.scrollTop = courseListRef.current.scrollHeight;
+                                      }
+                                    }, 100);
+                                  }}
+                                  className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${
                                     lrwSection === 'B'
-                                      ? 'bg-blue-600 text-white'
+                                      ? 'bg-blue-600 text-white shadow-md'
+                                      : !lrwSection
+                                      ? 'bg-white text-red-700 border-2 border-red-400 hover:bg-red-50 hover:border-red-500'
                                       : 'bg-white text-blue-800 border border-blue-300 hover:bg-blue-100'
                                   }`}
                                 >
                                   {lastB}
                                 </button>
                               </div>
-                              <p className={`text-xs mt-1 ${lrwSection ? 'text-blue-700' : 'text-red-700'}`}>
+                              <p className={`text-xs mt-2 ${lrwSection ? 'text-blue-700' : 'text-red-600 font-medium'}`}>
                                 {!lrwSection
-                                  ? `Adds "LRW ${section}A" and "LRW ${section}B" (Fall & Spring)`
-                                  : `Current: "LRW ${section}${lrwSection}" (Fall & Spring)`}
+                                  ? `Required: This will add LRW ${section}A or ${section}B (Fall & Spring)`
+                                  : `Selected: "LRW ${section}${lrwSection}" (Fall & Spring)`}
                               </p>
                             </>
                           );
@@ -1082,35 +1122,56 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
               <div className="flex-1">
                 <Card className="shadow-lg">
                   <CardHeader className="pb-4">
-                    <div className="flex items-center justify-center gap-4">
+                    <div className="flex items-center justify-between px-2">
                       {/* Left Arrow - only show for Winter and Spring */}
-                      {currentSemester !== 'Fall 2025' && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleSemesterNavigation('prev')}
-                          className="h-8 w-8 p-0 text-gray-600 hover:text-gray-900"
-                        >
-                          <ChevronLeft className="h-5 w-5" />
-                        </Button>
-                      )}
+                      <div className="w-10">
+                        {currentSemester !== 'Fall 2025' && (
+                          <button
+                            onClick={() => handleSemesterNavigation('prev')}
+                            className="h-10 w-10 rounded-full flex items-center justify-center transition-all hover:bg-gray-100 active:scale-95"
+                            style={{ color: '#752432' }}
+                          >
+                            <ChevronLeft className="h-6 w-6" />
+                          </button>
+                        )}
+                      </div>
                       
                       {/* Semester Title */}
-                      <CardTitle className="text-2xl text-center text-gray-900">
-                        {currentSemester} Schedule
-                      </CardTitle>
+                      <div className="flex-1 text-center">
+                        <CardTitle className="text-3xl font-bold text-gray-900" style={{ color: '#752432' }}>
+                          {currentSemester.split(' ')[0]}
+                        </CardTitle>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Schedule • {(() => {
+                            // Calculate credits for current semester
+                            const semesterMap: { [key: string]: string[] } = {
+                              'Fall 2025': ['Fall', 'Fall 2025', '2025FA'],
+                              'Winter 2026': ['Winter', 'Winter 2026', '2026WI'],
+                              'Spring 2026': ['Spring', 'Spring 2026', '2026SP']
+                            };
+                            const validSemesters = (semesterMap[currentSemester] || []).map(normalizeSemesterValue);
+                            const semesterCourses = selectedCourses.filter(course => {
+                              const normalizedCourseSemester = normalizeSemesterValue(course.semester as unknown as string);
+                              return validSemesters.includes(normalizedCourseSemester);
+                            });
+                            const semesterCredits = semesterCourses.reduce((sum, course) => sum + course.credits, 0);
+                            return `${semesterCredits} Credits`;
+                          })()}
+                        </p>
+                      </div>
                       
                       {/* Right Arrow - only show for Fall and Winter */}
-                      {currentSemester !== 'Spring 2026' && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleSemesterNavigation('next')}
-                          className="h-8 w-8 p-0 text-gray-600 hover:text-gray-900"
-                        >
-                          <ChevronRight className="h-5 w-5" />
-                        </Button>
-                      )}
+                      <div className="w-10">
+                        {currentSemester !== 'Spring 2026' && (
+                          <button
+                            onClick={() => handleSemesterNavigation('next')}
+                            className="h-10 w-10 rounded-full flex items-center justify-center transition-all hover:bg-gray-100 active:scale-95"
+                            style={{ color: '#752432' }}
+                          >
+                            <ChevronRight className="h-6 w-6" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -1502,11 +1563,33 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
           </div>
 
           {/* Footer - Fixed Position */}
-          <div className="flex-shrink-0 p-4 border-t-2 border-gray-400 bg-gray-50 min-h-[60px]">
-            <div className="flex justify-between items-center gap-4 h-full">
+          <div className="flex-shrink-0 border-t-2 border-gray-400 bg-gray-50">
+            {/* Warning Message */}
+            {showMaxCourseWarning && (
+              <div className="px-4 pt-3 pb-2">
+                <div className="bg-red-50 border-2 border-red-400 rounded-lg p-3 flex items-start gap-3">
+                  <span className="text-red-600 text-xl flex-shrink-0">⚠️</span>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-red-800 mb-1">Maximum Course Limit Reached</p>
+                    <p className="text-xs text-red-700">
+                      You cannot add more than 10 courses. Please remove an elective course before adding a new one.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="flex justify-between items-center gap-4 p-4">
               <button 
                 onClick={() => {
                   if (selectedCourse) {
+                    // Check if user has reached maximum course limit
+                    const maxCourses = classYear === '1L' ? 10 : 10;
+                    if (selectedCourses.length >= maxCourses) {
+                      setShowMaxCourseWarning(true);
+                      setTimeout(() => setShowMaxCourseWarning(false), 4000);
+                      return;
+                    }
+                    
                     // Add the selected course to My Courses
                     const newCourse: CourseData = {
                       id: `${selectedCourse.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Generate unique ID

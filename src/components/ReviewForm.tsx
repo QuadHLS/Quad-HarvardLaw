@@ -252,7 +252,10 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
               {showProfessorDropdown && dropdownPosition && createPortal(
                 <div
                   ref={professorDropdownPanelRef}
-                  className="border border-gray-200 rounded-2xl shadow-xl backdrop-blur-sm"
+                  className="border border-gray-200 rounded-2xl shadow-xl backdrop-blur-sm overflow-hidden"
+                  data-radix-scroll-lock-ignore
+                  onWheel={(e) => e.stopPropagation()}
+                  onTouchMove={(e) => e.stopPropagation()}
                   style={{
                     position: 'fixed',
                     left: dropdownPosition.left,
@@ -260,8 +263,8 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
                     width: dropdownPosition.width,
                     backgroundColor: 'rgba(249,245,242,0.95)',
                     WebkitOverflowScrolling: 'touch',
-                    maxHeight: 280,
-                    overflowY: 'scroll',
+                    height: 220,
+                    overflowY: 'auto',
                     overflowX: 'hidden',
                     overscrollBehavior: 'contain',
                     touchAction: 'pan-y',
@@ -274,7 +277,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
                       key={prof.id}
                       type="button"
                       onClick={() => handleProfessorSelect(prof.name)}
-                      className="w-full px-3 py-1 text-left hover:bg-gray-100/70 focus:bg-gray-100/70 focus:outline-none text-[11px]"
+                      className="w-full px-3 py-2 text-left hover:bg-gray-100/70 focus:bg-gray-100/70 focus:outline-none text-[11px] border-b border-gray-100 last:border-b-0 rounded-none first:rounded-t-2xl last:rounded-b-2xl"
                     >
                       {prof.name}
                     </button>
@@ -374,30 +377,30 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
           </div>
 
           {/* Cold calls, Electronics, Final Type */}
-          <div className="grid grid-cols-3 gap-2 mt-1.5">
-            <div className="flex items-center space-x-2 mt-3">
+          <div className="grid grid-cols-3 gap-2 mt-1.5 items-center">
+            <div className="flex items-center space-x-2">
               <Switch
                 checked={formData.has_cold_calls}
                 onCheckedChange={(checked) => setFormData(prev => ({ ...prev, has_cold_calls: checked }))}
               />
               <Label className="text-xs font-medium text-gray-700">Cold Calls</Label>
             </div>
-            <div className="flex items-center space-x-2 mt-3">
+            <div className="flex items-center space-x-2 justify-start">
               <Switch
                 checked={formData.laptops_allowed}
                 onCheckedChange={(checked) => setFormData(prev => ({ ...prev, laptops_allowed: checked }))}
               />
               <Label className="text-xs font-medium text-gray-700">Electronics Allowed</Label>
             </div>
-            <div>
-              <Label className="text-xs font-medium text-gray-700">Final Type <span style={{ color: '#752531' }}>*</span></Label>
+            <div className="flex flex-col items-center min-w-0 mt-1">
+              <Label className="text-xs font-medium text-gray-700 text-center mb-1">Final Type <span style={{ color: '#752531' }}>*</span></Label>
               <Select 
                 value={formData.assessment_type}
                 onValueChange={(value: 'Project' | 'Final Exam' | 'Both') => 
                   setFormData(prev => ({ ...prev, assessment_type: value }))
                 }
               >
-                    <SelectTrigger className="mt-1 h-9 rounded-3xl border border-gray-200 focus:ring-2 focus:ring-[#752432] focus:border-transparent transition text-xs" style={{ backgroundColor: 'white', borderRadius: 16 }}>
+                <SelectTrigger className="h-9 rounded-3xl border border-gray-200 focus:ring-2 focus:ring-[#752432] focus:border-transparent transition text-xs w-full min-w-0" style={{ backgroundColor: 'white', borderRadius: 16 }}>
                   <SelectValue placeholder="Select final type" />
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl shadow-xl overflow-hidden border border-gray-200">
@@ -413,13 +416,17 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
           {/* Overall Review Text */}
           <div className="mt-2">
             <Label className="text-sm font-medium text-gray-700">Overall Review <span style={{ color: '#752531' }}>*</span></Label>
-            <Textarea className="mt-1.5 rounded-3xl border border-gray-200 focus:ring-2 focus:ring-[#752432] focus:border-transparent transition text-sm"
+            <Textarea className="mt-1.5 rounded-3xl border border-gray-200 focus:outline-none focus:ring-0 focus:border-gray-200 transition text-sm whitespace-pre-wrap break-words"
               placeholder="Share your experience with the course and professor."
               value={formData.overall_review}
               onChange={(e) => setFormData(prev => ({ ...prev, overall_review: e.target.value }))}
-              rows={6}
-              style={{ backgroundColor: 'white', borderRadius: 16 }}
+              rows={10}
+              style={{ backgroundColor: 'white', borderRadius: 16, minHeight: 200, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+              maxLength={500}
             />
+            <div className="mt-1 text-[10px] text-gray-500 text-right">
+              {formData.overall_review.length}/500
+            </div>
           </div>
           </div>
 

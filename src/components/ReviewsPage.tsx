@@ -1,15 +1,10 @@
 import { useState, useEffect } from 'react';
 import * as React from 'react';
-import { Star, Search, Calendar, Plus } from 'lucide-react';
+import { Star, Search, Calendar, Plus, Megaphone, FileText, Laptop } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent } from './ui/card';
-import { Badge } from './ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Textarea } from './ui/textarea';
-import { Label } from './ui/label';
-import { Switch } from './ui/switch';
+import { Dialog, DialogTrigger } from './ui/dialog';
 import { supabase } from '../lib/supabase';
 import { ReviewForm } from './ReviewForm';
 
@@ -72,19 +67,7 @@ interface ProfessorCourse {
   created_at: string;
 }
 
-interface ProfessorStats {
-  professor_name: string;
-  course_name: string;
-  avg_overall_rating: number;
-  avg_readings_rating: number;
-  avg_cold_calls_rating: number;
-  avg_exam_rating: number;
-  total_reviews: number;
-  total_helpful: number;
-  total_not_helpful: number;
-  some_laptops_allowed: boolean;
-  some_has_cold_calls: boolean;
-}
+// ProfessorStats removed (not used in this UI)
 
 // Processed professor data for display
 interface ProcessedProfessor {
@@ -124,19 +107,18 @@ export function ReviewsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProfessor, setSelectedProfessor] = useState<string | null>(null);
   const [selectedCourse, setSelectedCourse] = useState('');
-  const [reviewSortBy, setReviewSortBy] = useState('Most Recent');
+  const reviewSortBy = 'Most Recent';
 
   // Real data state
   const [reviews, setReviews] = useState<Review[]>([]);
   const [professors, setProfessors] = useState<Professor[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [professorCourses, setProfessorCourses] = useState<ProfessorCourse[]>([]);
-  const [professorStats, setProfessorStats] = useState<ProfessorStats[]>([]);
+  // const [professorStats, setProfessorStats] = useState<ProfessorStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // User votes state
-  const [userVotes, setUserVotes] = useState<Record<string, 'helpful' | 'not_helpful' | null>>({});
+  // User votes state disabled
   
   // Review form state
   const [showReviewForm, setShowReviewForm] = useState(false);
@@ -160,7 +142,7 @@ export function ReviewsPage() {
   });
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [formSuccess, setFormSuccess] = useState<string | null>(null);
+  // const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
   // Voting system disabled - no longer fetching user votes
   // const fetchUserVotes = async (reviewIds: string[]) => {
@@ -194,26 +176,24 @@ export function ReviewsPage() {
         setError(null);
 
         // Fetch all data in parallel
-        const [reviewsResult, professorsResult, coursesResult, professorCoursesResult, statsResult] = await Promise.all([
+        const [reviewsResult, professorsResult, coursesResult, professorCoursesResult] = await Promise.all([
           supabase.from('reviews').select('*').order('created_at', { ascending: false }),
           supabase.from('professors').select('*').order('name'),
           supabase.from('courses').select('*').order('name'),
-          supabase.from('professor_courses').select('*'),
-          supabase.from('professor_stats').select('*')
+          supabase.from('professor_courses').select('*')
         ]);
 
         if (reviewsResult.error) throw reviewsResult.error;
         if (professorsResult.error) throw professorsResult.error;
         if (coursesResult.error) throw coursesResult.error;
         if (professorCoursesResult.error) throw professorCoursesResult.error;
-        if (statsResult.error) throw statsResult.error;
 
         const reviewsData = reviewsResult.data || [];
         setReviews(reviewsData);
         setProfessors(professorsResult.data || []);
         setCourses(coursesResult.data || []);
         setProfessorCourses(professorCoursesResult.data || []);
-        setProfessorStats(statsResult.data || []);
+        // setProfessorStats(statsResult.data || []);
         
         // Voting system disabled - no longer fetching user votes
         // if (reviewsData.length > 0) {
@@ -230,26 +210,14 @@ export function ReviewsPage() {
     fetchData();
   }, []);
 
-  // Get courses for selected professor using professor_courses relationship
-  const getCoursesForProfessor = (professorName: string) => {
-    const professor = professors.find(prof => prof.name === professorName);
-    if (!professor) return [];
-    
-    // Get course IDs this professor teaches
-    const professorCourseIds = professorCourses
-      .filter(pc => pc.professor_id === professor.id)
-      .map(pc => pc.course_id);
-    
-    // Return courses that match those IDs
-    return courses.filter(course => professorCourseIds.includes(course.id));
-  };
+  // Get courses for selected professor using professor_courses relationship (not used in current UI)
 
   // Submit review form
   const handleSubmitReview = async () => {
     try {
       setFormLoading(true);
       setFormError(null);
-      setFormSuccess(null);
+      // setFormSuccess(null);
 
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
@@ -257,31 +225,45 @@ export function ReviewsPage() {
         throw new Error('You must be logged in to submit a review');
       }
 
-      // Submit review
+      // Submit review - only include fields supported by the new UI
+      const insertPayload: any = {
+        user_id: user.id,
+        professor_name: formData.professor_name,
+        course_name: formData.course_name,
+        year: formData.year,
+        overall_rating: formData.overall_rating, // 1–10 (mapped from 1–5 UI)
+        overall_review: formData.overall_review,
+        laptops_allowed: formData.laptops_allowed,
+        assessment_type: formData.assessment_type,
+        has_cold_calls: formData.has_cold_calls,
+        // Legacy detailed fields are intentionally omitted to avoid check constraint violations
+        readings_rating: null,
+        cold_calls_rating: null,
+        exam_rating: null,
+        readings_review: null,
+        cold_calls_review: null,
+        exam_review: null
+      };
+
       const { error } = await supabase
         .from('reviews')
-        .insert([{
-          user_id: user.id,
-          ...formData
-        }])
+        .insert([insertPayload])
         .select();
 
       if (error) throw error;
 
       // Refresh all data to show the new review
-      const [reviewsResult, professorsResult, coursesResult, professorCoursesResult, statsResult] = await Promise.all([
+      const [reviewsResult, professorsResult, coursesResult, professorCoursesResult] = await Promise.all([
         supabase.from('reviews').select('*').order('created_at', { ascending: false }),
         supabase.from('professors').select('*').order('name'),
         supabase.from('courses').select('*').order('name'),
-        supabase.from('professor_courses').select('*'),
-        supabase.from('professor_stats').select('*')
+        supabase.from('professor_courses').select('*')
       ]);
 
       if (reviewsResult.data) setReviews(reviewsResult.data);
       if (professorsResult.data) setProfessors(professorsResult.data);
       if (coursesResult.data) setCourses(coursesResult.data);
       if (professorCoursesResult.data) setProfessorCourses(professorCoursesResult.data);
-      if (statsResult.data) setProfessorStats(statsResult.data);
 
       // Reset form and close modal
       setFormData({
@@ -493,55 +475,52 @@ export function ReviewsPage() {
     });
   };
 
-  const renderRatingBox = (rating: number, label: string, icon: React.ReactNode, reviewText: string, lowLabel?: string, highLabel?: string, isOverall?: boolean) => {
-    return (
-      <div className={`p-4 rounded-lg border ${isOverall ? 'border-l-4 border-[#752432]' : 'border-gray-200'} shadow-sm`} style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-        <div className="flex justify-between items-center mb-2">
-          <div className="flex items-center space-x-2">
-            {icon}
-            <span className={`font-medium ${isOverall ? 'text-[#752432]' : 'text-gray-700'}`}>
-              {label}
-            </span>
-          </div>
-          <span className={`text-sm font-medium ${isOverall ? 'text-[#752432]' : 'text-gray-600'}`}>
-            {rating}/10
-          </span>
-        </div>
-        <div className="flex space-x-1 mb-3">
-          {Array.from({ length: 10 }, (_, i) => (
-            <div
-              key={i}
-              className={`h-2 flex-1 rounded-sm ${
-                i < rating ? 'bg-[#752432]' : 'bg-gray-200'
-              }`}
-            />
-          ))}
-        </div>
-        {(lowLabel && highLabel) && (
-          <div className="flex justify-between text-xs text-gray-500 mb-3">
-            <span>{lowLabel}</span>
-            <span>{highLabel}</span>
-          </div>
-        )}
-        <p className="text-sm text-gray-700 leading-relaxed">
-          {reviewText}
-        </p>
-      </div>
-    );
+  // Consistent accent color based on professor's last name initial
+  const getProfessorAccentColor = (professorName: string) => {
+    const colorPattern = ['#00962c', '#ffb100', '#0277c5', '#f71417'];
+    const parts = professorName.trim().split(' ');
+    const last = parts[parts.length - 1] || professorName;
+    const code = last.toUpperCase().charCodeAt(0);
+    const letterIndex = (code - 65 + 26) % 26;
+    return colorPattern[letterIndex % 4];
   };
 
-  const getGradeColor = (grade: string) => {
-    switch (grade) {
-      case 'DS':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'H':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'P':
-        return 'bg-green-100 text-green-800 border-green-200';
-      default:
-        return 'text-gray-800 border-gray-200';
-    }
+  // Selected header background color using same accent logic
+  const getSelectedHeaderColor = () => {
+    if (!selectedProfessor) return '#752531';
+    return getProfessorAccentColor(selectedProfessor);
   };
+
+  // Map a 1-10 overall rating to a 1-5 star scale (rounded)
+  const mapTenScaleToFive = (tenScale: number) => Math.round(Math.max(0, Math.min(10, tenScale)) / 2);
+
+  // Group reviews by year (desc)
+  const groupReviewsByYear = (courseReviews: Review[]) => {
+    const groups = new Map<string, Review[]>();
+    courseReviews.forEach(r => {
+      const year = r.year || 'Unknown';
+      if (!groups.has(year)) groups.set(year, []);
+      groups.get(year)!.push(r);
+    });
+    return Array.from(groups.entries())
+      .sort((a, b) => Number(b[0]) - Number(a[0]))
+      .map(([year, yearReviews]) => ({ year, reviews: yearReviews }));
+  };
+
+  // Icons helpers for the details row
+  const getColdCallIcon = (_hasColdCalls?: boolean) => (
+    <Megaphone className="w-4 h-4 text-gray-500" />
+  );
+  const getFinalIcon = (_assessment?: string) => (
+    <FileText className="w-4 h-4 text-gray-500" />
+  );
+  const getElectronicsIcon = (_allowed?: boolean) => (
+    <Laptop className="w-4 h-4 text-gray-500" />
+  );
+
+  // renderRatingBox removed (unused)
+
+  // Grade color mapping no longer used in the UI
 
   const getAssessmentType = (type: string) => {
     switch (type) {
@@ -556,44 +535,7 @@ export function ReviewsPage() {
     }
   };
 
-  // Rating component
-  const RatingInput = ({ 
-    label, 
-    value, 
-    onChange, 
-    icon 
-  }: { 
-    label: string; 
-    value: number; 
-    onChange: (value: number) => void; 
-    icon: React.ReactNode;
-  }) => (
-    <div className="space-y-1 p-2 bg-gray-50 rounded">
-      <Label className="flex items-center gap-1 text-xs font-medium">
-        {icon}
-        {label}
-      </Label>
-      <div className="flex items-center gap-1">
-        <span className="text-xs text-gray-500 w-2">1</span>
-        <div className="flex gap-0.5 flex-1">
-          {Array.from({ length: 10 }, (_, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => onChange(i + 1)}
-              className={`w-3 h-3 rounded-sm border transition-colors ${
-                i < value 
-                  ? 'bg-[#752432] border-[#752432]' 
-                  : 'bg-white border-gray-300 hover:border-[#752432]'
-              }`}
-            />
-          ))}
-        </div>
-        <span className="text-xs text-gray-500 w-2">10</span>
-        <span className="text-xs font-semibold ml-1 min-w-[1.5rem]">{value}/10</span>
-      </div>
-    </div>
-  );
+  // RatingInput removed (unused)
 
 
   // Show loading state
@@ -627,65 +569,113 @@ export function ReviewsPage() {
   return (
     <div className="h-full overflow-auto" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
       {/* Header - Full Width */}
-      <div className="border-b border-gray-200 pt-6 pb-6 px-6" style={{ backgroundColor: '#752531' }}>
+      <div className="border-b border-gray-200 pt-6 pb-6 px-6" style={{ backgroundColor: selectedProfessor && selectedCourse ? getSelectedHeaderColor() : '#752531' }}>
         <div className="max-w-full mx-auto">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center">
-            <h1 className="text-2xl font-medium text-white">Professor Reviews</h1>
-            </div>
-            <Dialog open={showReviewForm} onOpenChange={setShowReviewForm}>
-              <DialogTrigger asChild>
-                <Button className="bg-[#752432] hover:bg-[#752432]/90">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Write Review
-                </Button>
-              </DialogTrigger>
-            </Dialog>
-          </div>
-          
-          {/* Search and A-Z Navigation */}
-          <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-6">
-            <div className="w-full lg:max-w-md lg:flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  placeholder="Search professors..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            
-            {/* A-Z Navigation */}
-            {!selectedProfessor && (
-              <div className="w-full lg:w-auto">
-                <div className="flex flex-col lg:flex-row items-start lg:items-center gap-2 lg:gap-4">
-                  <span className="text-sm text-white whitespace-nowrap">Jump to:</span>
-                  <div className="flex flex-wrap items-center gap-1 lg:gap-2 max-w-full overflow-hidden">
-                    {Array.from({ length: 26 }, (_, i) => {
-                      const letter = String.fromCharCode(65 + i);
-                      const hasProfs = availableLetters.includes(letter);
-                      return (
-                        <button
-                          key={letter}
-                          onClick={() => hasProfs && scrollToLetter(letter)}
-                          disabled={!hasProfs}
-                          className={`px-1.5 lg:px-2 py-1 text-xs lg:text-sm font-medium transition-colors flex-shrink-0 ${
-                            hasProfs
-                              ? 'text-white hover:text-gray-200 cursor-pointer'
-                              : 'text-gray-400 cursor-not-allowed'
-                          }`}
-                        >
-                          {letter}
-                        </button>
-                      );
-                    })}
+          {selectedProfessor && selectedCourse ? (
+            <div className="flex items-start w-full">
+              <div className="flex-1">
+                <div className="flex items-center gap-4 mb-3">
+                  <h1 className="text-3xl font-semibold text-white">
+                    Professor {selectedProfessor}
+                  </h1>
+                  <div className="inline-flex px-2 py-1 bg-white/20 backdrop-blur-sm rounded-full border border-white/30">
+                    <span className="text-white text-sm font-medium">{selectedCourse}</span>
                   </div>
                 </div>
+                {(() => {
+                  const prof = professorData.find(p => p.fullName === selectedProfessor);
+                  if (!prof) return null;
+                  const courseReviews = getReviewsForProfessorCourse(prof.fullName, selectedCourse, reviewSortBy);
+                  const fiveStarAvg = courseReviews.length > 0
+                    ? Math.round(
+                        (courseReviews.reduce((sum, r) => sum + mapTenScaleToFive(r.overall_rating), 0) / courseReviews.length)
+                      )
+                    : 0;
+                  const tenScaleAvg = courseReviews.length > 0
+                    ? (courseReviews.reduce((s, r) => s + r.overall_rating, 0) / courseReviews.length)
+                    : 0;
+                  return courseReviews.length > 0 ? (
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        {Array.from({ length: 5 }, (_, i) => (
+                          <Star
+                            key={i}
+                            className={`w-5 h-5 ${i < fiveStarAvg ? 'fill-current text-white' : 'text-white/40'}`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-white font-medium text-lg">
+                        {(tenScaleAvg / 2).toFixed(1)}
+                      </span>
+                      <div className="flex items-center gap-1 text-white/80">
+                        <span className="text-sm">
+                          {courseReviews.length} review{courseReviews.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center">
+                  <h1 className="text-2xl font-medium text-white">Professor Reviews</h1>
+                </div>
+                <Dialog open={showReviewForm} onOpenChange={setShowReviewForm}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-[#752432] hover:bg-[#752432]/90">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Write Review
+                    </Button>
+                  </DialogTrigger>
+                </Dialog>
+              </div>
+              {/* Search and A-Z Navigation */}
+              <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-6">
+                <div className="w-full lg:max-w-md lg:flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      placeholder="Search professors..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+                {/* A-Z Navigation */}
+                {!selectedProfessor && (
+                  <div className="w-full lg:w-auto">
+                    <div className="flex flex-col lg:flex-row items-start lg:items-center gap-2 lg:gap-4">
+                      <span className="text-sm text-white whitespace-nowrap">Jump to:</span>
+                      <div className="flex flex-wrap items-center gap-1 lg:gap-2 max-w-full overflow-hidden">
+                        {Array.from({ length: 26 }, (_, i) => {
+                          const letter = String.fromCharCode(65 + i);
+                          const hasProfs = availableLetters.includes(letter);
+                          return (
+                            <button
+                              key={letter}
+                              onClick={() => hasProfs && scrollToLetter(letter)}
+                              disabled={!hasProfs}
+                              className={`px-1.5 lg:px-2 py-1 text-xs lg:text-sm font-medium transition-colors flex-shrink-0 ${
+                                hasProfs
+                                  ? 'text-white hover:text-gray-200 cursor-pointer'
+                                  : 'text-gray-400 cursor-not-allowed'
+                              }`}
+                            >
+                              {letter}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -704,7 +694,7 @@ export function ReviewsPage() {
                 </p>
               </div>
             ) : selectedProfessor && selectedCourse ? (
-              /* Show reviews for selected professor and course */
+              /* New selected-course view: header + grouped reviews */
               <div className="space-y-6">
                 <Button 
                   variant="outline" 
@@ -712,167 +702,109 @@ export function ReviewsPage() {
                     setSelectedProfessor(null);
                     setSelectedCourse('');
                   }}
-                  className="mb-4"
+                  className="mb-4 -mt-4"
                 >
                   ← Back to All Professors
                 </Button>
-                
                 {(() => {
                   const prof = professorData.find(p => p.fullName === selectedProfessor);
                   if (!prof) return null;
-                  
                   const courseReviews = getReviewsForProfessorCourse(prof.fullName, selectedCourse, reviewSortBy);
-                  const courseData = prof.courses.find(c => c.name === selectedCourse);
-                  
+                  const getCourseColor = () => getProfessorAccentColor(selectedProfessor!);
+                  // Grouped reviews by year
                   return (
                     <div className="space-y-6">
-                      <Card className="p-6">
-                        <div className="mb-6">
-                          <h2 className="text-xl font-medium text-gray-900 mb-2">
-                            {prof.firstName} {prof.lastName} - {selectedCourse}
-                          </h2>
-                          <div className="flex items-center space-x-4 mb-4">
-                            <div className="flex items-center">
-                              <div className="flex items-center mr-2">
-                                {Array.from({ length: 5 }, (_, i) => (
-                                  <Star
-                                    key={i}
-                                    className={`w-5 h-5 ${
-                                      i < Math.floor(prof.overallRating / 2) 
-                                        ? 'text-[#752432] fill-current' 
-                                        : 'text-gray-300'
-                                    }`}
-                                  />
-                                ))}
-                              </div>
-                              <span className="font-medium text-gray-900">{prof.overallRating.toFixed(1)}</span>
-                              <span className="text-gray-600 ml-1">out of 10</span>
-                            </div>
-                            <span className="text-gray-600">•</span>
-                            <span className="text-gray-600">{courseData?.reviewCount || 0} reviews for this course</span>
-                          </div>
-                        </div>
-                      </Card>
-                      
-                      {/* Sort Controls */}
-                      {courseReviews.length > 0 && (
-                        <div className="flex items-center justify-between mb-4">
-                          <span className="text-sm text-gray-600">Sort by:</span>
-                          <div className="flex gap-2">
-                            {['Most Recent', 'Highest', 'Lowest'].map((option) => (
-                              <Button
-                                key={option}
-                                variant={reviewSortBy === option ? 'default' : 'outline'}
-                                size="sm"
-                                onClick={() => setReviewSortBy(option)}
-                                className={reviewSortBy === option ? 'bg-[#752432] hover:bg-[#752432]/90' : ''}
-                              >
-                                {option}
-                              </Button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      
+                      {/* Grouped reviews by year */}
                       {courseReviews.length === 0 ? (
-                        <div className="text-center py-8">
-                          <Star className="w-12 h-12 text-gray-400 mb-4" />
-                          <h4 className="font-medium text-gray-700 mb-2">No Reviews Yet</h4>
-                          <p className="text-gray-600 mb-4">
-                            No reviews available for {prof.firstName} {prof.lastName}'s {selectedCourse} course.
-                          </p>
-                          <Button 
-                            onClick={() => {
-                              setFormData(prev => ({
-                                ...prev,
-                                professor_name: prof.fullName,
-                                course_name: selectedCourse
-                              }));
-                              setShowReviewForm(true);
-                            }}
-                            className="bg-[#752432] hover:bg-[#752432]/90"
-                          >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Add the First Review
-                          </Button>
-                        </div>
-                      ) : (
-                        courseReviews.map(review => {
-                          // Get the color for this professor's letter
-                          const colorPattern = ['#00962c', '#ffb100', '#0277c5', '#f71417'];
-                          const letterIndex = selectedProfessor!.charCodeAt(0) - 65;
-                          const getCourseColor = (professorName: string) => colorPattern[letterIndex % 4];
-                          
-                          return (
-                            <Card 
-                              key={review.id} 
-                              className="transition-all duration-200 hover:shadow-md border-l-4" 
-                              style={{ 
-                                backgroundColor: '#FEFBF6',
-                                borderLeftColor: getCourseColor(selectedProfessor!)
+                        <div className="flex flex-col items-center justify-center min-h-[40vh] px-4">
+                          <div className="relative mb-8">
+                            <div 
+                              className="w-32 h-32 rounded-full flex items-center justify-center"
+                                  style={{ 
+                                background: `linear-gradient(to bottom right, ${getCourseColor()}10, ${getCourseColor()}20)`
                               }}
                             >
-                              <CardContent className="p-6">
-                                {/* Header with rating */}
-                                <div className="flex items-center justify-between mb-4">
-                                  <div className="flex items-center gap-3">
-                                    <div className="flex items-center gap-1">
-                                      {Array.from({ length: 5 }, (_, i) => (
-                                        <Star
-                                          key={i}
-                                          className={`w-4 h-4 ${
-                                            i < Math.floor(review.overall_rating / 2) ? 'fill-current' : 'text-gray-300'
-                                          }`}
-                                          style={{
-                                            color: i < Math.floor(review.overall_rating / 2) ? getCourseColor(selectedProfessor!) : undefined
-                                          }}
-                                        />
-                                      ))}
-                                    </div>
-                                    <span className="text-sm font-medium text-gray-600">
-                                      {review.overall_rating}/10
-                                    </span>
-                                  </div>
-                                  
-                                  {/* Grade Badge */}
-                                  <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${getGradeColor(review.grade)}`}>
-                                    {review.grade}
-                                  </span>
+                              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#F8F4ED] to-[#F5F1E8] flex items-center justify-center shadow-lg">
+                                <Calendar 
+                                  className="w-12 h-12"
+                                  style={{ color: `${getCourseColor()}60` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-center max-w-md">
+                            <h3 className="text-xl font-semibold text-gray-800 mb-3">No Reviews Yet!</h3>
+                            <p className="text-gray-600 leading-relaxed">No reviews available for this course.</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-8">
+                          {groupReviewsByYear(courseReviews).map(({ year, reviews }) => (
+                            <div key={year}>
+                              <div className="flex items-center gap-4 mb-6">
+                                <div 
+                                  className="w-12 h-12 rounded-full flex items-center justify-center"
+                                  style={{ backgroundColor: getCourseColor() }}
+                                >
+                                  <span className="text-white font-semibold">{year}</span>
                                 </div>
-
-                                {/* Course details - simple and at the top */}
-                                <div className="flex items-center gap-6 mb-4 text-sm text-gray-600 border-b border-gray-200 pb-3">
-                                  <div className="flex items-center gap-2">
-                                    <Calendar className="w-4 h-4" />
-                                    <span>{review.semester} {review.year}</span>
-                                  </div>
-                                  {review.laptops_allowed !== undefined && (
-                                    <div className="flex items-center gap-2">
-                                      <span>Laptops: <span className="font-medium">{review.laptops_allowed ? 'Allowed' : 'Not Allowed'}</span></span>
-                                    </div>
-                                  )}
-                                  {review.assessment_type && (
-                                    <div className="flex items-center gap-2">
-                                      <span>Assessment: <span className="font-medium">{getAssessmentType(review.assessment_type)}</span></span>
-                                    </div>
-                                  )}
-                                  {review.has_cold_calls !== undefined && (
-                                    <div className="flex items-center gap-2">
-                                      <span>Cold Calls: <span className="font-medium">{review.has_cold_calls ? 'Yes' : 'No'}</span></span>
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* Review text */}
-                                <p className="text-gray-700 leading-relaxed text-base mb-4">
-                                  {review.overall_review}
-                                </p>
-
-                                {/* Voting system removed */}
-                              </CardContent>
-                            </Card>
-                          );
-                        })
+                                <div className="flex-1 h-px bg-gray-200"></div>
+                                <span className="text-sm text-gray-500 font-medium">
+                                  {reviews.length} review{reviews.length !== 1 ? 's' : ''}
+                                </span>
+                              </div>
+                              <div className="space-y-4 ml-4">
+                                {reviews.map(review => {
+                                  const five = mapTenScaleToFive(review.overall_rating);
+                                  return (
+                                    <Card 
+                                      key={review.id}
+                                      className="transition-all duration-200 hover:shadow-md border-l-4"
+                                      style={{ backgroundColor: '#FEFBF6', borderLeftColor: getCourseColor() }}
+                                    >
+                                      <CardContent className="p-6">
+                                        <div className="flex items-center justify-between mb-4">
+                                          <div className="flex items-center gap-3">
+                                            <div className="flex items-center gap-1">
+                                              {Array.from({ length: 5 }, (_, i) => (
+                                                <Star
+                                                  key={i}
+                                                  className={`w-4 h-4 ${i < five ? 'fill-current' : 'text-gray-300'}`}
+                                                  style={{ color: i < five ? getCourseColor() : undefined }}
+                                                />
+                                              ))}
+                                            </div>
+                                            <span className="text-sm font-medium text-gray-600">
+                                              {five}/5
+                                            </span>
+                                          </div>
+                                          {/* Grade removed from card display */}
+                                        </div>
+                                        <div className="flex items-center gap-6 mb-4 text-sm text-gray-600 border-b border-gray-200 pb-3">
+                                          <div className="flex items-center gap-2">
+                                            {getColdCallIcon(review.has_cold_calls)}
+                                            <span>Cold Calls: <span className="font-medium">{review.has_cold_calls ? 'Yes' : 'No'}</span></span>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            {getFinalIcon(review.assessment_type)}
+                                            <span>Final: <span className="font-medium">{getAssessmentType(review.assessment_type || '')}</span></span>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            {getElectronicsIcon(review.laptops_allowed)}
+                                            <span>Electronics: <span className="font-medium">{review.laptops_allowed ? 'Allowed' : 'Prohibited'}</span></span>
+                                          </div>
+                                        </div>
+                                        <p className="text-gray-700 leading-relaxed text-base">
+                                          {review.overall_review}
+                                        </p>
+                                      </CardContent>
+                                    </Card>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
                   );
@@ -904,19 +836,25 @@ export function ReviewsPage() {
                             <div className="flex items-center space-x-4 mb-4">
                               <div className="flex items-center">
                                 <div className="flex items-center mr-2">
-                                  {Array.from({ length: 5 }, (_, i) => (
-                                    <Star
-                                      key={i}
-                                      className={`w-5 h-5 ${
-                                        i < Math.floor(prof.overallRating / 2) 
-                                          ? 'text-[#752432] fill-current' 
-                                          : 'text-gray-300'
-                                      }`}
-                                    />
-                                  ))}
+                                  {(() => {
+                                    // Color stars to match this professor's card color
+                                    const colorPattern = ['#00962c', '#ffb100', '#0277c5', '#f71417'];
+                                    const letterIndex = (prof.lastName.charCodeAt(0) - 65 + 26) % 26;
+                                    const currentColor = colorPattern[letterIndex % 4];
+                                    return Array.from({ length: 5 }, (_, i) => (
+                                      <Star
+                                        key={i}
+                                        className={`w-5 h-5 ${
+                                          i < Math.floor(prof.overallRating / 2) 
+                                            ? 'fill-current' 
+                                            : 'text-gray-300'
+                                        }`}
+                                        style={{ color: i < Math.floor(prof.overallRating / 2) ? currentColor : undefined }}
+                                      />
+                                    ));
+                                  })()}
                                 </div>
-                                <span className="font-medium text-gray-900">{prof.overallRating.toFixed(1)}</span>
-                                <span className="text-gray-600 ml-1">out of 10</span>
+                                <span className="font-medium text-gray-600">{(prof.overallRating / 2).toFixed(1)}/5</span>
                               </div>
                               <span className="text-gray-600">•</span>
                               <span className="text-gray-600">{prof.totalReviews} total reviews</span>
@@ -1001,20 +939,20 @@ export function ReviewsPage() {
                                   {/* Rating and review count */}
                                   <div className="flex items-center space-x-4 mb-4">
                                     <div className="flex items-center">
-                                      <div className="flex items-center mr-2">
-                                        {Array.from({ length: 5 }, (_, i) => (
-                                          <Star
-                                            key={i}
-                                            className={`w-4 h-4 ${
-                                              i < Math.floor(prof.overallRating / 2) 
-                                                ? 'text-[#752432] fill-current' 
-                                                : 'text-gray-300'
-                                            }`}
-                                          />
-                                        ))}
+                                    <div className="flex items-center mr-2">
+                                      {Array.from({ length: 5 }, (_, i) => (
+                                        <Star
+                                          key={i}
+                                          className={`w-4 h-4 ${
+                                            i < Math.floor(prof.overallRating / 2) 
+                                              ? 'fill-current' 
+                                              : 'text-gray-300'
+                                          }`}
+                                          style={{ color: i < Math.floor(prof.overallRating / 2) ? currentColor : undefined }}
+                                        />
+                                      ))}
                                       </div>
-                                      <span className="font-medium text-gray-900">{prof.overallRating.toFixed(1)}</span>
-                                      <span className="text-gray-600 ml-1">out of 10</span>
+                                    <span className="font-medium text-gray-600">{(prof.overallRating / 2).toFixed(1)}/5</span>
                                     </div>
                                     <span className="text-gray-600">•</span>
                                     <span className="text-gray-600">{prof.totalReviews} reviews</span>
@@ -1044,7 +982,7 @@ export function ReviewsPage() {
                                               e.currentTarget.style.backgroundColor = currentColor;
                                             }}
                                           >
-                                            {courseInfo.name} ({courseInfo.reviewCount === 0 ? 'No reviews' : courseInfo.reviewCount})
+                                            {courseInfo.name}
                                           </button>
                                         );
                                       })}

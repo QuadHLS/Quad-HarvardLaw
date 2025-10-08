@@ -231,19 +231,16 @@ export function ReviewsPage() {
         professor_name: formData.professor_name,
         course_name: formData.course_name,
         year: formData.year,
-        overall_rating: formData.overall_rating * 2, // Convert 0.0-5.0 to 0.0-10.0 scale
+        overall_rating: formData.overall_rating, // Store 0.0-5.0 scale directly
         overall_review: formData.overall_review,
         laptops_allowed: formData.laptops_allowed,
         assessment_type: formData.assessment_type,
-        has_cold_calls: formData.has_cold_calls,
-        // Legacy detailed fields are intentionally omitted to avoid check constraint violations
-        readings_rating: null,
-        cold_calls_rating: null,
-        exam_rating: null,
-        readings_review: null,
-        cold_calls_review: null,
-        exam_review: null
+        has_cold_calls: formData.has_cold_calls
+        // Removed null fields that might be causing constraint violations
       };
+
+      // Debug: Log the payload being sent
+      console.log('Review payload being sent:', insertPayload);
 
       const { error } = await supabase
         .from('reviews')

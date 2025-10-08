@@ -69,8 +69,43 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
   professorCourses,
   handleSubmitReview
 }) => {
-  const [professorSearch, setProfessorSearch] = useState('');
+  const [professorSearch, setProfessorSearch] = useState(formData.professor_name);
   const [showProfessorDropdown, setShowProfessorDropdown] = useState(false);
+
+  // Sync professorSearch with formData.professor_name
+  useEffect(() => {
+    setProfessorSearch(formData.professor_name);
+  }, [formData.professor_name]);
+
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!showReviewForm) {
+      // Reset all form data to initial state
+      setFormData({
+        professor_name: '',
+        course_name: '',
+        semester: 'Fall',
+        year: '',
+        grade: 'H',
+        overall_rating: 0,
+        readings_rating: 0,
+        cold_calls_rating: 0,
+        exam_rating: 0,
+        overall_review: '',
+        readings_review: '',
+        cold_calls_review: '',
+        exam_review: '',
+        laptops_allowed: false,
+        assessment_type: 'Final Exam',
+        has_cold_calls: false,
+        anonymous: false
+      });
+      // Reset professor search
+      setProfessorSearch('');
+      // Close dropdown
+      setShowProfessorDropdown(false);
+    }
+  }, [showReviewForm, setFormData]);
   const professorDropdownRef = useRef<HTMLDivElement>(null);
   const professorDropdownPanelRef = useRef<HTMLDivElement>(null);
   const [dropdownPosition, setDropdownPosition] = useState<{ left: number; top: number; width: number } | null>(null);
@@ -334,6 +369,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
                   className="pl-10 pr-10 h-9 rounded-3xl border border-gray-200 focus:ring-2 focus:ring-[#752432] focus:border-transparent transition"
                   style={{ backgroundColor: 'white', borderRadius: 16, fontSize: '12px' }}
                   autoFocus={false}
+                  tabIndex={-1}
                 />
                 {professorSearch && (
                   <button

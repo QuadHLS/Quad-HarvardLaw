@@ -231,7 +231,7 @@ export function ReviewsPage() {
         professor_name: formData.professor_name,
         course_name: formData.course_name,
         year: formData.year,
-        overall_rating: formData.overall_rating, // 1–10 (mapped from 1–5 UI)
+        overall_rating: formData.overall_rating * 2, // Convert 0.0-5.0 to 0.0-10.0 scale
         overall_review: formData.overall_review,
         laptops_allowed: formData.laptops_allowed,
         assessment_type: formData.assessment_type,
@@ -491,8 +491,8 @@ export function ReviewsPage() {
     return getProfessorAccentColor(selectedProfessor);
   };
 
-  // Map a 1-10 overall rating to a 1-5 star scale (rounded)
-  const mapTenScaleToFive = (tenScale: number) => Math.round(Math.max(0, Math.min(10, tenScale)) / 2);
+  // Map a 0-10 overall rating to a 0-5 star scale (preserving decimals)
+  const mapTenScaleToFive = (tenScale: number) => Math.max(0, Math.min(10, tenScale)) / 2;
 
   // Group reviews by year (desc)
   const groupReviewsByYear = (courseReviews: Review[]) => {
@@ -587,9 +587,7 @@ export function ReviewsPage() {
                   if (!prof) return null;
                   const courseReviews = getReviewsForProfessorCourse(prof.fullName, selectedCourse, reviewSortBy);
                   const fiveStarAvg = courseReviews.length > 0
-                    ? Math.round(
-                        (courseReviews.reduce((sum, r) => sum + mapTenScaleToFive(r.overall_rating), 0) / courseReviews.length)
-                      )
+                    ? (courseReviews.reduce((sum, r) => sum + mapTenScaleToFive(r.overall_rating), 0) / courseReviews.length)
                     : 0;
                   const tenScaleAvg = courseReviews.length > 0
                     ? (courseReviews.reduce((s, r) => s + r.overall_rating, 0) / courseReviews.length)
@@ -616,6 +614,40 @@ export function ReviewsPage() {
                   ) : null;
                 })()}
               </div>
+              <div className="ml-6">
+                <Dialog open={showReviewForm} onOpenChange={setShowReviewForm}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      onClick={() => {
+                        // Pre-fill professor and course when opening from course reviews page
+                        setFormData(prev => ({
+                          ...prev,
+                          professor_name: selectedProfessor || '',
+                          course_name: selectedCourse || ''
+                        }));
+                      }}
+                      className="bg-white text-[#752432] hover:bg-white/90 hover:shadow-lg hover:scale-105 transition-all duration-200 ease-in-out rounded-xl font-medium shadow-md"
+                      style={{
+                        transform: 'scale(1)',
+                        transition: 'all 0.2s ease-in-out'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.05)';
+                        e.currentTarget.style.backgroundColor = '#f3f4f6';
+                        e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.backgroundColor = 'white';
+                        e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
+                      }}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Write Review
+                    </Button>
+                  </DialogTrigger>
+                </Dialog>
+              </div>
             </div>
           ) : (
             <>
@@ -625,7 +657,26 @@ export function ReviewsPage() {
                 </div>
                 <Dialog open={showReviewForm} onOpenChange={setShowReviewForm}>
                   <DialogTrigger asChild>
-                    <Button className="bg-[#752432] hover:bg-[#752432]/90">
+                    <Button 
+                      className="bg-[#752432] hover:shadow-lg hover:scale-105 transition-all duration-200 ease-in-out rounded-xl font-medium shadow-md"
+                      style={{
+                        transform: 'scale(1)',
+                        transition: 'all 0.2s ease-in-out',
+                        color: 'white'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.05)';
+                        e.currentTarget.style.backgroundColor = 'white';
+                        e.currentTarget.style.color = 'black';
+                        e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.backgroundColor = '#752432';
+                        e.currentTarget.style.color = 'white';
+                        e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
+                      }}
+                    >
                       <Plus className="w-4 h-4 mr-2" />
                       Write Review
                     </Button>
@@ -775,7 +826,7 @@ export function ReviewsPage() {
                                               ))}
                                             </div>
                                             <span className="text-sm font-medium text-gray-600">
-                                              {five}/5
+                                              {five.toFixed(1)}/5
                                             </span>
                                           </div>
                                           {/* Grade removed from card display */}

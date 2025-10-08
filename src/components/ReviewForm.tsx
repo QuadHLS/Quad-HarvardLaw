@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
 import { Switch } from './ui/switch';
-import { Search, X, Star } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 
 interface ReviewFormData {
   professor_name: string;
@@ -142,56 +142,158 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
     }
   };
 
-  // Fancy 1–5 interactive rating with subtle animations
-  const FancyRating = ({ value, onChange }: { value: number; onChange: (v: number) => void }) => {
-    const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-    const [burstIndex, setBurstIndex] = useState<number | null>(null);
+  // Simple animated rating bar: 0.0–5.0 (tenths). Internally maps to 0.0–10.0 for storage
+  const AnimatedRatingBar = ({ valueFive, onChangeFive }: { valueFive: number; onChangeFive: (v: number) => void }) => {
+    const trackRef = useRef<HTMLDivElement>(null);
+    const [animatedValue, setAnimatedValue] = useState(5.0);
+    const animationRef = useRef<number>();
 
-    const activeUpTo = hoverIndex !== null ? hoverIndex : Math.round(value / 2) - 1;
+    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+    const lerpColor = (c1: [number, number, number], c2: [number, number, number], t: number): string => {
+      const r = Math.round(lerp(c1[0], c2[0], t));
+      const g = Math.round(lerp(c1[1], c2[1], t));
+      const b = Math.round(lerp(c1[2], c2[2], t));
+      return `rgb(${r}, ${g}, ${b})`;
+    };
+    // brand-ish palette pulled from existing UI accents
+    const RED: [number, number, number] = [247, 20, 23];    // #f71417
+    const YELLOW: [number, number, number] = [255, 177, 0]; // #ffb100
+    const BLUE: [number, number, number] = [2, 119, 197];   // #0277c5
+    const GREEN: [number, number, number] = [0, 150, 44];   // #00962c
 
-    const handleClick = (i: number) => {
-      onChange((i + 1) * 2);
-      setBurstIndex(i);
-      window.setTimeout(() => setBurstIndex(null), 500);
+    const computeFillColor = (v: number) => {
+      // More distinct color ranges: red -> yellow -> blue -> green
+      if (v <= 1.7) {
+        return `rgb(${RED[0]}, ${RED[1]}, ${RED[2]})`; // Pure red
+      } else if (v <= 2.3) {
+        const t = Math.max(0, Math.min(1, (v - 1.7) / 0.6));
+        return lerpColor(RED, YELLOW, t);
+      } else if (v <= 2.8) {
+        return `rgb(${YELLOW[0]}, ${YELLOW[1]}, ${YELLOW[2]})`; // Pure yellow
+      } else if (v <= 3.2) {
+        const t = Math.max(0, Math.min(1, (v - 2.8) / 0.4));
+        return lerpColor(YELLOW, BLUE, t);
+      } else if (v <= 3.8) {
+        return `rgb(${BLUE[0]}, ${BLUE[1]}, ${BLUE[2]})`; // Pure blue
+      } else if (v <= 4.2) {
+        const t = Math.max(0, Math.min(1, (v - 3.8) / 0.4));
+        return lerpColor(BLUE, GREEN, t);
+      } else {
+        return `rgb(${GREEN[0]}, ${GREEN[1]}, ${GREEN[2]})`; // Pure green
+      }
     };
 
+    const setFromClientX = (clientX: number) => {
+      const el = trackRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+      const raw = ratio * 5; // 0..5
+      
+      // Auto-snap to 0 or 5 when close to edges
+      let target;
+      if (raw <= 0.3) {
+        target = 0; // Snap to 0 if within 0.3 of the left edge
+      } else if (raw >= 4.9) {
+        target = 5; // Snap to 5 if 4.9 or above
+      } else {
+        const rounded = Math.round(raw * 10) / 10;
+        // If the rounded value is 4.8 or 4.9, make it 5.0
+        target = (rounded === 4.8 || rounded === 4.9) ? 5.0 : rounded;
+      }
+      
+      // Cancel any existing animation and timeout
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+      
+      // Start smooth animation toward target from current position
+      animateToValue(target);
+      
+      // Update form state after animation completes
+      setTimeout(() => {
+        onChangeFive(target);
+      }, 800); // Match animation duration
+    };
+
+    const animateToValue = (target: number) => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+      
+      const startValue = animatedValue;
+      const startTime = performance.now();
+      const duration = 800; // 800ms for slower, smoother animation
+      
+      const animate = (currentTime: number) => {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Smoother easing function
+        const easeOut = 1 - Math.pow(1 - progress, 4);
+        const currentValue = startValue + (target - startValue) * easeOut;
+        
+        setAnimatedValue(currentValue);
+        
+        if (progress < 1) {
+          animationRef.current = requestAnimationFrame(animate);
+        }
+      };
+      
+      animationRef.current = requestAnimationFrame(animate);
+    };
+
+    // Initialize animated value only once
+    useEffect(() => {
+      setAnimatedValue(valueFive);
+    }, []); // Empty dependency array - only run once
+
+    // Cleanup animation on unmount
+    useEffect(() => {
+      return () => {
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+        }
+      };
+    }, []);
+
+
+    const percent = Math.max(0, Math.min(100, (animatedValue / 5) * 100));
+    const fillColor = computeFillColor(animatedValue);
+
     return (
-      <div className="flex items-center gap-2 select-none">
-        {Array.from({ length: 5 }, (_, i) => {
-          const active = i <= activeUpTo;
-          return (
-            <button
-              key={i}
-              type="button"
-              onMouseEnter={() => setHoverIndex(i)}
-              onMouseLeave={() => setHoverIndex(null)}
-              onFocus={() => setHoverIndex(i)}
-              onBlur={() => setHoverIndex(null)}
-              onClick={() => handleClick(i)}
-              aria-label={`Rate ${i + 1} out of 5`}
-              className={`relative w-8 h-8 rounded-full border transition-all duration-200 flex items-center justify-center shadow-sm ${
-                active ? 'border-transparent' : 'border-gray-200 hover:border-[#752432]'
-              } ${active ? 'scale-100' : 'scale-95'} group`}
-              style={active ? { background: 'linear-gradient(135deg, #752432 0%, #9a3a48 100%)' } : { backgroundColor: 'white' }}
-            >
-              <Star className={`w-4 h-4 transition-transform duration-200 ${active ? 'text-white scale-110' : 'text-gray-400 group-hover:scale-105'}`} />
-              {/* subtle glow */}
-              {active && (
-                <span className="pointer-events-none absolute inset-0 rounded-full bg-white/10 blur-[1px]" />
-              )}
-              {/* click burst */}
-              {burstIndex === i && (
-                <>
-                  <span className="pointer-events-none absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white animate-ping" />
-                  <span className="pointer-events-none absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white animate-ping" />
-                  <span className="pointer-events-none absolute top-1/2 -left-1 -translate-y-1/2 w-1 h-1 rounded-full bg-white animate-ping" />
-                  <span className="pointer-events-none absolute top-1/2 -right-1 -translate-y-1/2 w-1 h-1 rounded-full bg-white animate-ping" />
-                </>
-              )}
-            </button>
-          );
-        })}
-        <span className="text-[11px] text-gray-600 ml-1">{Math.round(value / 2)}/5</span>
+      <div className="flex items-center gap-2 select-none w-full">
+        <div
+          ref={trackRef}
+          className="relative h-4 w-full rounded-full bg-white overflow-hidden cursor-pointer"
+          style={{ width: 'calc(100% + 30px)' }}
+          onClick={(e) => setFromClientX(e.clientX)}
+          role="slider"
+          aria-valuemin={0}
+          aria-valuemax={5}
+          aria-valuenow={animatedValue}
+        >
+          <div
+            className="absolute left-0 top-0 h-full rounded-full"
+            style={{
+              width: `${percent}%`,
+              backgroundColor: fillColor,
+              pointerEvents: 'none',
+            }}
+          />
+          {/* Rating number positioned at the end of the filled bar */}
+          <div
+            className="absolute top-0 h-full flex items-center justify-center pointer-events-none"
+            style={{
+              left: `${percent}%`,
+              transform: 'translateX(-120%)',
+            }}
+          >
+            <span className="text-xs text-white">
+              {animatedValue.toFixed(1)}
+            </span>
+          </div>
+        </div>
       </div>
     );
   };
@@ -229,8 +331,8 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
                   value={professorSearch}
                   onChange={(e) => handleProfessorSearchChange(e.target.value)}
                   onFocus={() => setShowProfessorDropdown(true)}
-                  className="pl-10 pr-10 h-9 rounded-3xl border border-gray-200 focus:ring-2 focus:ring-[#752432] focus:border-transparent transition text-xs"
-                  style={{ backgroundColor: 'white', borderRadius: 16 }}
+                  className="pl-10 pr-10 h-9 rounded-3xl border border-gray-200 focus:ring-2 focus:ring-[#752432] focus:border-transparent transition"
+                  style={{ backgroundColor: 'white', borderRadius: 16, fontSize: '12px' }}
                   autoFocus={false}
                 />
                 {professorSearch && (
@@ -252,7 +354,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
               {showProfessorDropdown && dropdownPosition && createPortal(
                 <div
                   ref={professorDropdownPanelRef}
-                  className="border border-gray-200 rounded-2xl shadow-xl backdrop-blur-sm overflow-hidden"
+                  className="border border-gray-200 shadow-xl backdrop-blur-sm overflow-hidden"
                   data-radix-scroll-lock-ignore
                   onWheel={(e) => e.stopPropagation()}
                   onTouchMove={(e) => e.stopPropagation()}
@@ -263,6 +365,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
                     width: dropdownPosition.width,
                     backgroundColor: 'rgba(249,245,242,0.95)',
                     WebkitOverflowScrolling: 'touch',
+                    borderRadius: '24px',
                     height: 220,
                     overflowY: 'auto',
                     overflowX: 'hidden',
@@ -272,12 +375,12 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
                     pointerEvents: 'auto'
                   }}
                 >
-                  {(filteredProfessors.length > 0 ? filteredProfessors : professors).map((prof) => (
+                  {professors.map((prof) => (
                     <button
                       key={prof.id}
                       type="button"
                       onClick={() => handleProfessorSelect(prof.name)}
-                      className="w-full px-3 py-2 text-left hover:bg-gray-100/70 focus:bg-gray-100/70 focus:outline-none text-[11px] border-b border-gray-100 last:border-b-0 rounded-none first:rounded-t-2xl last:rounded-b-2xl"
+                      className="w-full px-3 py-2 text-left hover:bg-white focus:bg-white focus:outline-none text-sm border-b border-gray-100 last:border-b-0 rounded-none first:rounded-t-2xl last:rounded-b-2xl"
                     >
                       {prof.name}
                     </button>
@@ -304,7 +407,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
                 <SelectTrigger className="mt-1 h-9 rounded-3xl border border-gray-200 focus:ring-2 focus:ring-[#752432] focus:border-transparent transition text-xs" style={{ backgroundColor: 'white', borderRadius: 16 }}>
                   <SelectValue placeholder={formData.professor_name ? "Select course" : "Select professor first"} />
                 </SelectTrigger>
-                <SelectContent className="rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+                <SelectContent className="shadow-xl overflow-hidden border border-gray-200 [&>*:hover]:bg-white [&>*:focus]:bg-white" style={{ borderRadius: '24px', backgroundColor: 'rgba(249,245,242,0.95)' }}>
                   {!formData.professor_name ? (
                     <SelectItem value="select-professor-first" disabled>
                       Please select a professor first
@@ -332,9 +435,9 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
                         </SelectItem>
                       ) : (
                         filteredCourses.map((course) => (
-                          <SelectItem key={course.id} value={course.name}>
-                            {course.name}
-                          </SelectItem>
+                      <SelectItem key={course.id} value={course.name} className="hover:bg-white focus:bg-white">
+                        {course.name}
+                      </SelectItem>
                         ))
                       );
                     })()
@@ -355,22 +458,22 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
                 <SelectTrigger className="mt-1 h-9 rounded-3xl border border-gray-200 focus:ring-2 focus:ring-[#752432] focus:border-transparent transition text-xs" style={{ backgroundColor: 'white', borderRadius: 16 }}>
                   <SelectValue placeholder="Select year" />
                 </SelectTrigger>
-                <SelectContent className="rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+                <SelectContent className="shadow-xl overflow-hidden border border-gray-200 [&>*:hover]:bg-white [&>*:focus]:bg-white" style={{ borderRadius: '24px', backgroundColor: 'rgba(249,245,242,0.95)' }}>
                   {Array.from({ length: 4 }, (_, i) => {
                     const y = (new Date().getFullYear() - i).toString();
                     return (
-                      <SelectItem key={y} value={y}>{y}</SelectItem>
+                      <SelectItem key={y} value={y} className="hover:bg-white focus:bg-white">{y}</SelectItem>
                     );
                   })}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label className="text-xs font-medium text-gray-700">Overall Rating (1-5) <span style={{ color: '#752531' }}>*</span></Label>
+              <Label className="text-xs font-medium text-gray-700">Overall Rating (0.0–5.0) <span style={{ color: '#752531' }}>*</span></Label>
               <div className="mt-1">
-                <FancyRating
-                  value={formData.overall_rating}
-                  onChange={(v) => setFormData(prev => ({ ...prev, overall_rating: v }))}
+                <AnimatedRatingBar
+                  valueFive={Number((formData.overall_rating / 2).toFixed(1))}
+                  onChangeFive={(vFive) => setFormData(prev => ({ ...prev, overall_rating: Number((vFive * 2).toFixed(1)) }))}
                 />
               </div>
             </div>
@@ -403,10 +506,10 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
                 <SelectTrigger className="h-9 rounded-3xl border border-gray-200 focus:ring-2 focus:ring-[#752432] focus:border-transparent transition text-xs w-full min-w-0" style={{ backgroundColor: 'white', borderRadius: 16 }}>
                   <SelectValue placeholder="Select final type" />
                 </SelectTrigger>
-                <SelectContent className="rounded-2xl shadow-xl overflow-hidden border border-gray-200">
-                  <SelectItem value="Final Exam">Final Exam</SelectItem>
-                  <SelectItem value="Project">Project</SelectItem>
-                  <SelectItem value="Both">Both</SelectItem>
+                <SelectContent className="shadow-xl overflow-hidden border border-gray-200 [&>*:hover]:bg-white [&>*:focus]:bg-white" style={{ borderRadius: '24px', backgroundColor: 'rgba(249,245,242,0.95)' }}>
+                  <SelectItem value="Final Exam" className="hover:bg-white focus:bg-white">Final Exam</SelectItem>
+                  <SelectItem value="Project" className="hover:bg-white focus:bg-white">Project</SelectItem>
+                  <SelectItem value="Both" className="hover:bg-white focus:bg-white">Both</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -434,14 +537,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
 
           {/* Sticky Footer Actions */}
           <div className="px-6 pb-5">
-            <div className="sticky bottom-0 -mx-6 px-6 py-3 bg-gradient-to-t from-[rgba(249,245,242,0.95)] to-[rgba(249,245,242,0.5)] border-t border-white/60 flex justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setShowReviewForm(false)}
-                disabled={formLoading}
-              >
-                Cancel
-              </Button>
+            <div className="sticky bottom-0 -mx-6 px-6 py-3 bg-gradient-to-t from-[rgba(249,245,242,0.95)] to-[rgba(249,245,242,0.5)] border-t border-white/60 flex justify-center">
               <Button
                 onClick={handleSubmitReview}
                 disabled={

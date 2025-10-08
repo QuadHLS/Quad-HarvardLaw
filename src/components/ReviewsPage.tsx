@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import * as React from 'react';
-import { Star, Search, Calendar, ThumbsUp, ThumbsDown, BookOpen, MessageCircle, FileText, Award, Plus, X } from 'lucide-react';
+import { Star, Search, Calendar, Plus } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent } from './ui/card';
@@ -143,9 +143,9 @@ export function ReviewsPage() {
   const [formData, setFormData] = useState<ReviewFormData>({
     professor_name: '',
     course_name: '',
-    semester: '',
+    semester: 'Fall',
     year: '',
-    grade: '',
+    grade: 'P',
     overall_rating: 0,
     readings_rating: 0,
     cold_calls_rating: 0,
@@ -155,36 +155,36 @@ export function ReviewsPage() {
     cold_calls_review: '',
     exam_review: '',
     laptops_allowed: false,
-    assessment_type: '',
+    assessment_type: 'Final Exam',
     has_cold_calls: false
   });
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
-  // Fetch user votes
-  const fetchUserVotes = async (reviewIds: string[]) => {
-    try {
-      const { data, error } = await supabase.rpc('get_user_votes', {
-        p_review_ids: reviewIds
-      });
-      
-      if (error) throw error;
-      
-      const votes: Record<string, 'helpful' | 'not_helpful' | null> = {};
-      reviewIds.forEach(id => votes[id] = null);
-      
-      if (data) {
-        data.forEach((vote: any) => {
-          votes[vote.review_id] = vote.engagement_type;
-        });
-      }
-      
-      setUserVotes(votes);
-    } catch (err) {
-      console.error('Error fetching user votes:', err);
-    }
-  };
+  // Voting system disabled - no longer fetching user votes
+  // const fetchUserVotes = async (reviewIds: string[]) => {
+  //   try {
+  //     const { data, error } = await supabase.rpc('get_user_votes', {
+  //       p_review_ids: reviewIds
+  //     });
+  //     
+  //     if (error) throw error;
+  //     
+  //     const votes: Record<string, 'helpful' | 'not_helpful' | null> = {};
+  //     reviewIds.forEach(id => votes[id] = null);
+  //     
+  //     if (data) {
+  //       data.forEach((vote: any) => {
+  //         votes[vote.review_id] = vote.engagement_type;
+  //       });
+  //     }
+  //     
+  //     setUserVotes(votes);
+  //   } catch (err) {
+  //     console.error('Error fetching user votes:', err);
+  //   }
+  // };
 
   // Fetch data from database
   useEffect(() => {
@@ -215,10 +215,10 @@ export function ReviewsPage() {
         setProfessorCourses(professorCoursesResult.data || []);
         setProfessorStats(statsResult.data || []);
         
-        // Fetch user votes for all reviews
-        if (reviewsData.length > 0) {
-          await fetchUserVotes(reviewsData.map(r => r.id));
-        }
+        // Voting system disabled - no longer fetching user votes
+        // if (reviewsData.length > 0) {
+        //   await fetchUserVotes(reviewsData.map((r: Review) => r.id));
+        // }
       } catch (err) {
         console.error('Error fetching data:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch data');
@@ -230,17 +230,18 @@ export function ReviewsPage() {
     fetchData();
   }, []);
 
-  // Get courses for selected professor
+  // Get courses for selected professor using professor_courses relationship
   const getCoursesForProfessor = (professorName: string) => {
-    return courses.filter(course => {
-      // Check if this professor teaches this course
-      return professors.some(prof => 
-        prof.name === professorName && 
-        // This would need to be enhanced with the professor_courses relationship
-        // For now, we'll show all courses and let the user select
-        true
-      );
-    });
+    const professor = professors.find(prof => prof.name === professorName);
+    if (!professor) return [];
+    
+    // Get course IDs this professor teaches
+    const professorCourseIds = professorCourses
+      .filter(pc => pc.professor_id === professor.id)
+      .map(pc => pc.course_id);
+    
+    // Return courses that match those IDs
+    return courses.filter(course => professorCourseIds.includes(course.id));
   };
 
   // Submit review form
@@ -257,7 +258,7 @@ export function ReviewsPage() {
       }
 
       // Submit review
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('reviews')
         .insert([{
           user_id: user.id,
@@ -286,9 +287,9 @@ export function ReviewsPage() {
       setFormData({
         professor_name: '',
         course_name: '',
-        semester: '',
+        semester: 'Fall',
         year: '',
-        grade: '',
+        grade: 'P',
         overall_rating: 0,
         readings_rating: 0,
         cold_calls_rating: 0,
@@ -298,7 +299,7 @@ export function ReviewsPage() {
         cold_calls_review: '',
         exam_review: '',
         laptops_allowed: false,
-        assessment_type: '',
+        assessment_type: 'Final Exam',
         has_cold_calls: false
       });
       setShowReviewForm(false);
@@ -314,58 +315,58 @@ export function ReviewsPage() {
     }
   };
 
-  // Vote on review (helpful/not helpful)
-  const handleVote = async (reviewId: string, voteType: 'helpful' | 'not_helpful') => {
-    try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('You must be logged in to vote on reviews');
-      }
+  // Voting system disabled
+  // const handleVote = async (reviewId: string, voteType: 'helpful' | 'not_helpful') => {
+  //   try {
+  //     // Get current user
+  //     const { data: { user } } = await supabase.auth.getUser();
+  //     if (!user) {
+  //       throw new Error('You must be logged in to vote on reviews');
+  //     }
 
-      // Determine the action based on current vote
-      const currentVote = userVotes[reviewId];
-      let actionType = voteType;
-      
-      // If user clicks the same button they already voted for, unvote
-      if (currentVote === voteType) {
-        actionType = 'unvote';
-      }
+  //     // Determine the action based on current vote
+  //     const currentVote = userVotes[reviewId];
+  //     let actionType: 'helpful' | 'not_helpful' | 'unvote' = voteType;
+  //     
+  //     // If user clicks the same button they already voted for, unvote
+  //     if (currentVote === voteType) {
+  //       actionType = 'unvote';
+  //     }
 
-      // Call the voting function
-      const { data, error } = await supabase.rpc('vote_on_review', {
-        p_review_id: reviewId,
-        p_engagement_type: actionType
-      });
+  //     // Call the voting function
+  //     const { data, error } = await supabase.rpc('vote_on_review', {
+  //       p_review_id: reviewId,
+  //       p_engagement_type: actionType
+  //     });
 
-      if (error) throw error;
+  //     if (error) throw error;
 
-      // Update the review counts and user vote state
-      if (data) {
-        setReviews(prevReviews => 
-          prevReviews.map(review => 
-            review.id === reviewId 
-              ? { 
-                  ...review, 
-                  helpful_count: data.helpful_count, 
-                  not_helpful_count: data.not_helpful_count 
-                }
-              : review
-          )
-        );
+  //     // Update the review counts and user vote state
+  //     if (data) {
+  //       setReviews(prevReviews => 
+  //         prevReviews.map(review => 
+  //           review.id === reviewId 
+  //             ? { 
+  //                 ...review, 
+  //                 helpful_count: data.helpful_count, 
+  //                 not_helpful_count: data.not_helpful_count 
+  //               }
+  //             : review
+  //         )
+  //       );
         
-        // Update user vote state
-        setUserVotes(prev => ({
-          ...prev,
-          [reviewId]: data.user_vote
-        }));
-      }
+  //       // Update user vote state
+  //       setUserVotes(prev => ({
+  //         ...prev,
+  //         [reviewId]: data.user_vote
+  //       }));
+  //     }
 
-    } catch (err) {
-      console.error('Error voting on review:', err);
-      // You could add a toast notification here
-    }
-  };
+  //   } catch (err) {
+  //     console.error('Error voting on review:', err);
+  //     // You could add a toast notification here
+  //   }
+  // };
 
   // Calculate comprehensive professor data from database
   const professorData = React.useMemo(() => {
@@ -867,36 +868,7 @@ export function ReviewsPage() {
                                   {review.overall_review}
                                 </p>
 
-                                {/* Helpful/Unhelpful */}
-                                <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                                  <div className="flex items-center space-x-4">
-                                    <button 
-                                      onClick={() => handleVote(review.id, 'helpful')}
-                                      className={`flex items-center space-x-1 text-sm transition-colors ${
-                                        userVotes[review.id] === 'helpful'
-                                          ? 'text-green-600 bg-green-50 px-2 py-1 rounded'
-                                          : 'text-gray-600 hover:text-green-600'
-                                      }`}
-                                    >
-                                      <ThumbsUp className={`w-4 h-4 ${userVotes[review.id] === 'helpful' ? 'fill-current' : ''}`} />
-                                      <span>Helpful ({review.helpful_count})</span>
-                                    </button>
-                                    <button 
-                                      onClick={() => handleVote(review.id, 'not_helpful')}
-                                      className={`flex items-center space-x-1 text-sm transition-colors ${
-                                        userVotes[review.id] === 'not_helpful'
-                                          ? 'text-red-600 bg-red-50 px-2 py-1 rounded'
-                                          : 'text-gray-600 hover:text-red-600'
-                                      }`}
-                                    >
-                                      <ThumbsDown className={`w-4 h-4 ${userVotes[review.id] === 'not_helpful' ? 'fill-current' : ''}`} />
-                                      <span>Not Helpful ({review.not_helpful_count})</span>
-                                    </button>
-                                  </div>
-                                  <Button variant="outline" size="sm">
-                                    Report
-                                  </Button>
-                                </div>
+                                {/* Voting system removed */}
                               </CardContent>
                             </Card>
                           );
@@ -1063,9 +1035,8 @@ export function ReviewsPage() {
                                             }}
                                             className="px-4 py-3 text-white font-medium rounded-lg transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2"
                                             style={{ 
-                                              backgroundColor: currentColor,
-                                              '--tw-ring-color': currentColor
-                                            }}
+                                              backgroundColor: currentColor
+                                            } as React.CSSProperties}
                                             onMouseEnter={(e) => {
                                               e.currentTarget.style.backgroundColor = currentColor + 'DD';
                                             }}

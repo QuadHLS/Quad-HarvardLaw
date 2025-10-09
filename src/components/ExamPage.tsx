@@ -94,7 +94,7 @@ export function ExamPage({
   // Separate filter states for saved tab
   const [savedGradeFilter, setSavedGradeFilter] = useState<string | undefined>(undefined);
   const [savedYearFilter, setSavedYearFilter] = useState<string | undefined>(undefined);
-  const [savedTagsFilter, setSavedTagsFilter] = useState<string[]>([]);
+  const [savedTagsFilter, setSavedTagsFilter] = useState<string[]>(['Attack', 'Outline']);
   // Combobox states
   const [courseComboboxOpen, setCourseComboboxOpen] = useState(false);
   const [professorComboboxOpen, setProfessorComboboxOpen] = useState(false);
@@ -669,14 +669,14 @@ export function ExamPage({
     setSelectedInstructor('');
     setSelectedGrade(undefined);
     setSelectedYear(undefined);
-    setSelectedTags([]); // No exam type tags
+    setSelectedTags(['Attack', 'Outline']); // Reset to default state (both tags selected)
   };
 
   const clearSavedFilters = () => {
     setSavedCourseFilter('');
     setSavedGradeFilter(undefined);
     setSavedYearFilter(undefined);
-    setSavedTagsFilter([]); // No exam type tags
+    setSavedTagsFilter(['Attack', 'Outline']); // Reset to default state (both tags selected)
   };
 
   const activeSearchFilterCount = [
@@ -684,14 +684,14 @@ export function ExamPage({
     selectedInstructor && selectedInstructor !== '' ? 1 : 0,
     selectedGrade && selectedGrade !== '' ? 1 : 0,
     selectedYear && selectedYear !== '' ? 1 : 0,
-    selectedTags.length > 0 ? 1 : 0 // Count if any tags selected
+    selectedTags.length !== 2 ? 1 : 0 // Only count if not both Attack and Outline selected (default state)
   ].reduce((sum, count) => sum + count, 0);
 
   const activeSavedFilterCount = [
     savedCourseFilter && savedCourseFilter !== '' ? 1 : 0,
     savedGradeFilter && savedGradeFilter !== '' ? 1 : 0,
     savedYearFilter && savedYearFilter !== '' ? 1 : 0,
-    savedTagsFilter.length > 0 ? 1 : 0 // Count if any tags selected
+    savedTagsFilter.length !== 2 ? 1 : 0 // Only count if not both Attack and Outline selected (default state)
   ].reduce((sum, count) => sum + count, 0);
 
   const ExamListItem = ({ exam }: { exam: Outline }) => (

@@ -180,7 +180,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
   // Simple animated rating bar: 0.0–5.0 (tenths). Internally maps to 0.0–10.0 for storage
   const AnimatedRatingBar = ({ valueFive, onChangeFive }: { valueFive: number; onChangeFive: (v: number) => void }) => {
     const trackRef = useRef<HTMLDivElement>(null);
-    const [animatedValue, setAnimatedValue] = useState(5.0);
+    const [animatedValue, setAnimatedValue] = useState(valueFive);
     const animationRef = useRef<number>();
 
     const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -219,6 +219,11 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
     };
 
     const setFromClientX = (clientX: number) => {
+      // Prevent clicks during animation
+      if (animationRef.current) {
+        return;
+      }
+      
       const el = trackRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
@@ -237,9 +242,9 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
         target = (rounded === 4.8 || rounded === 4.9) ? 5.0 : rounded;
       }
       
-      // Cancel any existing animation and timeout
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
+      // Don't animate if target is the same as current value
+      if (Math.abs(target - animatedValue) < 0.1) {
+        return;
       }
       
       // Start smooth animation toward target from current position
@@ -278,10 +283,17 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
       animationRef.current = requestAnimationFrame(animate);
     };
 
-    // Initialize animated value only once
+    // Sync animated value with prop changes, but only when not animating
+    useEffect(() => {
+      if (!animationRef.current) {
+        setAnimatedValue(valueFive);
+      }
+    }, [valueFive]);
+
+    // Initialize animated value on mount
     useEffect(() => {
       setAnimatedValue(valueFive);
-    }, []); // Empty dependency array - only run once
+    }, []); // Only run once on mount
 
     // Cleanup animation on unmount
     useEffect(() => {
@@ -300,7 +312,9 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
       <div className="flex items-center gap-2 select-none w-full">
         <div
           ref={trackRef}
-          className="relative h-4 w-full rounded-full bg-white overflow-hidden cursor-pointer"
+          className={`relative h-4 w-full rounded-full bg-white overflow-hidden ${
+            animationRef.current ? 'cursor-wait opacity-75' : 'cursor-pointer'
+          }`}
           style={{ width: 'calc(100% + 30px)' }}
           onClick={(e) => setFromClientX(e.clientX)}
           role="slider"
@@ -320,11 +334,19 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
           <div
             className="absolute top-0 h-full flex items-center justify-center pointer-events-none"
             style={{
-              left: `${percent}%`,
-              transform: 'translateX(-120%)',
+              left: `${Math.max(percent, 8)}%`, // Ensure minimum 8% from left edge for visibility
+              transform: percent < 12 ? 'translateX(-50%)' : 'translateX(-100%)', // Move left more when following bar
             }}
           >
-            <span className="text-xs text-white">
+            <span 
+              className="text-xs font-medium px-1 py-0.5 rounded"
+              style={{
+                color: percent < 12 ? '#374151' : 'white', // Dark text if bar is too short
+                backgroundColor: percent < 12 ? 'rgba(255, 255, 255, 0.9)' : 'transparent',
+                textShadow: percent >= 12 ? '0 1px 2px rgba(0, 0, 0, 0.3)' : 'none',
+                transition: 'all 0.2s ease-in-out'
+              }}
+            >
               {animatedValue.toFixed(1)}
             </span>
           </div>

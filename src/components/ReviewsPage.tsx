@@ -353,13 +353,13 @@ export function ReviewsPage() {
     
     // Initialize professors from database
     professors.forEach(prof => {
-      const [firstName, lastName] = prof.name.includes(' ') 
-        ? prof.name.split(' ') 
-        : ['', prof.name];
+      const [firstName, lastName] = prof.name.includes(',') 
+        ? prof.name.split(',').map(part => part.trim())
+        : [prof.name, ''];
       
       professorMap.set(prof.name, {
           firstName: firstName || '',
-        lastName: lastName || prof.name,
+        lastName: lastName || '',
         fullName: prof.name,
         courses: [],
         overallRating: 0,

@@ -108,7 +108,6 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
 
   const menuItems = [
     { id: 'home', label: 'Home', icon: Home },
-    { id: 'feed', label: 'Feed', icon: MessageSquare },
   ];
 
   const resourceItems = [
@@ -172,26 +171,25 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
           {/* Navigation Items */}
           <nav className="py-4 px-3">
             <div className="space-y-2">
-            {menuItems.filter(item => item.id !== 'feed').map((item) => {
+            {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeSection === item.id;
-              const isFeed = item.id === 'feed';
               
               return (
                 <button
                   key={item.id}
                   onClick={() => onSectionChange(item.id)}
-                      className={`w-full flex items-center px-3 py-2 text-left ${
-                        isActive 
-                          ? 'bg-white text-gray-800 border-r-2' 
-                          : 'text-gray-600 hover:text-gray-800 hover:bg-white'
-                      }`}
+                  className={`w-full flex items-center px-3 py-2 text-left ${
+                    isActive 
+                      ? 'bg-white text-gray-800 border-r-2' 
+                      : 'text-gray-600 hover:text-gray-800 hover:bg-white'
+                  }`}
                   style={{
                     borderRightColor: isActive ? '#752432' : 'transparent'
                   }}
                 >
                   <Icon 
-                    className={`${isFeed ? 'w-5 h-[1.75rem]' : 'w-5 h-5'} mr-2`} 
+                    className="w-5 h-5 mr-2" 
                     style={{ color: '#752432' }}
                   />
                   <span className="font-medium text-sm">{item.label}</span>
@@ -257,24 +255,6 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
               )}
             </div>
 
-            {/* Feed */}
-            <button
-              onClick={() => onSectionChange('feed')}
-              className={`w-full flex items-center px-3 py-2 text-left ${
-                activeSection === 'feed' 
-                  ? 'bg-white text-gray-800 border-r-2' 
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-white'
-              }`}
-              style={{
-                borderRightColor: activeSection === 'feed' ? '#752432' : 'transparent'
-              }}
-            >
-              <MessageSquare 
-                className="w-5 h-[1.75rem] mr-2" 
-                style={{ color: '#752432' }}
-              />
-              <span className="font-medium text-sm">Feed</span>
-            </button>
 
             {/* Bar Review */}
             <button
@@ -470,20 +450,6 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
               )}
             </div>
 
-            {/* Feed */}
-            <button
-              onClick={() => onSectionChange('feed')}
-              className={`w-full flex items-center justify-center py-2 ${
-                activeSection === 'feed'
-                  ? 'bg-white text-gray-800 border-r-2' 
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-white'
-              }`}
-              style={{
-                borderRightColor: activeSection === 'feed' ? '#752432' : 'transparent'
-              }}
-            >
-              <MessageSquare className="w-5 h-[1.75rem]" style={{ color: '#752432' }} />
-            </button>
 
             {/* Bar Review */}
             <button

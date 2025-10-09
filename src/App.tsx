@@ -898,13 +898,6 @@ function AppContent({ user }: { user: any }) {
             onNavigateToCourse={handleNavigateToCourse}
             user={user}
           />
-        ) : activeSection === 'feed' ? (
-          <div className="flex items-center justify-center h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-            <div className="text-center p-8">
-              <h2 className="text-2xl font-medium text-gray-700 mb-2">Feed</h2>
-              <p className="text-gray-600">Coming soon.</p>
-            </div>
-          </div>
         ) : activeSection === 'course' ? (
           <CoursePage
             courseName={selectedCourse}

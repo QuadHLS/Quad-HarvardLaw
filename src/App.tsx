@@ -4,6 +4,7 @@ import { NavigationSidebar } from './components/NavigationSidebar';
 import { OutlinePage } from './components/OutlinePage';
 import { ExamPage } from './components/ExamPage';
 import { ReviewsPage } from './components/ReviewsPage';
+import { PlannerPage } from './components/PlannerPage';
 import { HomePage } from './components/HomePage';
 import { CoursePage } from './components/CoursePage';
 import { BarReviewPage } from './components/BarReviewPage';
@@ -893,6 +894,8 @@ function AppContent({ user }: { user: any }) {
           />
         ) : activeSection === 'reviews' ? (
           <ReviewsPage />
+        ) : activeSection === 'planner' ? (
+          <PlannerPage />
         ) : activeSection === 'home' ? (
           <HomePage
             onNavigateToCourse={handleNavigateToCourse}

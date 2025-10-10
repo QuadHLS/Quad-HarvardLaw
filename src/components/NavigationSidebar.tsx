@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, FileText, Star, Beer, Calendar, Menu, User, MessageCircle, Archive, ChevronDown, ChevronRight, BookOpen, Sun, Moon, Palette, MessageSquare } from 'lucide-react';
+import { Home, FileText, Star, Beer, Calendar, Menu, User, MessageCircle, Archive, ChevronDown, ChevronRight, BookOpen, Sun, Moon, Palette, MessageSquare, CalendarDays } from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -114,6 +114,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
     { id: 'outlines', label: 'Outlines', icon: FileText },
     { id: 'exams', label: 'Exams', icon: BookOpen },
     { id: 'reviews', label: 'Reviews', icon: Star },
+    { id: 'planner', label: 'Planner', icon: CalendarDays },
   ];
 
   return (

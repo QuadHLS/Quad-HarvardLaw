@@ -476,7 +476,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
   // Helper function to parse time string (e.g., "1:30 PM - 3:30 PM | 4:00 PM - 5:00 PM")
   const parseTimeString = (timeStr: string) => {
     if (!timeStr || timeStr === 'TBD') {
-      return { start: '9:00 AM', end: '10:00 AM' }; // Default fallback
+      return null; // No fallback - TBD courses shouldn't be parsed
     }
     
     // Split by pipe to get individual time blocks
@@ -496,7 +496,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     }
     
     // Fallback if parsing fails
-    return { start: '9:00 AM', end: '10:00 AM' };
+    return null;
   };
 
   // Helper function to clean up times display - show time only once if same for all days
@@ -560,11 +560,23 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
 
   // Check for time conflicts - highlight if ANY day/time overlaps
   const hasTimeConflict = (newCourse: PlannerCourse) => {
+    // Skip conflict detection if either course has TBD times
+    if (!newCourse.times || newCourse.times === 'TBD') {
+      return false;
+    }
+    
     // Get all days for the new course
     const newCourseDays = newCourse.days.split(',').map(d => d.trim().toLowerCase());
     
     return scheduledCourses.some(scheduled => {
+      // Skip if scheduled course has TBD times
+      if (!scheduled.times || scheduled.times === 'TBD') {
+        return false;
+      }
+      
       const scheduledTimes = parseTimeString(scheduled.times);
+      if (!scheduledTimes) return false; // Skip if parsing failed
+      
       const scheduledStartMinutes = timeToMinutes(scheduledTimes.start);
       const scheduledEndMinutes = timeToMinutes(scheduledTimes.end);
       
@@ -602,6 +614,8 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
       
       // Check for time overlap
       const newTimes = parseTimeString(newCourse.times);
+      if (!newTimes) return false; // Skip if parsing failed
+      
       const newStartMinutes = timeToMinutes(newTimes.start);
       const newEndMinutes = timeToMinutes(newTimes.end);
       
@@ -613,11 +627,23 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
 
   // Get specific conflict details
   const getConflictDetails = (newCourse: PlannerCourse) => {
+    // Skip conflict detection if new course has TBD times
+    if (!newCourse.times || newCourse.times === 'TBD') {
+      return null;
+    }
+    
     // Get all days for the new course
     const newCourseDays = newCourse.days.split(',').map(d => d.trim().toLowerCase());
     
     const conflictingCourse = scheduledCourses.find(scheduled => {
+      // Skip if scheduled course has TBD times
+      if (!scheduled.times || scheduled.times === 'TBD') {
+        return false;
+      }
+      
       const scheduledTimes = parseTimeString(scheduled.times);
+      if (!scheduledTimes) return false; // Skip if parsing failed
+      
       const scheduledStartMinutes = timeToMinutes(scheduledTimes.start);
       const scheduledEndMinutes = timeToMinutes(scheduledTimes.end);
       
@@ -655,6 +681,8 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
       
       // Check for time overlap
       const newTimes = parseTimeString(newCourse.times);
+      if (!newTimes) return false; // Skip if parsing failed
+      
       const newStartMinutes = timeToMinutes(newTimes.start);
       const newEndMinutes = timeToMinutes(newTimes.end);
       
@@ -1622,6 +1650,8 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                         const timeSlotGroups = new Map();
                         coursesInDay.forEach(course => {
                           const times = parseTimeString(course.times);
+                          if (!times) return; // Skip TBD courses
+                          
                           const startTime = times.start;
                           const endTime = times.end;
                           const key = `${startTime}-${endTime}`;
@@ -1635,6 +1665,8 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                         return Array.from(timeSlotGroups.entries()).map(([_timeKey, courses]) => {
                           const firstCourse = courses[0];
                           const times = parseTimeString(firstCourse.times);
+                          if (!times) return null; // Skip TBD courses
+                          
                           const height = getCourseHeight(times.start, times.end);
                           const top = getCourseTopPosition(times.start);
                           
@@ -1649,6 +1681,11 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                             const hasTimeConflict = scheduledCourses.some(scheduled => {
                               if (scheduled.scheduledId === course.scheduledId) return false; // Don't conflict with itself
                               
+                              // Skip conflict detection if either course has TBD times
+                              if (!course.times || course.times === 'TBD' || !scheduled.times || scheduled.times === 'TBD') {
+                                return false;
+                              }
+                              
                               // Only check for conflicts if courses are in the same semester
                               const courseSemesters = getSemestersFromCode(course.term.slice(-2));
                               const scheduledSemesters = getSemestersFromCode(scheduled.term.slice(-2));
@@ -1660,6 +1697,8 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                               
                               const scheduledTimes = parseTimeString(scheduled.times);
                               const courseTimes = parseTimeString(course.times);
+                              
+                              if (!scheduledTimes || !courseTimes) return false; // Skip if parsing failed
                               
                               const scheduledStartMinutes = timeToMinutes(scheduledTimes.start);
                               const scheduledEndMinutes = timeToMinutes(scheduledTimes.end);
@@ -1756,7 +1795,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                               </div>
                             );
                           });
-                        }).flat();
+                        }).filter(Boolean).flat();
                       })()}
                     </div>
                   </div>

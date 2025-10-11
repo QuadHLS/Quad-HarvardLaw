@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { Search, Plus, X, Clock, MapPin, Trash2, Calendar, Save, FileText, ChevronDown, ChevronUp, FolderOpen, Grid, List, Send, Check } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Plus, X, Clock, MapPin, Trash2, Calendar, Save, FileText, ChevronDown, ChevronUp, FolderOpen, Grid, List, Check } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -31,6 +31,29 @@ const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
     g: parseInt(result[2], 16),
     b: parseInt(result[3], 16)
   } : null;
+};
+
+// Helper function to convert semester abbreviation to full name
+const getSemesterFullName = (abbreviation: 'FA' | 'WI' | 'SP'): string => {
+  switch (abbreviation) {
+    case 'FA': return 'Fall';
+    case 'WI': return 'Winter';
+    case 'SP': return 'Spring';
+    default: return abbreviation;
+  }
+};
+
+// Helper function to truncate text to approximately 125 words
+const truncateText = (text: string, maxWords: number = 125): { truncated: string; isTruncated: boolean } => {
+  if (!text || text === 'TBD') return { truncated: text, isTruncated: false };
+  
+  const words = text.split(' ');
+  if (words.length <= maxWords) {
+    return { truncated: text, isTruncated: false };
+  }
+  
+  const truncatedWords = words.slice(0, maxWords);
+  return { truncated: truncatedWords.join(' ') + '...', isTruncated: true };
 };
 
 // Real course data interface matching database schema
@@ -191,13 +214,11 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
   const [showSavedSchedulesDialog, setShowSavedSchedulesDialog] = useState(false);
   const [showCourseDetailDialog, setShowCourseDetailDialog] = useState(false);
   const [selectedCourseForDetail, setSelectedCourseForDetail] = useState<PlannerCourse | null>(null);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [saveScheduleName, setSaveScheduleName] = useState('');
   const [selectedSemestersForSave, setSelectedSemestersForSave] = useState<('FA' | 'WI' | 'SP')[]>([]);
-  // AI Chatbot states
+  // AI Assistant state
   const [showChatbot, setShowChatbot] = useState(false);
-  const [chatMessages, setChatMessages] = useState<{id: string, type: 'user' | 'ai', content: string, timestamp: Date}[]>([]);
-  const [chatInput, setChatInput] = useState('');
-  const chatMessagesRef = useRef<HTMLDivElement>(null);
   // Saved schedules state with mock data
   const [savedSchedules, setSavedSchedules] = useState<SavedSchedule[]>([]);
 
@@ -397,6 +418,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
   // Show course detail popup
   const showCourseDetail = (course: PlannerCourse) => {
     setSelectedCourseForDetail(course);
+    setIsDescriptionExpanded(false); // Reset description expansion state
     setShowCourseDetailDialog(true);
   };
 
@@ -907,113 +929,6 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
   };
 
 
-  // AI Chatbot functionality
-  const handleSendMessage = () => {
-    if (!chatInput.trim()) return;
-
-    const userMessage = {
-      id: `msg_${Date.now()}`,
-      type: 'user' as const,
-      content: chatInput.trim(),
-      timestamp: new Date()
-    };
-
-    setChatMessages(prev => [...prev, userMessage]);
-    setChatInput('');
-
-    // Simulate AI response after a short delay
-    setTimeout(() => {
-      const aiResponse = generateAIResponse(userMessage.content);
-      const aiMessage = {
-        id: `msg_${Date.now() + 1}`,
-        type: 'ai' as const,
-        content: aiResponse,
-        timestamp: new Date()
-      };
-      setChatMessages(prev => [...prev, aiMessage]);
-    }, 1000);
-  };
-
-  const generateAIResponse = (userInput: string): string => {
-    const input = userInput.toLowerCase();
-    
-    // Schedule-related queries
-    if (input.includes('schedule') || input.includes('time') || input.includes('conflict')) {
-      return "I can help you organize your schedule! I see you're looking at " + selectedTerm + " courses. Would you like me to recommend courses that fit specific time slots or help you avoid scheduling conflicts?";
-    }
-    
-    // Interest-based queries
-    if (input.includes('business') || input.includes('corporate')) {
-      const businessCourses = filteredCourses.filter(c => c.subject_areas.toLowerCase().includes('business')).slice(0, 3);
-      if (businessCourses.length > 0) {
-        return `Great choice! I found ${businessCourses.length} business law courses for ${selectedTerm}: ${businessCourses.map(c => `${c.name} (${c.faculty})`).join(', ')}. Would you like details about any of these?`;
-      }
-    }
-    
-    if (input.includes('environmental') || input.includes('green')) {
-      const envCourses = filteredCourses.filter(c => c.subject_areas.toLowerCase().includes('environmental')).slice(0, 3);
-      if (envCourses.length > 0) {
-        return `Perfect! Environmental law is fascinating. I found ${envCourses.length} environmental courses: ${envCourses.map(c => `${c.name} (${c.faculty})`).join(', ')}. These courses focus on sustainability and policy.`;
-      }
-    }
-    
-    if (input.includes('litigation') || input.includes('trial') || input.includes('court')) {
-      const litigationCourses = filteredCourses.filter(c => c.subject_areas.toLowerCase().includes('litigation')).slice(0, 3);
-      if (litigationCourses.length > 0) {
-        return `Excellent! For litigation practice, I recommend: ${litigationCourses.map(c => `${c.name} (${c.faculty})`).join(', ')}. These will give you great courtroom experience.`;
-      }
-    }
-    
-    // Credit-related queries
-    if (input.includes('credit') || input.includes('load')) {
-      const currentCredits = scheduledCourses.filter(c => c.term.includes(selectedTerm)).reduce((sum, c) => sum + c.credits, 0);
-      return `You currently have ${currentCredits} credits for ${selectedTerm}. The recommended range is 10-16 credits. ${currentCredits < 10 ? 'You might want to add more courses.' : currentCredits > 16 ? 'Consider reducing your course load.' : 'Your credit load looks good!'}`;
-    }
-    
-    // Prerequisites
-    if (input.includes('prerequisite') || input.includes('requirement')) {
-      return "I can help you check prerequisites! Many upper-level courses require foundational courses like Contract Law, Torts, or Civil Procedure. What specific course are you interested in?";
-    }
-    
-    // General recommendation
-    if (input.includes('recommend') || input.includes('suggest') || input.includes('help')) {
-      return `I'd be happy to help! I can recommend courses based on your interests, help avoid scheduling conflicts, or suggest courses that fulfill specific requirements. What area of law interests you most? (Business, Environmental, Litigation, Immigration, Civil Rights, etc.)`;
-    }
-    
-    // Morning/afternoon preferences
-    if (input.includes('morning') || input.includes('early')) {
-      const morningCourses = filteredCourses.filter(c => {
-        const times = c.times.toLowerCase();
-        return times.includes('am') && (times.includes('8:') || times.includes('9:') || times.includes('10:') || times.includes('11:'));
-      }).slice(0, 4);
-      return `Here are some great morning courses for ${selectedTerm}: ${morningCourses.map(c => `${c.name} (${c.times})`).join(', ')}. Early classes can help you maintain a good work-life balance!`;
-    }
-    
-    if (input.includes('afternoon') || input.includes('later')) {
-      const afternoonCourses = filteredCourses.filter(c => {
-        const times = c.times.toLowerCase();
-        return times.includes('pm') && (times.includes('2:') || times.includes('3:') || times.includes('4:') || times.includes('5:'));
-      }).slice(0, 4);
-      return `Here are some excellent afternoon courses: ${afternoonCourses.map(c => `${c.name} (${c.times})`).join(', ')}. Afternoon classes can give you more flexibility in your morning routine!`;
-    }
-    
-    // Default responses
-    const defaultResponses = [
-      `Hi there! I'm Quadly! 😊 I'm here to help you plan your perfect ${selectedTerm} schedule. I can recommend courses based on your interests, help you avoid conflicts, or suggest courses that meet specific requirements. What would you like to know?`,
-      `Hello! I'm Quadly, and I can help you explore the ${filteredCourses.length} available courses for ${selectedTerm}! Tell me about your interests or scheduling preferences, and I'll suggest some great options.`,
-      `Hey! Looking for course recommendations? I'm Quadly, and I can help you find courses in specific areas like Business Law, Environmental Law, Litigation, or Civil Rights. What interests you most?`,
-      `Hi! I'm Quadly, your friendly course planning assistant! 🤖 I can help you build a balanced schedule, avoid time conflicts, and find courses that match your career goals. How can I help you today?`
-    ];
-    
-    return defaultResponses[Math.floor(Math.random() * defaultResponses.length)];
-  };
-
-  // Scroll to bottom of chat when new messages arrive
-  useEffect(() => {
-    if (chatMessagesRef.current) {
-      chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
-    }
-  }, [chatMessages]);
 
   return (
     <div className="h-screen flex flex-col" style={{ backgroundColor: '#FAF5EF' }}>
@@ -1319,41 +1234,38 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                     </button>
                   </div>
                   
-                  {/* AI Chatbot Robot Button */}
+                  {/* AI Assistant Button */}
                   <button
                     onClick={() => setShowChatbot(true)}
                     className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors group"
                     title="Quadly - Your AI Course Assistant"
                   >
-                    {/* Cute Pixel Art Robot - Quadly */}
                     <div className="w-4 h-4 relative">
                       <svg viewBox="0 0 16 16" className="w-full h-full">
-                        {/* Robot head - rounder and cuter */}
+                        {/* Robot head */}
                         <rect x="3" y="2" width="10" height="8" rx="2" fill="currentColor" className="text-white group-hover:text-yellow-300 transition-colors" />
                         <rect x="4" y="3" width="8" height="6" rx="1" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-white/60" />
                         
-                        {/* Heart eyes for extra cuteness */}
-                        <path d="M5.5 4.5 L6 4 L6.5 4.5 L6 5.5 Z" fill="currentColor" className="text-pink-400 group-hover:text-pink-300" />
-                        <path d="M9.5 4.5 L10 4 L10.5 4.5 L10 5.5 Z" fill="currentColor" className="text-pink-400 group-hover:text-pink-300" />
+                        {/* Eyes */}
+                        <circle cx="6" cy="5" r="0.8" fill="currentColor" className="text-blue-400" />
+                        <circle cx="10" cy="5" r="0.8" fill="currentColor" className="text-blue-400" />
                         
-                        {/* Happy smile */}
-                        <path d="M5.5 7 Q8 8.5 10.5 7" fill="none" stroke="currentColor" strokeWidth="0.8" className="text-white/90" />
+                        {/* Smile */}
+                        <path d="M6 7 Q8 8.5 10 7" fill="none" stroke="currentColor" strokeWidth="0.8" className="text-white/90" />
                         
-                        {/* Cute antenna with sparkle */}
+                        {/* Antenna */}
                         <rect x="7.5" y="0" width="1" height="2" fill="currentColor" className="text-white group-hover:text-yellow-300 transition-colors" />
                         <circle cx="8" cy="0.5" r="0.8" fill="currentColor" className="text-yellow-400 group-hover:text-yellow-200" />
                         <circle cx="8.3" cy="0.2" r="0.2" fill="currentColor" className="text-white" />
                         
-                        {/* Round body */}
+                        {/* Body */}
                         <rect x="4.5" y="10" width="7" height="4" rx="1.5" fill="currentColor" className="text-white group-hover:text-yellow-300 transition-colors" />
-                        <circle cx="6.5" cy="11.5" r="0.3" fill="currentColor" className="text-green-400" />
-                        <circle cx="9.5" cy="11.5" r="0.3" fill="currentColor" className="text-blue-400" />
                         
-                        {/* Stubby arms */}
+                        {/* Arms */}
                         <rect x="1.5" y="11" width="3" height="1.5" rx="0.75" fill="currentColor" className="text-white group-hover:text-yellow-300 transition-colors" />
                         <rect x="11.5" y="11" width="3" height="1.5" rx="0.75" fill="currentColor" className="text-white group-hover:text-yellow-300 transition-colors" />
                         
-                        {/* Little feet */}
+                        {/* Feet */}
                         <rect x="5.5" y="14" width="2" height="1.5" rx="0.5" fill="currentColor" className="text-white group-hover:text-yellow-300 transition-colors" />
                         <rect x="8.5" y="14" width="2" height="1.5" rx="0.5" fill="currentColor" className="text-white group-hover:text-yellow-300 transition-colors" />
                       </svg>
@@ -1375,7 +1287,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
           <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
             {/* Semester Header */}
             <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-200">
-              <h3 className="font-medium text-gray-900">{selectedTerm === 'FA' ? 'Fall' : selectedTerm === 'WI' ? 'Winter' : 'Spring'} Courses</h3>
+              <h3 className="font-medium text-gray-900">{getSemesterFullName(selectedTerm)} Courses</h3>
               <Badge variant="outline" className="text-sm bg-white">
                 {filteredCourses.length} available
               </Badge>
@@ -1467,7 +1379,34 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                             <div className="flex items-center gap-2">
                               <span className="leading-tight">{course.days}</span>
                               <span className="leading-tight">{getCleanTimesDisplay(course.times)}</span>
+                              
+                              {/* Add button - appears on hover */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  addCourseToSchedule(course);
+                                }}
+                                className="w-4 h-4 rounded-sm flex items-center justify-center transition-all duration-200 opacity-0 group-hover:opacity-100"
+                                style={{ 
+                                  backgroundColor: getCourseColor(course.delivery_mode),
+                                  color: 'white'
+                                }}
+                                onMouseEnter={(e) => {
+                                  const currentBg = getCourseColor(course.delivery_mode);
+                                  const rgb = hexToRgb(currentBg);
+                                  if (rgb) {
+                                    e.currentTarget.style.backgroundColor = `rgb(${Math.max(0, rgb.r - 30)}, ${Math.max(0, rgb.g - 30)}, ${Math.max(0, rgb.b - 30)})`;
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = getCourseColor(course.delivery_mode);
+                                }}
+                                title="Add to calendar"
+                              >
+                                <Plus className="w-2.5 h-2.5" />
+                              </button>
                             </div>
+                            
                             <span className="leading-tight">{getLastName(course.faculty)}</span>
                           </div>
                           
@@ -1502,12 +1441,22 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                             e.currentTarget.style.borderColor = `${getCourseColor(course.delivery_mode)}80`;
                             e.currentTarget.style.backgroundColor = `${getCourseColor(course.delivery_mode)}08`;
                           }
+                          // Move plus button up when card is hovered
+                          const plusButton = e.currentTarget.querySelector('button[title="Add to calendar"]') as HTMLElement;
+                          if (plusButton) {
+                            plusButton.style.bottom = '20px';
+                          }
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.transform = 'scale(1)';
                           if (!hasConflict) {
                             e.currentTarget.style.borderColor = `${getCourseColor(course.delivery_mode)}33`;
                             e.currentTarget.style.backgroundColor = 'white';
+                          }
+                          // Move plus button back down when card is not hovered
+                          const plusButton = e.currentTarget.querySelector('button[title="Add to calendar"]') as HTMLElement;
+                          if (plusButton) {
+                            plusButton.style.bottom = '12px';
                           }
                         }}
                         onClick={() => showCourseDetail(course)}
@@ -1575,7 +1524,6 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                               bottom: '12px'
                             }}
                             onMouseEnter={(e) => {
-                              e.currentTarget.style.bottom = '20px';
                               const currentBg = getCourseColor(course.delivery_mode);
                               // Darken the color on hover
                               const rgb = hexToRgb(currentBg);
@@ -1584,7 +1532,6 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                               }
                             }}
                             onMouseLeave={(e) => {
-                              e.currentTarget.style.bottom = '12px';
                               e.currentTarget.style.backgroundColor = getCourseColor(course.delivery_mode);
                             }}
                             title="Add to calendar"
@@ -1901,13 +1848,13 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <label htmlFor={`save-${semester}`} className="text-sm font-medium">
-                            {semester} ({scheduledCourses.filter(c => c.term.includes(semester)).reduce((sum, course) => sum + course.credits, 0)} credits) • {scheduledCourses.filter(c => c.term.includes(semester)).length} courses
+                            {getSemesterFullName(semester)} ({scheduledCourses.filter(c => c.term.includes(semester)).reduce((sum, course) => sum + course.credits, 0)} credits) • {scheduledCourses.filter(c => c.term.includes(semester)).length} courses
                           </label>
                         </TooltipTrigger>
                         <TooltipContent side="right">
                           <div className="max-w-xs">
                             {scheduledCourses.filter(c => c.term.includes(semester)).map((course, _index) => (
-                              <p key={course.scheduledId} className="text-2xs">
+                              <p key={course.scheduledId} className="text-xs" style={{ fontSize: '10px' }}>
                                 {course.name}
                               </p>
                             ))}
@@ -1956,7 +1903,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                     <div className="flex-1">
                       <h4 className="font-medium text-gray-900">{schedule.name}</h4>
                       <div className="text-sm text-gray-500 mt-1">
-                        <span>{schedule.semesters.join(', ')}</span>
+                        <span>{schedule.semesters.map(sem => getSemesterFullName(sem)).join(', ')}</span>
                         <span className="mx-2">•</span>
                         <span>{schedule.courses.length} courses</span>
                       </div>
@@ -1969,7 +1916,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                               <TooltipTrigger asChild>
                                 <div>
                                 <Badge variant="outline" className="text-xs cursor-pointer hover:bg-gray-50 transition-colors">
-                                    {semester} ({schedule.courses.filter(c => c.term.includes(semester)).reduce((sum, course) => sum + course.credits, 0)} credits)
+                                    {getSemesterFullName(semester)} ({schedule.courses.filter(c => c.term.includes(semester)).reduce((sum, course) => sum + course.credits, 0)} credits)
                                 </Badge>
                                 </div>
                               </TooltipTrigger>
@@ -2070,9 +2017,29 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
               <div className="overflow-y-auto px-6 py-4 space-y-4" style={{ height: '400px' }}>
               {/* Course Description */}
               <div>
+                {(() => {
+                  const { truncated, isTruncated } = truncateText(selectedCourseForDetail.course_description);
+                  return (
+              <div>
                 <p className="text-sm text-gray-600 leading-relaxed">
-                  {selectedCourseForDetail.course_description}
-                </p>
+                        {isDescriptionExpanded ? selectedCourseForDetail.course_description : truncated}
+                      </p>
+                      {isTruncated && (
+                        <button
+                          onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+                          className="text-sm font-medium mt-2 transition-colors"
+                          style={{ 
+                            color: getCourseColor(selectedCourseForDetail.delivery_mode)
+                          }}
+                          onMouseEnter={(e) => (e.target as HTMLElement).style.opacity = '0.8'}
+                          onMouseLeave={(e) => (e.target as HTMLElement).style.opacity = '1'}
+                        >
+                          {isDescriptionExpanded ? 'See less' : 'See more'}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
               
               {/* Course Information Grid */}
@@ -2188,150 +2155,56 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
         </DialogContent>
       </Dialog>
 
-      {/* AI Chatbot Dialog */}
+      {/* AI Assistant Coming Soon */}
       <Dialog open={showChatbot} onOpenChange={setShowChatbot}>
-        <DialogContent className="max-w-md h-[500px] flex flex-col p-0">
-          <DialogHeader className="p-4 pb-2" style={{ backgroundColor: '#752432' }}>
-            <DialogTitle className="text-white flex items-center gap-2">
-              {/* Quadly Robot Icon */}
-              <div className="w-5 h-5 relative">
-                <svg viewBox="0 0 16 16" className="w-full h-full">
-                  {/* Quadly's head - rounder and cuter */}
-                  <rect x="3" y="2" width="10" height="8" rx="2" fill="currentColor" className="text-yellow-300" />
-                  <rect x="4" y="3" width="8" height="6" rx="1" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-white/60" />
-                  
-                  {/* Heart eyes for extra cuteness */}
-                  <path d="M5.5 4.5 L6 4 L6.5 4.5 L6 5.5 Z" fill="currentColor" className="text-pink-400" />
-                  <path d="M9.5 4.5 L10 4 L10.5 4.5 L10 5.5 Z" fill="currentColor" className="text-pink-400" />
-                  
-                  {/* Happy smile */}
-                  <path d="M5.5 7 Q8 8.5 10.5 7" fill="none" stroke="currentColor" strokeWidth="0.8" className="text-white/90" />
-                  
-                  {/* Cute antenna with sparkle */}
-                  <rect x="7.5" y="0" width="1" height="2" fill="currentColor" className="text-yellow-300" />
-                  <circle cx="8" cy="0.5" r="0.8" fill="currentColor" className="text-yellow-200" />
-                  <circle cx="8.3" cy="0.2" r="0.2" fill="currentColor" className="text-white" />
-                  
-                  {/* Round body */}
-                  <rect x="4.5" y="10" width="7" height="4" rx="1.5" fill="currentColor" className="text-yellow-300" />
-                  <circle cx="6.5" cy="11.5" r="0.3" fill="currentColor" className="text-green-400" />
-                  <circle cx="9.5" cy="11.5" r="0.3" fill="currentColor" className="text-blue-400" />
-                  
-                  {/* Stubby arms */}
-                  <rect x="1.5" y="11" width="3" height="1.5" rx="0.75" fill="currentColor" className="text-yellow-300" />
-                  <rect x="11.5" y="11" width="3" height="1.5" rx="0.75" fill="currentColor" className="text-yellow-300" />
-                  
-                  {/* Little feet */}
-                  <rect x="5.5" y="14" width="2" height="1.5" rx="0.5" fill="currentColor" className="text-yellow-300" />
-                  <rect x="8.5" y="14" width="2" height="1.5" rx="0.5" fill="currentColor" className="text-yellow-300" />
-                </svg>
-              </div>
-              Quadly
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              AI Assistant - Coming Soon
             </DialogTitle>
-            <DialogDescription className="text-white/80 text-sm">
-              Your friendly AI course planning assistant is here to help!
-            </DialogDescription>
           </DialogHeader>
           
-          {/* Chat Messages */}
-          <div 
-            ref={chatMessagesRef}
-            className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50"
-          >
-            {chatMessages.length === 0 && (
-              <div className="bg-white rounded-lg p-3 shadow-sm border-l-4 border-[#752432]">
-                <div className="flex items-start gap-2">
-                  <div className="w-6 h-6 rounded-full bg-[#752432] flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <div className="w-3 h-3">
-                      <svg viewBox="0 0 16 16" className="w-full h-full">
-                        <rect x="3" y="2" width="10" height="8" fill="currentColor" className="text-yellow-300" />
-                        <rect x="5" y="4" width="2" height="2" fill="currentColor" className="text-blue-400" />
-                        <rect x="9" y="4" width="2" height="2" fill="currentColor" className="text-blue-400" />
-                        <rect x="6" y="7" width="4" height="1" fill="currentColor" className="text-white" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="text-sm text-gray-700">
-                    <p>Hi! I'm Quadly, your friendly course planning assistant! 🤗 I can help you:</p>
-                    <ul className="mt-2 space-y-1 text-xs text-gray-600">
-                      <li>• Find courses that match your interests</li>
-                      <li>• Avoid scheduling conflicts</li>
-                      <li>• Balance your credit load</li>
-                      <li>• Check prerequisites</li>
-                    </ul>
-                    <p className="mt-2 text-xs text-gray-500">
-                      Try asking: "I'm interested in business law" or "Show me morning courses"
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div>
+                <h3 className="font-medium text-blue-900 mb-2">Quadly AI Assistant</h3>
+                <p className="text-sm text-blue-700 mb-3">
+                  Your personal course planning companion that will help you build the perfect schedule and achieve your academic goals!
                     </p>
                   </div>
                 </div>
-              </div>
-            )}
             
-            {chatMessages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-[80%] rounded-lg p-3 ${
-                    message.type === 'user'
-                      ? 'bg-[#752432] text-white'
-                      : 'bg-white text-gray-700 shadow-sm border-l-4 border-[#752432]'
-                  }`}
-                >
-                  {message.type === 'ai' && (
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-4 h-4 rounded-full bg-[#752432] flex items-center justify-center flex-shrink-0">
-                        <div className="w-2.5 h-2.5">
-                          <svg viewBox="0 0 16 16" className="w-full h-full">
-                            <rect x="3" y="2" width="10" height="8" fill="currentColor" className="text-yellow-300" />
-                            <rect x="5" y="4" width="2" height="2" fill="currentColor" className="text-blue-400" />
-                            <rect x="9" y="4" width="2" height="2" fill="currentColor" className="text-blue-400" />
-                            <rect x="6" y="7" width="4" height="1" fill="currentColor" className="text-white" />
-                          </svg>
-                        </div>
-                      </div>
-                      <span className="text-xs font-medium text-[#752432]">Quadly</span>
-                    </div>
-                  )}
-                  <p className="text-sm">{message.content}</p>
-                  <p className={`text-xs mt-1 ${message.type === 'user' ? 'text-white/70' : 'text-gray-400'}`}>
-                    {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                </div>
-              </div>
-            ))}
+            <div className="space-y-3">
+              <h4 className="font-medium text-gray-900">How Quadly Will Help You:</h4>
+              <ul className="space-y-2 text-sm text-gray-600">
+                <li className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#752432] mt-2 flex-shrink-0"></div>
+                  <span><strong>Smart Recommendations:</strong> Get personalized course suggestions that align with your interests and career goals</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#752432] mt-2 flex-shrink-0"></div>
+                  <span><strong>Conflict Detection:</strong> Never worry about scheduling conflicts again - we'll catch them before you do</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#752432] mt-2 flex-shrink-0"></div>
+                  <span><strong>Prerequisite Intelligence:</strong> Stay on track with automatic verification of course requirements and pathways</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#752432] mt-2 flex-shrink-0"></div>
+                  <span><strong>Credit Optimization:</strong> Graduate on time with perfectly balanced course loads tailored to your needs</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#752432] mt-2 flex-shrink-0"></div>
+                  <span><strong>Conversational AI:</strong> Ask questions naturally and get instant, helpful answers about your academic journey</span>
+                </li>
+              </ul>
           </div>
           
-          {/* Chat Input */}
-          <div className="p-4 border-t bg-white">
-            <form 
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSendMessage();
-              }}
-              className="flex gap-2"
-            >
-              <Input
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Ask me about courses..."
-                className="flex-1 text-sm"
-                maxLength={500}
-              />
-              <Button
-                type="submit"
-                disabled={!chatInput.trim()}
-                style={{ backgroundColor: '#752432' }}
-                className="text-white hover:opacity-90 disabled:opacity-50"
-                size="sm"
-              >
-                <Send className="w-4 h-4" />
-              </Button>
-            </form>
-            <p className="text-xs text-gray-500 mt-2">
-              You're viewing {selectedTerm} courses • {filteredCourses.length} available
-            </p>
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="text-xs text-gray-500 text-center">
+                Coming soon! Quadly will transform how you plan your academic journey and help you succeed.
+              </p>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

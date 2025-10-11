@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Plus, X, Clock, MapPin, Trash2, Calendar, Download, Save, FileText, ChevronDown, ChevronUp, Share, FolderOpen, Grid, List, Send } from 'lucide-react';
+import { Search, Plus, X, Clock, MapPin, Trash2, Calendar, Download, Save, FileText, ChevronDown, ChevronUp, FolderOpen, Grid, List, Send } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -136,12 +136,12 @@ const getSubjectAreas = (courses: PlannerCourse[]): string[] => {
   return Array.from(areas).sort();
 };
 
-// Generate course types from actual course data
+// Generate course types from actual course data (using delivery_mode column)
 const getCourseTypes = (courses: PlannerCourse[]): string[] => {
   const types = new Set<string>();
   courses.forEach(course => {
-    if (course.type) {
-      types.add(course.type);
+    if (course.delivery_mode) {
+      types.add(course.delivery_mode);
     }
   });
   return Array.from(types).sort();
@@ -258,10 +258,26 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
       );
 
     const matchesType = selectedType === 'all-types' ||
-      course.type === selectedType;
+      course.delivery_mode === selectedType;
 
     const matchesDays = selectedDays.length === 0 ||
-      selectedDays.some(day => course.days.toLowerCase().includes(day.toLowerCase()));
+      selectedDays.some(selectedDay => {
+        // Map full day names to abbreviations
+        const dayMapping: { [key: string]: string[] } = {
+          'monday': ['mon', 'monday'],
+          'tuesday': ['tue', 'tues', 'tuesday'],
+          'wednesday': ['wed', 'wednesday'],
+          'thursday': ['thu', 'thur', 'thurs', 'thursday'],
+          'friday': ['fri', 'friday']
+        };
+        
+        const selectedDayLower = selectedDay.toLowerCase();
+        const possibleAbbreviations = dayMapping[selectedDayLower] || [selectedDayLower];
+        
+        return possibleAbbreviations.some(abbr => 
+          course.days.toLowerCase().includes(abbr)
+        );
+      });
     
     // Don't show courses that are already scheduled
     const notScheduled = !scheduledCourses.some(scheduled => scheduled.id === course.id);
@@ -395,6 +411,23 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     return { start: '9:00 AM', end: '10:00 AM' };
   };
 
+  // Helper function to clean up times display - show time only once if same for all days
+  const getCleanTimesDisplay = (times: string): string => {
+    if (!times || times === 'TBD') {
+      return 'TBD';
+    }
+    
+    const timeBlocks = times.split('|').map(block => block.trim());
+    
+    // If all time blocks are the same, return just one
+    if (timeBlocks.length > 1 && timeBlocks.every(block => block === timeBlocks[0])) {
+      return timeBlocks[0];
+    }
+    
+    // If different times, return the original format
+    return times;
+  };
+
   // Helper function to get the specific time for a given day
   const getTimeForDay = (course: ScheduledCourse, targetDay: string): string => {
     if (!course.days || !course.times || course.times === 'TBD') {
@@ -437,11 +470,10 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     return 'TBD';
   };
 
-  // Check for time conflicts
+  // Check for time conflicts - highlight if ANY day/time overlaps
   const hasTimeConflict = (newCourse: PlannerCourse) => {
-    const newTimes = parseTimeString(newCourse.times);
-    const newStartMinutes = timeToMinutes(newTimes.start);
-    const newEndMinutes = timeToMinutes(newTimes.end);
+    // Get all days for the new course
+    const newCourseDays = newCourse.days.split(',').map(d => d.trim().toLowerCase());
     
     return scheduledCourses.some(scheduled => {
       const scheduledTimes = parseTimeString(scheduled.times);
@@ -458,19 +490,47 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
       const newCourseTerm = getTermFromCourse(newCourse.term);
       const scheduledTerm = getTermFromCourse(scheduled.term);
       const sameSemester = newCourseTerm === scheduledTerm;
-      const sharedDays = newCourse.days.toLowerCase().includes(scheduled.days.toLowerCase()) || 
-                        scheduled.days.toLowerCase().includes(newCourse.days.toLowerCase());
+      
+      if (!sameSemester) return false;
+      
+      // Check if ANY day of the new course overlaps with ANY day of the scheduled course
+      const scheduledDays = scheduled.days.split(',').map(d => d.trim().toLowerCase());
+      
+      const hasDayOverlap = newCourseDays.some(newDay => {
+        return scheduledDays.some(scheduledDay => {
+          // Handle day abbreviations (e.g., 'mon' matches 'monday')
+          const dayMapping: { [key: string]: string[] } = {
+            'mon': ['mon', 'monday'],
+            'tue': ['tue', 'tues', 'tuesday'],
+            'wed': ['wed', 'wednesday'],
+            'thu': ['thu', 'thur', 'thurs', 'thursday'],
+            'fri': ['fri', 'friday']
+          };
+          
+          const newDayVariants = dayMapping[newDay] || [newDay];
+          const scheduledDayVariants = dayMapping[scheduledDay] || [scheduledDay];
+          
+          return newDayVariants.some(nv => scheduledDayVariants.some(sv => nv === sv));
+        });
+      });
+      
+      if (!hasDayOverlap) return false;
+      
+      // Check for time overlap
+      const newTimes = parseTimeString(newCourse.times);
+      const newStartMinutes = timeToMinutes(newTimes.start);
+      const newEndMinutes = timeToMinutes(newTimes.end);
+      
       const timeOverlap = (newStartMinutes < scheduledEndMinutes && newEndMinutes > scheduledStartMinutes);
       
-      return sameSemester && sharedDays && timeOverlap;
+      return timeOverlap;
     });
   };
 
   // Get specific conflict details
   const getConflictDetails = (newCourse: PlannerCourse) => {
-    const newTimes = parseTimeString(newCourse.times);
-    const newStartMinutes = timeToMinutes(newTimes.start);
-    const newEndMinutes = timeToMinutes(newTimes.end);
+    // Get all days for the new course
+    const newCourseDays = newCourse.days.split(',').map(d => d.trim().toLowerCase());
     
     const conflictingCourse = scheduledCourses.find(scheduled => {
       const scheduledTimes = parseTimeString(scheduled.times);
@@ -487,11 +547,40 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
       const newCourseTerm = getTermFromCourse(newCourse.term);
       const scheduledTerm = getTermFromCourse(scheduled.term);
       const sameSemester = newCourseTerm === scheduledTerm;
-      const sharedDays = newCourse.days.toLowerCase().includes(scheduled.days.toLowerCase()) || 
-                        scheduled.days.toLowerCase().includes(newCourse.days.toLowerCase());
+      
+      if (!sameSemester) return false;
+      
+      // Check if ANY day of the new course overlaps with ANY day of the scheduled course
+      const scheduledDays = scheduled.days.split(',').map(d => d.trim().toLowerCase());
+      
+      const hasDayOverlap = newCourseDays.some(newDay => {
+        return scheduledDays.some(scheduledDay => {
+          // Handle day abbreviations (e.g., 'mon' matches 'monday')
+          const dayMapping: { [key: string]: string[] } = {
+            'mon': ['mon', 'monday'],
+            'tue': ['tue', 'tues', 'tuesday'],
+            'wed': ['wed', 'wednesday'],
+            'thu': ['thu', 'thur', 'thurs', 'thursday'],
+            'fri': ['fri', 'friday']
+          };
+          
+          const newDayVariants = dayMapping[newDay] || [newDay];
+          const scheduledDayVariants = dayMapping[scheduledDay] || [scheduledDay];
+          
+          return newDayVariants.some(nv => scheduledDayVariants.some(sv => nv === sv));
+        });
+      });
+      
+      if (!hasDayOverlap) return false;
+      
+      // Check for time overlap
+      const newTimes = parseTimeString(newCourse.times);
+      const newStartMinutes = timeToMinutes(newTimes.start);
+      const newEndMinutes = timeToMinutes(newTimes.end);
+      
       const timeOverlap = (newStartMinutes < scheduledEndMinutes && newEndMinutes > scheduledStartMinutes);
       
-      return sameSemester && sharedDays && timeOverlap;
+      return timeOverlap;
     });
     
     if (conflictingCourse) {
@@ -640,22 +729,6 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     setShowDownloadDialog(false);
   };
 
-  // Share schedule functionality
-  const handleShareSchedule = () => {
-    const coursesInCurrentSemester = scheduledCourses.filter(course => course.term.includes(selectedTerm));
-    
-    if (coursesInCurrentSemester.length === 0) {
-      toast.error('No courses in current semester to share');
-      return;
-    }
-
-    // Simulate sharing functionality
-    navigator.clipboard.writeText(`My ${selectedTerm} Schedule:\n${coursesInCurrentSemester.map(course => 
-      `${course.name} - ${course.days} ${course.times}`
-    ).join('\n')}`);
-    
-    toast.success(`${selectedTerm} schedule copied to clipboard`);
-  };
 
   // Load saved schedule
   const handleLoadSavedSchedule = (savedSchedule: SavedSchedule) => {
@@ -859,15 +932,6 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                     <Download className="w-4 h-4" />
                     Download
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleShareSchedule}
-                    className="flex items-center gap-2 bg-white/10 border-white/30 text-white hover:bg-white hover:text-[#752432]"
-                  >
-                    <Share className="w-4 h-4" />
-                    Share
-                  </Button>
                 </div>
               )}
             </div>
@@ -889,7 +953,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                           <TooltipTrigger asChild>
                             <div className="cursor-pointer">
                               <span className="text-white/80">Semester Credits: </span>
-                              <span className={`font-medium ${shouldShowRed ? 'text-red-500' : 'text-white'}`}>{semesterCredits}</span>
+                              <span className="font-medium text-white">{semesterCredits}</span>
                             </div>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -917,7 +981,21 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setScheduledCourses([])}
+                  onClick={() => {
+                    // Only clear courses for the currently selected semester
+                    setScheduledCourses(prev => 
+                      prev.filter(course => {
+                        const getTermFromCourse = (term: string) => {
+                          if (term.endsWith('SP')) return 'SP';
+                          if (term.endsWith('FA')) return 'FA';
+                          if (term.endsWith('WI')) return 'WI';
+                          return term;
+                        };
+                        const courseTerm = getTermFromCourse(course.term);
+                        return courseTerm !== selectedTerm;
+                      })
+                    );
+                  }}
                   className="flex items-center gap-2 bg-white/10 border-white/30 text-white hover:bg-white hover:text-red-600"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -1025,10 +1103,10 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                                   : [...prev, fullDay]
                               );
                             }}
-                            className={`w-7 h-7 text-xs font-medium rounded-full transition-all duration-200 flex items-center justify-center ${
+                            className={`w-6 h-6 text-xs font-medium rounded-full transition-all duration-200 flex items-center justify-center ${
                               isSelected
-                                ? 'bg-white text-[#752432] shadow-sm border-2 border-white'
-                                : 'text-white hover:bg-white/10 border border-white/30'
+                                ? 'bg-white text-[#752432] border border-white'
+                                : 'text-white border border-white/20 bg-transparent'
                             }`}
                           >
                             {dayLetter}
@@ -1052,13 +1130,13 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
               <div className="flex items-center justify-between pt-2">
                 <div className="flex items-center gap-2">
                   {/* View Mode Toggle Buttons */}
-                  <div className="flex items-center bg-white/10 rounded-md p-1">
+                  <div className="flex items-center bg-white/10 rounded-lg p-1">
                     <button
                       onClick={() => setViewMode('grid')}
-                      className={`p-1.5 rounded transition-colors ${
+                      className={`p-2 rounded-md transition-colors ${
                         viewMode === 'grid'
                           ? 'bg-white text-[#752432]'
-                          : 'text-white/80 hover:text-white hover:bg-white/10'
+                          : 'text-white bg-transparent'
                       }`}
                       title="Grid view"
                     >
@@ -1066,10 +1144,10 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                     </button>
                     <button
                       onClick={() => setViewMode('list')}
-                      className={`p-1.5 rounded transition-colors ${
+                      className={`p-2 rounded-md transition-colors ${
                         viewMode === 'list'
                           ? 'bg-white text-[#752432]'
-                          : 'text-white/80 hover:text-white hover:bg-white/10'
+                          : 'text-white bg-transparent'
                       }`}
                       title="List view"
                     >
@@ -1080,7 +1158,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                   {/* AI Chatbot Robot Button */}
                   <button
                     onClick={() => setShowChatbot(true)}
-                    className="p-1.5 bg-white/10 hover:bg-white/20 rounded-md transition-colors group"
+                    className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors group"
                     title="Quadly - Your AI Course Assistant"
                   >
                     {/* Cute Pixel Art Robot - Quadly */}
@@ -1135,7 +1213,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
             <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-200">
               <h3 className="font-medium text-gray-900">{selectedTerm === 'FA' ? 'Fall' : selectedTerm === 'WI' ? 'Winter' : 'Spring'} Courses</h3>
               <Badge variant="outline" className="text-sm bg-white">
-                {filteredCourses.length} available (Total: {courses.length})
+                {filteredCourses.length} available
               </Badge>
             </div>
             
@@ -1173,13 +1251,13 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                           <div className="flex items-center justify-between mb-0.5">
                             <div className="font-bold text-gray-900 text-xs leading-tight flex-1 pr-2 flex items-center gap-2">
                               <span className="group-hover:hidden">
-                                {getCleanCourseName(course.name, course.type)}
+                                {getCleanCourseName(course.name, course.delivery_mode)}
                               </span>
                               <span className="hidden group-hover:inline">
                                 {(() => {
-                                  const cleanName = getCleanCourseName(course.name, course.type);
+                                  const cleanName = getCleanCourseName(course.name, course.delivery_mode);
                                   // For Reading Groups only, truncate to 13 characters on hover
-                                  if (course.type === 'Reading Group') {
+                                  if (course.delivery_mode === 'Reading Group') {
                                     return cleanName.length > 13 ? cleanName.substring(0, 13) + '...' : cleanName;
                                   }
                                   // For all other course types, show full name on hover
@@ -1192,12 +1270,12 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                                 variant="outline"
                                 className="px-1 py-0 h-auto leading-tight opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                                 style={{ 
-                                  borderColor: getCourseColor(course.type), 
-                                  color: getCourseColor(course.type),
+                                  borderColor: getCourseColor(course.delivery_mode), 
+                                  color: getCourseColor(course.delivery_mode),
                                   fontSize: '9px'
                                 }}
                               >
-                                {course.type}
+                                {course.delivery_mode}
                               </Badge>
                             </div>
                             
@@ -1208,8 +1286,8 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                                   variant="outline" 
                                   className="px-1 py-0 h-auto leading-tight"
                                   style={{ 
-                                    backgroundColor: getCourseColor(course.type), 
-                                    borderColor: getCourseColor(course.type),
+                                    backgroundColor: getCourseColor(course.delivery_mode), 
+                                    borderColor: getCourseColor(course.delivery_mode),
                                     color: 'white',
                                     fontSize: '9px'
                                   }}
@@ -1221,10 +1299,10 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                           </div>
                           
                           {/* Second line: Days and Times on left, Professor Last Name on right */}
-                          <div className="flex items-center justify-between text-2xs text-gray-600">
+                          <div className="flex items-center justify-between text-xs text-gray-600">
                             <div className="flex items-center gap-2">
                               <span className="leading-tight">{course.days}</span>
-                              <span className="leading-tight">{course.times}</span>
+                              <span className="leading-tight">{getCleanTimesDisplay(course.times)}</span>
                             </div>
                             <span className="leading-tight">{getLastName(course.faculty)}</span>
                           </div>
@@ -1232,7 +1310,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                           {/* Conflict warning if needed */}
                           {hasConflict && conflictDetails && (
                             <div className="text-xs text-red-600 font-medium leading-tight mt-0.5">
-                              <span className="text-red-700 font-semibold">Conflicts with:</span> {getCleanCourseName(conflictDetails.course.name, conflictDetails.course.type)}
+                              <span className="text-red-700 font-semibold">Conflicts with:</span> {getCleanCourseName(conflictDetails.course.name, conflictDetails.course.delivery_mode)}
                             </div>
                           )}
                         </div>
@@ -1250,21 +1328,21 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                         }`}
                         style={hasConflict ? {} : {
                           '--tw-border-opacity': '0.2',
-                          borderColor: `${getCourseColor(course.type)}33`,
-                          '--hover-border-color': `${getCourseColor(course.type)}80`,
-                          '--hover-bg-color': `${getCourseColor(course.type)}08`
+                          borderColor: `${getCourseColor(course.delivery_mode)}33`,
+                          '--hover-border-color': `${getCourseColor(course.delivery_mode)}80`,
+                          '--hover-bg-color': `${getCourseColor(course.delivery_mode)}08`
                         } as React.CSSProperties}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.transform = 'scale(1.03)';
                           if (!hasConflict) {
-                            e.currentTarget.style.borderColor = `${getCourseColor(course.type)}80`;
-                            e.currentTarget.style.backgroundColor = `${getCourseColor(course.type)}08`;
+                            e.currentTarget.style.borderColor = `${getCourseColor(course.delivery_mode)}80`;
+                            e.currentTarget.style.backgroundColor = `${getCourseColor(course.delivery_mode)}08`;
                           }
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.transform = 'scale(1)';
                           if (!hasConflict) {
-                            e.currentTarget.style.borderColor = `${getCourseColor(course.type)}33`;
+                            e.currentTarget.style.borderColor = `${getCourseColor(course.delivery_mode)}33`;
                             e.currentTarget.style.backgroundColor = 'white';
                           }
                         }}
@@ -1273,15 +1351,15 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                         <CardContent className="p-4 relative">
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex-1">
-                              <h3 className="font-medium text-gray-900 mb-1">{getCleanCourseName(course.name, course.type)}</h3>
+                              <h3 className="font-medium text-gray-900 mb-1">{getCleanCourseName(course.name, course.delivery_mode)}</h3>
                               <p className="text-sm text-gray-600 mb-2">{getLastName(course.faculty)}</p>
                               <div className="flex items-center gap-2">
                                 <Badge 
                                   variant="outline"
                                   className="text-xs"
-                                  style={{ borderColor: getCourseColor(course.type), color: getCourseColor(course.type) }}
+                                  style={{ borderColor: getCourseColor(course.delivery_mode), color: getCourseColor(course.delivery_mode) }}
                                 >
-                                  {course.type}
+                                  {course.delivery_mode}
                                 </Badge>
                               </div>
                             </div>
@@ -1290,8 +1368,8 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                                 variant="outline" 
                                 className="text-sm font-medium"
                                 style={{ 
-                                  backgroundColor: getCourseColor(course.type), 
-                                  borderColor: getCourseColor(course.type),
+                                  backgroundColor: getCourseColor(course.delivery_mode), 
+                                  borderColor: getCourseColor(course.delivery_mode),
                                   color: 'white'
                                 }}
                               >
@@ -1307,7 +1385,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                             </div>
                             <div className="flex items-center gap-2">
                               <Clock className="w-4 h-4" />
-                              <span>{course.times}</span>
+                              <span>{getCleanTimesDisplay(course.times)}</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <MapPin className="w-4 h-4" />
@@ -1315,7 +1393,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                             </div>
                             {hasConflict && conflictDetails && (
                               <div className="text-xs text-red-600 font-medium">
-                                <span className="text-red-700 font-semibold">Conflicts with:</span> {getCleanCourseName(conflictDetails.course.name, conflictDetails.course.type)}
+                                <span className="text-red-700 font-semibold">Conflicts with:</span> {getCleanCourseName(conflictDetails.course.name, conflictDetails.course.delivery_mode)}
                               </div>
                             )}
                           </div>
@@ -1328,13 +1406,13 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                             }}
                             className="absolute right-3 w-6 h-6 rounded-sm flex items-center justify-center transition-all duration-200 opacity-0 group-hover:opacity-100"
                             style={{ 
-                              backgroundColor: getCourseColor(course.type),
+                              backgroundColor: getCourseColor(course.delivery_mode),
                               color: 'white',
                               bottom: '12px'
                             }}
                             onMouseEnter={(e) => {
                               e.currentTarget.style.bottom = '20px';
-                              const currentBg = getCourseColor(course.type);
+                              const currentBg = getCourseColor(course.delivery_mode);
                               // Darken the color on hover
                               const rgb = hexToRgb(currentBg);
                               if (rgb) {
@@ -1343,7 +1421,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                             }}
                             onMouseLeave={(e) => {
                               e.currentTarget.style.bottom = '12px';
-                              e.currentTarget.style.backgroundColor = getCourseColor(course.type);
+                              e.currentTarget.style.backgroundColor = getCourseColor(course.delivery_mode);
                             }}
                             title="Add to calendar"
                           >
@@ -1414,7 +1492,19 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                       {(() => {
                         // Group courses by time slot to handle conflicts
                         const coursesInDay = scheduledCourses.filter(course => {
-                          // Create day mapping for abbreviated to full day names
+                          // First check if course is in the selected semester
+                          const getTermFromCourse = (term: string) => {
+                            if (term.endsWith('SP')) return 'SP';
+                            if (term.endsWith('FA')) return 'FA';
+                            if (term.endsWith('WI')) return 'WI';
+                            return term;
+                          };
+                          const courseTerm = getTermFromCourse(course.term);
+                          const matchesSemester = courseTerm === selectedTerm;
+                          
+                          if (!matchesSemester) return false;
+                          
+                          // Then check if course is on this day
                           const dayMapping: { [key: string]: string[] } = {
                             'monday': ['mon', 'monday'],
                             'tuesday': ['tue', 'tues', 'tuesday'],
@@ -1454,7 +1544,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                           
                           
                           return courses.map((course: ScheduledCourse, index: number) => {
-                            const courseColor = getCourseColor(course.type);
+                            const courseColor = getCourseColor(course.delivery_mode);
                             const isConflicted = courses.length > 1;
                             const courseWidth = isConflicted ? `calc(${100 / courses.length}% - 1px)` : '100%';
                             const leftOffset = isConflicted ? `calc(${(100 / courses.length) * index}% + ${index}px)` : '0px';
@@ -1813,14 +1903,14 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
             <DialogHeader className="flex-shrink-0 p-6 pb-4 border-b">
             <div className="flex items-center">
               <DialogTitle className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                {selectedCourseForDetail ? getCleanCourseName(selectedCourseForDetail.name, selectedCourseForDetail.type) : 'Course Details'}
+                {selectedCourseForDetail ? getCleanCourseName(selectedCourseForDetail.name, selectedCourseForDetail.delivery_mode) : 'Course Details'}
                 {selectedCourseForDetail && (
                   <Badge 
                     variant="outline" 
                     className="text-xs font-medium"
                     style={{ 
-                      backgroundColor: getCourseColor(selectedCourseForDetail.type), 
-                      borderColor: getCourseColor(selectedCourseForDetail.type),
+                      backgroundColor: getCourseColor(selectedCourseForDetail.delivery_mode), 
+                      borderColor: getCourseColor(selectedCourseForDetail.delivery_mode),
                       color: 'white'
                     }}
                   >
@@ -1837,9 +1927,9 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                 <Badge 
                   variant="outline"
                   className="text-xs"
-                  style={{ borderColor: getCourseColor(selectedCourseForDetail.type), color: getCourseColor(selectedCourseForDetail.type) }}
+                  style={{ borderColor: getCourseColor(selectedCourseForDetail.delivery_mode), color: getCourseColor(selectedCourseForDetail.delivery_mode) }}
                 >
-                  {selectedCourseForDetail.type}
+                  {selectedCourseForDetail.delivery_mode}
                 </Badge>
               )}
             </div>
@@ -1865,7 +1955,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                   
                   <div>
                     <label className="text-sm font-medium text-gray-700 block mb-1">Times</label>
-                    <p className="text-sm text-gray-900">{selectedCourseForDetail.times}</p>
+                    <p className="text-sm text-gray-900">{getCleanTimesDisplay(selectedCourseForDetail.times)}</p>
                   </div>
                 </div>
                 
@@ -1876,7 +1966,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                     <button
                       onClick={() => handleProfessorClick(selectedCourseForDetail.faculty)}
                       className="text-sm underline cursor-pointer bg-transparent border-none p-0 font-normal"
-                      style={{ color: getCourseColor(selectedCourseForDetail.type) }}
+                      style={{ color: getCourseColor(selectedCourseForDetail.delivery_mode) }}
                     >
                       {getFullFacultyName(selectedCourseForDetail.faculty)}
                     </button>
@@ -1933,10 +2023,10 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                           addCourseToSchedule(selectedCourseForDetail, true);
                         }
                       }}
-                      style={{ backgroundColor: getCourseColor(selectedCourseForDetail.type) }}
+                      style={{ backgroundColor: getCourseColor(selectedCourseForDetail.delivery_mode) }}
                       className="text-white"
                       onMouseEnter={(e) => {
-                        const currentBg = getCourseColor(selectedCourseForDetail.type);
+                        const currentBg = getCourseColor(selectedCourseForDetail.delivery_mode);
                         const rgb = hexToRgb(currentBg);
                         if (rgb) {
                           const darkerColor = `rgb(${Math.max(0, rgb.r - 20)}, ${Math.max(0, rgb.g - 20)}, ${Math.max(0, rgb.b - 20)})`;
@@ -1944,7 +2034,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                         }
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = getCourseColor(selectedCourseForDetail.type);
+                        e.currentTarget.style.backgroundColor = getCourseColor(selectedCourseForDetail.delivery_mode);
                       }}
                     >
                       {isScheduled ? (

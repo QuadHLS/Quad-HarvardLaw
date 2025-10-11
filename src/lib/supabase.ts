@@ -3,6 +3,10 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
+// Add console logs to verify environment variables are being picked up (can be removed in production)
+// console.log('Supabase URL from env:', supabaseUrl);
+// console.log('Supabase Anon Key from env:', supabaseAnonKey ? 'Loaded' : 'Not Loaded'); // Avoid logging the key itself
+
 // Create a singleton Supabase client to avoid multiple instances
 let supabase: any
 

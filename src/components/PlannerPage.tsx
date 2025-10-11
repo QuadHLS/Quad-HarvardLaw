@@ -6,7 +6,6 @@ import { Badge } from './ui/badge';
 import { Card, CardContent } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
-import { Checkbox } from './ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
@@ -52,6 +51,7 @@ interface PlannerCourse {
   exam_type: string;
   course_description: string;
   notes: string;
+  requirements: string;
 }
 
 interface ScheduledCourse extends PlannerCourse {
@@ -102,7 +102,8 @@ const fetchCourses = async (): Promise<PlannerCourse[]> => {
       prerequisites: course.prerequisites || 'TBD',
       exam_type: course.exam_type || 'TBD',
       course_description: course.course_description || 'TBD',
-      notes: course.notes || 'TBD'
+      notes: course.notes || 'TBD',
+      requirements: course.requirements || 'TBD'
     }));
 
     // console.log('Transformed data length:', transformedData.length);
@@ -147,6 +148,22 @@ const getCourseTypes = (courses: PlannerCourse[]): string[] => {
   return Array.from(types).sort();
 };
 
+// Generate requirements from actual course data
+const getRequirements = (courses: PlannerCourse[]): string[] => {
+  const requirements = new Set<string>();
+  courses.forEach(course => {
+    if (course.requirements && course.requirements !== 'TBD') {
+      course.requirements.split(';').forEach(req => {
+        const trimmedReq = req.trim();
+        if (trimmedReq) {
+          requirements.add(trimmedReq);
+        }
+      });
+    }
+  });
+  return Array.from(requirements).sort();
+};
+
 
 // Interface for saved schedules
 interface SavedSchedule {
@@ -165,6 +182,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
   const [selectedTerm, setSelectedTerm] = useState<'FA' | 'WI' | 'SP'>('FA');
   const [selectedAreaOfInterest, setSelectedAreaOfInterest] = useState<string>('all-areas');
   const [selectedType, setSelectedType] = useState<string>('all-types');
+  const [selectedRequirements, setSelectedRequirements] = useState<string>('all-requirements');
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -293,6 +311,12 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     const matchesType = selectedType === 'all-types' ||
       course.delivery_mode === selectedType;
 
+    const matchesRequirements = selectedRequirements === 'all-requirements' ||
+      (course.requirements && course.requirements !== 'TBD' && 
+       course.requirements.split(';').some(req => 
+         req.trim().toLowerCase().includes(selectedRequirements.toLowerCase())
+       ));
+
     const matchesDays = selectedDays.length === 0 ||
       selectedDays.some(selectedDay => {
         // Map full day names to abbreviations
@@ -316,7 +340,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     const notScheduled = !scheduledCourses.some(scheduled => scheduled.id === course.id);
     
     const result = matchesSearch && matchesTerm && matchesAreaOfInterest && 
-           matchesType && matchesDays && notScheduled;
+           matchesType && matchesRequirements && matchesDays && notScheduled;
     
     // Debug logging for first few courses (can be removed in production)
     // if (courses.indexOf(course) < 3) {
@@ -739,8 +763,8 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
       
       if (userError || !user) {
         toast.error('Please log in to save schedules');
-        return;
-      }
+      return;
+    }
 
       // Get current saved schedules from the user's profile
       const { data: profileData, error: profileError } = await supabase
@@ -766,7 +790,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
         if (createError) {
           console.error('Error creating profile:', createError);
           toast.error('Error creating user profile');
-          return;
+      return;
         }
         existingSchedules = [];
       } else if (profileError) {
@@ -793,8 +817,8 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
       if (updateError) {
         console.error('Error saving schedule:', updateError);
         toast.error('Error saving schedule');
-        return;
-      }
+      return;
+    }
 
       // Update local state
       setSavedSchedules(updatedSchedules);
@@ -882,12 +906,6 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     setShowSaveDialog(true);
   };
 
-  // Handle opening the download dialog with pre-selected semesters
-  const handleOpenDownloadDialog = () => {
-    const availableSemesters = getAvailableSemesters();
-    setSelectedSemestersForDownload(availableSemesters);
-    setShowDownloadDialog(true);
-  };
 
   // AI Chatbot functionality
   const handleSendMessage = () => {
@@ -1006,44 +1024,44 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
             {/* Title and controls - responsive layout */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               <h1 className="text-2xl font-semibold text-white whitespace-nowrap">Course Planner</h1>
-              <div className="flex items-center gap-4">
-                {/* Term Selector */}
-                <div className="relative bg-white/10 rounded-lg p-1 backdrop-blur-sm border border-white/20">
-                  <div className="flex items-center">
+            <div className="flex items-center gap-4">
+              {/* Term Selector */}
+              <div className="relative bg-white/10 rounded-lg p-1 backdrop-blur-sm border border-white/20">
+                <div className="flex items-center">
                     {(['FA', 'WI', 'SP'] as const).map((term) => (
-                      <button
-                        key={term}
-                        onClick={() => setSelectedTerm(term)}
-                        className={`relative px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-                          selectedTerm === term
-                            ? 'text-[#752432] shadow-sm'
-                            : 'text-white/80 hover:text-white hover:bg-white/10'
-                        }`}
-                        style={selectedTerm === term ? {
-                          backgroundColor: 'white',
-                          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                        } : {}}
-                      >
-                        {term === 'FA' ? 'Fall' : term === 'WI' ? 'Winter' : 'Spring'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Action Buttons - Only show when courses are scheduled */}
-                {scheduledCourses.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleOpenSaveDialog}
-                      className="flex items-center gap-2 bg-white/10 border-white/30 text-white hover:bg-white hover:text-[#752432]"
+                    <button
+                      key={term}
+                      onClick={() => setSelectedTerm(term)}
+                      className={`relative px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                        selectedTerm === term
+                          ? 'text-[#752432] shadow-sm'
+                          : 'text-white/80 hover:text-white hover:bg-white/10'
+                      }`}
+                      style={selectedTerm === term ? {
+                        backgroundColor: 'white',
+                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                      } : {}}
                     >
-                      <Save className="w-4 h-4" />
-                      Save
-                    </Button>
-                  </div>
-                )}
+                        {term === 'FA' ? 'Fall' : term === 'WI' ? 'Winter' : 'Spring'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action Buttons - Only show when courses are scheduled */}
+              {scheduledCourses.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleOpenSaveDialog}
+                    className="flex items-center gap-2 bg-white/10 border-white/30 text-white hover:bg-white hover:text-[#752432]"
+                  >
+                    <Save className="w-4 h-4" />
+                    Save
+                  </Button>
+                </div>
+              )}
               </div>
             </div>
             
@@ -1055,8 +1073,10 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                     // For Fall/Spring semesters: show red for 1-9 credits and 16+ credits (with hover), white for 0 and 10-16 credits (no hover)
                     // For other semesters: always show white with no hover
                     const isFallOrSpring = selectedTerm === 'FA' || selectedTerm === 'SP';
-                    const shouldShowRed = isFallOrSpring && ((semesterCredits >= 1 && semesterCredits <= 9) || semesterCredits > 16);
                     const shouldShowHover = isFallOrSpring && semesterCredits > 0 && ((semesterCredits >= 1 && semesterCredits <= 9) || semesterCredits > 16);
+                    
+                    // Determine credit color: red for 0-9 and 17+, white for 10-16
+                    const creditColor = (semesterCredits >= 0 && semesterCredits <= 9) || semesterCredits >= 17 ? 'text-red-500' : 'text-white';
                     
                     if (shouldShowHover) {
                       return (
@@ -1064,7 +1084,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                           <TooltipTrigger asChild>
                             <div className="cursor-pointer">
                               <span className="text-white/80">Semester Credits: </span>
-                              <span className="font-medium text-white">{semesterCredits}</span>
+                              <span className={`font-medium ${creditColor}`}>{semesterCredits}</span>
                             </div>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -1076,7 +1096,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                       return (
                         <>
                           <span className="text-white/80">Semester Credits: </span>
-                          <span className="font-medium text-white">{semesterCredits}</span>
+                          <span className={`font-medium ${creditColor}`}>{semesterCredits}</span>
                         </>
                       );
                     }
@@ -1142,11 +1162,19 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
-                  placeholder="Search courses..."
+                  placeholder="Search courses or professors…"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-white border-gray-300 focus:border-white focus:ring-white"
+                  className={`pl-10 bg-white border-gray-300 focus:border-white focus:ring-white ${searchTerm ? 'pr-10' : 'pr-3'}`}
                 />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors z-10"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
               </div>
               
               {showFilters && (
@@ -1197,6 +1225,28 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                     )}
                   </div>
 
+                  {/* Requirements */}
+                  <div className="relative">
+                    <Select value={selectedRequirements} onValueChange={setSelectedRequirements}>
+                      <SelectTrigger className={`bg-white border-gray-300 ${selectedRequirements !== 'all-requirements' ? 'pr-10' : 'pr-3'}`}>
+                        <SelectValue placeholder="Requirements" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all-requirements">All Requirements</SelectItem>
+                        {getRequirements(courses).map(requirement => (
+                          <SelectItem key={requirement} value={requirement}>{requirement}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selectedRequirements !== 'all-requirements' && (
+                      <button
+                        onClick={() => setSelectedRequirements('all-requirements')}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors z-10"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
 
                   {/* Days of Week Filter */}
                   <div className="space-y-3">
@@ -1765,7 +1815,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                                     e.stopPropagation();
                                     removeCourseFromSchedule(course.scheduledId);
                                   }}
-                                  className={`absolute top-1 right-1 w-5 h-5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20 ${
+                                  className={`absolute top-0 right-0 w-5 h-5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-30 ${
                                     hasTimeConflict 
                                       ? 'bg-red-200 hover:bg-red-300' 
                                       : 'bg-white/20 hover:bg-white/30'
@@ -1836,7 +1886,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                         }}
                         onClick={() => {
                           if (selectedSemestersForSave.includes(semester)) {
-                            setSelectedSemestersForSave(prev => prev.filter(s => s !== semester));
+                          setSelectedSemestersForSave(prev => prev.filter(s => s !== semester));
                           } else {
                             setSelectedSemestersForSave(prev => [...prev, semester]);
                           }
@@ -1918,9 +1968,9 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                           <Tooltip key={semester}>
                               <TooltipTrigger asChild>
                                 <div>
-                                  <Badge variant="outline" className="text-xs cursor-pointer hover:bg-gray-50 transition-colors">
+                                <Badge variant="outline" className="text-xs cursor-pointer hover:bg-gray-50 transition-colors">
                                     {semester} ({schedule.courses.filter(c => c.term.includes(semester)).reduce((sum, course) => sum + course.credits, 0)} credits)
-                                  </Badge>
+                                </Badge>
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent side="bottom" >

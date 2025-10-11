@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Checkbox } from './ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { toast } from 'sonner';
+import { supabase } from '../lib/supabase';
 
 // Course color mapping based on type
 const courseColors = {
@@ -33,1000 +34,140 @@ const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
   } : null;
 };
 
-// Mock course data for the planner
+// Real course data interface matching database schema
 interface PlannerCourse {
   id: string;
-  code: string;
   name: string;
-  instructor: string;
+  course_number: string;
+  term: string;
+  faculty: string;
   credits: number;
-  days: string[];
-  startTime: string;
-  endTime: string;
+  type: string;
+  subject_areas: string;
+  delivery_mode: string;
+  days: string;
+  times: string;
   location: string;
-  requirements: string[];
-  description: string;
-  semester: 'Fall' | 'Spring' | 'Summer' | 'Winter';
-  year: string;
-  capacity: number;
-  enrolled: number;
-  prerequisites?: string[];
-  areaOfInterest: string;
-  type: 'Clinic' | 'Course' | 'Reading Group' | 'Seminar';
-  fulfillsRequirements: string[];
-  exam: 'No Exam' | 'One-Day Take-Home' | 'Any Day Take-Home' | 'In Class';
+  prerequisites: string;
+  exam_type: string;
+  course_description: string;
+  notes: string;
 }
 
 interface ScheduledCourse extends PlannerCourse {
   scheduledId: string;
 }
 
-const mockCourses: PlannerCourse[] = [
-  // Fall Courses
-  {
-    id: '1',
-    code: 'LAW 101',
-    name: 'Contract Law',
-    instructor: 'Professor Michael Chen',
-    credits: 4,
-    days: ['Monday', 'Wednesday', 'Friday'],
-    startTime: '9:00 AM',
-    endTime: '10:15 AM',
-    location: 'Room 203',
-    requirements: ['1L Core', 'JD Requirement'],
-    description: 'This course provides a comprehensive examination of the fundamental principles governing contract formation, performance, and breach. Students will explore the essential elements of valid contracts, including offer, acceptance, and consideration, while analyzing landmark cases that have shaped modern contract law. The curriculum covers both common law principles and the Uniform Commercial Code, preparing students for real-world contract negotiations and disputes.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 100,
-    enrolled: 87,
-    prerequisites: [],
-    areaOfInterest: 'Business Law',
-    type: 'Course',
-    fulfillsRequirements: ['Professional Writing'],
-    exam: 'In Class'
-  },
-  {
-    id: '2',
-    code: 'LAW 102',
-    name: 'Torts',
-    instructor: 'Professor Sarah Moore',
-    credits: 4,
-    days: ['Tuesday', 'Thursday'],
-    startTime: '10:30 AM',
-    endTime: '12:00 PM',
-    location: 'Room 150',
-    requirements: ['1L Core', 'JD Requirement'],
-    description: 'An in-depth study of civil wrongs and the legal theories underlying liability in tort law. This course examines intentional torts, negligence, and strict liability, with particular emphasis on causation, damages, and defenses. Students will analyze complex fact patterns involving personal injury, property damage, and economic harm while developing critical thinking skills essential for litigation practice.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 100,
-    enrolled: 92,
-    prerequisites: [],
-    areaOfInterest: 'Personal Injury',
-    type: 'Course',
-    fulfillsRequirements: ['Analytical Paper'],
-    exam: 'In Class'
-  },
-  {
-    id: '3',
-    code: 'LAW 103',
-    name: 'Civil Procedure',
-    instructor: 'Professor David Johnson',
-    credits: 4,
-    days: ['Monday', 'Wednesday'],
-    startTime: '1:00 PM',
-    endTime: '2:30 PM',
-    location: 'Room 301',
-    requirements: ['1L Core', 'JD Requirement'],
-    description: 'This foundational course explores the rules and procedures that govern civil litigation in federal and state courts. Students will master the intricacies of pleadings, discovery, motions practice, and trial procedures while examining jurisdictional concepts and due process requirements. The course emphasizes practical skills development through drafting exercises and procedural analysis of complex litigation scenarios.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 100,
-    enrolled: 89,
-    prerequisites: [],
-    areaOfInterest: 'Litigation',
-    type: 'Course',
-    fulfillsRequirements: ['Professional Writing'],
-    exam: 'One-Day Take-Home'
-  },
-  {
-    id: '4',
-    code: 'LAW 104',
-    name: 'Property Law',
-    instructor: 'Professor Jennifer Stewart',
-    credits: 3,
-    days: ['Tuesday', 'Thursday'],
-    startTime: '2:45 PM',
-    endTime: '4:00 PM',
-    location: 'Room 205',
-    requirements: ['1L Core', 'JD Requirement'],
-    description: 'A comprehensive examination of property rights in both real and personal property, covering acquisition, transfer, and protection of property interests. The course explores traditional property concepts including estates in land, future interests, and concurrent ownership, while also addressing modern developments in intellectual property and regulatory takings. Students will analyze the intersection of property law with constitutional principles and public policy considerations.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 100,
-    enrolled: 85,
-    prerequisites: [],
-    areaOfInterest: 'Real Estate',
-    type: 'Course',
-    fulfillsRequirements: ['Analytical Paper'],
-    exam: 'In Class'
-  },
-  {
-    id: '13',
-    code: 'LAW 105',
-    name: 'Environmental Law Seminar',
-    instructor: 'Professor Robert Phillips',
-    credits: 2,
-    days: ['Wednesday'],
-    startTime: '4:30 PM',
-    endTime: '6:30 PM',
-    location: 'Room 208',
-    requirements: ['Upper Level', 'Environmental'],
-    description: 'An advanced seminar examining cutting-edge issues in environmental law and policy, including climate change litigation, environmental justice, and emerging regulatory frameworks. Students will engage in intensive research and discussion of current environmental challenges while developing expertise in environmental advocacy and policy analysis. The seminar emphasizes interdisciplinary approaches to environmental problem-solving.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 15,
-    enrolled: 12,
-    prerequisites: [],
-    areaOfInterest: 'Environmental',
-    type: 'Seminar',
-    fulfillsRequirements: ['Analytical Paper'],
-    exam: 'Any Day Take-Home'
-  },
-  {
-    id: '14',
-    code: 'LAW 106',
-    name: 'Corporate Finance Reading Group',
-    instructor: 'Professor Elena Martinez',
-    credits: 1,
-    days: ['Friday'],
-    startTime: '12:00 PM',
-    endTime: '1:30 PM',
-    location: 'Room 105',
-    requirements: ['Upper Level', 'Business Law'],
-    description: 'A focused reading group examining current literature and developments in corporate finance law. Students will engage in critical analysis of scholarly articles, recent court decisions, and emerging trends in corporate financing structures. The group emphasizes collaborative learning and in-depth discussion of complex financial instruments and regulatory frameworks governing corporate transactions.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 12,
-    enrolled: 8,
-    prerequisites: [],
-    areaOfInterest: 'Business Law',
-    type: 'Reading Group',
-    fulfillsRequirements: ['Professional Writing'],
-    exam: 'No Exam'
-  },
-  {
-    id: '15',
-    code: 'LAW 107',
-    name: 'Legal Aid Clinic',
-    instructor: 'Professor Carlos Garcia',
-    credits: 3,
-    days: ['Tuesday', 'Thursday'],
-    startTime: '9:00 AM',
-    endTime: '11:00 AM',
-    location: 'Legal Aid Office',
-    requirements: ['Upper Level', 'Clinical'],
-    description: 'A hands-on clinical experience providing essential legal services to low-income clients in the community. Students will handle real cases under faculty supervision, developing practical skills in client interviewing, case preparation, and courtroom advocacy. The clinic emphasizes social justice principles while building professional competence in areas such as housing law, family law, and consumer protection.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 16,
-    enrolled: 14,
-    prerequisites: [],
-    areaOfInterest: 'Civil Rights',
-    type: 'Clinic',
-    fulfillsRequirements: ['Experiential Learning'],
-    exam: 'No Exam'
-  },
-  // Additional Fall Courses (20 new courses)
-  {
-    id: '22',
-    code: 'LAW 108',
-    name: 'Securities Regulation',
-    instructor: 'Professor Amanda White',
-    credits: 3,
-    days: ['Monday', 'Wednesday'],
-    startTime: '11:00 AM',
-    endTime: '12:30 PM',
-    location: 'Room 210',
-    requirements: ['Upper Level', 'Business Law'],
-    description: 'Federal and state securities laws and regulations.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 60,
-    enrolled: 45,
-    prerequisites: ['Corporate Law'],
-    areaOfInterest: 'Business Law',
-    type: 'Course',
-    fulfillsRequirements: ['Professional Writing'],
-    exam: 'One-Day Take-Home'
-  },
-  {
-    id: '23',
-    code: 'LAW 109',
-    name: 'International Trade Law Seminar',
-    instructor: 'Professor Thomas Jackson',
-    credits: 2,
-    days: ['Thursday'],
-    startTime: '3:00 PM',
-    endTime: '5:00 PM',
-    location: 'Room 115',
-    requirements: ['Upper Level', 'International'],
-    description: 'Advanced seminar on international trade agreements.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 18,
-    enrolled: 14,
-    prerequisites: [],
-    areaOfInterest: 'Business Law',
-    type: 'Seminar',
-    fulfillsRequirements: ['International/Comparative'],
-    exam: 'Any Day Take-Home'
-  },
-  {
-    id: '24',
-    code: 'LAW 110',
-    name: 'Immigration Law',
-    instructor: 'Professor Lisa King',
-    credits: 3,
-    days: ['Tuesday', 'Thursday'],
-    startTime: '9:30 AM',
-    endTime: '11:00 AM',
-    location: 'Room 155',
-    requirements: ['Upper Level', 'Immigration'],
-    description: 'Comprehensive study of immigration law and policy.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 50,
-    enrolled: 38,
-    prerequisites: [],
-    areaOfInterest: 'Immigration',
-    type: 'Course',
-    fulfillsRequirements: ['Professional Writing'],
-    exam: 'One-Day Take-Home'
-  },
-  {
-    id: '25',
-    code: 'LAW 111',
-    name: 'Health Law',
-    instructor: 'Professor Daniel Harris',
-    credits: 3,
-    days: ['Monday', 'Wednesday', 'Friday'],
-    startTime: '2:00 PM',
-    endTime: '3:15 PM',
-    location: 'Room 225',
-    requirements: ['Upper Level', 'Health'],
-    description: 'Legal issues in healthcare delivery and regulation.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 40,
-    enrolled: 32,
-    prerequisites: [],
-    areaOfInterest: 'Civil Rights',
-    type: 'Course',
-    fulfillsRequirements: ['Analytical Paper'],
-    exam: 'In Class'
-  },
-  {
-    id: '26',
-    code: 'LAW 112',
-    name: 'Family Law Clinic',
-    instructor: 'Professor Patricia Wright',
-    credits: 4,
-    days: ['Tuesday', 'Thursday'],
-    startTime: '1:00 PM',
-    endTime: '3:00 PM',
-    location: 'Family Law Clinic',
-    requirements: ['Upper Level', 'Clinical'],
-    description: 'Provide legal services in family law matters.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 16,
-    enrolled: 15,
-    prerequisites: [],
-    areaOfInterest: 'Personal Injury',
-    type: 'Clinic',
-    fulfillsRequirements: ['Experiential Learning'],
-    exam: 'No Exam'
-  },
-  {
-    id: '27',
-    code: 'LAW 113',
-    name: 'Employment Law',
-    instructor: 'Professor Maria Lopez',
-    credits: 3,
-    days: ['Monday', 'Wednesday'],
-    startTime: '3:30 PM',
-    endTime: '5:00 PM',
-    location: 'Room 180',
-    requirements: ['Upper Level', 'Labor'],
-    description: 'Workplace law including discrimination and wages.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 55,
-    enrolled: 42,
-    prerequisites: [],
-    areaOfInterest: 'Civil Rights',
-    type: 'Course',
-    fulfillsRequirements: ['Professional Writing'],
-    exam: 'In Class'
-  },
-  {
-    id: '28',
-    code: 'LAW 114',
-    name: 'Antitrust Law Seminar',
-    instructor: 'Professor James Clark',
-    credits: 2,
-    days: ['Friday'],
-    startTime: '10:00 AM',
-    endTime: '12:00 PM',
-    location: 'Room 120',
-    requirements: ['Upper Level', 'Business Law'],
-    description: 'Advanced study of antitrust and competition law.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 20,
-    enrolled: 16,
-    prerequisites: ['Corporate Law'],
-    areaOfInterest: 'Business Law',
-    type: 'Seminar',
-    fulfillsRequirements: ['Analytical Paper'],
-    exam: 'Any Day Take-Home'
-  },
-  {
-    id: '29',
-    code: 'LAW 115',
-    name: 'Tax Law',
-    instructor: 'Professor Wilson',
-    credits: 4,
-    days: ['Tuesday', 'Thursday'],
-    startTime: '11:30 AM',
-    endTime: '1:00 PM',
-    location: 'Room 305',
-    requirements: ['Upper Level', 'Tax'],
-    description: 'Federal income taxation of individuals.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 70,
-    enrolled: 58,
-    prerequisites: [],
-    areaOfInterest: 'Finance',
-    type: 'Course',
-    fulfillsRequirements: ['Professional Writing'],
-    exam: 'In Class'
-  },
-  {
-    id: '30',
-    code: 'LAW 116',
-    name: 'Real Estate Law',
-    instructor: 'Professor Anderson',
-    credits: 3,
-    days: ['Monday', 'Wednesday'],
-    startTime: '10:30 AM',
-    endTime: '12:00 PM',
-    location: 'Room 165',
-    requirements: ['Upper Level', 'Real Estate'],
-    description: 'Real estate transactions and property development.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 45,
-    enrolled: 39,
-    prerequisites: ['Property Law'],
-    areaOfInterest: 'Real Estate',
-    type: 'Course',
-    fulfillsRequirements: ['Professional Writing'],
-    exam: 'In Class'
-  },
-  {
-    id: '31',
-    code: 'LAW 117',
-    name: 'Criminal Defense Reading Group',
-    instructor: 'Professor Turner',
-    credits: 1,
-    days: ['Monday'],
-    startTime: '5:00 PM',
-    endTime: '6:30 PM',
-    location: 'Room 135',
-    requirements: ['Upper Level'],
-    description: 'Reading group on criminal defense strategies.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 12,
-    enrolled: 9,
-    prerequisites: ['Criminal Law'],
-    areaOfInterest: 'Litigation',
-    type: 'Reading Group',
-    fulfillsRequirements: ['Professional Writing'],
-    exam: 'No Exam'
-  },
-  {
-    id: '32',
-    code: 'LAW 118',
-    name: 'Intellectual Property Law',
-    instructor: 'Professor Davis',
-    credits: 3,
-    days: ['Tuesday', 'Thursday'],
-    startTime: '2:30 PM',
-    endTime: '4:00 PM',
-    location: 'Room 190',
-    requirements: ['Upper Level', 'IP'],
-    description: 'Patents, trademarks, copyrights, and trade secrets.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 50,
-    enrolled: 44,
-    prerequisites: [],
-    areaOfInterest: 'Business Law',
-    type: 'Course',
-    fulfillsRequirements: ['Analytical Paper'],
-    exam: 'In Class'
-  },
-  {
-    id: '33',
-    code: 'LAW 119',
-    name: 'Bankruptcy Law',
-    instructor: 'Professor Mitchell',
-    credits: 3,
-    days: ['Monday', 'Wednesday', 'Friday'],
-    startTime: '11:00 AM',
-    endTime: '12:15 PM',
-    location: 'Room 175',
-    requirements: ['Upper Level', 'Business Law'],
-    description: 'Federal bankruptcy law and procedure.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 40,
-    enrolled: 35,
-    prerequisites: [],
-    areaOfInterest: 'Business Law',
-    type: 'Course',
-    fulfillsRequirements: ['Professional Writing'],
-    exam: 'In Class'
-  },
-  {
-    id: '34',
-    code: 'LAW 120',
-    name: 'Environmental Justice Seminar',
-    instructor: 'Professor Williams',
-    credits: 2,
-    days: ['Wednesday'],
-    startTime: '6:00 PM',
-    endTime: '8:00 PM',
-    location: 'Room 125',
-    requirements: ['Upper Level', 'Environmental'],
-    description: 'Environmental law and social justice intersections.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 15,
-    enrolled: 13,
-    prerequisites: [],
-    areaOfInterest: 'Environmental',
-    type: 'Seminar',
-    fulfillsRequirements: ['Analytical Paper'],
-    exam: 'In Class'
-  },
-  {
-    id: '35',
-    code: 'LAW 121',
-    name: 'Corporate Governance Reading Group',
-    instructor: 'Professor Collins',
-    credits: 1,
-    days: ['Friday'],
-    startTime: '3:00 PM',
-    endTime: '4:30 PM',
-    location: 'Room 145',
-    requirements: ['Upper Level', 'Business Law'],
-    description: 'Reading group on corporate governance trends.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 10,
-    enrolled: 8,
-    prerequisites: ['Corporate Law'],
-    areaOfInterest: 'Business Law',
-    type: 'Reading Group',
-    fulfillsRequirements: ['Professional Writing'],
-    exam: 'In Class'
-  },
-  {
-    id: '36',
-    code: 'LAW 122',
-    name: 'Veterans Legal Clinic',
-    instructor: 'Professor Miller',
-    credits: 3,
-    days: ['Monday', 'Wednesday'],
-    startTime: '9:00 AM',
-    endTime: '11:00 AM',
-    location: 'Veterans Clinic',
-    requirements: ['Upper Level', 'Clinical'],
-    description: 'Legal services for military veterans.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 14,
-    enrolled: 12,
-    prerequisites: [],
-    areaOfInterest: 'Civil Rights',
-    type: 'Clinic',
-    fulfillsRequirements: ['Experiential Learning'],
-    exam: 'No Exam'
-  },
-  {
-    id: '37',
-    code: 'LAW 123',
-    name: 'Sports Law',
-    instructor: 'Professor Taylor',
-    credits: 2,
-    days: ['Thursday'],
-    startTime: '4:30 PM',
-    endTime: '6:30 PM',
-    location: 'Room 195',
-    requirements: ['Upper Level', 'Entertainment'],
-    description: 'Legal issues in professional and amateur sports.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 35,
-    enrolled: 28,
-    prerequisites: [],
-    areaOfInterest: 'Business Law',
-    type: 'Course',
-    fulfillsRequirements: ['Professional Writing'],
-    exam: 'In Class'
-  },
-  {
-    id: '38',
-    code: 'LAW 124',
-    name: 'Energy Law',
-    instructor: 'Professor Hall',
-    credits: 3,
-    days: ['Tuesday', 'Thursday'],
-    startTime: '8:00 AM',
-    endTime: '9:30 AM',
-    location: 'Room 185',
-    requirements: ['Upper Level', 'Energy'],
-    description: 'Oil, gas, renewable energy, and regulatory law.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 30,
-    enrolled: 24,
-    prerequisites: [],
-    areaOfInterest: 'Environmental',
-    type: 'Course',
-    fulfillsRequirements: ['Analytical Paper'],
-    exam: 'In Class'
-  },
-  {
-    id: '39',
-    code: 'LAW 125',
-    name: 'Elder Law Seminar',
-    instructor: 'Professor Allen',
-    credits: 2,
-    days: ['Tuesday'],
-    startTime: '5:30 PM',
-    endTime: '7:30 PM',
-    location: 'Room 140',
-    requirements: ['Upper Level', 'Elder Law'],
-    description: 'Legal issues affecting older adults.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 20,
-    enrolled: 17,
-    prerequisites: [],
-    areaOfInterest: 'Personal Injury',
-    type: 'Seminar',
-    fulfillsRequirements: ['Analytical Paper'],
-    exam: 'In Class'
-  },
-  {
-    id: '40',
-    code: 'LAW 126',
-    name: 'Mediation and Arbitration Reading Group',
-    instructor: 'Professor Nelson',
-    credits: 1,
-    days: ['Wednesday'],
-    startTime: '12:30 PM',
-    endTime: '2:00 PM',
-    location: 'Room 130',
-    requirements: ['Upper Level'],
-    description: 'Alternative dispute resolution methods.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 15,
-    enrolled: 11,
-    prerequisites: [],
-    areaOfInterest: 'Litigation',
-    type: 'Reading Group',
-    fulfillsRequirements: ['Negotiation/Leadership'],
-    exam: 'No Exam'
-  },
-  {
-    id: '41',
-    code: 'LAW 127',
-    name: 'Consumer Protection Clinic',
-    instructor: 'Professor Young',
-    credits: 4,
-    days: ['Monday', 'Friday'],
-    startTime: '1:30 PM',
-    endTime: '3:30 PM',
-    location: 'Consumer Clinic',
-    requirements: ['Upper Level', 'Clinical'],
-    description: 'Represent consumers in fraud and debt cases.',
-    semester: 'Fall',
-    year: '2025',
-    capacity: 12,
-    enrolled: 10,
-    prerequisites: [],
-    areaOfInterest: 'Civil Rights',
-    type: 'Clinic',
-    fulfillsRequirements: ['Experiential Learning'],
-    exam: 'No Exam'
-  },
-  
-  // Winter Courses
-  {
-    id: '5',
-    code: 'LAW 201',
-    name: 'Constitutional Law',
-    instructor: 'Professor Rodriguez',
-    credits: 4,
-    days: ['Monday', 'Wednesday', 'Friday'],
-    startTime: '9:00 AM',
-    endTime: '10:15 AM',
-    location: 'Room 204',
-    requirements: ['1L Core', 'JD Requirement'],
-    description: 'Constitutional principles and interpretation.',
-    semester: 'Winter',
-    year: '2026',
-    capacity: 100,
-    enrolled: 78,
-    prerequisites: [],
-    areaOfInterest: 'Civil Rights',
-    type: 'Course',
-    fulfillsRequirements: ['Analytical Paper'],
-    exam: 'In Class'
-  },
-  {
-    id: '6',
-    code: 'LAW 202',
-    name: 'Criminal Law',
-    instructor: 'Professor Thompson',
-    credits: 3,
-    days: ['Tuesday', 'Thursday'],
-    startTime: '11:00 AM',
-    endTime: '12:30 PM',
-    location: 'Room 151',
-    requirements: ['1L Core', 'JD Requirement'],
-    description: 'Elements of crimes and criminal responsibility.',
-    semester: 'Winter',
-    year: '2026',
-    capacity: 100,
-    enrolled: 85,
-    prerequisites: [],
-    areaOfInterest: 'Litigation',
-    type: 'Course',
-    fulfillsRequirements: ['Professional Writing'],
-    exam: 'In Class'
-  },
-  {
-    id: '7',
-    code: 'LAW 203',
-    name: 'Corporate Law',
-    instructor: 'Professor Collins',
-    credits: 3,
-    days: ['Monday', 'Wednesday'],
-    startTime: '2:00 PM',
-    endTime: '3:30 PM',
-    location: 'Room 302',
-    requirements: ['Upper Level', 'Business Law'],
-    description: 'Corporate governance and business organizations.',
-    semester: 'Winter',
-    year: '2026',
-    capacity: 80,
-    enrolled: 65,
-    prerequisites: ['Contract Law'],
-    areaOfInterest: 'Business Law',
-    type: 'Course',
-    fulfillsRequirements: ['Experiential Learning'],
-    exam: 'No Exam'
-  },
-  {
-    id: '8',
-    code: 'LAW 204',
-    name: 'Evidence',
-    instructor: 'Professor Taylor',
-    credits: 4,
-    days: ['Tuesday', 'Thursday'],
-    startTime: '3:45 PM',
-    endTime: '5:15 PM',
-    location: 'Room 206',
-    requirements: ['Upper Level', 'Trial Practice'],
-    description: 'Rules of evidence in civil and criminal proceedings.',
-    semester: 'Winter',
-    year: '2026',
-    capacity: 90,
-    enrolled: 72,
-    prerequisites: ['Civil Procedure'],
-    areaOfInterest: 'Litigation',
-    type: 'Course',
-    fulfillsRequirements: ['Professional Writing'],
-    exam: 'In Class'
-  },
-  {
-    id: '16',
-    code: 'LAW 205',
-    name: 'Intellectual Property Seminar',
-    instructor: 'Professor Davis',
-    credits: 3,
-    days: ['Monday'],
-    startTime: '6:00 PM',
-    endTime: '9:00 PM',
-    location: 'Room 107',
-    requirements: ['Upper Level', 'IP'],
-    description: 'Advanced seminar on intellectual property law.',
-    semester: 'Winter',
-    year: '2026',
-    capacity: 18,
-    enrolled: 15,
-    prerequisites: [],
-    areaOfInterest: 'Business Law',
-    type: 'Seminar',
-    fulfillsRequirements: ['Analytical Paper'],
-    exam: 'In Class'
-  },
-  {
-    id: '17',
-    code: 'LAW 206',
-    name: 'Criminal Justice Reform Reading Group',
-    instructor: 'Professor Turner',
-    credits: 1,
-    days: ['Friday'],
-    startTime: '2:00 PM',
-    endTime: '3:30 PM',
-    location: 'Room 109',
-    requirements: ['Upper Level'],
-    description: 'Reading group examining criminal justice reform.',
-    semester: 'Winter',
-    year: '2026',
-    capacity: 10,
-    enrolled: 7,
-    prerequisites: [],
-    areaOfInterest: 'Civil Rights',
-    type: 'Reading Group',
-    fulfillsRequirements: ['Professional Writing'],
-    exam: 'In Class'
-  },
-  {
-    id: '18',
-    code: 'LAW 207',
-    name: 'Housing Law Clinic',
-    instructor: 'Professor Brown',
-    credits: 4,
-    days: ['Wednesday', 'Friday'],
-    startTime: '10:00 AM',
-    endTime: '12:00 PM',
-    location: 'Housing Clinic',
-    requirements: ['Upper Level', 'Clinical'],
-    description: 'Represent tenants in housing disputes.',
-    semester: 'Winter',
-    year: '2026',
-    capacity: 12,
-    enrolled: 11,
-    prerequisites: [],
-    areaOfInterest: 'Real Estate',
-    type: 'Clinic',
-    fulfillsRequirements: ['Experiential Learning'],
-    exam: 'No Exam'
-  },
-  
-  // Spring Courses
-  {
-    id: '9',
-    code: 'LAW 301',
-    name: 'International Law',
-    instructor: 'Professor Thomas Jackson',
-    credits: 3,
-    days: ['Monday', 'Wednesday', 'Friday'],
-    startTime: '10:30 AM',
-    endTime: '11:45 AM',
-    location: 'Room 205',
-    requirements: ['Upper Level', 'International'],
-    description: 'Public international law and global governance.',
-    semester: 'Spring',
-    year: '2026',
-    capacity: 70,
-    enrolled: 54,
-    prerequisites: [],
-    areaOfInterest: 'Immigration',
-    type: 'Seminar',
-    fulfillsRequirements: ['International/Comparative'],
-    exam: 'Any Day Take-Home'
-  },
-  {
-    id: '10',
-    code: 'LAW 302',
-    name: 'Environmental Law',
-    instructor: 'Professor Williams',
-    credits: 3,
-    days: ['Tuesday', 'Thursday'],
-    startTime: '9:00 AM',
-    endTime: '10:30 AM',
-    location: 'Room 152',
-    requirements: ['Upper Level', 'Environmental'],
-    description: 'Environmental regulations and policy.',
-    semester: 'Spring',
-    year: '2026',
-    capacity: 60,
-    enrolled: 42,
-    prerequisites: [],
-    areaOfInterest: 'Environmental',
-    type: 'Course',
-    fulfillsRequirements: ['Analytical Paper'],
-    exam: 'In Class'
-  },
-  {
-    id: '11',
-    code: 'LAW 303',
-    name: 'Tax Law',
-    instructor: 'Professor Wilson',
-    credits: 4,
-    days: ['Monday', 'Wednesday'],
-    startTime: '1:00 PM',
-    endTime: '2:30 PM',
-    location: 'Room 303',
-    requirements: ['Upper Level', 'Tax'],
-    description: 'Federal income tax principles.',
-    semester: 'Spring',
-    year: '2026',
-    capacity: 75,
-    enrolled: 61,
-    prerequisites: [],
-    areaOfInterest: 'Finance',
-    type: 'Course',
-    fulfillsRequirements: ['Professional Writing'],
-    exam: 'In Class'
-  },
-  {
-    id: '12',
-    code: 'LAW 304',
-    name: 'Immigration Law Clinic',
-    instructor: 'Professor Lisa King',
-    credits: 4,
-    days: ['Tuesday', 'Thursday'],
-    startTime: '2:00 PM',
-    endTime: '4:00 PM',
-    location: 'Clinic Building',
-    requirements: ['Upper Level', 'Clinical'],
-    description: 'Hands-on immigration law practice.',
-    semester: 'Spring',
-    year: '2026',
-    capacity: 20,
-    enrolled: 18,
-    prerequisites: [],
-    areaOfInterest: 'Immigration',
-    type: 'Clinic',
-    fulfillsRequirements: ['Experiential Learning'],
-    exam: 'No Exam'
-  },
-  {
-    id: '19',
-    code: 'LAW 305',
-    name: 'Securities Regulation Seminar',
-    instructor: 'Professor Amanda White',
-    credits: 2,
-    days: ['Thursday'],
-    startTime: '5:00 PM',
-    endTime: '7:00 PM',
-    location: 'Room 110',
-    requirements: ['Upper Level', 'Securities'],
-    description: 'Advanced seminar on securities regulation.',
-    semester: 'Spring',
-    year: '2026',
-    capacity: 20,
-    enrolled: 16,
-    prerequisites: ['Corporate Law'],
-    areaOfInterest: 'Business Law',
-    type: 'Seminar',
-    fulfillsRequirements: ['Analytical Paper'],
-    exam: 'In Class'
-  },
-  {
-    id: '20',
-    code: 'LAW 306',
-    name: 'Constitutional Theory Reading Group',
-    instructor: 'Professor Rodriguez',
-    credits: 1,
-    days: ['Monday'],
-    startTime: '12:00 PM',
-    endTime: '1:30 PM',
-    location: 'Faculty Lounge',
-    requirements: ['Upper Level'],
-    description: 'Reading group on constitutional theory and philosophy.',
-    semester: 'Spring',
-    year: '2026',
-    capacity: 8,
-    enrolled: 6,
-    prerequisites: ['Constitutional Law'],
-    areaOfInterest: 'Civil Rights',
-    type: 'Reading Group',
-    fulfillsRequirements: ['Professional Writing'],
-    exam: 'In Class'
-  },
-  {
-    id: '21',
-    code: 'LAW 307',
-    name: 'Small Business Clinic',
-    instructor: 'Professor Lee',
-    credits: 3,
-    days: ['Monday', 'Wednesday'],
-    startTime: '3:00 PM',
-    endTime: '5:00 PM',
-    location: 'Business Clinic',
-    requirements: ['Upper Level', 'Clinical'],
-    description: 'Provide legal services to small businesses.',
-    semester: 'Spring',
-    year: '2026',
-    capacity: 14,
-    enrolled: 12,
-    prerequisites: [],
-    areaOfInterest: 'Business Law',
-    type: 'Clinic',
-    fulfillsRequirements: ['Experiential Learning'],
-    exam: 'No Exam'
-  }
-];
+// Function to fetch real course data from Supabase
+const fetchCourses = async (): Promise<PlannerCourse[]> => {
+  try {
+    // console.log('Starting fetchCourses...');
+    // console.log('Supabase client:', supabase);
+    
+    const { data, error } = await supabase
+      .from('planner')
+      .select('*')
+      .order('name', { ascending: true });
 
+    // console.log('Raw data from Supabase:', data);
+    // console.log('Error from Supabase:', error);
+
+    if (error) {
+      console.error('Error fetching courses:', error);
+      return [];
+    }
+
+    if (!data) {
+      console.error('No data returned from Supabase');
+      return [];
+    }
+
+    // console.log('Raw data length:', data.length);
+    // console.log('First few raw courses:', data.slice(0, 3));
+
+    // Transform the data to handle null values and format properly
+    const transformedData = data.map((course: any) => ({
+      id: course.id || '',
+      name: course.name || 'TBD',
+      course_number: course.course_number || 'TBD',
+      term: course.term || 'TBD',
+      faculty: course.faculty || 'TBD',
+      credits: course.credits || 0,
+      type: course.type || 'TBD',
+      subject_areas: course.subject_areas || 'TBD',
+      delivery_mode: course.delivery_mode || 'TBD',
+      days: course.days || 'TBD',
+      times: course.times || 'TBD',
+      location: course.location || 'TBD',
+      prerequisites: course.prerequisites || 'TBD',
+      exam_type: course.exam_type || 'TBD',
+      course_description: course.course_description || 'TBD',
+      notes: course.notes || 'TBD'
+    }));
+
+    // console.log('Transformed data length:', transformedData.length);
+    // console.log('First few transformed courses:', transformedData.slice(0, 3));
+    
+    return transformedData;
+  } catch (error) {
+    console.error('Error fetching courses:', error);
+    return [];
+  }
+};
 const timeSlots = [
   '8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', 
   '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', '6:00 PM', '7:00 PM', '8:00 PM'
 ];
-
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
-const areasOfInterest = [
-  'Business Law',
-  'Civil Rights',
-  'Environmental',
-  'Finance',
-  'Immigration',
-  'Litigation',
-  'Personal Injury',
-  'Real Estate'
-];
+// Generate subject areas from actual course data
+const getSubjectAreas = (courses: PlannerCourse[]): string[] => {
+  const areas = new Set<string>();
+  courses.forEach(course => {
+    if (course.subject_areas) {
+      course.subject_areas.split(';').forEach(area => {
+        const trimmedArea = area.trim();
+        if (trimmedArea) {
+          areas.add(trimmedArea);
+        }
+      });
+    }
+  });
+  return Array.from(areas).sort();
+};
 
-const courseTypes = ['Clinic', 'Course', 'Reading Group', 'Seminar'];
+// Generate course types from actual course data
+const getCourseTypes = (courses: PlannerCourse[]): string[] => {
+  const types = new Set<string>();
+  courses.forEach(course => {
+    if (course.type) {
+      types.add(course.type);
+    }
+  });
+  return Array.from(types).sort();
+};
 
-const fulfillsRequirementOptions = [
-  'Analytical Paper',
-  'Experiential Learning',
-  'International/Comparative',
-  'Negotiation/Leadership',
-  'Professional Responsibility',
-  'Professional Writing'
-];
 
 // Interface for saved schedules
 interface SavedSchedule {
   id: string;
   name: string;
   createdAt: string;
-  semesters: ('Fall' | 'Winter' | 'Spring' | 'Summer')[];
+  semesters: ('FA' | 'WI' | 'SP')[];
   courses: ScheduledCourse[];
 }
-
 interface PlannerPageProps {
   onNavigateToReviews?: (professorName?: string) => void;
 }
-
 export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
   const [scheduledCourses, setScheduledCourses] = useState<ScheduledCourse[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTerm, setSelectedTerm] = useState<'Fall' | 'Winter' | 'Spring'>('Fall');
+  const [selectedTerm, setSelectedTerm] = useState<'FA' | 'WI' | 'SP'>('FA');
   const [selectedAreaOfInterest, setSelectedAreaOfInterest] = useState<string>('all-areas');
   const [selectedType, setSelectedType] = useState<string>('all-types');
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
-  const [selectedFulfillsRequirements, setSelectedFulfillsRequirements] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
-  const [showRequirements, setShowRequirements] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const requirementsRef = useRef<HTMLDivElement>(null);
-
   // Dialog states
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showDownloadDialog, setShowDownloadDialog] = useState(false);
@@ -1034,31 +175,38 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
   const [showCourseDetailDialog, setShowCourseDetailDialog] = useState(false);
   const [selectedCourseForDetail, setSelectedCourseForDetail] = useState<PlannerCourse | null>(null);
   const [saveScheduleName, setSaveScheduleName] = useState('');
-  const [selectedSemestersForSave, setSelectedSemestersForSave] = useState<('Fall' | 'Winter' | 'Spring' | 'Summer')[]>([]);
-  const [selectedSemestersForDownload, setSelectedSemestersForDownload] = useState<('Fall' | 'Winter' | 'Spring' | 'Summer')[]>([]);
-  
+  const [selectedSemestersForSave, setSelectedSemestersForSave] = useState<('FA' | 'WI' | 'SP')[]>([]);
+  const [selectedSemestersForDownload, setSelectedSemestersForDownload] = useState<('FA' | 'WI' | 'SP')[]>([]);
   // AI Chatbot states
   const [showChatbot, setShowChatbot] = useState(false);
   const [chatMessages, setChatMessages] = useState<{id: string, type: 'user' | 'ai', content: string, timestamp: Date}[]>([]);
   const [chatInput, setChatInput] = useState('');
   const chatMessagesRef = useRef<HTMLDivElement>(null);
-
   // Saved schedules state with mock data
   const [savedSchedules, setSavedSchedules] = useState<SavedSchedule[]>([]);
 
-  // Close requirements dropdown when clicking outside
+
+  // State for real course data
+  const [courses, setCourses] = useState<PlannerCourse[]>([]);
+
+  // Fetch real course data on component mount
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (requirementsRef.current && !requirementsRef.current.contains(event.target as Node)) {
-        setShowRequirements(false);
+    const loadCourses = async () => {
+      try {
+        // console.log('Loading courses...');
+        const fetchedCourses = await fetchCourses();
+        // console.log('Fetched courses:', fetchedCourses.length, fetchedCourses);
+        setCourses(fetchedCourses);
+      } catch (error) {
+        console.error('Error loading courses:', error);
+        toast.error('Failed to load courses');
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    loadCourses();
   }, []);
+
+
 
 
   // Helper function to clean course name by removing redundant words
@@ -1075,51 +223,85 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     return name;
   };
 
-  // Helper function to convert days to single letters (T for Tuesday, Th for Thursday)
-  const getDaySingleLetter = (day: string) => {
-    switch (day) {
-      case 'Monday': return 'M';
-      case 'Tuesday': return 'T';
-      case 'Wednesday': return 'W';
-      case 'Thursday': return 'Th';
-      case 'Friday': return 'F';
-      default: return day.charAt(0);
-    }
-  };
+  // Debug: Log current filter values (can be removed in production)
+  // console.log('Current filter values:', {
+  //   searchTerm,
+  //   selectedTerm,
+  //   selectedAreaOfInterest,
+  //   selectedType,
+  //   selectedDays,
+  //   totalCourses: courses.length
+  // });
 
   // Filter courses based on search and filters
-  const filteredCourses = mockCourses.filter(course => {
+  const filteredCourses = courses.filter(course => {
     const matchesSearch = searchTerm === '' || 
       course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      course.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      course.instructor.toLowerCase().includes(searchTerm.toLowerCase());
+      course.course_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      course.faculty.toLowerCase().includes(searchTerm.toLowerCase());
     
     // Primary filter: only show courses for the selected semester
-    const matchesTerm = course.semester === selectedTerm;
+    // Handle different term formats: '2026SP' -> 'SP', '2026FA' -> 'FA', etc.
+    const getTermFromCourse = (term: string) => {
+      if (term.endsWith('SP')) return 'SP';
+      if (term.endsWith('FA')) return 'FA';
+      if (term.endsWith('WI')) return 'WI';
+      return term; // fallback to original term
+    };
+    
+    const courseTerm = getTermFromCourse(course.term);
+    const matchesTerm = courseTerm === selectedTerm;
     
     const matchesAreaOfInterest = selectedAreaOfInterest === 'all-areas' ||
-      course.areaOfInterest === selectedAreaOfInterest;
+      course.subject_areas.split(';').some(area => 
+        area.trim().toLowerCase().includes(selectedAreaOfInterest.toLowerCase())
+      );
 
     const matchesType = selectedType === 'all-types' ||
       course.type === selectedType;
 
     const matchesDays = selectedDays.length === 0 ||
-      course.days.every(day => selectedDays.includes(day));
-
-    const matchesFulfillsRequirements = selectedFulfillsRequirements.length === 0 ||
-      selectedFulfillsRequirements.some(req => course.fulfillsRequirements.includes(req));
+      selectedDays.some(day => course.days.toLowerCase().includes(day.toLowerCase()));
     
     // Don't show courses that are already scheduled
     const notScheduled = !scheduledCourses.some(scheduled => scheduled.id === course.id);
     
-    return matchesSearch && matchesTerm && matchesAreaOfInterest && 
-           matchesType && matchesDays && matchesFulfillsRequirements && notScheduled;
+    const result = matchesSearch && matchesTerm && matchesAreaOfInterest && 
+           matchesType && matchesDays && notScheduled;
+    
+    // Debug logging for first few courses (can be removed in production)
+    // if (courses.indexOf(course) < 3) {
+    //   console.log('Course filter debug:', {
+    //     courseName: course.name,
+    //     courseTerm: course.term,
+    //     convertedTerm: courseTerm,
+    //     selectedTerm,
+    //     matchesTerm,
+    //     matchesSearch,
+    //     matchesAreaOfInterest,
+    //     matchesType,
+    //     matchesDays,
+    //     notScheduled,
+    //     result
+    //   });
+    // }
+    
+    return result;
   }).sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically by course name
 
   // Calculate totals
   const totalCredits = scheduledCourses.reduce((sum, course) => sum + course.credits, 0);
   const semesterCredits = scheduledCourses
-    .filter(course => course.semester === selectedTerm)
+    .filter(course => {
+      const getTermFromCourse = (term: string) => {
+        if (term.endsWith('SP')) return 'SP';
+        if (term.endsWith('FA')) return 'FA';
+        if (term.endsWith('WI')) return 'WI';
+        return term;
+      };
+      const courseTerm = getTermFromCourse(course.term);
+      return courseTerm === selectedTerm;
+    })
     .reduce((sum, course) => sum + course.credits, 0);
 
   // Get time slot index for positioning
@@ -1134,6 +316,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     const startTimeInMinutes = timeToMinutes('8:00 AM'); // First slot
     const minutesFromStart = timeInMinutes - startTimeInMinutes;
     const slotIndex = minutesFromStart / 60; // Each slot is 1 hour
+    
     
     return Math.max(0, slotIndex);
   };
@@ -1186,18 +369,97 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     }
   };
 
+  // Helper function to parse time string (e.g., "1:30 PM - 3:30 PM | 4:00 PM - 5:00 PM")
+  const parseTimeString = (timeStr: string) => {
+    if (!timeStr || timeStr === 'TBD') {
+      return { start: '9:00 AM', end: '10:00 AM' }; // Default fallback
+    }
+    
+    // Split by pipe to get individual time blocks
+    const timeBlocks = timeStr.split('|').map(block => block.trim());
+    
+    // Use the first time block (for courses with multiple days, we'll use the first occurrence)
+    const firstBlock = timeBlocks[0];
+    
+    if (firstBlock) {
+      const parts = firstBlock.split(' - ');
+      if (parts.length === 2) {
+        return {
+          start: parts[0].trim(),
+          end: parts[1].trim()
+        };
+      }
+    }
+    
+    // Fallback if parsing fails
+    return { start: '9:00 AM', end: '10:00 AM' };
+  };
+
+  // Helper function to get the specific time for a given day
+  const getTimeForDay = (course: ScheduledCourse, targetDay: string): string => {
+    if (!course.days || !course.times || course.times === 'TBD') {
+      return 'TBD';
+    }
+    
+    // Split days and times
+    const days = course.days.split(',').map(d => d.trim().toLowerCase());
+    const timeBlocks = course.times.split('|').map(block => block.trim());
+    
+    // Create day mapping for abbreviated to full day names
+    const dayMapping: { [key: string]: string[] } = {
+      'monday': ['mon', 'monday'],
+      'tuesday': ['tue', 'tues', 'tuesday'],
+      'wednesday': ['wed', 'wednesday'],
+      'thursday': ['thu', 'thur', 'thurs', 'thursday'],
+      'friday': ['fri', 'friday']
+    };
+    
+    const targetDayLower = targetDay.toLowerCase();
+    const possibleTargetDays = dayMapping[targetDayLower] || [targetDayLower];
+    
+    // Find the index of the target day in the days array
+    let dayIndex = -1;
+    for (let i = 0; i < days.length; i++) {
+      const day = days[i];
+      if (possibleTargetDays.some(targetDay => day.includes(targetDay))) {
+        dayIndex = i;
+        break;
+      }
+    }
+    
+    // Return the corresponding time block, or the first one if not found
+    if (dayIndex >= 0 && dayIndex < timeBlocks.length) {
+      return timeBlocks[dayIndex];
+    } else if (timeBlocks.length > 0) {
+      return timeBlocks[0]; // Fallback to first time block
+    }
+    
+    return 'TBD';
+  };
+
   // Check for time conflicts
   const hasTimeConflict = (newCourse: PlannerCourse) => {
-    const newStartMinutes = timeToMinutes(newCourse.startTime);
-    const newEndMinutes = timeToMinutes(newCourse.endTime);
+    const newTimes = parseTimeString(newCourse.times);
+    const newStartMinutes = timeToMinutes(newTimes.start);
+    const newEndMinutes = timeToMinutes(newTimes.end);
     
     return scheduledCourses.some(scheduled => {
-      const scheduledStartMinutes = timeToMinutes(scheduled.startTime);
-      const scheduledEndMinutes = timeToMinutes(scheduled.endTime);
+      const scheduledTimes = parseTimeString(scheduled.times);
+      const scheduledStartMinutes = timeToMinutes(scheduledTimes.start);
+      const scheduledEndMinutes = timeToMinutes(scheduledTimes.end);
       
       // Only check for conflicts if courses are in the same semester
-      const sameSemester = newCourse.semester === scheduled.semester;
-      const sharedDays = newCourse.days.some(day => scheduled.days.includes(day));
+      const getTermFromCourse = (term: string) => {
+        if (term.endsWith('SP')) return 'SP';
+        if (term.endsWith('FA')) return 'FA';
+        if (term.endsWith('WI')) return 'WI';
+        return term;
+      };
+      const newCourseTerm = getTermFromCourse(newCourse.term);
+      const scheduledTerm = getTermFromCourse(scheduled.term);
+      const sameSemester = newCourseTerm === scheduledTerm;
+      const sharedDays = newCourse.days.toLowerCase().includes(scheduled.days.toLowerCase()) || 
+                        scheduled.days.toLowerCase().includes(newCourse.days.toLowerCase());
       const timeOverlap = (newStartMinutes < scheduledEndMinutes && newEndMinutes > scheduledStartMinutes);
       
       return sameSemester && sharedDays && timeOverlap;
@@ -1206,48 +468,70 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
 
   // Get specific conflict details
   const getConflictDetails = (newCourse: PlannerCourse) => {
-    const newStartMinutes = timeToMinutes(newCourse.startTime);
-    const newEndMinutes = timeToMinutes(newCourse.endTime);
+    const newTimes = parseTimeString(newCourse.times);
+    const newStartMinutes = timeToMinutes(newTimes.start);
+    const newEndMinutes = timeToMinutes(newTimes.end);
     
     const conflictingCourse = scheduledCourses.find(scheduled => {
-      const scheduledStartMinutes = timeToMinutes(scheduled.startTime);
-      const scheduledEndMinutes = timeToMinutes(scheduled.endTime);
+      const scheduledTimes = parseTimeString(scheduled.times);
+      const scheduledStartMinutes = timeToMinutes(scheduledTimes.start);
+      const scheduledEndMinutes = timeToMinutes(scheduledTimes.end);
       
       // Only check for conflicts if courses are in the same semester
-      const sameSemester = newCourse.semester === scheduled.semester;
-      const sharedDays = newCourse.days.some(day => scheduled.days.includes(day));
+      const getTermFromCourse = (term: string) => {
+        if (term.endsWith('SP')) return 'SP';
+        if (term.endsWith('FA')) return 'FA';
+        if (term.endsWith('WI')) return 'WI';
+        return term;
+      };
+      const newCourseTerm = getTermFromCourse(newCourse.term);
+      const scheduledTerm = getTermFromCourse(scheduled.term);
+      const sameSemester = newCourseTerm === scheduledTerm;
+      const sharedDays = newCourse.days.toLowerCase().includes(scheduled.days.toLowerCase()) || 
+                        scheduled.days.toLowerCase().includes(newCourse.days.toLowerCase());
       const timeOverlap = (newStartMinutes < scheduledEndMinutes && newEndMinutes > scheduledStartMinutes);
       
       return sameSemester && sharedDays && timeOverlap;
     });
     
     if (conflictingCourse) {
-      const sharedDays = newCourse.days.filter(day => conflictingCourse.days.includes(day));
       return {
         course: conflictingCourse,
-        days: sharedDays,
-        time: `${conflictingCourse.startTime} - ${conflictingCourse.endTime}`
+        days: conflictingCourse.days,
+        time: conflictingCourse.times
       };
     }
     
     return null;
   };
 
-  // Extract last name from instructor
+  // Extract last name from faculty
   const getLastName = (fullName: string) => {
+    // Handle "lastname, firstname" format
+    if (fullName.includes(',')) {
+      return fullName.split(',')[0].trim();
+    }
+    // Fallback to original logic for other formats
     const parts = fullName.replace('Professor ', '').split(' ');
     return parts[parts.length - 1];
   };
 
-  // Get full instructor name without "Professor" prefix
-  const getFullInstructorName = (fullName: string) => {
+  // Get full faculty name without "Professor" prefix
+  const getFullFacultyName = (fullName: string) => {
+    // Handle "lastname, firstname" format - convert to "firstname lastname"
+    if (fullName.includes(',')) {
+      const parts = fullName.split(',');
+      const lastName = parts[0].trim();
+      const firstName = parts[1].trim();
+      return `${firstName} ${lastName}`;
+    }
     return fullName.replace('Professor ', '');
   };
 
   // Handle professor name click to navigate to reviews
   const handleProfessorClick = (instructorName: string) => {
     if (onNavigateToReviews) {
-      const fullName = getFullInstructorName(instructorName);
+      const fullName = getFullFacultyName(instructorName);
       onNavigateToReviews(fullName);
     }
   };
@@ -1255,8 +539,29 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
 
   // Convert time to minutes for better calculation
   const timeToMinutes = (time: string): number => {
-    const [timePart, period] = time.split(' ');
-    const [hours, minutes = 0] = timePart.split(':').map(Number);
+    if (!time || typeof time !== 'string') {
+      return 540; // Default to 9:00 AM (9 * 60 = 540 minutes)
+    }
+    
+    const parts = time.split(' ');
+    if (parts.length < 2) {
+      return 540; // Default fallback
+    }
+    
+    const [timePart, period] = parts;
+    const timeComponents = timePart.split(':');
+    
+    if (timeComponents.length < 2) {
+      return 540; // Default fallback
+    }
+    
+    const hours = parseInt(timeComponents[0], 10);
+    const minutes = parseInt(timeComponents[1], 10) || 0;
+    
+    if (isNaN(hours) || isNaN(minutes)) {
+      return 540; // Default fallback
+    }
+    
     const adjustedHours = period === 'PM' && hours !== 12 ? hours + 12 : 
                          period === 'AM' && hours === 12 ? 0 : hours;
     return adjustedHours * 60 + minutes;
@@ -1274,7 +579,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
   // Calculate course top position
   const getCourseTopPosition = (startTime: string): number => {
     const startIndex = getTimeSlotIndex(startTime);
-    return startIndex * 64; // 64px per hour slot
+    return startIndex * 64; // 64px per hour slot (no need to add header height since it's positioned within the relative container)
   };
 
   // Save schedule functionality
@@ -1288,7 +593,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     }
 
     const coursesToSave = scheduledCourses.filter(course => 
-      selectedSemestersForSave.includes(course.semester)
+      selectedSemestersForSave.some(sem => course.term.includes(sem))
     );
 
     if (coursesToSave.length === 0) {
@@ -1319,7 +624,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     }
 
     const coursesToDownload = scheduledCourses.filter(course => 
-      selectedSemestersForDownload.includes(course.semester)
+      selectedSemestersForDownload.some(sem => course.term.includes(sem))
     );
 
     if (coursesToDownload.length === 0) {
@@ -1337,7 +642,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
 
   // Share schedule functionality
   const handleShareSchedule = () => {
-    const coursesInCurrentSemester = scheduledCourses.filter(course => course.semester === selectedTerm);
+    const coursesInCurrentSemester = scheduledCourses.filter(course => course.term.includes(selectedTerm));
     
     if (coursesInCurrentSemester.length === 0) {
       toast.error('No courses in current semester to share');
@@ -1346,7 +651,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
 
     // Simulate sharing functionality
     navigator.clipboard.writeText(`My ${selectedTerm} Schedule:\n${coursesInCurrentSemester.map(course => 
-      `${course.name} - ${course.days.join(', ')} ${course.startTime}-${course.endTime}`
+      `${course.name} - ${course.days} ${course.times}`
     ).join('\n')}`);
     
     toast.success(`${selectedTerm} schedule copied to clipboard`);
@@ -1367,11 +672,15 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
   };
 
   // Get available semesters that have courses
-  const getAvailableSemesters = (): ('Fall' | 'Winter' | 'Spring' | 'Summer')[] => {
-    const semesters = new Set<'Fall' | 'Winter' | 'Spring' | 'Summer'>();
-    scheduledCourses.forEach(course => semesters.add(course.semester));
+  const getAvailableSemesters = (): ('FA' | 'WI' | 'SP')[] => {
+    const semesters = new Set<'FA' | 'WI' | 'SP'>();
+    scheduledCourses.forEach(course => {
+      if (course.term.endsWith('FA')) semesters.add('FA');
+      if (course.term.endsWith('WI')) semesters.add('WI');
+      if (course.term.endsWith('SP')) semesters.add('SP');
+    });
     return Array.from(semesters).sort((a, b) => {
-      const order = { Fall: 0, Winter: 1, Spring: 2, Summer: 3 };
+      const order = { FA: 0, WI: 1, SP: 2 };
       return order[a] - order[b];
     });
   };
@@ -1427,29 +736,29 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     
     // Interest-based queries
     if (input.includes('business') || input.includes('corporate')) {
-      const businessCourses = filteredCourses.filter(c => c.areaOfInterest === 'Business Law').slice(0, 3);
+      const businessCourses = filteredCourses.filter(c => c.subject_areas.toLowerCase().includes('business')).slice(0, 3);
       if (businessCourses.length > 0) {
-        return `Great choice! I found ${businessCourses.length} business law courses for ${selectedTerm}: ${businessCourses.map(c => `${c.name} (${c.instructor.replace('Professor ', '')})`).join(', ')}. Would you like details about any of these?`;
+        return `Great choice! I found ${businessCourses.length} business law courses for ${selectedTerm}: ${businessCourses.map(c => `${c.name} (${c.faculty})`).join(', ')}. Would you like details about any of these?`;
       }
     }
     
     if (input.includes('environmental') || input.includes('green')) {
-      const envCourses = filteredCourses.filter(c => c.areaOfInterest === 'Environmental').slice(0, 3);
+      const envCourses = filteredCourses.filter(c => c.subject_areas.toLowerCase().includes('environmental')).slice(0, 3);
       if (envCourses.length > 0) {
-        return `Perfect! Environmental law is fascinating. I found ${envCourses.length} environmental courses: ${envCourses.map(c => `${c.name} (${c.instructor.replace('Professor ', '')})`).join(', ')}. These courses focus on sustainability and policy.`;
+        return `Perfect! Environmental law is fascinating. I found ${envCourses.length} environmental courses: ${envCourses.map(c => `${c.name} (${c.faculty})`).join(', ')}. These courses focus on sustainability and policy.`;
       }
     }
     
     if (input.includes('litigation') || input.includes('trial') || input.includes('court')) {
-      const litigationCourses = filteredCourses.filter(c => c.areaOfInterest === 'Litigation').slice(0, 3);
+      const litigationCourses = filteredCourses.filter(c => c.subject_areas.toLowerCase().includes('litigation')).slice(0, 3);
       if (litigationCourses.length > 0) {
-        return `Excellent! For litigation practice, I recommend: ${litigationCourses.map(c => `${c.name} (${c.instructor.replace('Professor ', '')})`).join(', ')}. These will give you great courtroom experience.`;
+        return `Excellent! For litigation practice, I recommend: ${litigationCourses.map(c => `${c.name} (${c.faculty})`).join(', ')}. These will give you great courtroom experience.`;
       }
     }
     
     // Credit-related queries
     if (input.includes('credit') || input.includes('load')) {
-      const currentCredits = scheduledCourses.filter(c => c.semester === selectedTerm).reduce((sum, c) => sum + c.credits, 0);
+      const currentCredits = scheduledCourses.filter(c => c.term.includes(selectedTerm)).reduce((sum, c) => sum + c.credits, 0);
       return `You currently have ${currentCredits} credits for ${selectedTerm}. The recommended range is 10-16 credits. ${currentCredits < 10 ? 'You might want to add more courses.' : currentCredits > 16 ? 'Consider reducing your course load.' : 'Your credit load looks good!'}`;
     }
     
@@ -1466,20 +775,18 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     // Morning/afternoon preferences
     if (input.includes('morning') || input.includes('early')) {
       const morningCourses = filteredCourses.filter(c => {
-        const startHour = parseInt(c.startTime.split(':')[0]);
-        const isPM = c.startTime.includes('PM');
-        return !isPM && startHour <= 11;
+        const times = c.times.toLowerCase();
+        return times.includes('am') && (times.includes('8:') || times.includes('9:') || times.includes('10:') || times.includes('11:'));
       }).slice(0, 4);
-      return `Here are some great morning courses for ${selectedTerm}: ${morningCourses.map(c => `${c.name} (${c.startTime})`).join(', ')}. Early classes can help you maintain a good work-life balance!`;
+      return `Here are some great morning courses for ${selectedTerm}: ${morningCourses.map(c => `${c.name} (${c.times})`).join(', ')}. Early classes can help you maintain a good work-life balance!`;
     }
     
     if (input.includes('afternoon') || input.includes('later')) {
       const afternoonCourses = filteredCourses.filter(c => {
-        const startHour = parseInt(c.startTime.split(':')[0]);
-        const isPM = c.startTime.includes('PM');
-        return isPM && startHour >= 2;
+        const times = c.times.toLowerCase();
+        return times.includes('pm') && (times.includes('2:') || times.includes('3:') || times.includes('4:') || times.includes('5:'));
       }).slice(0, 4);
-      return `Here are some excellent afternoon courses: ${afternoonCourses.map(c => `${c.name} (${c.startTime})`).join(', ')}. Afternoon classes can give you more flexibility in your morning routine!`;
+      return `Here are some excellent afternoon courses: ${afternoonCourses.map(c => `${c.name} (${c.times})`).join(', ')}. Afternoon classes can give you more flexibility in your morning routine!`;
     }
     
     // Default responses
@@ -1511,7 +818,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
               {/* Term Selector */}
               <div className="relative bg-white/10 rounded-lg p-1 backdrop-blur-sm border border-white/20">
                 <div className="flex items-center">
-                  {(['Fall', 'Winter', 'Spring'] as const).map((term) => (
+                  {(['FA', 'WI', 'SP'] as const).map((term) => (
                     <button
                       key={term}
                       onClick={() => setSelectedTerm(term)}
@@ -1525,7 +832,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                         boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
                       } : {}}
                     >
-                      {term}
+                      {term === 'FA' ? 'Fall' : term === 'WI' ? 'Winter' : 'Spring'}
                     </button>
                   ))}
                 </div>
@@ -1572,7 +879,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                   {(() => {
                     // For Fall/Spring semesters: show red for 1-9 credits and 16+ credits (with hover), white for 0 and 10-16 credits (no hover)
                     // For other semesters: always show white with no hover
-                    const isFallOrSpring = selectedTerm === 'Fall' || selectedTerm === 'Spring';
+                    const isFallOrSpring = selectedTerm === 'FA' || selectedTerm === 'SP';
                     const shouldShowRed = isFallOrSpring && ((semesterCredits >= 1 && semesterCredits <= 9) || semesterCredits > 16);
                     const shouldShowHover = isFallOrSpring && semesterCredits > 0 && ((semesterCredits >= 1 && semesterCredits <= 9) || semesterCredits > 16);
                     
@@ -1660,7 +967,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all-areas">All Areas</SelectItem>
-                        {areasOfInterest.map(area => (
+                        {getSubjectAreas(courses).map(area => (
                           <SelectItem key={area} value={area}>{area}</SelectItem>
                         ))}
                       </SelectContent>
@@ -1683,7 +990,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all-types">All Types</SelectItem>
-                        {courseTypes.map(type => (
+                        {getCourseTypes(courses).map(type => (
                           <SelectItem key={type} value={type}>{type}</SelectItem>
                         ))}
                       </SelectContent>
@@ -1698,81 +1005,6 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                     )}
                   </div>
 
-                  {/* Requirements - Multi-select dropdown */}
-                  <div className="relative" ref={requirementsRef}>
-                    <Select 
-                      value={selectedFulfillsRequirements.length > 0 ? 'selected' : 'none'}
-                      onValueChange={() => {}} // We'll handle this differently
-                    >
-                      <SelectTrigger 
-                        className={`bg-white border-gray-300 ${selectedFulfillsRequirements.length > 0 ? 'pr-10' : 'pr-3'}`}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setShowRequirements(!showRequirements);
-                        }}
-                      >
-                        <SelectValue>
-                          {selectedFulfillsRequirements.length === 0 
-                            ? 'Requirements' 
-                            : `${selectedFulfillsRequirements.length} selected`
-                          }
-                        </SelectValue>
-                      </SelectTrigger>
-                      {showRequirements && (
-                        <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                          {fulfillsRequirementOptions.map(req => {
-                            const isChecked = selectedFulfillsRequirements.includes(req);
-                            return (
-                              <div 
-                                key={req} 
-                                className="flex items-center space-x-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                                onClick={() => {
-                                  setSelectedFulfillsRequirements(prev => 
-                                    isChecked
-                                      ? prev.filter(r => r !== req)
-                                      : [...prev, req]
-                                  );
-                                }}
-                              >
-                                <div
-                                  className={`w-4 h-4 rounded border-2 transition-all duration-200 flex items-center justify-center ${
-                                    isChecked
-                                      ? 'bg-[#752432] border-[#752432] shadow-sm'
-                                      : 'bg-white border-gray-300'
-                                  }`}
-                                >
-                                  {isChecked && (
-                                    <svg
-                                      className="w-2.5 h-2.5 text-white"
-                                      fill="currentColor"
-                                      viewBox="0 0 20 20"
-                                    >
-                                      <path
-                                        fillRule="evenodd"
-                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                        clipRule="evenodd"
-                                      />
-                                    </svg>
-                                  )}
-                                </div>
-                                <label className="text-sm text-gray-700 cursor-pointer flex-1 select-none">
-                                  {req}
-                                </label>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </Select>
-                    {selectedFulfillsRequirements.length > 0 && (
-                      <button
-                        onClick={() => setSelectedFulfillsRequirements([])}
-                        className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors z-10"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    )}
-                  </div>
 
                   {/* Days of Week Filter */}
                   <div className="space-y-3">
@@ -1901,9 +1133,9 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
           <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
             {/* Semester Header */}
             <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-200">
-              <h3 className="font-medium text-gray-900">{selectedTerm} Courses</h3>
+              <h3 className="font-medium text-gray-900">{selectedTerm === 'FA' ? 'Fall' : selectedTerm === 'WI' ? 'Winter' : 'Spring'} Courses</h3>
               <Badge variant="outline" className="text-sm bg-white">
-                {filteredCourses.length} available
+                {filteredCourses.length} available (Total: {courses.length})
               </Badge>
             </div>
             
@@ -1925,9 +1157,15 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                     return (
                       <div 
                         key={course.id}
-                        className={`group transition-all duration-200 cursor-pointer hover:bg-gray-50 bg-white border border-gray-200 ${
-                          hasConflict ? 'opacity-60' : ''
+                        className={`group transition-all duration-200 cursor-pointer hover:bg-gray-50 bg-white border-2 ${
+                          hasConflict ? 'border-red-500 bg-red-50' : 'border-gray-200'
                         }`}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'scale(1.01)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'scale(1)';
+                        }}
                         onClick={() => showCourseDetail(course)}
                       >
                         <div className="px-3 py-1.5 relative">
@@ -1985,16 +1223,16 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                           {/* Second line: Days and Times on left, Professor Last Name on right */}
                           <div className="flex items-center justify-between text-2xs text-gray-600">
                             <div className="flex items-center gap-2">
-                              <span className="leading-tight">{course.days.map(day => getDaySingleLetter(day)).join(' ')}</span>
-                              <span className="leading-tight">{course.startTime} - {course.endTime}</span>
+                              <span className="leading-tight">{course.days}</span>
+                              <span className="leading-tight">{course.times}</span>
                             </div>
-                            <span className="leading-tight">{getLastName(course.instructor)}</span>
+                            <span className="leading-tight">{getLastName(course.faculty)}</span>
                           </div>
                           
                           {/* Conflict warning if needed */}
                           {hasConflict && conflictDetails && (
-                            <div className="text-2xs text-red-600 leading-tight mt-0.5">
-                              Conflicts with: {getCleanCourseName(conflictDetails.course.name, conflictDetails.course.type)}
+                            <div className="text-xs text-red-600 font-medium leading-tight mt-0.5">
+                              <span className="text-red-700 font-semibold">Conflicts with:</span> {getCleanCourseName(conflictDetails.course.name, conflictDetails.course.type)}
                             </div>
                           )}
                         </div>
@@ -2005,9 +1243,9 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                     return (
                       <Card 
                         key={course.id}
-                        className={`group transition-all duration-200 border-2 cursor-pointer hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] relative ${
+                        className={`group transition-all duration-200 border-2 cursor-pointer hover:shadow-lg relative ${
                           hasConflict 
-                            ? 'border-gray-200 opacity-60 bg-gray-100' 
+                            ? 'border-red-500 bg-red-50' 
                             : 'bg-white'
                         }`}
                         style={hasConflict ? {} : {
@@ -2017,12 +1255,14 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                           '--hover-bg-color': `${getCourseColor(course.type)}08`
                         } as React.CSSProperties}
                         onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'scale(1.03)';
                           if (!hasConflict) {
                             e.currentTarget.style.borderColor = `${getCourseColor(course.type)}80`;
                             e.currentTarget.style.backgroundColor = `${getCourseColor(course.type)}08`;
                           }
                         }}
                         onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'scale(1)';
                           if (!hasConflict) {
                             e.currentTarget.style.borderColor = `${getCourseColor(course.type)}33`;
                             e.currentTarget.style.backgroundColor = 'white';
@@ -2034,7 +1274,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex-1">
                               <h3 className="font-medium text-gray-900 mb-1">{getCleanCourseName(course.name, course.type)}</h3>
-                              <p className="text-sm text-gray-600 mb-2">{getLastName(course.instructor)}</p>
+                              <p className="text-sm text-gray-600 mb-2">{getLastName(course.faculty)}</p>
                               <div className="flex items-center gap-2">
                                 <Badge 
                                   variant="outline"
@@ -2063,19 +1303,19 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                           <div className="space-y-2 text-sm text-gray-600">
                             <div className="flex items-center gap-2">
                               <Calendar className="w-4 h-4" />
-                              <span>{course.days.map(day => day.slice(0, 3)).join(', ')}</span>
+                              <span>{course.days}</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <Clock className="w-4 h-4" />
-                              <span>{course.startTime} - {course.endTime}</span>
+                              <span>{course.times}</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <MapPin className="w-4 h-4" />
                               <span>{course.location}</span>
                             </div>
                             {hasConflict && conflictDetails && (
-                              <div className="text-sm text-[rgba(219,6,6,1)] font-medium">
-                                Conflicts with: {getCleanCourseName(conflictDetails.course.name, conflictDetails.course.type)}
+                              <div className="text-xs text-red-600 font-medium">
+                                <span className="text-red-700 font-semibold">Conflicts with:</span> {getCleanCourseName(conflictDetails.course.name, conflictDetails.course.type)}
                               </div>
                             )}
                           </div>
@@ -2086,21 +1326,23 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                               e.stopPropagation();
                               addCourseToSchedule(course);
                             }}
-                            className="absolute bottom-3 right-3 w-6 h-6 rounded-sm flex items-center justify-center transition-all duration-200 opacity-0 group-hover:opacity-100"
+                            className="absolute right-3 w-6 h-6 rounded-sm flex items-center justify-center transition-all duration-200 opacity-0 group-hover:opacity-100"
                             style={{ 
                               backgroundColor: getCourseColor(course.type),
-                              color: 'white'
+                              color: 'white',
+                              bottom: '12px'
                             }}
                             onMouseEnter={(e) => {
+                              e.currentTarget.style.bottom = '20px';
                               const currentBg = getCourseColor(course.type);
                               // Darken the color on hover
                               const rgb = hexToRgb(currentBg);
                               if (rgb) {
-                                const darkerColor = `rgb(${Math.max(0, rgb.r - 30)}, ${Math.max(0, rgb.g - 30)}, ${Math.max(0, rgb.b - 30)})`;
-                                e.currentTarget.style.backgroundColor = darkerColor;
+                                e.currentTarget.style.backgroundColor = `rgb(${Math.max(0, rgb.r - 20)}, ${Math.max(0, rgb.g - 20)}, ${Math.max(0, rgb.b - 20)})`;
                               }
                             }}
                             onMouseLeave={(e) => {
+                              e.currentTarget.style.bottom = '12px';
                               e.currentTarget.style.backgroundColor = getCourseColor(course.type);
                             }}
                             title="Add to calendar"
@@ -2118,11 +1360,11 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
         </div>
         
         {/* Calendar Grid */}
-        <div className="flex-1 flex flex-col relative">
+        <div className="flex-1 flex flex-col relative" style={{ height: 'calc(100vh - 80px)' }}>
           {/* Calendar */}
-          <div className="flex-1 p-6" style={{ backgroundColor: '#FAF5EF' }}>
-            <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200 h-full">
-              <div className="grid grid-cols-6 h-full">
+          <div className="flex-1 p-6" style={{ backgroundColor: '#FAF5EF', overflowY: 'auto' }}>
+            <div className="bg-white rounded-lg shadow-lg border border-gray-200">
+              <div className="grid grid-cols-6">
                 {/* Time column */}
                 <div className="border-r border-gray-200">
                   {/* Header cell */}
@@ -2171,15 +1413,31 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                       {/* Overlay courses */}
                       {(() => {
                         // Group courses by time slot to handle conflicts
-                        const coursesInDay = scheduledCourses.filter(course => 
-                          course.days.includes(day) && course.semester === selectedTerm
-                        );
+                        const coursesInDay = scheduledCourses.filter(course => {
+                          // Create day mapping for abbreviated to full day names
+                          const dayMapping: { [key: string]: string[] } = {
+                            'monday': ['mon', 'monday'],
+                            'tuesday': ['tue', 'tues', 'tuesday'],
+                            'wednesday': ['wed', 'wednesday'],
+                            'thursday': ['thu', 'thur', 'thurs', 'thursday'],
+                            'friday': ['fri', 'friday']
+                          };
+                          
+                          const dayLower = day.toLowerCase();
+                          const courseDaysLower = course.days.toLowerCase();
+                          
+                          // Check if any of the mapped day abbreviations match
+                          const possibleDays = dayMapping[dayLower] || [dayLower];
+                          const matches = possibleDays.some(dayAbbr => courseDaysLower.includes(dayAbbr));
+                          return matches;
+                        });
                         
                         // Create time slot groups
                         const timeSlotGroups = new Map();
                         coursesInDay.forEach(course => {
-                          const startTime = course.startTime;
-                          const endTime = course.endTime;
+                          const times = parseTimeString(course.times);
+                          const startTime = times.start;
+                          const endTime = times.end;
                           const key = `${startTime}-${endTime}`;
                           
                           if (!timeSlotGroups.has(key)) {
@@ -2190,8 +1448,10 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                         
                         return Array.from(timeSlotGroups.entries()).map(([_timeKey, courses]) => {
                           const firstCourse = courses[0];
-                          const height = getCourseHeight(firstCourse.startTime, firstCourse.endTime);
-                          const top = getCourseTopPosition(firstCourse.startTime);
+                          const times = parseTimeString(firstCourse.times);
+                          const height = getCourseHeight(times.start, times.end);
+                          const top = getCourseTopPosition(times.start);
+                          
                           
                           return courses.map((course: ScheduledCourse, index: number) => {
                             const courseColor = getCourseColor(course.type);
@@ -2199,16 +1459,41 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                             const courseWidth = isConflicted ? `calc(${100 / courses.length}% - 1px)` : '100%';
                             const leftOffset = isConflicted ? `calc(${(100 / courses.length) * index}% + ${index}px)` : '0px';
                             
+                            // Check if this course has conflicts with other scheduled courses
+                            const hasTimeConflict = scheduledCourses.some(scheduled => {
+                              if (scheduled.scheduledId === course.scheduledId) return false; // Don't conflict with itself
+                              
+                              const scheduledTimes = parseTimeString(scheduled.times);
+                              const courseTimes = parseTimeString(course.times);
+                              
+                              const scheduledStartMinutes = timeToMinutes(scheduledTimes.start);
+                              const scheduledEndMinutes = timeToMinutes(scheduledTimes.end);
+                              const courseStartMinutes = timeToMinutes(courseTimes.start);
+                              const courseEndMinutes = timeToMinutes(courseTimes.end);
+                              
+                              // Check if courses are on the same day
+                              const scheduledDays = scheduled.days.split(',').map(d => d.trim().toLowerCase());
+                              const courseDays = course.days.split(',').map(d => d.trim().toLowerCase());
+                              const sameDay = scheduledDays.some(day => courseDays.includes(day));
+                              
+                              if (!sameDay) return false;
+                              
+                              // Check if times overlap
+                              return (courseStartMinutes < scheduledEndMinutes && courseEndMinutes > scheduledStartMinutes);
+                            });
+                            
                             return (
                               <div 
                                 key={`${course.scheduledId}-${day}`}
-                                className="absolute group p-2 rounded-sm shadow-sm border border-white/20 overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                                className={`absolute group p-2 rounded-sm shadow-sm border overflow-hidden cursor-pointer hover:shadow-md transition-shadow ${
+                                  hasTimeConflict ? 'border-red-500' : 'border-white/20'
+                                }`}
                                 style={{ 
                                   top: `${top}px`,
                                   height: `${height}px`,
                                   left: leftOffset,
                                   width: courseWidth,
-                                  backgroundColor: `${courseColor}CC`, // Make courses slightly transparent (80% opacity)
+                                  backgroundColor: hasTimeConflict ? '#FEE2E2' : `${courseColor}CC`, // Red background for conflicts, normal color otherwise
                                   zIndex: 10 + index
                                 }}
                                 onClick={(e) => {
@@ -2235,16 +1520,24 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                                 )}
                                 
                                 <div className="relative z-10">
-                                  <div className="text-white text-xs font-medium mb-0.5 leading-tight">
+                                  <div className={`text-xs font-medium mb-0.5 leading-tight ${
+                                    hasTimeConflict ? 'text-red-900' : 'text-white'
+                                  }`}>
                                     {getCleanCourseName(course.name, course.type)}
                                   </div>
-                                  <div className="text-white text-2xs opacity-90 mb-0.5">
-                                    {course.credits} • {getLastName(course.instructor)}
+                                  <div className={`text-xs mb-0.5 ${
+                                    hasTimeConflict ? 'text-red-800 opacity-90' : 'text-white opacity-90'
+                                  }`}>
+                                    {course.credits} • {getLastName(course.faculty)}
                                   </div>
-                                  <div className="text-white text-xs opacity-75 mb-1">
-                                    {course.startTime} - {course.endTime}
+                                  <div className={`text-xs mb-1 ${
+                                    hasTimeConflict ? 'text-red-700 opacity-60' : 'text-white opacity-60'
+                                  }`}>
+                                    {getTimeForDay(course, day)}
                                   </div>
-                                  <div className="text-white text-xs opacity-75 mb-1">
+                                  <div className={`text-xs mb-1 ${
+                                    hasTimeConflict ? 'text-red-700 opacity-60' : 'text-white opacity-60'
+                                  }`}>
                                     {course.location}
                                   </div>
                                 </div>
@@ -2255,9 +1548,15 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                                     e.stopPropagation();
                                     removeCourseFromSchedule(course.scheduledId);
                                   }}
-                                  className="absolute top-1 right-1 w-5 h-5 bg-white/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-white/30 z-20"
+                                  className={`absolute top-1 right-1 w-5 h-5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20 ${
+                                    hasTimeConflict 
+                                      ? 'bg-red-200 hover:bg-red-300' 
+                                      : 'bg-white/20 hover:bg-white/30'
+                                  }`}
                                 >
-                                  <X className="w-3 h-3 text-white" />
+                                  <X className={`w-3 h-3 ${
+                                    hasTimeConflict ? 'text-red-800' : 'text-white'
+                                  }`} />
                                 </button>
                               </div>
                             );
@@ -2271,10 +1570,10 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
             </div>
           </div>
           
-          {/* Empty state for calendar - Centered */}
-          {scheduledCourses.filter(course => course.semester === selectedTerm).length === 0 && (
+          {/* Empty state for calendar - Centered on Wednesday */}
+          {scheduledCourses.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="text-center">
+              <div className="text-center" style={{ transform: 'translateX(calc(16.67% + 2%))' }}>
                 <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-300" />
                 <h3 className="text-lg font-medium text-gray-500 mb-2">Your schedule is empty</h3>
                 <p className="text-gray-400">Click on courses from the left to add them to your calendar</p>
@@ -2323,12 +1622,12 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <label htmlFor={`save-${semester}`} className="text-sm font-medium">
-                            {semester} ({scheduledCourses.filter(c => c.semester === semester).reduce((sum, course) => sum + course.credits, 0)} credits) • {scheduledCourses.filter(c => c.semester === semester).length} courses
+                            {semester} ({scheduledCourses.filter(c => c.term.includes(semester)).reduce((sum, course) => sum + course.credits, 0)} credits) • {scheduledCourses.filter(c => c.term.includes(semester)).length} courses
                           </label>
                         </TooltipTrigger>
                         <TooltipContent side="right">
                           <div className="max-w-xs">
-                            {scheduledCourses.filter(c => c.semester === semester).map((course, _index) => (
+                            {scheduledCourses.filter(c => c.term.includes(semester)).map((course, _index) => (
                               <p key={course.scheduledId} className="text-2xs">
                                 {course.name}
                               </p>
@@ -2383,12 +1682,12 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <label htmlFor={`download-${semester}`} className="text-sm font-medium">
-                            {semester} ({scheduledCourses.filter(c => c.semester === semester).reduce((sum, course) => sum + course.credits, 0)} credits) • {scheduledCourses.filter(c => c.semester === semester).length} courses
+                            {semester} ({scheduledCourses.filter(c => c.term.includes(semester)).reduce((sum, course) => sum + course.credits, 0)} credits) • {scheduledCourses.filter(c => c.term.includes(semester)).length} courses
                           </label>
                         </TooltipTrigger>
                         <TooltipContent side="right">
                           <div className="max-w-xs">
-                            {scheduledCourses.filter(c => c.semester === semester).map((course, _index) => (
+                            {scheduledCourses.filter(c => c.term.includes(semester)).map((course, _index) => (
                               <p key={course.scheduledId} className="text-2xs">
                                 {course.name}
                               </p>
@@ -2450,12 +1749,12 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                           <Tooltip key={semester}>
                               <TooltipTrigger asChild>
                                 <Badge variant="outline" className="text-xs cursor-pointer hover:bg-gray-50 transition-colors">
-                                  {semester} ({schedule.courses.filter(c => c.semester === semester).reduce((sum, course) => sum + course.credits, 0)} credits)
+                                  {semester} ({schedule.courses.filter(c => c.term.includes(semester)).reduce((sum, course) => sum + course.credits, 0)} credits)
                                 </Badge>
                               </TooltipTrigger>
                               <TooltipContent side="bottom" >
                                 <div className="max-w-xs">
-                                  {schedule.courses.filter(c => c.semester === semester).map((course, _index) => (
+                                  {schedule.courses.filter(c => c.term.includes(semester)).map((course, _index) => (
                                     <p key={course.scheduledId} className="text-2xs">
                                       • {getCleanCourseName(course.name, course.type)}
                                     </p>
@@ -2499,8 +1798,19 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
 
       {/* Course Detail Dialog */}
       <Dialog open={showCourseDetailDialog} onOpenChange={setShowCourseDetailDialog}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
+        <DialogContent 
+          className="p-0"
+          style={{ 
+            width: '700px', 
+            height: '600px', 
+            maxWidth: '700px', 
+            maxHeight: '600px',
+            minWidth: '700px',
+            minHeight: '600px'
+          }}
+        >
+          <div className="w-full h-full flex flex-col" style={{ height: '600px' }}>
+            <DialogHeader className="flex-shrink-0 p-6 pb-4 border-b">
             <div className="flex items-center">
               <DialogTitle className="text-xl font-semibold text-gray-900 flex items-center gap-2">
                 {selectedCourseForDetail ? getCleanCourseName(selectedCourseForDetail.name, selectedCourseForDetail.type) : 'Course Details'}
@@ -2536,11 +1846,11 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
           </DialogHeader>
           
           {selectedCourseForDetail && (
-            <div className="space-y-4">
+              <div className="overflow-y-auto px-6 py-4 space-y-4" style={{ height: '400px' }}>
               {/* Course Description */}
               <div>
                 <p className="text-sm text-gray-600 leading-relaxed">
-                  {selectedCourseForDetail.description}
+                  {selectedCourseForDetail.course_description}
                 </p>
               </div>
               
@@ -2550,12 +1860,12 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-gray-700 block mb-1">Days</label>
-                    <p className="text-sm text-gray-900">{selectedCourseForDetail.days.join(', ')}</p>
+                    <p className="text-sm text-gray-900">{selectedCourseForDetail.days}</p>
                   </div>
                   
                   <div>
                     <label className="text-sm font-medium text-gray-700 block mb-1">Times</label>
-                    <p className="text-sm text-gray-900">{selectedCourseForDetail.startTime} - {selectedCourseForDetail.endTime}</p>
+                    <p className="text-sm text-gray-900">{selectedCourseForDetail.times}</p>
                   </div>
                 </div>
                 
@@ -2564,11 +1874,11 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                   <div>
                     <label className="text-sm font-medium text-gray-700 block mb-1">Professor</label>
                     <button
-                      onClick={() => handleProfessorClick(selectedCourseForDetail.instructor)}
+                      onClick={() => handleProfessorClick(selectedCourseForDetail.faculty)}
                       className="text-sm underline cursor-pointer bg-transparent border-none p-0 font-normal"
                       style={{ color: getCourseColor(selectedCourseForDetail.type) }}
                     >
-                      {getFullInstructorName(selectedCourseForDetail.instructor)}
+                      {getFullFacultyName(selectedCourseForDetail.faculty)}
                     </button>
                   </div>
                   
@@ -2583,42 +1893,25 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                   <div>
                     <label className="text-sm font-medium text-gray-700 block mb-1">Prerequisites</label>
                     <p className="text-sm text-gray-900">
-                      {selectedCourseForDetail.prerequisites && selectedCourseForDetail.prerequisites.length > 0 
-                        ? selectedCourseForDetail.prerequisites.join(', ') 
-                        : 'None'}
+                      {selectedCourseForDetail.prerequisites || 'None'}
                     </p>
                   </div>
                   
                   <div>
                     <label className="text-sm font-medium text-gray-700 block mb-1">Exam</label>
                     <p className="text-sm text-gray-900">
-                      {selectedCourseForDetail.exam || 'No Exam'}
+                      {selectedCourseForDetail.exam_type || 'No Exam'}
                     </p>
                   </div>
                 </div>
               </div>
               
-              {/* Requirements - Only show if course fulfills any requirements */}
-              {selectedCourseForDetail.fulfillsRequirements && selectedCourseForDetail.fulfillsRequirements.length > 0 && (
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Requirements Fulfilled</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedCourseForDetail.fulfillsRequirements.map((req, index) => (
-                      <Badge 
-                        key={index}
-                        variant="outline" 
-                        className="text-xs"
-                        style={{ borderColor: getCourseColor(selectedCourseForDetail.type), color: getCourseColor(selectedCourseForDetail.type) }}
-                      >
-                        {req}
-                      </Badge>
-                    ))}
-                  </div>
                 </div>
               )}
               
-              {/* Action Buttons */}
-              <div className="flex justify-end gap-3 pt-4 border-t">
+            {/* Action Buttons - Fixed at bottom */}
+            {selectedCourseForDetail && (
+              <div className="flex-shrink-0 flex justify-end gap-3 p-6 pt-4 border-t bg-white">
                 <Button 
                   variant="outline" 
                   onClick={() => setShowCourseDetailDialog(false)}
@@ -2668,9 +1961,9 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                     </Button>
                   );
                 })()}
-              </div>
             </div>
           )}
+          </div>
         </DialogContent>
       </Dialog>
 

@@ -34,13 +34,40 @@ const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
 };
 
 // Helper function to convert semester abbreviation to full name
-const getSemesterFullName = (abbreviation: 'FA' | 'WI' | 'SP'): string => {
+const getSemesterFullName = (abbreviation: 'FA' | 'WI' | 'SP' | 'FS' | 'FW' | 'WS'): string => {
   switch (abbreviation) {
     case 'FA': return 'Fall';
     case 'WI': return 'Winter';
     case 'SP': return 'Spring';
+    case 'FS': return 'Fall & Spring';
+    case 'FW': return 'Fall & Winter';
+    case 'WS': return 'Winter & Spring';
     default: return abbreviation;
   }
+};
+
+// Helper function to get individual semesters from a semester code
+const getSemestersFromCode = (semesterCode: string): ('FA' | 'WI' | 'SP')[] => {
+  switch (semesterCode) {
+    case 'FA': return ['FA'];
+    case 'WI': return ['WI'];
+    case 'SP': return ['SP'];
+    case 'FS': return ['FA', 'SP'];
+    case 'FW': return ['FA', 'WI'];
+    case 'WS': return ['WI', 'SP'];
+    default: return [];
+  }
+};
+
+// Helper function to check if a course term matches a selected semester
+const courseMatchesSemester = (courseTerm: string, selectedSemester: 'FA' | 'WI' | 'SP'): boolean => {
+  if (!courseTerm || courseTerm === 'TBD') return false;
+  
+  // Get the semester code from the course term (last 2 characters)
+  const semesterCode = courseTerm.slice(-2);
+  const semesters = getSemestersFromCode(semesterCode);
+  
+  return semesters.includes(selectedSemester);
 };
 
 // Helper function to truncate text to approximately 125 words
@@ -313,16 +340,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
       course.faculty.toLowerCase().includes(searchTerm.toLowerCase());
     
     // Primary filter: only show courses for the selected semester
-    // Handle different term formats: '2026SP' -> 'SP', '2026FA' -> 'FA', etc.
-    const getTermFromCourse = (term: string) => {
-      if (term.endsWith('SP')) return 'SP';
-      if (term.endsWith('FA')) return 'FA';
-      if (term.endsWith('WI')) return 'WI';
-      return term; // fallback to original term
-    };
-    
-    const courseTerm = getTermFromCourse(course.term);
-    const matchesTerm = courseTerm === selectedTerm;
+    const matchesTerm = courseMatchesSemester(course.term, selectedTerm);
     
     const matchesAreaOfInterest = selectedAreaOfInterest === 'all-areas' ||
       course.subject_areas.split(';').some(area => 
@@ -386,16 +404,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
   // Calculate totals
   const totalCredits = scheduledCourses.reduce((sum, course) => sum + course.credits, 0);
   const semesterCredits = scheduledCourses
-    .filter(course => {
-      const getTermFromCourse = (term: string) => {
-        if (term.endsWith('SP')) return 'SP';
-        if (term.endsWith('FA')) return 'FA';
-        if (term.endsWith('WI')) return 'WI';
-        return term;
-      };
-      const courseTerm = getTermFromCourse(course.term);
-      return courseTerm === selectedTerm;
-    })
+    .filter(course => courseMatchesSemester(course.term, selectedTerm))
     .reduce((sum, course) => sum + course.credits, 0);
 
   // Get time slot index for positioning
@@ -560,17 +569,13 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
       const scheduledEndMinutes = timeToMinutes(scheduledTimes.end);
       
       // Only check for conflicts if courses are in the same semester
-      const getTermFromCourse = (term: string) => {
-        if (term.endsWith('SP')) return 'SP';
-        if (term.endsWith('FA')) return 'FA';
-        if (term.endsWith('WI')) return 'WI';
-        return term;
-      };
-      const newCourseTerm = getTermFromCourse(newCourse.term);
-      const scheduledTerm = getTermFromCourse(scheduled.term);
-      const sameSemester = newCourseTerm === scheduledTerm;
+      const newCourseSemesters = getSemestersFromCode(newCourse.term.slice(-2));
+      const scheduledSemesters = getSemestersFromCode(scheduled.term.slice(-2));
       
-      if (!sameSemester) return false;
+      // Check if any semesters overlap
+      const hasOverlappingSemester = newCourseSemesters.some(sem => scheduledSemesters.includes(sem));
+      
+      if (!hasOverlappingSemester) return false;
       
       // Check if ANY day of the new course overlaps with ANY day of the scheduled course
       const scheduledDays = scheduled.days.split(',').map(d => d.trim().toLowerCase());
@@ -617,17 +622,13 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
       const scheduledEndMinutes = timeToMinutes(scheduledTimes.end);
       
       // Only check for conflicts if courses are in the same semester
-      const getTermFromCourse = (term: string) => {
-        if (term.endsWith('SP')) return 'SP';
-        if (term.endsWith('FA')) return 'FA';
-        if (term.endsWith('WI')) return 'WI';
-        return term;
-      };
-      const newCourseTerm = getTermFromCourse(newCourse.term);
-      const scheduledTerm = getTermFromCourse(scheduled.term);
-      const sameSemester = newCourseTerm === scheduledTerm;
+      const newCourseSemesters = getSemestersFromCode(newCourse.term.slice(-2));
+      const scheduledSemesters = getSemestersFromCode(scheduled.term.slice(-2));
       
-      if (!sameSemester) return false;
+      // Check if any semesters overlap
+      const hasOverlappingSemester = newCourseSemesters.some(sem => scheduledSemesters.includes(sem));
+      
+      if (!hasOverlappingSemester) return false;
       
       // Check if ANY day of the new course overlaps with ANY day of the scheduled course
       const scheduledDays = scheduled.days.split(',').map(d => d.trim().toLowerCase());
@@ -763,7 +764,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     }
 
     const coursesToSave = scheduledCourses.filter(course => 
-      selectedSemestersForSave.some(sem => course.term.includes(sem))
+      selectedSemestersForSave.some(sem => courseMatchesSemester(course.term, sem))
     );
 
     if (coursesToSave.length === 0) {
@@ -911,9 +912,9 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
   const getAvailableSemesters = (): ('FA' | 'WI' | 'SP')[] => {
     const semesters = new Set<'FA' | 'WI' | 'SP'>();
     scheduledCourses.forEach(course => {
-      if (course.term.endsWith('FA')) semesters.add('FA');
-      if (course.term.endsWith('WI')) semesters.add('WI');
-      if (course.term.endsWith('SP')) semesters.add('SP');
+      const semesterCode = course.term.slice(-2);
+      const courseSemesters = getSemestersFromCode(semesterCode);
+      courseSemesters.forEach(sem => semesters.add(sem));
     });
     return Array.from(semesters).sort((a, b) => {
       const order = { FA: 0, WI: 1, SP: 2 };
@@ -1030,16 +1031,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                   onClick={() => {
                     // Only clear courses for the currently selected semester
                     setScheduledCourses(prev => 
-                      prev.filter(course => {
-                        const getTermFromCourse = (term: string) => {
-                          if (term.endsWith('SP')) return 'SP';
-                          if (term.endsWith('FA')) return 'FA';
-                          if (term.endsWith('WI')) return 'WI';
-                          return term;
-                        };
-                        const courseTerm = getTermFromCourse(course.term);
-                        return courseTerm !== selectedTerm;
-                      })
+                      prev.filter(course => !courseMatchesSemester(course.term, selectedTerm))
                     );
                   }}
                   className="flex items-center gap-2 bg-white/10 border-white/30 text-white hover:bg-white hover:text-red-600"
@@ -1604,14 +1596,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                         // Group courses by time slot to handle conflicts
                         const coursesInDay = scheduledCourses.filter(course => {
                           // First check if course is in the selected semester
-                          const getTermFromCourse = (term: string) => {
-                            if (term.endsWith('SP')) return 'SP';
-                            if (term.endsWith('FA')) return 'FA';
-                            if (term.endsWith('WI')) return 'WI';
-                            return term;
-                          };
-                          const courseTerm = getTermFromCourse(course.term);
-                          const matchesSemester = courseTerm === selectedTerm;
+                          const matchesSemester = courseMatchesSemester(course.term, selectedTerm);
                           
                           if (!matchesSemester) return false;
                           
@@ -1665,17 +1650,13 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                               if (scheduled.scheduledId === course.scheduledId) return false; // Don't conflict with itself
                               
                               // Only check for conflicts if courses are in the same semester
-                              const getTermFromCourse = (term: string) => {
-                                if (term.endsWith('SP')) return 'SP';
-                                if (term.endsWith('FA')) return 'FA';
-                                if (term.endsWith('WI')) return 'WI';
-                                return term;
-                              };
-                              const courseTerm = getTermFromCourse(course.term);
-                              const scheduledTerm = getTermFromCourse(scheduled.term);
-                              const sameSemester = courseTerm === scheduledTerm;
+                              const courseSemesters = getSemestersFromCode(course.term.slice(-2));
+                              const scheduledSemesters = getSemestersFromCode(scheduled.term.slice(-2));
                               
-                              if (!sameSemester) return false;
+                              // Check if any semesters overlap
+                              const hasOverlappingSemester = courseSemesters.some(sem => scheduledSemesters.includes(sem));
+                              
+                              if (!hasOverlappingSemester) return false;
                               
                               const scheduledTimes = parseTimeString(scheduled.times);
                               const courseTimes = parseTimeString(course.times);
@@ -1848,13 +1829,13 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <label htmlFor={`save-${semester}`} className="text-sm font-medium">
-                            {getSemesterFullName(semester)} ({scheduledCourses.filter(c => c.term.includes(semester)).reduce((sum, course) => sum + course.credits, 0)} credits) • {scheduledCourses.filter(c => c.term.includes(semester)).length} courses
+                            {getSemesterFullName(semester)} ({scheduledCourses.filter(c => courseMatchesSemester(c.term, semester)).reduce((sum, course) => sum + course.credits, 0)} credits) • {scheduledCourses.filter(c => courseMatchesSemester(c.term, semester)).length} courses
                           </label>
                         </TooltipTrigger>
                         <TooltipContent side="right">
                           <div className="max-w-xs">
-                            {scheduledCourses.filter(c => c.term.includes(semester)).map((course, _index) => (
-                              <p key={course.scheduledId} className="text-xs" style={{ fontSize: '10px' }}>
+                            {scheduledCourses.filter(c => courseMatchesSemester(c.term, semester)).map((course, _index) => (
+                              <p key={course.scheduledId} className="text-xs">
                                 {course.name}
                               </p>
                             ))}
@@ -1916,14 +1897,14 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                               <TooltipTrigger asChild>
                                 <div>
                                 <Badge variant="outline" className="text-xs cursor-pointer hover:bg-gray-50 transition-colors">
-                                    {getSemesterFullName(semester)} ({schedule.courses.filter(c => c.term.includes(semester)).reduce((sum, course) => sum + course.credits, 0)} credits)
+                                    {getSemesterFullName(semester)} ({schedule.courses.filter(c => courseMatchesSemester(c.term, semester)).reduce((sum, course) => sum + course.credits, 0)} credits)
                                 </Badge>
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent side="bottom" >
                                 <div className="max-w-xs">
-                                  {schedule.courses.filter(c => c.term.includes(semester)).map((course, _index) => (
-                                    <p key={course.scheduledId} className="text-2xs">
+                                  {schedule.courses.filter(c => courseMatchesSemester(c.term, semester)).map((course, _index) => (
+                                    <p key={course.scheduledId} className="text-xs">
                                       • {getCleanCourseName(course.name, course.delivery_mode)}
                                     </p>
                                   ))}

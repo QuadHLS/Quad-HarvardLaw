@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Plus, X, Clock, MapPin, Trash2, Calendar, Download, Save, FileText, ChevronDown, ChevronUp, FolderOpen, Grid, List, Send } from 'lucide-react';
+import { Search, Plus, X, Clock, MapPin, Trash2, Calendar, Download, Save, FileText, ChevronDown, ChevronUp, FolderOpen, Grid, List, Send, Check } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -189,21 +189,56 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
   // State for real course data
   const [courses, setCourses] = useState<PlannerCourse[]>([]);
 
-  // Fetch real course data on component mount
+  // Function to load saved schedules from database
+  const loadSavedSchedules = async () => {
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        // User not logged in, clear saved schedules
+        setSavedSchedules([]);
+        return;
+      }
+
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('saved_schedules')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError && profileError.code === 'PGRST116') {
+        // Profile doesn't exist, no saved schedules
+        setSavedSchedules([]);
+        return;
+      } else if (profileError) {
+        console.error('Error fetching saved schedules:', profileError);
+        return;
+      }
+
+      const savedSchedules: SavedSchedule[] = profileData?.saved_schedules || [];
+      setSavedSchedules(savedSchedules);
+    } catch (error) {
+      console.error('Error loading saved schedules:', error);
+    }
+  };
+
+  // Fetch real course data and saved schedules on component mount
   useEffect(() => {
-    const loadCourses = async () => {
+    const loadData = async () => {
       try {
-        // console.log('Loading courses...');
+        // Load courses
         const fetchedCourses = await fetchCourses();
-        // console.log('Fetched courses:', fetchedCourses.length, fetchedCourses);
         setCourses(fetchedCourses);
+        
+        // Load saved schedules
+        await loadSavedSchedules();
       } catch (error) {
-        console.error('Error loading courses:', error);
-        toast.error('Failed to load courses');
+        console.error('Error loading data:', error);
+        toast.error('Failed to load data');
       }
     };
 
-    loadCourses();
+    loadData();
   }, []);
 
 
@@ -672,12 +707,14 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
   };
 
   // Save schedule functionality
-  const handleSaveSchedule = () => {
+  const handleSaveSchedule = async () => {
     if (!saveScheduleName.trim()) {
+      toast.error('Please enter a schedule name');
       return;
     }
 
     if (selectedSemestersForSave.length === 0) {
+      toast.error('Please select at least one semester');
       return;
     }
 
@@ -686,6 +723,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     );
 
     if (coursesToSave.length === 0) {
+      toast.error('No courses selected for the chosen semesters');
       return;
     }
 
@@ -697,12 +735,80 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
       courses: coursesToSave
     };
 
-    setSavedSchedules(prev => [...prev, newSavedSchedule]);
-    setSaveScheduleName('');
-    setSelectedSemestersForSave([]);
-    setShowSaveDialog(false);
-    
-    toast.success(`Schedule "${newSavedSchedule.name}" saved successfully`);
+    try {
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        toast.error('Please log in to save schedules');
+        return;
+      }
+
+      // Get current saved schedules from the user's profile
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('saved_schedules')
+        .eq('id', user.id)
+        .single();
+
+      console.log('Profile fetch result:', { profileData, profileError });
+
+      // Get existing saved schedules or initialize empty array
+      let existingSchedules: SavedSchedule[] = [];
+      
+      if (profileError && profileError.code === 'PGRST116') {
+        // Profile doesn't exist, create it
+        const { error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            saved_schedules: []
+          });
+        
+        if (createError) {
+          console.error('Error creating profile:', createError);
+          toast.error('Error creating user profile');
+          return;
+        }
+        existingSchedules = [];
+      } else if (profileError) {
+        console.error('Error fetching profile:', profileError);
+        toast.error('Error loading saved schedules');
+        return;
+      } else {
+        existingSchedules = profileData?.saved_schedules || [];
+      }
+      
+      // Add new schedule to existing ones
+      const updatedSchedules = [...existingSchedules, newSavedSchedule];
+
+      // Update the profile with new saved schedules
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          saved_schedules: updatedSchedules
+        })
+        .eq('id', user.id);
+
+      console.log('Update result:', { updateError, updatedSchedules });
+
+      if (updateError) {
+        console.error('Error saving schedule:', updateError);
+        toast.error('Error saving schedule');
+        return;
+      }
+
+      // Update local state
+      setSavedSchedules(updatedSchedules);
+      setSaveScheduleName('');
+      setSelectedSemestersForSave([]);
+      setShowSaveDialog(false);
+      
+      toast.success(`Schedule "${newSavedSchedule.name}" saved successfully`);
+    } catch (error) {
+      console.error('Error saving schedule:', error);
+      toast.error('Error saving schedule');
+    }
   };
 
   // Download schedule functionality
@@ -739,9 +845,45 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
   };
 
   // Delete saved schedule
-  const handleDeleteSavedSchedule = (scheduleId: string) => {
-    setSavedSchedules(prev => prev.filter(schedule => schedule.id !== scheduleId));
-    toast.success('Schedule deleted');
+  const handleDeleteSavedSchedule = async (scheduleId: string) => {
+    try {
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        toast.error('Please log in to delete schedules');
+        return;
+      }
+
+      // Update local state first
+      const updatedSchedules = savedSchedules.filter(schedule => schedule.id !== scheduleId);
+      setSavedSchedules(updatedSchedules);
+
+      // Update database
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          saved_schedules: updatedSchedules
+        })
+        .eq('id', user.id);
+
+      console.log('Delete update result:', { updateError, updatedSchedules });
+
+      if (updateError) {
+        console.error('Error deleting schedule:', updateError);
+        toast.error('Error deleting schedule');
+        // Revert local state on error
+        setSavedSchedules(savedSchedules);
+        return;
+      }
+
+      toast.success('Schedule deleted');
+    } catch (error) {
+      console.error('Error deleting schedule:', error);
+      toast.error('Error deleting schedule');
+      // Revert local state on error
+      setSavedSchedules(savedSchedules);
+    }
   };
 
   // Get available semesters that have courses
@@ -1007,7 +1149,10 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowSavedSchedulesDialog(true)}
+                onClick={() => {
+                  setShowSavedSchedulesDialog(true);
+                  loadSavedSchedules(); // Refresh saved schedules when opening dialog
+                }}
                 className="flex items-center gap-2 bg-white/10 border-white/30 text-white hover:bg-white hover:text-[#752432]"
               >
                 <FolderOpen className="w-4 h-4" />
@@ -1553,6 +1698,19 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                             const hasTimeConflict = scheduledCourses.some(scheduled => {
                               if (scheduled.scheduledId === course.scheduledId) return false; // Don't conflict with itself
                               
+                              // Only check for conflicts if courses are in the same semester
+                              const getTermFromCourse = (term: string) => {
+                                if (term.endsWith('SP')) return 'SP';
+                                if (term.endsWith('FA')) return 'FA';
+                                if (term.endsWith('WI')) return 'WI';
+                                return term;
+                              };
+                              const courseTerm = getTermFromCourse(course.term);
+                              const scheduledTerm = getTermFromCourse(scheduled.term);
+                              const sameSemester = courseTerm === scheduledTerm;
+                              
+                              if (!sameSemester) return false;
+                              
                               const scheduledTimes = parseTimeString(scheduled.times);
                               const courseTimes = parseTimeString(course.times);
                               
@@ -1613,7 +1771,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                                   <div className={`text-xs font-medium mb-0.5 leading-tight ${
                                     hasTimeConflict ? 'text-red-900' : 'text-white'
                                   }`}>
-                                    {getCleanCourseName(course.name, course.type)}
+                                    {getCleanCourseName(course.name, course.delivery_mode)}
                                   </div>
                                   <div className={`text-xs mb-0.5 ${
                                     hasTimeConflict ? 'text-red-800 opacity-90' : 'text-white opacity-90'
@@ -1675,7 +1833,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
 
       {/* Save Schedule Dialog */}
       <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Save Schedule</DialogTitle>
             <DialogDescription>
@@ -1697,17 +1855,26 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
               <div className="space-y-2">
                 {getAvailableSemesters().map((semester) => (
                   <div key={semester} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`save-${semester}`}
-                      checked={selectedSemestersForSave.includes(semester)}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setSelectedSemestersForSave(prev => [...prev, semester]);
-                        } else {
-                          setSelectedSemestersForSave(prev => prev.filter(s => s !== semester));
-                        }
-                      }}
-                    />
+                    <div className="relative">
+                      <div
+                        className={`w-4 h-4 border-2 rounded-sm cursor-pointer flex items-center justify-center transition-colors ${
+                          selectedSemestersForSave.includes(semester)
+                            ? 'bg-blue-600 border-blue-600'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                        onClick={() => {
+                          if (selectedSemestersForSave.includes(semester)) {
+                            setSelectedSemestersForSave(prev => prev.filter(s => s !== semester));
+                          } else {
+                            setSelectedSemestersForSave(prev => [...prev, semester]);
+                          }
+                        }}
+                      >
+                        {selectedSemestersForSave.includes(semester) && (
+                          <Check className="w-3 h-3 text-white" style={{ strokeWidth: 3 }} />
+                        )}
+                      </div>
+                    </div>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -1846,7 +2013,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                                 <div className="max-w-xs">
                                   {schedule.courses.filter(c => c.term.includes(semester)).map((course, _index) => (
                                     <p key={course.scheduledId} className="text-2xs">
-                                      • {getCleanCourseName(course.name, course.type)}
+                                      • {getCleanCourseName(course.name, course.delivery_mode)}
                                     </p>
                                   ))}
                                 </div>

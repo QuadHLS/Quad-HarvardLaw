@@ -26,6 +26,7 @@ interface ReviewFormData {
   laptops_allowed: boolean;
   assessment_type: 'Project' | 'Final Exam' | 'Both';
   has_cold_calls: boolean;
+  anonymous: boolean;
 }
 
 interface Professor {
@@ -181,7 +182,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
   const AnimatedRatingBar = ({ valueFive, onChangeFive }: { valueFive: number; onChangeFive: (v: number) => void }) => {
     const trackRef = useRef<HTMLDivElement>(null);
     const [animatedValue, setAnimatedValue] = useState(valueFive);
-    const animationRef = useRef<number>();
+    const animationRef = useRef<number | undefined>(undefined);
 
     const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
     const lerpColor = (c1: [number, number, number], c2: [number, number, number], t: number): string => {

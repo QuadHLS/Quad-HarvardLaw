@@ -101,6 +101,7 @@ interface ReviewFormData {
   laptops_allowed: boolean;
   assessment_type: 'Project' | 'Final Exam' | 'Both';
   has_cold_calls: boolean;
+  anonymous: boolean;
 }
 
 export function ReviewsPage() {
@@ -138,7 +139,8 @@ export function ReviewsPage() {
     exam_review: '',
     laptops_allowed: false,
     assessment_type: 'Final Exam',
-    has_cold_calls: false
+    has_cold_calls: false,
+    anonymous: false
   });
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -279,7 +281,8 @@ export function ReviewsPage() {
         exam_review: '',
         laptops_allowed: false,
         assessment_type: 'Final Exam',
-        has_cold_calls: false
+        has_cold_calls: false,
+        anonymous: false
       });
       setShowReviewForm(false);
       

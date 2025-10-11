@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, MapPin, Calendar, Edit, Save, X, Star, FileText, MessageSquare, Trophy, BookOpen, Clock, Upload, Heart, ArrowLeft, Settings, LogOut } from 'lucide-react';
+import { User, Mail, Edit, Save, X, MessageSquare, BookOpen, Upload, Heart, ArrowLeft, Settings, LogOut } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
-import { Separator } from './ui/separator';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { CourseSelectionPage } from './CourseSelectionPage';
@@ -173,7 +171,6 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
   const [newPhone, setNewPhone] = useState('');
   const [phoneLoading, setPhoneLoading] = useState(false);
   const [showChangeCourses, setShowChangeCourses] = useState(false);
-  const [courseLoading, setCourseLoading] = useState(false);
   const [showCourseSelection, setShowCourseSelection] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
@@ -245,163 +242,6 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
     fetchProfileData();
   }, [user]);
   
-  // Function to get profile data based on student name
-  const getProfileData = (name?: string): ProfileData => {
-    const profileMap: { [key: string]: ProfileData } = {
-      'Sarah Martinez': {
-        name: 'Sarah Martinez',
-        email: 'sarah.martinez@student.harvard.edu',
-        phone: '(617) 555-0456',
-        instagram: '@sarahmartinez_law',
-        linkedin: 'sarah-martinez-hls',
-        avatar_url: '',
-        photo_urls: [],
-        year: '2L',
-        section: '3',
-        age: 24,
-        hometown: 'Los Angeles, CA',
-        summerCity: 'San Francisco, CA',
-        summerFirm: 'Wilson Sonsini',
-        bio: 'Second-year law student focusing on intellectual property and tech law. President of the IP Law Society and active in pro bono clinics.',
-        currentCourses: [
-          { class: 'Contract Law', professor: 'Chen', schedule: { days: 'Mon, Wed, Fri', times: '9:00 AM - 10:00 AM', location: 'Austin Hall 101' } },
-          { class: 'Torts', professor: 'Johnson', schedule: { days: 'Tue, Thu', times: '10:30 AM - 12:00 PM', location: 'Langdell Library North' } },
-          { class: 'Patent Law', professor: 'Davis', schedule: { days: 'Mon, Wed', times: '2:00 PM - 3:30 PM', location: 'Hauser Hall 104' } },
-          { class: 'Corporate Law', professor: 'Collins', schedule: { days: 'Tue, Thu', times: '1:00 PM - 2:30 PM', location: 'Austin Hall 200' } }
-        ],
-        clubMemberships: ['IP Law Society (President)', 'Tech Law Review', 'Pro Bono Clinic', 'Women in Law'],
-        schedule: {
-          'Monday': [
-            { course: 'Contract Law', time: '9:00 - 10:00', location: 'Austin Hall 101' },
-            { course: 'Patent Law', time: '2:00 - 3:30', location: 'Room 204' }
-          ],
-          'Tuesday': [
-            { course: 'Torts', time: '10:30 - 12:00', location: 'Langdell Library North' }
-          ],
-          'Wednesday': [
-            { course: 'Contract Law', time: '9:00 - 10:00', location: 'Austin Hall 101' },
-            { course: 'Corporate Law', time: '3:00 - 4:30', location: 'Room 301' }
-          ],
-          'Thursday': [
-            { course: 'Torts', time: '10:30 - 12:00', location: 'Langdell Library North' }
-          ],
-          'Friday': [
-            { course: 'Contract Law', time: '9:00 - 10:00', location: 'Austin Hall 101' }
-          ]
-        },
-        stats: {
-          outlinesSaved: 35,
-          outlinesUploaded: 8,
-          reviewsWritten: 15,
-          postsCreated: 22,
-          reputation: 892
-        }
-      },
-      'Mike Chen': {
-        name: 'Mike Chen',
-        email: 'mike.chen@student.harvard.edu',
-        phone: '(617) 555-0789',
-        instagram: '@mikechen_law',
-        linkedin: 'mike-chen-hls',
-        avatar_url: '',
-        photo_urls: [],
-        year: '2L',
-        section: '5',
-        age: 26,
-        hometown: 'Seattle, WA',
-        summerCity: 'Chicago, IL',
-        summerFirm: 'Kirkland & Ellis',
-        bio: 'Second-year law student with interests in corporate law and mergers & acquisitions. Editor of Harvard Business Law Review.',
-        currentCourses: [
-          { class: 'Contract Law', professor: 'Chen', schedule: { days: 'Mon, Wed, Fri', times: '9:00 AM - 10:00 AM', location: 'Austin Hall 101' } },
-          { class: 'Torts', professor: 'Johnson', schedule: { days: 'Tue, Thu', times: '10:30 AM - 12:00 PM', location: 'Langdell Library North' } },
-          { class: 'Corporate Law', professor: 'Collins', schedule: { days: 'Tue, Thu', times: '1:00 PM - 2:30 PM', location: 'Austin Hall 200' } },
-          { class: 'Securities Law', professor: 'Martinez', schedule: { days: 'Mon, Wed', times: '3:00 PM - 4:30 PM', location: 'Hauser Hall 105' } }
-        ],
-        clubMemberships: ['Harvard Business Law Review (Editor)', 'Corporate Law Society', 'Asian Law Students Association', 'Investment Law Club'],
-        schedule: {
-          'Monday': [
-            { course: 'Contract Law', time: '9:00 - 10:00', location: 'Austin Hall 101' }
-          ],
-          'Tuesday': [
-            { course: 'Torts', time: '10:30 - 12:00', location: 'Langdell Library North' },
-            { course: 'Securities Law', time: '2:00 - 3:30', location: 'Room 250' }
-          ],
-          'Wednesday': [
-            { course: 'Contract Law', time: '9:00 - 10:00', location: 'Austin Hall 101' },
-            { course: 'Corporate Law', time: '3:00 - 4:30', location: 'Room 301' }
-          ],
-          'Thursday': [
-            { course: 'Torts', time: '10:30 - 12:00', location: 'Langdell Library North' }
-          ],
-          'Friday': [
-            { course: 'Contract Law', time: '9:00 - 10:00', location: 'Austin Hall 101' }
-          ]
-        },
-        stats: {
-          outlinesSaved: 42,
-          outlinesUploaded: 6,
-          reviewsWritten: 28,
-          postsCreated: 15,
-          reputation: 756
-        }
-      }
-    };
-
-    // Default to Justin Abbey if no specific student name is provided or not found
-    return profileMap[name || 'Justin Abbey'] || {
-      name: 'Justin Abbey',
-      email: 'justin.abbey@student.harvard.edu',
-      phone: '(617) 555-0123',
-      instagram: '@justinabbey',
-      linkedin: 'justin-abbey-hls',
-      avatar_url: '',
-      photo_urls: [],
-      year: '2L',
-      section: '2',
-      age: 25,
-      hometown: 'Boston, MA',
-      summerCity: 'New York, NY',
-      summerFirm: 'Cravath, Swaine & Moore',
-      bio: 'Second-year law student with interests in constitutional law and civil rights. Active member of the Harvard Law Review and mock trial team.',
-      currentCourses: [
-        { class: 'Contract Law', professor: 'Chen', schedule: { days: 'Mon, Wed, Fri', times: '9:00 AM - 10:00 AM', location: 'Austin Hall 101' } },
-        { class: 'Torts', professor: 'Johnson', schedule: { days: 'Tue, Thu', times: '10:30 AM - 12:00 PM', location: 'Langdell Library North' } },
-        { class: 'Property Law', professor: 'Chen', schedule: { days: 'Mon, Wed', times: '11:30 AM - 12:30 PM', location: 'Austin Hall 200' } },
-        { class: 'Civil Procedure', professor: 'Martinez', schedule: { days: 'Tue, Thu', times: '2:00 PM - 3:30 PM', location: 'Hauser Hall 104' } }
-      ],
-      clubMemberships: ['Harvard Law Review', 'Mock Trial Team', 'Student Bar Association', 'Public Interest Law Foundation'],
-      schedule: {
-        'Monday': [
-          { course: 'Contract Law', time: '9:00 - 10:00', location: 'Austin Hall 101' },
-          { course: 'Property Law', time: '11:30 - 12:30', location: 'Austin Hall 200' }
-        ],
-        'Tuesday': [
-          { course: 'Torts', time: '10:30 - 12:00', location: 'Langdell Library North' },
-          { course: 'Civil Procedure', time: '2:00 - 3:30', location: 'Hauser Hall 104' }
-        ],
-        'Wednesday': [
-          { course: 'Contract Law', time: '9:00 - 10:00', location: 'Austin Hall 101' },
-          { course: 'Property Law', time: '11:30 - 12:30', location: 'Austin Hall 200' }
-        ],
-        'Thursday': [
-          { course: 'Torts', time: '10:30 - 12:00', location: 'Langdell Library North' },
-          { course: 'Civil Procedure', time: '2:00 - 3:30', location: 'Hauser Hall 104' }
-        ],
-        'Friday': [
-          { course: 'Contract Law', time: '9:00 - 10:00', location: 'Austin Hall 101' },
-          { course: 'Property Law', time: '11:30 - 12:30', location: 'Austin Hall 200' }
-        ]
-      },
-      stats: {
-        outlinesSaved: 47,
-        outlinesUploaded: 12,
-        reviewsWritten: 23,
-        postsCreated: 18,
-        reputation: 1024
-      }
-    };
-  };
 
   const [editedData, setEditedData] = useState<ProfileData | null>(null);
 
@@ -511,21 +351,6 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
     }
   };
 
-  const handleChangeCourses = async () => {
-    if (!user?.id || courseLoading) return;
-
-    setCourseLoading(true);
-    try {
-      // For now, just close the modal and show a success message
-      // In a full implementation, this would update the courses in Supabase
-      setShowChangeCourses(false);
-      console.log('Courses updated successfully');
-    } catch (error) {
-      console.error('Error changing courses:', error);
-    } finally {
-      setCourseLoading(false);
-    }
-  };
 
   const handleDeleteAvatar = async () => {
     if (!user?.id || !profileData?.avatar_url) return;
@@ -606,7 +431,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
     setUploadingAvatar(true);
     try {
       // Delete existing avatar if it exists
-      if (profileData.avatar_url) {
+      if (profileData?.avatar_url) {
         const urlParts = profileData.avatar_url.split('/');
         const oldFileName = urlParts[urlParts.length - 1];
         
@@ -640,7 +465,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       });
       
       // Upload to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('Avatar')
         .upload(fileName, compressedFile);
 
@@ -688,7 +513,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       console.log('Updated local profile data with new avatar URL');
     } catch (error) {
       console.error('Error uploading avatar:', error);
-      if (error.message && error.message.includes('timeout')) {
+      if (error instanceof Error && error.message && error.message.includes('timeout')) {
         alert('Error: Image is too large or complex to process. Please try a smaller image.');
       } else {
         alert('Error uploading avatar. Please try again.');
@@ -738,7 +563,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
           const fileName = `${user.id}-${Date.now()}-${i}.${fileExt}`;
           
           // Upload to Supabase Storage
-          const { data: uploadData, error: uploadError } = await supabase.storage
+          const { error: uploadError } = await supabase.storage
             .from('Photos')
             .upload(fileName, compressedFile);
 
@@ -1860,12 +1685,12 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                   className="flex-1 text-white hover:opacity-90"
                   style={{ backgroundColor: '#752432' }}
                 >
-                  {courseLoading ? 'Processing...' : 'Start Course Selection'}
+                  Start Course Selection
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => setShowChangeCourses(false)}
-                  disabled={courseLoading}
+                  disabled={false}
                   className="flex-1"
                 >
                   Cancel

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Plus, X, Clock, MapPin, Trash2, Calendar, Download, Save, FileText, ChevronDown, ChevronUp, FolderOpen, Grid, List, Send, Check } from 'lucide-react';
+import { Search, Plus, X, Clock, MapPin, Trash2, Calendar, Save, FileText, ChevronDown, ChevronUp, FolderOpen, Grid, List, Send, Check } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -170,13 +170,11 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   // Dialog states
   const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [showDownloadDialog, setShowDownloadDialog] = useState(false);
   const [showSavedSchedulesDialog, setShowSavedSchedulesDialog] = useState(false);
   const [showCourseDetailDialog, setShowCourseDetailDialog] = useState(false);
   const [selectedCourseForDetail, setSelectedCourseForDetail] = useState<PlannerCourse | null>(null);
   const [saveScheduleName, setSaveScheduleName] = useState('');
   const [selectedSemestersForSave, setSelectedSemestersForSave] = useState<('FA' | 'WI' | 'SP')[]>([]);
-  const [selectedSemestersForDownload, setSelectedSemestersForDownload] = useState<('FA' | 'WI' | 'SP')[]>([]);
   // AI Chatbot states
   const [showChatbot, setShowChatbot] = useState(false);
   const [chatMessages, setChatMessages] = useState<{id: string, type: 'user' | 'ai', content: string, timestamp: Date}[]>([]);
@@ -804,36 +802,13 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
       setSelectedSemestersForSave([]);
       setShowSaveDialog(false);
       
-      toast.success(`Schedule "${newSavedSchedule.name}" saved successfully`);
+      toast.success(`Schedule "${newSavedSchedule.name}" saved successfully`, { duration: 2000 });
     } catch (error) {
       console.error('Error saving schedule:', error);
       toast.error('Error saving schedule');
     }
   };
 
-  // Download schedule functionality
-  const handleDownloadSchedule = () => {
-    if (selectedSemestersForDownload.length === 0) {
-      toast.error('Please select at least one semester to download');
-      return;
-    }
-
-    const coursesToDownload = scheduledCourses.filter(course => 
-      selectedSemestersForDownload.some(sem => course.term.includes(sem))
-    );
-
-    if (coursesToDownload.length === 0) {
-      toast.error('No courses found for the selected semesters');
-      return;
-    }
-
-    // Simulate PDF download
-    const semesterNames = selectedSemestersForDownload.join(', ');
-    toast.success(`Downloading PDF for ${semesterNames} schedule...`);
-    
-    setSelectedSemestersForDownload([]);
-    setShowDownloadDialog(false);
-  };
 
 
   // Load saved schedule
@@ -841,7 +816,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     // Clear current schedule and load the saved one
     setScheduledCourses(savedSchedule.courses);
     setShowSavedSchedulesDialog(false);
-    toast.success(`Loaded schedule "${savedSchedule.name}"`);
+    toast.success(`Loaded schedule "${savedSchedule.name}"`, { duration: 2000 });
   };
 
   // Delete saved schedule
@@ -877,7 +852,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
         return;
       }
 
-      toast.success('Schedule deleted');
+      toast.success('Schedule deleted', { duration: 2000 });
     } catch (error) {
       console.error('Error deleting schedule:', error);
       toast.error('Error deleting schedule');
@@ -1027,59 +1002,53 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
       {/* Header */}
       <div className="border-b border-gray-200 shadow-sm" style={{ backgroundColor: '#752432' }}>
         <div className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-semibold text-white">Course Planner</h1>
-              {/* Term Selector */}
-              <div className="relative bg-white/10 rounded-lg p-1 backdrop-blur-sm border border-white/20">
-                <div className="flex items-center">
-                  {(['FA', 'WI', 'SP'] as const).map((term) => (
-                    <button
-                      key={term}
-                      onClick={() => setSelectedTerm(term)}
-                      className={`relative px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-                        selectedTerm === term
-                          ? 'text-[#752432] shadow-sm'
-                          : 'text-white/80 hover:text-white hover:bg-white/10'
-                      }`}
-                      style={selectedTerm === term ? {
-                        backgroundColor: 'white',
-                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                      } : {}}
-                    >
-                      {term === 'FA' ? 'Fall' : term === 'WI' ? 'Winter' : 'Spring'}
-                    </button>
-                  ))}
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            {/* Title and controls - responsive layout */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <h1 className="text-2xl font-semibold text-white whitespace-nowrap">Course Planner</h1>
+              <div className="flex items-center gap-4">
+                {/* Term Selector */}
+                <div className="relative bg-white/10 rounded-lg p-1 backdrop-blur-sm border border-white/20">
+                  <div className="flex items-center">
+                    {(['FA', 'WI', 'SP'] as const).map((term) => (
+                      <button
+                        key={term}
+                        onClick={() => setSelectedTerm(term)}
+                        className={`relative px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                          selectedTerm === term
+                            ? 'text-[#752432] shadow-sm'
+                            : 'text-white/80 hover:text-white hover:bg-white/10'
+                        }`}
+                        style={selectedTerm === term ? {
+                          backgroundColor: 'white',
+                          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                        } : {}}
+                      >
+                        {term === 'FA' ? 'Fall' : term === 'WI' ? 'Winter' : 'Spring'}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* Action Buttons - Only show when courses are scheduled */}
-              {scheduledCourses.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleOpenSaveDialog}
-                    className="flex items-center gap-2 bg-white/10 border-white/30 text-white hover:bg-white hover:text-[#752432]"
-                  >
-                    <Save className="w-4 h-4" />
-                    Save
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleOpenDownloadDialog}
-                    className="flex items-center gap-2 bg-white/10 border-white/30 text-white hover:bg-white hover:text-[#752432]"
-                  >
-                    <Download className="w-4 h-4" />
-                    Download
-                  </Button>
-                </div>
-              )}
+                {/* Action Buttons - Only show when courses are scheduled */}
+                {scheduledCourses.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleOpenSaveDialog}
+                      className="flex items-center gap-2 bg-white/10 border-white/30 text-white hover:bg-white hover:text-[#752432]"
+                    >
+                      <Save className="w-4 h-4" />
+                      Save
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
             
             {/* Summary Stats and Actions */}
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-6 ml-auto">
               <TooltipProvider>
                 <div className="text-sm">
                   {(() => {
@@ -1859,9 +1828,12 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                       <div
                         className={`w-4 h-4 border-2 rounded-sm cursor-pointer flex items-center justify-center transition-colors ${
                           selectedSemestersForSave.includes(semester)
-                            ? 'bg-blue-600 border-blue-600'
+                            ? 'border-[#752531]'
                             : 'border-gray-300 hover:border-gray-400'
                         }`}
+                        style={{
+                          backgroundColor: selectedSemestersForSave.includes(semester) ? '#752531' : 'transparent'
+                        }}
                         onClick={() => {
                           if (selectedSemestersForSave.includes(semester)) {
                             setSelectedSemestersForSave(prev => prev.filter(s => s !== semester));
@@ -1909,70 +1881,10 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
         </DialogContent>
       </Dialog>
 
-      {/* Download Schedule Dialog */}
-      <Dialog open={showDownloadDialog} onOpenChange={setShowDownloadDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Download Schedule PDF</DialogTitle>
-            <DialogDescription>
-              Select which semesters you'd like to download as PDF.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">Select Semesters to Download</label>
-              <div className="space-y-2">
-                {getAvailableSemesters().map((semester) => (
-                  <div key={semester} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`download-${semester}`}
-                      checked={selectedSemestersForDownload.includes(semester)}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setSelectedSemestersForDownload(prev => [...prev, semester]);
-                        } else {
-                          setSelectedSemestersForDownload(prev => prev.filter(s => s !== semester));
-                        }
-                      }}
-                    />
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <label htmlFor={`download-${semester}`} className="text-sm font-medium">
-                            {semester} ({scheduledCourses.filter(c => c.term.includes(semester)).reduce((sum, course) => sum + course.credits, 0)} credits) • {scheduledCourses.filter(c => c.term.includes(semester)).length} courses
-                          </label>
-                        </TooltipTrigger>
-                        <TooltipContent side="right">
-                          <div className="max-w-xs">
-                            {scheduledCourses.filter(c => c.term.includes(semester)).map((course, _index) => (
-                              <p key={course.scheduledId} className="text-2xs">
-                                {course.name}
-                              </p>
-                            ))}
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => setShowDownloadDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleDownloadSchedule} style={{ backgroundColor: '#752432' }}>
-                <Download className="w-4 h-4 mr-2" />
-                Download PDF
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Saved Schedules Dialog */}
       <Dialog open={showSavedSchedulesDialog} onOpenChange={setShowSavedSchedulesDialog}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-lg">
           <TooltipProvider>
             <DialogHeader>
               <DialogTitle>Saved Schedules</DialogTitle>
@@ -2005,9 +1917,11 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                         {schedule.semesters.map((semester) => (
                           <Tooltip key={semester}>
                               <TooltipTrigger asChild>
-                                <Badge variant="outline" className="text-xs cursor-pointer hover:bg-gray-50 transition-colors">
-                                  {semester} ({schedule.courses.filter(c => c.term.includes(semester)).reduce((sum, course) => sum + course.credits, 0)} credits)
-                                </Badge>
+                                <div>
+                                  <Badge variant="outline" className="text-xs cursor-pointer hover:bg-gray-50 transition-colors">
+                                    {semester} ({schedule.courses.filter(c => c.term.includes(semester)).reduce((sum, course) => sum + course.credits, 0)} credits)
+                                  </Badge>
+                                </div>
                               </TooltipTrigger>
                               <TooltipContent side="bottom" >
                                 <div className="max-w-xs">

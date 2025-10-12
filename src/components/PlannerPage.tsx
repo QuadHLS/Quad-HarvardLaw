@@ -70,17 +70,54 @@ const courseMatchesSemester = (courseTerm: string, selectedSemester: 'FA' | 'WI'
   return semesters.includes(selectedSemester);
 };
 
-// Helper function to truncate text to approximately 125 words
-const truncateText = (text: string, maxWords: number = 125): { truncated: string; isTruncated: boolean } => {
+// Helper function to truncate text to 100 words
+const truncateText = (text: string, maxWords: number = 100): { truncated: string; isTruncated: boolean } => {
   if (!text || text === 'TBD') return { truncated: text, isTruncated: false };
   
-  const words = text.split(' ');
+  // Remove HTML tags for word counting
+  const textWithoutHtml = text.replace(/<br\s*\/?>/gi, ' ');
+  const words = textWithoutHtml.split(' ');
+  
   if (words.length <= maxWords) {
     return { truncated: text, isTruncated: false };
   }
   
-  const truncatedWords = words.slice(0, maxWords);
-  return { truncated: truncatedWords.join(' ') + '...', isTruncated: true };
+  // Find the position in the original HTML text that corresponds to 100 words
+  const wordsToKeep = words.slice(0, maxWords);
+  const textToKeep = wordsToKeep.join(' ');
+  
+  // Find this text in the original HTML text and truncate there
+  const htmlBreakPoint = text.indexOf(textToKeep) + textToKeep.length;
+  const truncated = text.substring(0, htmlBreakPoint) + '...';
+  
+  return { truncated, isTruncated: true };
+};
+
+// Helper function to format course description with proper spacing for exam types
+const formatCourseDescription = (text: string): string => {
+  if (!text || text === 'TBD') return text;
+  
+  let formatted = text;
+  
+  // Add line break before "Prerequisite:" only if there's text before it
+  formatted = formatted.replace(/([^\s])\s*Prerequisite:/gi, '$1<br/><br/>Prerequisite:');
+  
+  // Add line breaks before and after exam type patterns
+  const examTypePatterns = [
+    'Exam Type: No Exam',
+    'Exam Type: One-Day Take-Home', 
+    'Exam Type: Any Day Take-Home',
+    'Exam Type: In Class'
+  ];
+  
+  examTypePatterns.forEach(pattern => {
+    // Add line break before exam type
+    formatted = formatted.replace(new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), `<br/><br/>${pattern}`);
+    // Add line break after exam type
+    formatted = formatted.replace(new RegExp(`${pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^<])`, 'gi'), `${pattern}<br/><br/>$1`);
+  });
+  
+  return formatted;
 };
 
 // Real course data interface matching database schema
@@ -98,7 +135,6 @@ interface PlannerCourse {
   times: string;
   location: string;
   course_description: string;
-  notes: string;
   requirements: string;
 }
 
@@ -109,16 +145,10 @@ interface ScheduledCourse extends PlannerCourse {
 // Function to fetch real course data from Supabase
 const fetchCourses = async (): Promise<PlannerCourse[]> => {
   try {
-    // console.log('Starting fetchCourses...');
-    // console.log('Supabase client:', supabase);
-    
     const { data, error } = await supabase
       .from('planner')
       .select('*')
       .order('name', { ascending: true });
-
-    // console.log('Raw data from Supabase:', data);
-    // console.log('Error from Supabase:', error);
 
     if (error) {
       console.error('Error fetching courses:', error);
@@ -130,31 +160,24 @@ const fetchCourses = async (): Promise<PlannerCourse[]> => {
       return [];
     }
 
-    // console.log('Raw data length:', data.length);
-    // console.log('First few raw courses:', data.slice(0, 3));
-
     // Transform the data to handle null values and format properly
     const transformedData = data.map((course: any) => ({
-      id: course.id || '',
-      name: course.name || 'TBD',
-      course_number: course.course_number || 'TBD',
-      term: course.term || 'TBD',
-      faculty: course.faculty || 'TBD',
-      credits: course.credits || 0,
-      type: course.type || 'TBD',
-      subject_areas: course.subject_areas || 'TBD',
-      delivery_mode: course.delivery_mode || 'TBD',
-      days: course.days || 'TBD',
-      times: course.times || 'TBD',
-      location: course.location || 'TBD',
-      course_description: course.course_description || 'TBD',
-      notes: course.notes || 'TBD',
-      requirements: course.requirements || 'TBD'
+        id: course.id || '',
+        name: course.name || 'TBD',
+        course_number: course.course_number || 'TBD',
+        term: course.term || 'TBD',
+        faculty: course.faculty || 'TBD',
+        credits: course.credits || 0,
+        type: course.type || 'TBD',
+        subject_areas: course.subject_areas || 'TBD',
+        delivery_mode: course.delivery_mode || 'TBD',
+        days: course.days || 'TBD',
+        times: course.times || 'TBD',
+        location: course.location || 'TBD',
+        course_description: course.course_description || 'TBD',
+        requirements: course.requirements || 'TBD'
     }));
 
-    // console.log('Transformed data length:', transformedData.length);
-    // console.log('First few transformed courses:', transformedData.slice(0, 3));
-    
     return transformedData;
   } catch (error) {
     console.error('Error fetching courses:', error);
@@ -317,16 +340,6 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     }
     return name;
   };
-
-  // Debug: Log current filter values (can be removed in production)
-  // console.log('Current filter values:', {
-  //   searchTerm,
-  //   selectedTerm,
-  //   selectedAreaOfInterest,
-  //   selectedType,
-  //   selectedDays,
-  //   totalCourses: courses.length
-  // });
 
   // Filter courses based on search and filters
   const filteredCourses = courses.filter(course => {
@@ -2034,12 +2047,16 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
               {/* Course Description */}
               <div>
                 {(() => {
-                  const { truncated, isTruncated } = truncateText(selectedCourseForDetail.course_description);
+                  const formattedDescription = formatCourseDescription(selectedCourseForDetail.course_description);
+                  const { truncated, isTruncated } = truncateText(formattedDescription);
                   return (
               <div>
-                <p className="text-sm text-gray-600 leading-relaxed">
-                        {isDescriptionExpanded ? selectedCourseForDetail.course_description : truncated}
-                      </p>
+                 <p 
+                   className="text-sm text-gray-600 leading-relaxed"
+                   dangerouslySetInnerHTML={{ 
+                     __html: isDescriptionExpanded ? formattedDescription : truncated 
+                   }}
+                 />
                       {isTruncated && (
                         <button
                           onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}

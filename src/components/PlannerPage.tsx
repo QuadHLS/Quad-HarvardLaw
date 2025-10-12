@@ -99,20 +99,38 @@ const formatCourseDescription = (text: string): string => {
   
   let formatted = text;
   
-  // Add line break before "Prerequisite:" only if there's text before it
-  formatted = formatted.replace(/([^\s])\s*Prerequisite:/gi, '$1<br/><br/>Prerequisite:');
+  // Make specific text patterns bold
+  const boldPatterns = [
+    'Prerequisite:',
+    'Prerequisites:',
+    'Exam Type:',
+    'Note:',
+    'Co-/Pre-Requisite:',
+    'LLM Students:',
+    'By Permission:',
+    'Add/Drop Deadline:'
+  ];
+  
+  boldPatterns.forEach(pattern => {
+    const regex = new RegExp(`\\b${pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi');
+    formatted = formatted.replace(regex, `<strong>${pattern}</strong>`);
+  });
+  
+  // Add line break before "Prerequisite:" or "Prerequisites:" only if there's text before it
+  formatted = formatted.replace(/([^\s])\s*<strong>Prerequisite:<\/strong>/gi, '$1<br/><br/><strong>Prerequisite:</strong>');
+  formatted = formatted.replace(/([^\s])\s*<strong>Prerequisites:<\/strong>/gi, '$1<br/><br/><strong>Prerequisites:</strong>');
   
   // Add line breaks before and after exam type patterns
   const examTypePatterns = [
-    'Exam Type: No Exam',
-    'Exam Type: One-Day Take-Home', 
-    'Exam Type: Any Day Take-Home',
-    'Exam Type: In Class'
+    '<strong>Exam Type:</strong> No Exam',
+    '<strong>Exam Type:</strong> One-Day Take-Home', 
+    '<strong>Exam Type:</strong> Any Day Take-Home',
+    '<strong>Exam Type:</strong> In Class'
   ];
   
   examTypePatterns.forEach(pattern => {
-    // Add line break before exam type
-    formatted = formatted.replace(new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), `<br/><br/>${pattern}`);
+    // Add line break before exam type only if there's text before it
+    formatted = formatted.replace(new RegExp(`([^\\s])\\s*${pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi'), `$1<br/><br/>${pattern}`);
     // Add line break after exam type
     formatted = formatted.replace(new RegExp(`${pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^<])`, 'gi'), `${pattern}<br/><br/>$1`);
   });

@@ -6,17 +6,20 @@ import {
   Plus,
   BookOpen,
   GraduationCap,
+  CheckSquare,
+  Square,
+  Timer,
+  ChevronDown,
+  ChevronUp,
+  CalendarIcon,
 } from 'lucide-react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from './ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Calendar as CalendarComponent } from './ui/calendar';
+import { PomodoroTimer } from './PomodoroTimer';
 import { supabase } from '../lib/supabase';
 
 interface TodoItem {
@@ -179,90 +182,6 @@ function TodoItem({
   );
 }
 
-interface TodoSectionProps {
-  title: string;
-  section: 'today' | 'thisWeek';
-  todos: TodoItem[];
-  editingTodoId: string | null;
-  editingText: string;
-  onToggleTodo: (id: string) => void;
-  onRemoveTodo: (id: string) => void;
-  onStartEdit: (todo: TodoItem) => void;
-  onSaveEdit: () => void;
-  onCancelEdit: () => void;
-  onEditTextChange: (text: string) => void;
-  onAddTodo: (section: 'today' | 'thisWeek') => void;
-}
-
-function TodoSection({
-  title,
-  section,
-  todos,
-  editingTodoId,
-  editingText,
-  onToggleTodo,
-  onRemoveTodo,
-  onStartEdit,
-  onSaveEdit,
-  onCancelEdit,
-  onEditTextChange,
-  onAddTodo,
-}: TodoSectionProps) {
-  return (
-    <div className="rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 bg-white">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-[#752432]"></div>
-          <h3 className="font-semibold text-gray-900">{title}</h3>
-        </div>
-        <Button
-          onClick={() => onAddTodo(section)}
-          size="sm"
-          variant="ghost"
-          className="text-[#752432] hover:text-white hover:bg-[#752432] h-8 px-3 rounded-lg transition-all duration-200 text-sm font-medium"
-        >
-          <Plus className="w-4 h-4 mr-1" />
-          Add Task
-        </Button>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-        {todos.length === 0 ? (
-          <div className="flex flex-col items-center justify-center text-center px-6" style={{ height: '210px' }}>
-            <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-              <span className="text-gray-400 text-xl">✓</span>
-            </div>
-            <p className="text-gray-500 text-sm font-medium">
-              {section === 'today' ? 'Ready to tackle today?' : 'Let\'s plan your week!'}
-            </p>
-            <p className="text-gray-400 text-xs mt-1">
-              Add your first task and start crushing your goals! 🚀
-            </p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {todos.map((todo) => (
-              <TodoItem
-                key={todo.id}
-                todo={todo}
-                isEditing={editingTodoId === todo.id}
-                editingText={editingText}
-                onToggle={onToggleTodo}
-                onRemove={onRemoveTodo}
-                onStartEdit={onStartEdit}
-                onSaveEdit={onSaveEdit}
-                onCancelEdit={onCancelEdit}
-                onEditTextChange={onEditTextChange}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function CourseCard({
   title,
@@ -351,24 +270,417 @@ function CourseCard({
   );
 }
 
+// Todo interface
+interface ToDo {
+  id: string;
+  text: string;
+  completed: boolean;
+  dueDate?: string;
+  category: 'today' | 'this-week';
+}
+
+// Props interface
+interface TodoListProps {
+  additionalTodos?: ToDo[];
+  onPomodoroStateChange?: (state: { 
+    isRunning: boolean; 
+    timeLeft: number; 
+    currentSession: 'work' | 'break' | 'longBreak';
+    sessionCount: number;
+    phase: string;
+  }) => void;
+  user?: any;
+}
+
+// New TodoList component
+function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
+  // State management
+  const [todos, setTodos] = useState<ToDo[]>([]);
+  const [newTodoText, setNewTodoText] = useState('');
+  const [newTodoCategory, setNewTodoCategory] = useState<'today' | 'this-week'>('today');
+  const [showAddTodo, setShowAddTodo] = useState(false);
+  const [selectedDueDate, setSelectedDueDate] = useState<Date | undefined>(undefined);
+  const [todoCollapsed, setTodoCollapsed] = useState(false);
+  const [showPomodoro, setShowPomodoro] = useState(false);
+
+  // Load todos from profile on mount
+  useEffect(() => {
+    if (user?.id) {
+      const fetchTodos = async () => {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('todo_day, todo_week')
+            .eq('id', user.id)
+            .single();
+
+          if (profile) {
+            console.log('Loaded from database:', {
+              todo_day: profile.todo_day,
+              todo_week: profile.todo_week
+            });
+            
+            const todayTodos = (profile.todo_day || []).map((todo: any) => ({
+              ...todo,
+              category: 'today' as const
+            }));
+            const thisWeekTodos = (profile.todo_week || []).map((todo: any) => ({
+              ...todo,
+              category: 'this-week' as const
+            }));
+            setTodos([...todayTodos, ...thisWeekTodos]);
+          }
+        } catch (error) {
+          console.error('Error fetching todos:', error);
+        }
+      };
+
+      fetchTodos();
+    }
+  }, [user?.id]);
+
+  // Save todos to profile whenever todos change
+  const saveTodosToDatabase = async (todosToSave: ToDo[]) => {
+    if (!user?.id) return;
+    
+    try {
+      const todayTodos = todosToSave.filter(todo => todo.category === 'today');
+      const thisWeekTodos = todosToSave.filter(todo => todo.category === 'this-week');
+      
+      console.log('Saving todos to database:', {
+        todo_day: todayTodos,
+        todo_week: thisWeekTodos
+      });
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          todo_day: todayTodos,
+          todo_week: thisWeekTodos
+        })
+        .eq('id', user.id);
+      
+      if (error) {
+        console.error('Error saving todos:', error);
+      } else {
+        console.log('Todos saved successfully to todo_day and todo_week columns');
+      }
+    } catch (error) {
+      console.error('Error saving todos:', error);
+    }
+  };
+
+  // Helper function to format due dates
+  const formatDueDate = (dateString: string) => {
+    // Convert "Dec 15" format to "Mon, Dec 15" format
+    const currentYear = new Date().getFullYear();
+    const date = new Date(`${dateString}, ${currentYear}`);
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    const dayName = dayNames[date.getDay()];
+    const monthName = monthNames[date.getMonth()];
+    const day = date.getDate();
+    
+    return `${dayName}, ${monthName} ${day}`;
+  };
+
+  // Todo functions
+  const toggleTodo = (id: string) => {
+    const updatedTodos = todos.map(todo => 
+      todo.id === id ? { ...todo, completed: !todo.completed } : todo
+    );
+    setTodos(updatedTodos);
+    saveTodosToDatabase(updatedTodos);
+  };
+
+  const removeTodo = (id: string) => {
+    const updatedTodos = todos.filter(todo => todo.id !== id);
+    setTodos(updatedTodos);
+    saveTodosToDatabase(updatedTodos);
+  };
+
+  const capitalizeFirstLetter = (str: string) => {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
+
+  const addTodo = () => {
+    if (newTodoText.trim()) {
+      let dueDate: string | undefined = undefined;
+      
+      if (newTodoCategory === 'this-week' && selectedDueDate) {
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthName = monthNames[selectedDueDate.getMonth()];
+        const day = selectedDueDate.getDate();
+        dueDate = `${monthName} ${day}`;
+      }
+      
+      const newTodo: ToDo = {
+        id: Date.now().toString(),
+        text: capitalizeFirstLetter(newTodoText.trim()),
+        completed: false,
+        category: newTodoCategory,
+        dueDate
+      };
+      
+      const updatedTodos = [...todos, newTodo];
+      setTodos(updatedTodos);
+      saveTodosToDatabase(updatedTodos);
+      setNewTodoText('');
+      setSelectedDueDate(undefined);
+      setShowAddTodo(false);
+    }
+  };
+
+  // Filter todos by category
+  const todayTodos = todos.filter(todo => todo.category === 'today');
+  const thisWeekTodos = todos.filter(todo => todo.category === 'this-week');
+
+
+  return (
+    <div className="space-y-4">
+      {/* To Do Card */}
+      <Card className="overflow-hidden" style={{ backgroundColor: '#FEFBF6' }}>
+        <div className="px-4 py-2 border-b border-gray-200" style={{ backgroundColor: '#F8F4ED' }}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckSquare className="w-4 h-4 text-[#752432]" />
+              <h3 className="font-semibold text-gray-900">To Do</h3>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowPomodoro(!showPomodoro)}
+                className="h-6 w-6 p-0 text-[#752432] hover:bg-[#752432]/10"
+              >
+                <Timer className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAddTodo(true)}
+                className="h-6 w-6 p-0 text-[#752432] hover:bg-[#752432]/10"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setTodoCollapsed(!todoCollapsed)}
+                className="h-6 w-6 p-0 text-[#752432] hover:bg-[#752432]/10"
+              >
+                {todoCollapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+              </Button>
+            </div>
+          </div>
+        </div>
+        <div 
+          className="overflow-hidden transition-all duration-1000 ease-out"
+          style={{ 
+            height: todoCollapsed ? '0px' : (todayTodos.length + thisWeekTodos.length) === 0 ? '120px' : `${Math.max(150, (todayTodos.length + thisWeekTodos.length) * 35 + 70)}px`
+          }}
+        >
+          <div className={`px-3 pb-3 space-y-3 transition-opacity duration-1000 ${
+            todoCollapsed ? 'opacity-0' : 'opacity-100'
+          }`}>
+            {/* Today Section */}
+            <div>
+              <h4 className="text-xs font-medium text-gray-600 mb-2">Today</h4>
+              <div className="space-y-1.5">
+                {todayTodos.map((todo) => (
+                  <div key={todo.id} className="flex items-center gap-2 group">
+                    <button
+                      onClick={() => toggleTodo(todo.id)}
+                      className="flex-shrink-0"
+                    >
+                      {todo.completed ? (
+                        <CheckSquare className="w-4 h-4 text-[#752432]" />
+                      ) : (
+                        <Square className="w-4 h-4 text-gray-400 hover:text-[#752432]" />
+                      )}
+                    </button>
+                    <span 
+                      className={`text-sm flex-1 ${
+                        todo.completed 
+                          ? 'text-gray-500 line-through' 
+                          : 'text-gray-900'
+                      }`}
+                    >
+                      {todo.text}
+                    </span>
+                    <button
+                      onClick={() => removeTodo(todo.id)}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+                {todayTodos.length === 0 && (
+                  <p className="text-xs text-gray-500 italic">No tasks for today</p>
+                )}
+              </div>
+            </div>
+
+            {/* In the Future Section */}
+            <div>
+              <h4 className="text-xs font-medium text-gray-600 mb-2">In the Future</h4>
+              <div className="space-y-1.5">
+                {thisWeekTodos.map((todo) => (
+                  <div key={todo.id} className="flex items-center gap-2 group">
+                    <button
+                      onClick={() => toggleTodo(todo.id)}
+                      className="flex-shrink-0"
+                    >
+                      {todo.completed ? (
+                        <CheckSquare className="w-4 h-4 text-[#752432]" />
+                      ) : (
+                        <Square className="w-4 h-4 text-gray-400 hover:text-[#752432]" />
+                      )}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col">
+                        <span 
+                          className={`text-sm ${
+                            todo.completed 
+                              ? 'text-gray-500 line-through' 
+                              : 'text-gray-900'
+                          }`}
+                        >
+                          {todo.text}
+                        </span>
+                        {todo.dueDate && (
+                            <div className="mt-1 text-[10px] px-1 rounded inline-block self-start" style={{ color: '#8b5a5a', backgroundColor: '#f6e7e5', paddingTop: '1px', paddingBottom: '1px' }}>
+                            {formatDueDate(todo.dueDate)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => removeTodo(todo.id)}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+                {thisWeekTodos.length === 0 && (
+                  <p className="text-xs text-gray-500 italic">No future tasks</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Pomodoro Timer */}
+      {showPomodoro && (
+        <PomodoroTimer onStateChange={onPomodoroStateChange} />
+      )}
+
+      {/* Add Todo Dialog */}
+      <Dialog open={showAddTodo} onOpenChange={setShowAddTodo}>
+        <DialogContent 
+          className="max-w-sm backdrop-blur-sm border border-gray-200"
+          style={{ backgroundColor: 'rgba(255, 255, 255, 0.9)' }}
+        >
+          <DialogHeader>
+            <DialogTitle>Add New Task</DialogTitle>
+            <DialogDescription>
+              Create a new task and assign it to today or in the future.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              placeholder="Enter task description..."
+              value={newTodoText}
+              onChange={(e) => setNewTodoText(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && addTodo()}
+            />
+            <div className="flex gap-2">
+              <Button
+                variant={newTodoCategory === 'today' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setNewTodoCategory('today');
+                  setSelectedDueDate(undefined);
+                }}
+                className={newTodoCategory === 'today' ? 'bg-[#752432] hover:bg-[#752432]/90' : ''}
+              >
+                Today
+              </Button>
+              <Button
+                variant={newTodoCategory === 'this-week' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setNewTodoCategory('this-week')}
+                className={newTodoCategory === 'this-week' ? 'bg-[#752432] hover:bg-[#752432]/90' : ''}
+              >
+                In the Future
+              </Button>
+            </div>
+            
+            {/* Date Picker for This Week */}
+            {newTodoCategory === 'this-week' && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Due Date</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-between text-left font-normal"
+                    >
+                      {selectedDueDate ? (
+                        formatDueDate(`${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][selectedDueDate.getMonth()]} ${selectedDueDate.getDate()}`)
+                      ) : (
+                        <span className="text-gray-500">Select due date</span>
+                      )}
+                      <CalendarIcon className="w-4 h-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={selectedDueDate}
+                      onSelect={setSelectedDueDate}
+                      disabled={(date: Date) => date < new Date()}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowAddTodo(false);
+                  setNewTodoText('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={addTodo}
+                disabled={!newTodoText.trim()}
+                className="bg-[#752432] hover:bg-[#752432]/90"
+              >
+                Add Task
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 interface HomePageProps {
   onNavigateToCourse?: (courseName: string) => void;
   user?: any;
 }
 
 export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
-  const [todayTodos, setTodayTodos] = useState<TodoItem[]>([]);
-  const [thisWeekTodos, setThisWeekTodos] = useState<TodoItem[]>([]);
-  const [newTodoText, setNewTodoText] = useState('');
-  const [newTodoCourse, setNewTodoCourse] = useState('');
-  const [newTodoDueDate, setNewTodoDueDate] = useState('');
-  const [showAddTodo, setShowAddTodo] = useState(false);
-  const [addingToSection, setAddingToSection] = useState<'today' | 'thisWeek'>(
-    'today'
-  );
-  const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
-  const [editingText, setEditingText] = useState('');
-  const [firstName, setFirstName] = useState<string>('');
   const [, setUserProfile] = useState<UserProfile | null>(null);
   const [userCourses, setUserCourses] = useState<UserCourse[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -457,16 +769,6 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
     };
   })();
 
-  // Function to extract first name from full name
-  const getFirstName = (fullName: string | null): string => {
-    if (!fullName) return '';
-    const trimmed = fullName.trim();
-    if (!trimmed) return '';
-    const firstSpaceIndex = trimmed.indexOf(' ');
-    return firstSpaceIndex === -1
-      ? trimmed
-      : trimmed.substring(0, firstSpaceIndex);
-  };
 
   // Fetch user's profile and courses
   useEffect(() => {
@@ -489,14 +791,10 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
           return;
         }
 
-        const first = getFirstName(profile?.full_name);
-        setFirstName(first);
 
         if (profile) {
           setUserProfile(profile);
           setUserCourses(profile.classes || []);
-          setTodayTodos(profile.todo_day || []);
-          setThisWeekTodos(profile.todo_week || []);
         }
 
         setLoading(false);
@@ -509,164 +807,12 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
     fetchUserProfile();
   }, [user]);
 
-  // Save todos to database
-  const saveTodosToDatabase = async (todayTodos: TodoItem[], thisWeekTodos: TodoItem[]) => {
-    if (!user?.id) return;
-    
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ 
-          todo_day: todayTodos,
-          todo_week: thisWeekTodos
-        })
-        .eq('id', user.id);
-      
-      if (error) {
-        console.error('Error saving todos:', error);
-      }
-    } catch (error) {
-      console.error('Error saving todos:', error);
-    }
-  };
-
-  const toggleTodo = (id: string) => {
-    // Check if todo is in today's list
-    const todayTodoIndex = todayTodos.findIndex(todo => todo.id === id);
-    if (todayTodoIndex !== -1) {
-      const updatedTodayTodos = todayTodos.map((todo) =>
-        todo.id === id ? { ...todo, completed: !todo.completed } : todo
-      );
-      setTodayTodos(updatedTodayTodos);
-      saveTodosToDatabase(updatedTodayTodos, thisWeekTodos);
-      return;
-    }
-
-    // Check if todo is in this week's list
-    const thisWeekTodoIndex = thisWeekTodos.findIndex(todo => todo.id === id);
-    if (thisWeekTodoIndex !== -1) {
-      const updatedThisWeekTodos = thisWeekTodos.map((todo) =>
-        todo.id === id ? { ...todo, completed: !todo.completed } : todo
-      );
-      setThisWeekTodos(updatedThisWeekTodos);
-      saveTodosToDatabase(todayTodos, updatedThisWeekTodos);
-    }
-  };
-
-  const addTodo = (section?: 'today' | 'thisWeek') => {
-    const targetSection = section || addingToSection;
-    if (newTodoText.trim()) {
-      const newTodo: TodoItem = {
-        id: Date.now().toString(),
-        text: newTodoText.trim(),
-        completed: false,
-        course: newTodoCourse || undefined,
-        section: targetSection,
-        dueDate:
-          targetSection === 'thisWeek' && newTodoDueDate
-            ? newTodoDueDate
-            : undefined,
-      };
-      if (targetSection === 'today') {
-        const updatedTodayTodos = [...todayTodos, newTodo];
-        setTodayTodos(updatedTodayTodos);
-        saveTodosToDatabase(updatedTodayTodos, thisWeekTodos);
-      } else {
-        const updatedThisWeekTodos = [...thisWeekTodos, newTodo];
-        setThisWeekTodos(updatedThisWeekTodos);
-        saveTodosToDatabase(todayTodos, updatedThisWeekTodos);
-      }
-      setNewTodoText('');
-      setNewTodoCourse('');
-      setNewTodoDueDate('');
-      setShowAddTodo(false);
-    }
-  };
-
-  const startAddingTodo = (section: 'today' | 'thisWeek') => {
-    setAddingToSection(section);
-    setShowAddTodo(true);
-  };
-
-  const removeTodo = (id: string) => {
-    // Check if todo is in today's list
-    const todayTodoIndex = todayTodos.findIndex(todo => todo.id === id);
-    if (todayTodoIndex !== -1) {
-      const updatedTodayTodos = todayTodos.filter((todo) => todo.id !== id);
-      setTodayTodos(updatedTodayTodos);
-      saveTodosToDatabase(updatedTodayTodos, thisWeekTodos);
-      return;
-    }
-
-    // Check if todo is in this week's list
-    const thisWeekTodoIndex = thisWeekTodos.findIndex(todo => todo.id === id);
-    if (thisWeekTodoIndex !== -1) {
-      const updatedThisWeekTodos = thisWeekTodos.filter((todo) => todo.id !== id);
-      setThisWeekTodos(updatedThisWeekTodos);
-      saveTodosToDatabase(todayTodos, updatedThisWeekTodos);
-    }
-  };
-
-  const startEditing = (todo: TodoItem) => {
-    setEditingTodoId(todo.id);
-    setEditingText(todo.text);
-  };
-
-  const saveEdit = () => {
-    if (editingTodoId && editingText.trim()) {
-      // Check if todo is in today's list
-      const todayTodoIndex = todayTodos.findIndex(todo => todo.id === editingTodoId);
-      if (todayTodoIndex !== -1) {
-        const updatedTodayTodos = todayTodos.map((todo) =>
-          todo.id === editingTodoId
-            ? { ...todo, text: editingText.trim() }
-            : todo
-        );
-        setTodayTodos(updatedTodayTodos);
-        saveTodosToDatabase(updatedTodayTodos, thisWeekTodos);
-      } else {
-        // Check if todo is in this week's list
-        const thisWeekTodoIndex = thisWeekTodos.findIndex(todo => todo.id === editingTodoId);
-        if (thisWeekTodoIndex !== -1) {
-          const updatedThisWeekTodos = thisWeekTodos.map((todo) =>
-            todo.id === editingTodoId
-              ? { ...todo, text: editingText.trim() }
-              : todo
-          );
-          setThisWeekTodos(updatedThisWeekTodos);
-          saveTodosToDatabase(todayTodos, updatedThisWeekTodos);
-        }
-      }
-    }
-    setEditingTodoId(null);
-    setEditingText('');
-  };
-
-  const cancelEdit = () => {
-    setEditingTodoId(null);
-    setEditingText('');
-  };
 
 
 
-  const sortedTodayTodos = todayTodos.sort((a, b) => {
-    // Sort completed items to the bottom
-    if (a.completed && !b.completed) return 1;
-    if (!a.completed && b.completed) return -1;
-    return 0;
-  });
 
-  const sortedThisWeekTodos = thisWeekTodos.sort((a, b) => {
-    // Sort completed items to the bottom first
-    if (a.completed && !b.completed) return 1;
-    if (!a.completed && b.completed) return -1;
 
-    // Then sort by due date for uncompleted items, with items without due dates at the end
-    if (!a.dueDate && !b.dueDate) return 0;
-    if (!a.dueDate) return 1;
-    if (!b.dueDate) return -1;
-    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-  });
+
 
   // Generate course data from user's courses
   const courseData = userCourses.map((course) => ({
@@ -712,8 +858,6 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
 
   const { grouped: coursesBySemester, sortedSemesters } = groupCoursesBySemester();
 
-  // Get available courses for todo dropdown
-  const availableCourses = userCourses.map((course) => course.class);
 
 
   const [currentTime, setCurrentTime] = useState(() => {
@@ -860,165 +1004,14 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
     <div className="h-full overflow-auto" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
       <div className="max-w-full mx-auto p-6">
         <div className="flex gap-6">
-          {/* Left Content - Extended */}
+          {/* Left Content */}
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-medium text-gray-900 mb-6">
-              Welcome{firstName ? `, ${firstName}` : ''}!
-            </h1>
-
-            {/* Interactive To-Do List */}
-            <div className="mb-8">
-              <h2 className="text-lg font-medium text-gray-800 mb-4">To Do</h2>
-
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-stretch">
-                {/* Today Todo List - Exact copy of This Week styling */}
-                <div className="rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-                  {/* Header */}
-                  <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 bg-white">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-[#752432]"></div>
-                      <h3 className="font-semibold text-gray-900">Today</h3>
-                    </div>
-                    <Button
-                      onClick={() => startAddingTodo('today')}
-                      size="sm"
-                      variant="ghost"
-                      className="text-[#752432] hover:text-white hover:bg-[#752432] h-8 px-3 rounded-lg transition-all duration-200 text-sm font-medium"
-                    >
-                      <Plus className="w-4 h-4 mr-1" />
-                      Add Task
-                    </Button>
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-                    {sortedTodayTodos.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center text-center px-6" style={{ height: '210px' }}>
-                        <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-                          <span className="text-gray-400 text-xl">✓</span>
-                        </div>
-                        <p className="text-gray-500 text-sm font-medium">
-                          Ready to tackle today?
-                        </p>
-                        <p className="text-gray-400 text-xs mt-1">
-                          Add your first task and start crushing your goals! 🚀
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="divide-y divide-gray-100">
-                        {sortedTodayTodos.map((todo) => (
-                          <TodoItem
-                            key={todo.id}
-                            todo={todo}
-                            isEditing={editingTodoId === todo.id}
-                            editingText={editingText}
-                            onToggle={toggleTodo}
-                            onRemove={removeTodo}
-                            onStartEdit={startEditing}
-                            onSaveEdit={saveEdit}
-                            onCancelEdit={cancelEdit}
-                            onEditTextChange={setEditingText}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* This Week Todo List */}
-                <TodoSection
-                  title="This Week"
-                  section="thisWeek"
-                  todos={sortedThisWeekTodos}
-                  editingTodoId={editingTodoId}
-                  editingText={editingText}
-                  onToggleTodo={toggleTodo}
-                  onRemoveTodo={removeTodo}
-                  onStartEdit={startEditing}
-                  onSaveEdit={saveEdit}
-                  onCancelEdit={cancelEdit}
-                  onEditTextChange={setEditingText}
-                  onAddTodo={startAddingTodo}
-                />
-              </div>
-
-              {showAddTodo && (
-                <div className="mt-6 p-6 style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} rounded-xl border border-gray-200 shadow-lg">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-8 h-8 rounded-full bg-[#752432] flex items-center justify-center">
-                      <Plus className="w-4 h-4 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">
-                        Add New Task
-                      </h3>
-                      <p className="text-sm text-gray-500">
-                        Adding to{' '}
-                        {addingToSection === 'today' ? 'Today' : 'This Week'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <Input
-                      value={newTodoText}
-                      onChange={(e) => setNewTodoText(e.target.value)}
-                      placeholder="What do you need to do?"
-                      onKeyPress={(e) =>
-                        e.key === 'Enter' && !e.shiftKey && addTodo()
-                      }
-                      autoFocus
-                      className="w-full border-gray-300 focus:border-[#752432] focus:ring-[#752432]"
-                    />
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <Select
-                        value={newTodoCourse}
-                        onValueChange={setNewTodoCourse}
-                      >
-                        <SelectTrigger className="border-gray-300 focus:border-[#752432] focus:ring-[#752432]">
-                          <SelectValue placeholder="📚 Select Course (Optional)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableCourses.map((course) => (
-                            <SelectItem key={course} value={course}>
-                              📚 {course}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {addingToSection === 'thisWeek' && (
-                        <Input
-                          type="date"
-                          value={newTodoDueDate}
-                          onChange={(e) => setNewTodoDueDate(e.target.value)}
-                          className="border-gray-300 focus:border-[#752432] focus:ring-[#752432]"
-                          placeholder="Due Date"
-                          min={new Date().toISOString().split('T')[0]}
-                        />
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 mt-6">
-                    <Button
-                      onClick={() => addTodo()}
-                      className="bg-[#752432] hover:bg-[#752432]/90 px-6"
-                    >
-                      Add Task
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        setShowAddTodo(false);
-                        setNewTodoText('');
-                        setNewTodoCourse('');
-                        setNewTodoDueDate('');
-                      }}
-                      variant="outline"
-                      className="border-gray-300 hover:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
+            {/* Todo Box */}
+            <div className="mb-8 w-64">
+              <TodoList 
+                user={user}
+                onPomodoroStateChange={(state) => console.log('Pomodoro state:', state)}
+              />
             </div>
 
             {/* Courses Section */}
@@ -1202,7 +1195,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                         onClick={() => setSemesterProgressVisible(false)}
                         className="h-5 w-5 p-0 text-gray-500 hover:text-[#752432]"
                       >
-                        <X className="w-3 h-3" />
+                        <X className="w-3.5 h-3.5" />
                       </Button>
                     </div>
                   </div>

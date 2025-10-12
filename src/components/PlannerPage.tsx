@@ -729,9 +729,38 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     return null;
   };
 
-  // Extract last name from faculty
-  const getLastName = (fullName: string) => {
-    // Handle "lastname, firstname" format
+  // Format a single professor name from "lastname, firstname" to "Firstname Lastname"
+  const formatSingleProfessor = (name: string): string => {
+    console.log('formatSingleProfessor input:', name);
+    
+    if (name.includes(',')) {
+      const parts = name.split(',');
+      const lastName = parts[0].trim();
+      const firstName = parts[1].trim();
+      const result = `${firstName} ${lastName}`;
+      console.log('formatSingleProfessor result:', result);
+      return result;
+    }
+    const result = name.replace('Professor ', '');
+    console.log('formatSingleProfessor result (no comma):', result);
+    return result;
+  };
+
+  // Extract last name from faculty (for display in compact views)
+  const getLastName = (fullName: string): string => {
+    // Handle multiple professors separated by ";"
+    if (fullName.includes(';')) {
+      const professors = fullName.split(';').map(p => p.trim());
+      if (professors.length === 1) {
+        return getLastName(professors[0]);
+      } else if (professors.length === 2) {
+        return `${getLastName(professors[0])}; ${getLastName(professors[1])}`;
+      } else {
+        return `${getLastName(professors[0])}; et al.`;
+      }
+    }
+    
+    // Handle single professor "lastname, firstname" format
     if (fullName.includes(',')) {
       return fullName.split(',')[0].trim();
     }
@@ -740,16 +769,22 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     return parts[parts.length - 1];
   };
 
-  // Get full faculty name without "Professor" prefix
-  const getFullFacultyName = (fullName: string) => {
-    // Handle "lastname, firstname" format - convert to "firstname lastname"
-    if (fullName.includes(',')) {
-      const parts = fullName.split(',');
-      const lastName = parts[0].trim();
-      const firstName = parts[1].trim();
-      return `${firstName} ${lastName}`;
+  // Get full faculty name without "Professor" prefix (for detailed views)
+  const getFullFacultyName = (fullName: string): string => {
+    console.log('getFullFacultyName input:', fullName);
+    
+    // Handle multiple professors separated by ";"
+    if (fullName.includes(';')) {
+      const professors = fullName.split(';').map(p => p.trim());
+      const result = professors.map(formatSingleProfessor).join('; ');
+      console.log('Multiple professors result:', result);
+      return result;
     }
-    return fullName.replace('Professor ', '');
+    
+    // Handle single professor "lastname, firstname" format - convert to "First Name Last Name"
+    const result = formatSingleProfessor(fullName);
+    console.log('Single professor result:', result);
+    return result;
   };
 
   // Handle professor name click to navigate to reviews

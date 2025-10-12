@@ -1081,7 +1081,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
               <div className="px-4 py-3 border-b border-gray-200" style={{ backgroundColor: '#F8F4ED' }}>
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold text-gray-900">{monthNames[currentMonth]} {currentYear}</h3>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
                     <Button 
                       variant="ghost" 
                       size="sm" 

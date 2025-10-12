@@ -575,9 +575,20 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
       </Card>
 
       {/* Pomodoro Timer */}
-      {showPomodoro && (
-        <PomodoroTimer onStateChange={onPomodoroStateChange} />
-      )}
+      <div 
+        className="transition-all duration-1000 ease-out overflow-hidden"
+        style={{
+          maxHeight: showPomodoro ? '1000px' : '0px',
+          opacity: showPomodoro ? 1 : 0,
+        }}
+      >
+        <div 
+          className="transition-opacity duration-1000 ease-out"
+          style={{ opacity: showPomodoro ? 1 : 0 }}
+        >
+          <PomodoroTimer onStateChange={onPomodoroStateChange} />
+        </div>
+      </div>
 
       {/* Add Todo Dialog */}
       <Dialog open={showAddTodo} onOpenChange={setShowAddTodo}>

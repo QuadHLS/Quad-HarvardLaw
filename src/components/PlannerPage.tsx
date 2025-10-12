@@ -97,8 +97,6 @@ interface PlannerCourse {
   days: string;
   times: string;
   location: string;
-  prerequisites: string;
-  exam_type: string;
   course_description: string;
   notes: string;
   requirements: string;
@@ -149,8 +147,6 @@ const fetchCourses = async (): Promise<PlannerCourse[]> => {
       days: course.days || 'TBD',
       times: course.times || 'TBD',
       location: course.location || 'TBD',
-      prerequisites: course.prerequisites || 'TBD',
-      exam_type: course.exam_type || 'TBD',
       course_description: course.course_description || 'TBD',
       notes: course.notes || 'TBD',
       requirements: course.requirements || 'TBD'
@@ -2096,22 +2092,6 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                   </div>
                 </div>
                 
-                {/* Prerequisites and Exam row */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 block mb-1">Prerequisites</label>
-                    <p className="text-sm text-gray-900">
-                      {selectedCourseForDetail.prerequisites || 'None'}
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 block mb-1">Exam</label>
-                    <p className="text-sm text-gray-900">
-                      {selectedCourseForDetail.exam_type || 'No Exam'}
-                    </p>
-                  </div>
-                </div>
               </div>
               
                 </div>

@@ -5,6 +5,7 @@ import {
   X,
   Plus,
   BookOpen,
+  GraduationCap,
 } from 'lucide-react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
@@ -372,6 +373,89 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
   const [userCourses, setUserCourses] = useState<UserCourse[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [loading, setLoading] = useState(true);
+  const [semesterProgressVisible, setSemesterProgressVisible] = useState(false);
+  const [isMonthSwitching, setIsMonthSwitching] = useState(false);
+  
+  // Calendar state
+  const today = new Date();
+  const currentYear = selectedDate.getFullYear();
+  const currentMonth = selectedDate.getMonth();
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  
+  // Semester progress calculation using dynamic semester logic
+  const semesterProgress = (() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth() + 1; // getMonth() is 0-indexed
+    const day = today.getDate();
+    
+    // Determine current semester and its dates
+    let semesterStart, semesterEnd, semesterName;
+    
+    // Fall: September 2 - November 25
+    if ((month === 9 && day >= 2) || month === 10 || (month === 11 && day <= 25)) {
+      semesterStart = new Date(year, 8, 2); // September 2
+      semesterEnd = new Date(year, 10, 25); // November 25
+      semesterName = `${year}FA`;
+    }
+    // Winter: January 5 - January 21
+    else if (month === 1 && day >= 5 && day <= 21) {
+      semesterStart = new Date(year, 0, 5); // January 5
+      semesterEnd = new Date(year, 0, 21); // January 21
+      semesterName = `${year}WI`;
+    }
+    // Spring: January 26 - April 24
+    else if ((month === 1 && day >= 26) || month === 2 || month === 3 || (month === 4 && day <= 24)) {
+      semesterStart = new Date(year, 0, 26); // January 26
+      semesterEnd = new Date(year, 3, 24); // April 24
+      semesterName = `${year}SP`;
+    }
+    // Default to current year Fall if outside semester periods
+    else {
+      semesterStart = new Date(year, 8, 2); // September 2
+      semesterEnd = new Date(year, 10, 25); // November 25
+      semesterName = `${year}FA`;
+    }
+    
+    // Normalize dates to midnight for accurate day counting
+    const startDate = new Date(semesterStart.getFullYear(), semesterStart.getMonth(), semesterStart.getDate());
+    const endDate = new Date(semesterEnd.getFullYear(), semesterEnd.getMonth(), semesterEnd.getDate());
+    const currentDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    
+    const totalDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const daysPassed = Math.max(0, Math.round((currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+    const percentage = Math.min(100, Math.max(0, Math.round((daysPassed / totalDays) * 100)));
+    
+    // Calculate school days remaining (more accurate calculation)
+    
+    // Count actual school days (Monday-Friday) remaining
+    let schoolDaysRemaining = 0;
+    const checkDate = new Date(today);
+    checkDate.setDate(checkDate.getDate() + 1); // Start from tomorrow
+    
+    while (checkDate <= semesterEnd) {
+      const dayOfWeek = checkDate.getDay();
+      // Count Monday (1) through Friday (5) as school days
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+        schoolDaysRemaining++;
+      }
+      checkDate.setDate(checkDate.getDate() + 1);
+    }
+    
+    
+
+    return {
+      percentage,
+      schoolDaysRemaining,
+      semesterName
+    };
+  })();
 
   // Function to extract first name from full name
   const getFirstName = (fullName: string | null): string => {
@@ -563,13 +647,6 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
     setEditingText('');
   };
 
-  // Handle calendar day click
-  const handleCalendarDayClick = (day: number | null) => {
-    if (!day) return;
-
-    const clickedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-    setSelectedDate(clickedDate);
-  };
 
 
   const sortedTodayTodos = todayTodos.sort((a, b) => {
@@ -727,6 +804,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
 
   const selectedDayCourses = getCoursesForSelectedDay();
 
+
   // Parse time string and convert to position for calendar display
   const parseTimeToPosition = (timeString: string) => {
     if (!timeString || timeString === 'TBD') return null;
@@ -745,45 +823,26 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
     const startMinutes = startHour24 * 60 + parseInt(startMin);
     const endMinutes = endHour24 * 60 + parseInt(endMin);
     
-    // Convert to pixel position (6 AM to 9 PM = 15 hours = 900 minutes, 40px per hour)
-    const startPosition = ((startMinutes - 360) / 60) * 40 + 6; // 360 = 6 AM in minutes, 6px offset
+    // Only show courses within 8AM-8PM range
+    if (startHour24 < 8 || endHour24 > 20) return null;
+    
+    // Convert to pixel position (8 AM to 8 PM = 12 hours = 720 minutes, 40px per hour)
+    const startPosition = ((startMinutes - 480) / 60) * 40 + 6; // 480 = 8 AM in minutes, 6px offset
     const height = ((endMinutes - startMinutes) / 60) * 40;
     
     return { startPosition, height };
   };
 
-  // Generate calendar days for current month
-  const generateCalendarDays = () => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const firstDayOfMonth = new Date(year, month, 1).getDay();
-    const days = [];
 
-    // Add empty cells for days before the 1st
-    for (let i = 0; i < firstDayOfMonth; i++) {
-      days.push(null);
-    }
-
-    // Add days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      days.push(day);
-    }
-
-    return days;
-  };
-
-  const calendarDays = generateCalendarDays();
-  const weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   const getCurrentTimePosition = () => {
-    // Calculate pixel position based on 6 AM to 9 PM timeframe (40px per hour)
-    const startOfDay = 6 * 60; // 6 AM in minutes
+    // Calculate pixel position based on 8 AM to 8 PM timeframe (40px per hour)
+    const startOfDay = 8 * 60; // 8 AM in minutes
     const timeFromStart = currentTime - startOfDay;
-    const position = (timeFromStart / 60) * 40 + 4; // 40px per hour + 4px offset, match class boxes
+    const position = (timeFromStart / 60) * 40 + 6; // 40px per hour + 6px offset, match class boxes
     
     // Show the line even if outside the range, but clamp it to visible area
-    return Math.max(10, Math.min(610, position)); // 10px to 610px (15 hours * 40px + 10px)
+    return Math.max(6, Math.min(486, position)); // 6px to 486px (12 hours * 40px + 6px)
   };
 
   if (loading) {
@@ -1016,50 +1075,169 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
           </div>
 
           {/* Right Sidebar - Calendar and Schedule */}
-          <div className="w-80 flex-shrink-0 space-y-4">
-            {/* Compact Calendar */}
-            <Card className="p-3">
-              <div className="text-center mb-3">
-                <h3 className="text-sm font-medium text-gray-900">
-                  {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-7 gap-0.5 mb-1">
-                {weekDays.map((day, index) => (
-                  <div
-                    key={`weekday-${index}`}
-                    className="text-center text-xs font-medium text-gray-500 py-1"
-                  >
-                    {day}
+          <div className="w-68 flex-shrink-0 space-y-4">
+            {/* Calendar */}
+            <Card className="overflow-hidden relative" style={{ backgroundColor: '#FEFBF6' }}>
+              <div className="px-4 py-3 border-b border-gray-200" style={{ backgroundColor: '#F8F4ED' }}>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-900">{monthNames[currentMonth]} {currentYear}</h3>
+                  <div className="flex items-center gap-4">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-8 w-8 p-0 text-gray-600 hover:text-[#752432] text-lg"
+                      onClick={() => {
+                        setIsMonthSwitching(true);
+                        const newMonth = currentMonth - 1;
+                        const newYear = newMonth < 0 ? currentYear - 1 : currentYear;
+                        const actualNewMonth = newMonth < 0 ? 11 : newMonth;
+                        
+                        // If navigating to current month, select today's date
+                        if (actualNewMonth === today.getMonth() && newYear === today.getFullYear()) {
+                          setSelectedDate(today);
+                        } else {
+                          setSelectedDate(new Date(newYear, actualNewMonth, 1));
+                        }
+                        
+                        // Reset the month switching flag after a brief delay
+                        setTimeout(() => setIsMonthSwitching(false), 100);
+                      }}
+                    >
+                      ‹
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-8 w-8 p-0 text-gray-600 hover:text-[#752432] text-lg"
+                      onClick={() => {
+                        setIsMonthSwitching(true);
+                        const newMonth = currentMonth + 1;
+                        const newYear = newMonth > 11 ? currentYear + 1 : currentYear;
+                        const actualNewMonth = newMonth > 11 ? 0 : newMonth;
+                        
+                        // If navigating to current month, select today's date
+                        if (actualNewMonth === today.getMonth() && newYear === today.getFullYear()) {
+                          setSelectedDate(today);
+                        } else {
+                          setSelectedDate(new Date(newYear, actualNewMonth, 1));
+                        }
+                        
+                        // Reset the month switching flag after a brief delay
+                        setTimeout(() => setIsMonthSwitching(false), 100);
+                      }}
+                    >
+                      ›
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSemesterProgressVisible(!semesterProgressVisible)}
+                      className="h-8 w-8 p-0 text-gray-500 hover:text-[#752432] hover:bg-[#752432]/10 rounded-full"
+                    >
+                      <GraduationCap className="w-4 h-4" />
+                    </Button>
                   </div>
-                ))}
+                </div>
               </div>
-
-              <div className="grid grid-cols-7 gap-0.5">
-                {calendarDays.map((day, index) => (
-                  <div
-                    key={index}
-                    className={`text-center text-xs py-1.5 cursor-pointer transition-all duration-200 ${
-                      day === currentDate.getDate()
-                        ? 'bg-[#752432] text-white font-medium rounded w-6 h-6 flex items-center justify-center mx-auto shadow-sm'
-                        : day
-                        ? 'text-gray-900 rounded w-6 h-6 flex items-center justify-center mx-auto bg-gray-100 shadow-sm border border-gray-200 hover:bg-gray-200 hover:shadow-md hover:scale-105'
-                        : ''
-                    }`}
-                    onClick={() => handleCalendarDayClick(day)}
-                  >
-                    {day}
+              <div className="p-3">
+                {/* Calendar Grid */}
+                <div className="grid grid-cols-7 gap-1 mb-2">
+                  {dayNames.map((day, index) => (
+                    <div key={`day-${index}`} className="text-center text-xs font-medium text-gray-500 py-1">
+                      {day}
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-1">
+                  {/* Empty cells for days before month starts */}
+                  {Array.from({ length: firstDayOfMonth }, (_, i) => (
+                    <div key={`empty-${i}`} className="h-8" />
+                  ))}
+                  {/* Days of the month */}
+                  {Array.from({ length: daysInMonth }, (_, i) => {
+                    const day = i + 1;
+                    const date = new Date(currentYear, currentMonth, day);
+                    const isToday = date.toDateString() === today.toDateString() && currentMonth === today.getMonth() && currentYear === today.getFullYear();
+                    const isSelected = date.toDateString() === selectedDate.toDateString();
+                    
+                    return (
+                      <button
+                        key={day}
+                        onClick={() => setSelectedDate(date)}
+                        className={`h-8 w-8 text-xs rounded-md font-medium flex items-center justify-center relative leading-none ${
+                          isMonthSwitching ? '' : 'transition-colors'
+                        } ${
+                          isSelected 
+                            ? 'bg-[#752432] text-white' 
+                            : isToday 
+                            ? 'bg-[#752432]/10 text-[#752432] border border-[#752432]/20' 
+                            : 'text-gray-700 hover:bg-gray-100'
+                        }`}
+                        style={{ 
+                          fontFamily: 'system-ui, -apple-system, sans-serif',
+                          fontWeight: '500',
+                          fontSize: '12px',
+                          lineHeight: '1'
+                        }}
+                      >
+                        {day}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              
+              {/* Semester Progress Overlay */}
+              {semesterProgressVisible && (
+                <div className="absolute bottom-10 right-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
+                  <div className="px-3 py-2 border-b border-gray-200 bg-[#F8F4ED]">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <GraduationCap className="w-3.5 h-3.5 text-[#752432]" />
+                        <h4 className="text-sm font-semibold text-gray-900">{semesterProgress.semesterName} Progress</h4>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSemesterProgressVisible(false)}
+                        className="h-5 w-5 p-0 text-gray-500 hover:text-[#752432]"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
                   </div>
-                ))}
-              </div>
+                  <div className="px-3 py-3 space-y-3">
+                    {/* Progress Bar */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium text-gray-700">Semester Complete</span>
+                        <span className="text-xs font-semibold text-[#752432]">{semesterProgress.percentage}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-[#752432] h-2 rounded-full transition-all duration-300" 
+                          style={{ width: `${semesterProgress.percentage}%` }}
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Days Remaining */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-600">School days until break:</span>
+                      <span className="text-xs font-semibold text-gray-900">
+                        {semesterProgress.schoolDaysRemaining} days
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </Card>
 
             {/* Selected Day's Schedule - Google Calendar Style */}
-            <Card className="p-0 overflow-hidden">
+            <Card className="p-0 overflow-hidden" style={{ backgroundColor: '#FEFBF6' }}>
               {/* Header */}
-              <div className="p-4 border-b border-gray-200">
-                <h3 className="text-sm font-medium text-gray-900">
+              <div className="p-4 border-b border-gray-200" style={{ backgroundColor: '#F8F4ED' }}>
+                <h3 className="font-semibold text-gray-900">
                   {selectedDate.toDateString() === new Date().toDateString() ? 'Today' : 'Schedule'}
                 </h3>
                 <p className="text-xs text-gray-600">
@@ -1067,69 +1245,71 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                     weekday: 'long',
                     month: 'short',
                     day: 'numeric'
-                  })} • {currentSemester}
+                  })}
                 </p>
               </div>
 
               {/* Schedule Content */}
-              <div
-                className="relative style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} overflow-hidden"
-                style={{ height: '640px' }}
+              <div 
+                className="overflow-hidden transition-all duration-1000 ease-out"
+                style={{ 
+                  height: selectedDayCourses.length === 0 ? '120px' : '520px',
+                  backgroundColor: '#FEFBF6'
+                }}
               >
-                {/* Time column */}
-                <div className="absolute left-0 w-16 h-full border-r border-gray-200" style={{ top: '6px' }}>
-                  {/* Time labels */}
-                  {[6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21].map(
-                    (hour, index) => (
-                      <div
-                        key={hour}
-                        className="absolute text-[10px] text-gray-500 text-center w-full leading-none"
-                        style={{ top: `${index * 40 - 4}px` }}
-                      >
-                        <span className="whitespace-nowrap">
-                          {hour <= 12 ? (hour === 0 ? 12 : hour) : hour - 12}:00
-                          {hour < 12 ? 'AM' : 'PM'}
-                        </span>
-                      </div>
-                    )
-                  )}
-                </div>
-
-                {/* Time grid lines */}
-                <div className="absolute left-16 right-0 h-full" style={{ top: '6px' }}>
-                  {Array.from({ length: 16 }, (_, index) => (
-                    <div
-                      key={index}
-                      className="absolute w-full border-b border-gray-100"
-                      style={{ top: `${index * 40}px` }}
-                    />
-                  ))}
-                </div>
-
-                {/* Current time indicator */}
-                <div
-                  className="absolute left-16 right-0 z-50 flex items-center"
-                  style={{ top: `${getCurrentTimePosition()}px` }}
-                >
-                  <div className="w-1.5 h-1.5 bg-red-500 rounded-full shadow-sm"></div>
-                  <div className="flex-1 h-0.5 bg-red-500"></div>
-                </div>
-
-                {/* Events */}
-                <div className="absolute left-16 right-0 top-0 h-full pr-2">
-                  {selectedDayCourses.length === 0 ? (
-                    <div className="flex items-center justify-center h-full">
-                      <div className="text-center">
-                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                          <BookOpen className="w-6 h-6 text-gray-400" />
-                        </div>
-                        <p className="text-sm text-gray-500">
-                          {selectedDate.toDateString() === new Date().toDateString() ? 'No classes today' : 'No classes scheduled'}
-                        </p>
-                      </div>
+                {selectedDayCourses.length === 0 ? (
+                  <div className="p-6 text-center w-full h-full flex flex-col items-center justify-center">
+                    <div className="flex items-center justify-center mx-auto mb-2">
+                      <BookOpen className="w-6 h-6 text-gray-400" />
                     </div>
-                  ) : (
-                    selectedDayCourses.map((course, index) => {
+                    <p className="text-sm text-gray-500">
+                      {selectedDate.toDateString() === new Date().toDateString() ? 'No classes today' : 'No classes scheduled'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="relative h-full">
+                  {/* Time column */}
+                  <div className="absolute left-0 w-16 h-full border-r border-gray-200" style={{ top: '6px' }}>
+                    {/* Time labels */}
+                    {[8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map(
+                      (hour, index) => (
+                        <div
+                          key={hour}
+                          className="absolute text-[10px] text-gray-500 text-center w-full leading-none"
+                          style={{ top: `${index * 40 - 4}px` }}
+                        >
+                          <span className="whitespace-nowrap">
+                            {hour <= 12 ? (hour === 0 ? 12 : hour) : hour - 12}:00
+                            {hour < 12 ? 'AM' : 'PM'}
+                          </span>
+                        </div>
+                      )
+                    )}
+                  </div>
+
+                  {/* Time grid lines */}
+                  <div className="absolute left-16 right-0 h-full" style={{ top: '6px' }}>
+                    {Array.from({ length: 13 }, (_, index) => (
+                      <div
+                        key={index}
+                        className="absolute w-full border-b border-gray-200"
+                        style={{ top: `${index * 40}px` }}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Current time indicator */}
+                  <div
+                    className="absolute left-16 right-0 z-50 flex items-center"
+                    style={{ top: `${getCurrentTimePosition()}px` }}
+                  >
+                    <div className="w-1.5 h-1.5 bg-red-500 rounded-full shadow-sm"></div>
+                    <div className="flex-1 h-0.5 bg-red-500"></div>
+                  </div>
+
+                  {/* Events */}
+                  <div className="absolute left-16 right-0 top-0 h-full pr-2">
+                    {selectedDayCourses.map((course, index) => {
                       const timePosition = parseTimeToPosition(course.schedule?.times || '');
                       if (!timePosition) return null;
                       
@@ -1153,9 +1333,10 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                           </div>
                         </div>
                       );
-                    })
-                  )}
-                </div>
+                    })}
+                  </div>
+                  </div>
+                )}
               </div>
             </Card>
           </div>

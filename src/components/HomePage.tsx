@@ -12,6 +12,8 @@ import {
   ChevronDown,
   ChevronUp,
   CalendarIcon,
+  Book,
+  ChevronRight,
 } from 'lucide-react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
@@ -42,13 +44,6 @@ interface UserProfile {
   full_name: string;
   classes: UserCourse[];
   class_year: string;
-}
-
-interface CourseCardProps {
-  title: string;
-  instructor: string;
-  course?: any;
-  onCourseClick?: (courseName: string) => void;
 }
 
 // Display-only formatter: hide trailing section number (1-7) for 1L required course names.
@@ -179,94 +174,6 @@ function TodoItem({
         </button>
       )}
     </div>
-  );
-}
-
-
-function CourseCard({
-  title,
-  instructor,
-  course,
-  onCourseClick,
-}: CourseCardProps) {
-  // Get real course data from the course object
-  const getCoursePreview = () => {
-    if (!course?.schedule) {
-      return {
-        schedule: 'TBD',
-        location: 'TBD'
-      };
-    }
-
-    const schedule = course.schedule;
-    const days = schedule.days || 'TBD';
-    const times = schedule.times || 'TBD';
-    const location = schedule.location || 'TBD';
-    
-    // Format the schedule display
-    let scheduleDisplay = 'TBD';
-    if (days !== 'TBD' && times !== 'TBD') {
-      scheduleDisplay = `${days} ${times}`;
-    } else if (days !== 'TBD') {
-      scheduleDisplay = days;
-    } else if (times !== 'TBD') {
-      scheduleDisplay = times;
-    }
-
-    return {
-      schedule: scheduleDisplay,
-      location: location
-    };
-  };
-
-  const coursePreview = getCoursePreview();
-
-  return (
-    <Card
-      className="overflow-hidden shadow-sm border border-gray-200 cursor-pointer hover:shadow-lg hover:border-gray-300 transition-all duration-200" 
-      style={{ 
-        backgroundColor: 'var(--background-color, #f9f5f0)',
-        height: '120px',
-        width: '100%'
-      }}
-      onClick={() => onCourseClick?.(title)}
-    >
-      {/* Burgundy Header with Schedule */}
-      <div 
-        className="bg-[#752432] text-white relative"
-        style={{
-          height: '120px',
-          padding: '8px 8px',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between'
-        }}
-      >
-        <div>
-          <h3 className="text-xs font-semibold leading-none mb-0.5 truncate">
-            {formatDisplayCourseName(title)}
-          </h3>
-          <div className="flex items-center justify-between">
-            <span className="text-white/75 text-[10px] font-medium">
-              {coursePreview.schedule}
-            </span>
-          </div>
-        </div>
-        <div>
-          {coursePreview.location && coursePreview.location !== 'TBD' && (
-            <div className="mt-0.5">
-              <span className="text-white/70 text-[10px]">
-                📍 {coursePreview.location}
-              </span>
-            </div>
-          )}
-          <div className="mt-0.5">
-            <p className="text-white/85 text-[10px] truncate">{instructor}</p>
-          </div>
-        </div>
-      </div>
-
-    </Card>
   );
 }
 
@@ -443,21 +350,21 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
       <Card className="overflow-hidden" style={{ backgroundColor: '#FEFBF6' }}>
         <div className="px-4 py-2 border-b border-gray-200" style={{ backgroundColor: '#F8F4ED' }}>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
               <CheckSquare className="w-4 h-4 text-[#752432]" />
               <h3 className="font-semibold text-gray-900">To Do</h3>
-            </div>
+        </div>
             <div className="flex items-center gap-1">
-              <Button
+        <Button
                 variant="ghost"
-                size="sm"
+          size="sm"
                 onClick={() => setShowPomodoro(!showPomodoro)}
                 className="h-6 w-6 p-0 text-[#752432] hover:bg-[#752432]/10"
               >
                 <Timer className="w-3.5 h-3.5" />
               </Button>
               <Button
-                variant="ghost"
+          variant="ghost"
                 size="sm"
                 onClick={() => setShowAddTodo(true)}
                 className="h-6 w-6 p-0 text-[#752432] hover:bg-[#752432]/10"
@@ -471,8 +378,8 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
                 className="h-6 w-6 p-0 text-[#752432] hover:bg-[#752432]/10"
               >
                 {todoCollapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
-              </Button>
-            </div>
+        </Button>
+      </div>
           </div>
         </div>
         <div 
@@ -521,7 +428,7 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
                   <p className="text-xs text-gray-500 italic">No tasks for today</p>
                 )}
               </div>
-            </div>
+      </div>
 
             {/* In the Future Section */}
             <div>
@@ -553,9 +460,9 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
                         {todo.dueDate && (
                             <div className="mt-1 text-[10px] px-1 rounded inline-block self-start" style={{ color: '#8b5a5a', backgroundColor: '#f6e7e5', paddingTop: '1px', paddingBottom: '1px' }}>
                             {formatDueDate(todo.dueDate)}
-                          </div>
+            </div>
                         )}
-                      </div>
+          </div>
                     </div>
                     <button
                       onClick={() => removeTodo(todo.id)}
@@ -659,8 +566,8 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
                     />
                   </PopoverContent>
                 </Popover>
-              </div>
-            )}
+          </div>
+        )}
             <div className="flex justify-end gap-2">
               <Button
                 variant="outline"
@@ -678,11 +585,92 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
               >
                 Add Task
               </Button>
-            </div>
+      </div>
           </div>
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// Course interface
+interface Course {
+  id: string;
+  name: string;
+  code: string;
+  instructor: string;
+  schedule: string;
+  location: string;
+  nextClass: string;
+  color: string;
+  progress: number;
+}
+
+// MyCourses component props
+interface MyCoursesProps {
+  onNavigateToCourse?: (courseName: string) => void;
+  semester?: string;
+  courses?: Course[];
+}
+
+// MyCourses component
+function MyCourses({ 
+  onNavigateToCourse, 
+  semester = 'Fall 2025',
+  courses 
+}: MyCoursesProps) {
+  // Use provided courses or empty array
+  const myCoursesData = courses || [];
+
+  return (
+    <Card className="overflow-hidden" style={{ backgroundColor: '#FEFBF6' }}>
+      <div className="px-4 py-2 border-b border-gray-200" style={{ backgroundColor: '#F8F4ED' }}>
+        <div className="flex items-center gap-2">
+          <Book className="w-4 h-4 text-[#752432]" />
+          <h3 className="font-semibold text-gray-900">{semester}</h3>
+        </div>
+      </div>
+      <div className="px-3 pb-3 pt-0 space-y-2">
+        {myCoursesData.map((course) => (
+          <div 
+            key={course.id}
+            className="p-3 rounded-lg border border-gray-200 hover:border-[#752432] cursor-pointer transition-all duration-200 hover:shadow-sm"
+            style={{ backgroundColor: '#FEFBF6' }}
+            onClick={() => onNavigateToCourse?.(course.name)}
+          >
+            <div className="flex items-start justify-between mb-1.5">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <div 
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: course.color }}
+                  />
+                  <h4 className="font-medium text-gray-900 text-sm">{course.name}</h4>
+                </div>
+                <p className="text-[10px] text-gray-600">{course.instructor}</p>
+                <p className="text-[10px] text-gray-500">{course.schedule}</p>
+                <p className="text-[10px] text-gray-600">{course.location}</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-gray-400" />
+            </div>
+          <div className="flex items-center justify-between">
+              <span className={`text-[10px] font-medium ${course.nextClass.includes('Today') ? 'text-[#752432]' : 'text-gray-500'}`}>
+                {course.nextClass}
+            </span>
+          </div>
+        </div>
+        ))}
+        
+        {/* Empty state */}
+        {myCoursesData.length === 0 && (
+          <div className="text-center py-8">
+            <Book className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-sm text-gray-500 mb-2">No courses enrolled</p>
+            <p className="text-xs text-gray-400">Contact your advisor to enroll in courses</p>
+            </div>
+          )}
+          </div>
+    </Card>
   );
 }
 
@@ -694,6 +682,7 @@ interface HomePageProps {
 export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
   const [, setUserProfile] = useState<UserProfile | null>(null);
   const [userCourses, setUserCourses] = useState<UserCourse[]>([]);
+  const [transformedCourses, setTransformedCourses] = useState<Course[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [loading, setLoading] = useState(true);
   const [semesterProgressVisible, setSemesterProgressVisible] = useState(false);
@@ -818,56 +807,203 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
     fetchUserProfile();
   }, [user]);
 
-
-
-
-
-
-
-
-  // Generate course data from user's courses
-  const courseData = userCourses.map((course) => ({
-    title: course.class,
-    instructor: course.professor,
-    course: course, // This contains the full course object with schedule
-  }));
-
-  // Group courses by semester
-  const groupCoursesBySemester = () => {
-    const grouped: { [semester: string]: typeof courseData } = {};
+  // Get current semester using the same logic as calendar
+  const getCurrentSemesterCode = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth() + 1; // getMonth() is 0-indexed
+    const day = today.getDate();
     
-    courseData.forEach(course => {
-      // The course object contains the schedule data directly
-      const semester = course.course?.schedule?.semester || 'TBD';
-      if (!grouped[semester]) {
-        grouped[semester] = [];
-      }
-      grouped[semester].push(course);
-    });
-    
-    // Sort semesters: FA (Fall), SP (Spring), WI (Winter), then TBD
-    const semesterOrder = ['FA', 'SP', 'WI', 'TBD'];
-    const sortedSemesters = Object.keys(grouped).sort((a, b) => {
-      const aYear = parseInt(a.replace(/\D/g, '')) || 0;
-      const bYear = parseInt(b.replace(/\D/g, '')) || 0;
-      const aSem = a.replace(/\d/g, '');
-      const bSem = b.replace(/\d/g, '');
-      
-      // First sort by semester order (FA, SP, WI), then by year
-      const aSemIndex = semesterOrder.indexOf(aSem);
-      const bSemIndex = semesterOrder.indexOf(bSem);
-      
-      if (aSemIndex !== bSemIndex) {
-        return aSemIndex - bSemIndex; // FA first, then SP, then WI
-      }
-      
-      return bYear - aYear; // Newer years first within same semester
-    });
-    
-    return { grouped, sortedSemesters };
+    // Fall: September 2 - November 25
+    if ((month === 9 && day >= 2) || month === 10 || (month === 11 && day <= 25)) {
+      return `${year}FA`;
+    }
+    // Winter: January 5 - January 21
+    else if (month === 1 && day >= 5 && day <= 21) {
+      return `${year}WI`;
+    }
+    // Spring: January 26 - April 24
+    else if ((month === 1 && day >= 26) || month === 2 || month === 3 || (month === 4 && day <= 24)) {
+      return `${year}SP`;
+    }
+    // Default to current year Fall if outside semester periods
+    else {
+      return `${year}FA`;
+    }
   };
 
-  const { grouped: coursesBySemester, sortedSemesters } = groupCoursesBySemester();
+  const currentSemesterCode = getCurrentSemesterCode();
+
+  // Format semester code for display (e.g., "2025FA" -> "Fall 2025")
+  const formatSemesterDisplay = (semesterCode: string): string => {
+    if (!semesterCode || semesterCode === 'TBD') return 'Current Semester';
+    
+    const year = semesterCode.slice(0, 4);
+    const term = semesterCode.slice(4);
+    
+    const termMap: Record<string, string> = {
+      'FA': 'Fall',
+      'SP': 'Spring',
+      'WI': 'Winter'
+    };
+    
+    const termName = termMap[term] || term;
+    return `${termName} ${year}`;
+  };
+
+  // Transform user courses to Course format for MyCourses component
+  useEffect(() => {
+    if (userCourses.length === 0) {
+      setTransformedCourses([]);
+      return;
+    }
+
+    // Filter courses for current semester only
+    const currentSemesterCourses = userCourses.filter(course => {
+      return course.schedule?.semester === currentSemesterCode;
+    });
+
+    if (currentSemesterCourses.length === 0) {
+      setTransformedCourses([]);
+      return;
+    }
+
+    // Color cycle: green, blue, yellow, red
+    const colorCycle = ['#04913A', '#0080BD', '#FFBB06', '#F22F21'];
+    
+    // Helper to get course color based on index
+    const getCourseColor = (index: number): string => {
+      return colorCycle[index % 4];
+    };
+
+    // Helper to format days string
+    const formatDays = (daysStr: string): string => {
+      if (!daysStr || daysStr === 'TBD') return 'TBD';
+      // Convert full day names to abbreviations if needed
+      return daysStr
+        .replace(/Monday/g, 'M')
+        .replace(/Tuesday/g, 'Tu')
+        .replace(/Wednesday/g, 'W')
+        .replace(/Thursday/g, 'Th')
+        .replace(/Friday/g, 'F')
+        .replace(/Mon/g, 'M')
+        .replace(/Tue/g, 'Tu')
+        .replace(/Wed/g, 'W')
+        .replace(/Thu/g, 'Th')
+        .replace(/Fri/g, 'F')
+        .replace(/,/g, '·')
+        .replace(/\s+/g, '    '); // Add consistent spacing
+    };
+
+    // Helper to get next class time
+    const getNextClass = (course: UserCourse): string => {
+      const schedule = course.schedule;
+      if (!schedule?.days || !schedule?.times || schedule.days === 'TBD' || schedule.times === 'TBD') {
+        return 'TBD';
+      }
+
+      // Parse days
+      const dayMap: Record<string, number> = {
+        'Mon': 1, 'Monday': 1, 'M': 1,
+        'Tue': 2, 'Tuesday': 2, 'Tu': 2, 'Tues': 2,
+        'Wed': 3, 'Wednesday': 3, 'W': 3,
+        'Thu': 4, 'Thursday': 4, 'Th': 4, 'Thurs': 4,
+        'Fri': 5, 'Friday': 5, 'F': 5,
+        'Sat': 6, 'Saturday': 6,
+        'Sun': 0, 'Sunday': 0
+      };
+
+      const daysString = schedule.days;
+      const courseDays: number[] = [];
+      
+      // Parse all days from the string
+      Object.keys(dayMap).forEach(dayName => {
+        if (daysString.includes(dayName)) {
+          const dayNum = dayMap[dayName];
+          if (!courseDays.includes(dayNum)) {
+            courseDays.push(dayNum);
+          }
+        }
+      });
+
+      if (courseDays.length === 0) return 'TBD';
+
+      // Get current day
+      const today = new Date();
+      const currentDay = today.getDay();
+
+      // Find next occurrence
+      courseDays.sort((a, b) => a - b);
+      
+      // Check if class is today
+      if (courseDays.includes(currentDay)) {
+        // Parse time to check if it's already passed
+        const timeMatch = schedule.times.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+        if (timeMatch) {
+          const [, hour, min, period] = timeMatch;
+          const classHour = parseInt(hour) + (period.toUpperCase() === 'PM' && hour !== '12' ? 12 : 0);
+          const classMinutes = classHour * 60 + parseInt(min);
+          const currentMinutes = today.getHours() * 60 + today.getMinutes();
+          
+          if (currentMinutes < classMinutes) {
+            return `Today ${schedule.times.split('-')[0].trim()}`;
+          }
+        }
+      }
+
+      // Find next day
+      const nextDay = courseDays.find(day => day > currentDay) || courseDays[0];
+      const daysUntilNext = nextDay > currentDay ? nextDay - currentDay : 7 - currentDay + nextDay;
+
+      if (daysUntilNext === 0) {
+        return `Today ${schedule.times.split('-')[0].trim()}`;
+      } else if (daysUntilNext === 1) {
+        return `Tomorrow ${schedule.times.split('-')[0].trim()}`;
+      } else {
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        return `${dayNames[nextDay]} ${schedule.times.split('-')[0].trim()}`;
+      }
+    };
+
+    // Helper to extract last names from professor string
+    const getLastNames = (professorStr: string): string => {
+      if (!professorStr || professorStr === 'TBD') return 'TBD';
+      
+      // Split by semicolon if multiple professors
+      const professors = professorStr.split(';').map(p => p.trim());
+      
+      const lastNames = professors.map(prof => {
+        // The format in database is "firstname lastname"
+        // We want just the lastname (last word)
+        const parts = prof.trim().split(/\s+/);
+        return parts[parts.length - 1]; // Get the last word
+      });
+      
+      return lastNames.join('; ');
+    };
+
+    const transformed = currentSemesterCourses.map((course, index) => ({
+      id: `${index + 1}`,
+      name: formatDisplayCourseName(course.class), // Format to hide section numbers for 1L courses
+      code: '', // We don't have course codes in the current data structure
+      instructor: getLastNames(course.professor || 'TBD'),
+      schedule: course.schedule?.days && course.schedule?.times 
+        ? `${formatDays(course.schedule.days)}    ${course.schedule.times}`
+        : 'TBD',
+      location: course.schedule?.location || 'TBD',
+      nextClass: getNextClass(course),
+      color: getCourseColor(index),
+      progress: 0 // We don't track progress yet
+    }));
+
+    setTransformedCourses(transformed);
+  }, [userCourses, currentSemesterCode]);
+
+
+
+
+
+
 
 
 
@@ -1023,58 +1159,15 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                 user={user}
                 onPomodoroStateChange={(state) => console.log('Pomodoro state:', state)}
               />
-            </div>
+                </div>
 
-            {/* Courses Section */}
-            <div>
-              <h2 className="text-lg font-medium text-gray-900 mb-4">
-                Your Courses
-              </h2>
-              {courseData.length === 0 ? (
-                <div className="rounded-xl border border-gray-200 shadow-sm p-8 text-center" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-                  <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-                    <BookOpen className="w-8 h-8 text-gray-400" />
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    No courses selected
-                  </h3>
-                  <p className="text-gray-500 mb-4">
-                    It looks like you haven't selected your courses yet.
-                    Complete your onboarding to get started.
-                  </p>
-                  <Button
-                    onClick={() => window.location.reload()}
-                    className="bg-[#752432] hover:bg-[#752432]/90 text-white"
-                  >
-                    Refresh Page
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {sortedSemesters.map((semester, semesterIndex) => (
-                    <div key={semester}>
-                      {/* Add line break before 2026SP courses */}
-                      {semester === '2026SP' && semesterIndex > 0 && (
-                        <div className="h-4"></div>
-                      )}
-                      <h3 className="text-md font-semibold text-gray-800 mb-3">
-                        {semester === 'TBD' ? 'Schedule TBD' : semester}
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
-                        {coursesBySemester[semester].map((course, index) => (
-                          <CourseCard
-                            key={`${semester}-${index}`}
-                            title={course.title}
-                            instructor={course.instructor}
-                            course={course.course}
-                            onCourseClick={onNavigateToCourse}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+            {/* My Courses Section */}
+            <div className="w-64">
+              <MyCourses 
+                onNavigateToCourse={onNavigateToCourse}
+                semester={formatSemesterDisplay(currentSemesterCode)}
+                courses={transformedCourses}
+              />
             </div>
           </div>
 

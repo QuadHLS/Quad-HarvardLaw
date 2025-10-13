@@ -725,6 +725,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
   const [semesterProgressVisible, setSemesterProgressVisible] = useState(false);
   const [isMonthSwitching, setIsMonthSwitching] = useState(false);
   const [feedMode, setFeedMode] = useState<'campus' | 'my-courses'>('campus');
+  const [isThreadViewOpen, setIsThreadViewOpen] = useState(false);
   
   // Calendar state
   const today = new Date();
@@ -1144,40 +1145,44 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
   return (
     <div className="h-full overflow-auto" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
       <div className="max-w-full mx-auto p-6">
-        <div className="flex gap-6">
-          {/* Left Content */}
-          <div className="w-64 flex-shrink-0">
-            {/* Todo Box */}
-            <div className="mb-8">
-              <TodoList 
-                user={user}
-                onPomodoroStateChange={(state) => console.log('Pomodoro state:', state)}
-              />
-                </div>
+        <div className={`flex gap-6 ${isThreadViewOpen ? 'justify-center' : ''}`}>
+          {/* Left Content - Only show when not in thread view */}
+          {!isThreadViewOpen && (
+            <div className="w-64 flex-shrink-0">
+              {/* Todo Box */}
+              <div className="mb-8">
+                <TodoList 
+                  user={user}
+                  onPomodoroStateChange={(state) => console.log('Pomodoro state:', state)}
+                />
+                  </div>
 
-            {/* My Courses Section */}
-                    <div>
-              <MyCourses 
-                onNavigateToCourse={onNavigateToCourse}
-                courses={transformedCourses}
-                allUserCourses={userCourses}
-                selectedSemester={selectedSemester}
-                onSemesterChange={setSelectedSemester}
-              />
-                    </div>
-            </div>
+              {/* My Courses Section */}
+                      <div>
+                <MyCourses 
+                  onNavigateToCourse={onNavigateToCourse}
+                  courses={transformedCourses}
+                  allUserCourses={userCourses}
+                  selectedSemester={selectedSemester}
+                  onSemesterChange={setSelectedSemester}
+                />
+                      </div>
+              </div>
+          )}
 
-          {/* Middle Content - Feed */}
-          <div className="flex-1 min-w-0">
+          {/* Feed Content - Always rendered */}
+          <div className={`${isThreadViewOpen ? 'w-full max-w-4xl' : 'flex-1 min-w-0'}`}>
             <Feed 
               feedMode={feedMode}
               onFeedModeChange={setFeedMode}
               myCourses={transformedCourses.map(c => c.name)}
+              onThreadViewChange={setIsThreadViewOpen}
             />
           </div>
 
-          {/* Right Sidebar - Calendar and Schedule */}
-          <div className="w-68 flex-shrink-0 space-y-4">
+          {/* Right Sidebar - Only show when not in thread view */}
+          {!isThreadViewOpen && (
+            <div className="w-68 flex-shrink-0 space-y-4">
             {/* Calendar */}
             <Card className="overflow-hidden relative" style={{ backgroundColor: '#FEFBF6' }}>
               <div className="px-4 py-3 border-b border-gray-200" style={{ backgroundColor: '#F8F4ED' }}>
@@ -1442,7 +1447,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
               </div>
             </Card>
           </div>
-
+          )}
         </div>
       </div>
     </div>

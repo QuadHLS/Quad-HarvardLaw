@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { createPortal } from 'react-dom';
 
 // Interfaces
 interface PollOption {
@@ -60,6 +59,7 @@ interface FeedProps {
   feedMode?: 'campus' | 'my-courses';
   onFeedModeChange?: (mode: 'campus' | 'my-courses') => void;
   myCourses?: string[];
+  onThreadViewChange?: (isOpen: boolean) => void;
 }
 
 // Inline UI Components
@@ -356,7 +356,7 @@ const DialogDescription = ({ children }: { children: React.ReactNode }) => (
 //   </button>
 // );
 
-export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCourses = ['Contract Law', 'Torts', 'Civil Procedure', 'Property Law'] }: FeedProps) {
+export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCourses = ['Contract Law', 'Torts', 'Civil Procedure', 'Property Law'], onThreadViewChange }: FeedProps) {
   // State management
   const [showCreatePostDialog, setShowCreatePostDialog] = useState(false);
   const [newPost, setNewPost] = useState('');
@@ -912,6 +912,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     setReplyingTo(null);
   }, [feedMode]);
 
+  // Notify parent when thread view state changes
+  React.useEffect(() => {
+    onThreadViewChange?.(selectedPostThread !== null);
+  }, [selectedPostThread, onThreadViewChange]);
+
   // Render thread view
   const renderThreadView = () => {
     const selectedPost = posts.find(p => p.id === selectedPostThread);
@@ -920,8 +925,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     // Color consistency is now maintained by using post ID instead of index
 
     return (
-      <div className="fixed inset-0 overflow-y-auto z-[9999]" style={{ backgroundColor: '#FAF5EF' }}>
-        <div className="max-w-4xl mx-auto p-6 min-h-screen">
+      <div className="w-full">
+        <div className="p-6">
           <div className="mb-4">
             <Button
               variant="ghost"
@@ -1212,7 +1217,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
   // Conditional rendering
   if (selectedPostThread) {
-    return createPortal(renderThreadView(), document.body);
+    return renderThreadView();
   }
 
   return (

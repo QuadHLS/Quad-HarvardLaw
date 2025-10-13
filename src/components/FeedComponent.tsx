@@ -34,7 +34,7 @@ interface Post {
   comments: number;
   shares: number;
   isLiked: boolean;
-  isBookmarked: boolean;
+  // isBookmarked: boolean; // removed
   tags?: string[];
   poll?: Poll;
 }
@@ -93,29 +93,29 @@ const MessageCircle = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const Bookmark = ({ className, fill }: { className?: string; fill?: boolean }) => (
-  <svg className={className} width="24" height="24" fill={fill ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-  </svg>
-);
+// const Bookmark = ({ className, fill }: { className?: string; fill?: boolean }) => ( // removed
+//   <svg className={className} width="24" height="24" fill={fill ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+//     <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+//   </svg>
+// );
 
-const MoreHorizontal = ({ className }: { className?: string }) => (
-  <svg className={className} width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h.01M12 12h.01M19 12h.01" />
-  </svg>
-);
+// const MoreHorizontal = ({ className }: { className?: string }) => ( // removed
+//   <svg className={className} width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+//     <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h.01M12 12h.01M19 12h.01" />
+//   </svg>
+// );
 
-const Megaphone = ({ className }: { className?: string }) => (
-  <svg className={className} width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-  </svg>
-);
+// const Megaphone = ({ className }: { className?: string }) => ( // removed
+//   <svg className={className} width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+//     <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+//   </svg>
+// );
 
-const EyeOff = ({ className }: { className?: string }) => (
-  <svg className={className} width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-  </svg>
-);
+// const EyeOff = ({ className }: { className?: string }) => ( // removed
+//   <svg className={className} width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+//     <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+//   </svg>
+// );
 
 const Plus = ({ className }: { className?: string }) => (
   <svg className={className} width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -312,49 +312,49 @@ const DialogDescription = ({ children }: { children: React.ReactNode }) => (
   </p>
 );
 
-// DropdownMenu components
-const DropdownMenu = ({ children }: { children: React.ReactNode }) => {
-  const [open, setOpen] = useState(false);
-  
-  return (
-    <div className="relative">
-      {React.Children.map(children, child => {
-        if (React.isValidElement(child)) {
-          return React.cloneElement(child, { open, setOpen } as any);
-        }
-        return child;
-      })}
-    </div>
-  );
-};
+// DropdownMenu components - removed
+// const DropdownMenu = ({ children }: { children: React.ReactNode }) => {
+//   const [open, setOpen] = useState(false);
+//   
+//   return (
+//     <div className="relative">
+//       {React.Children.map(children, child => {
+//         if (React.isValidElement(child)) {
+//           return React.cloneElement(child, { open, setOpen } as any);
+//         }
+//         return child;
+//       })}
+//     </div>
+//   );
+// };
 
-const DropdownMenuTrigger = ({ children, open, setOpen }: { children: React.ReactNode; asChild?: boolean; open?: boolean; setOpen?: (open: boolean) => void }) => (
-  <div onClick={() => setOpen?.(!open)}>
-    {children}
-  </div>
-);
+// const DropdownMenuTrigger = ({ children, open, setOpen }: { children: React.ReactNode; asChild?: boolean; open?: boolean; setOpen?: (open: boolean) => void }) => (
+//   <div onClick={() => setOpen?.(!open)}>
+//     {children}
+//   </div>
+// );
 
-const DropdownMenuContent = ({ children, align = "end", open, className = "" }: { children: React.ReactNode; align?: "start" | "end"; open?: boolean; setOpen?: (open: boolean) => void; className?: string }) => {
-  if (!open) return null;
-  
-  return (
-    <div 
-      className={`absolute z-50 mt-1 w-36 bg-white border border-gray-200 rounded-md shadow-lg ${align === "end" ? "right-0" : "left-0"} ${className}`}
-      onClick={(e) => e.stopPropagation()}
-    >
-      {children}
-    </div>
-  );
-};
+// const DropdownMenuContent = ({ children, align = "end", open, className = "" }: { children: React.ReactNode; align?: "start" | "end"; open?: boolean; setOpen?: (open: boolean) => void; className?: string }) => {
+//   if (!open) return null;
+//   
+//   return (
+//     <div 
+//       className={`absolute z-50 mt-1 w-36 bg-white border border-gray-200 rounded-md shadow-lg ${align === "end" ? "right-0" : "left-0"} ${className}`}
+//       onClick={(e) => e.stopPropagation()}
+//     >
+//       {children}
+//     </div>
+//   );
+// };
 
-const DropdownMenuItem = ({ children, className = "", onClick }: { children: React.ReactNode; className?: string; onClick?: (e?: any) => void }) => (
-  <button
-    className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 ${className}`}
-    onClick={onClick}
-  >
-    {children}
-  </button>
-);
+// const DropdownMenuItem = ({ children, className = "", onClick }: { children: React.ReactNode; className?: string; onClick?: (e?: any) => void }) => (
+//   <button
+//     className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 ${className}`}
+//     onClick={onClick}
+//   >
+//     {children}
+//   </button>
+// );
 
 export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCourses = ['Contract Law', 'Torts', 'Civil Procedure', 'Property Law'] }: FeedProps) {
   // State management
@@ -380,7 +380,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       comments: 2,
       shares: 3,
       isLiked: false,
-      isBookmarked: true,
+      // isBookmarked: true, // removed
       tags: ['contracts', 'outlines', 'study-tips']
     },
     {
@@ -395,7 +395,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       comments: 2,
       shares: 6,
       isLiked: true,
-      isBookmarked: false,
+      // isBookmarked: false, // removed
       tags: ['study-group', 'torts', 'negligence']
     },
     {
@@ -410,7 +410,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       comments: 2,
       shares: 2,
       isLiked: true,
-      isBookmarked: false,
+      // isBookmarked: false, // removed
       tags: ['achievement', 'property-law', 'exam']
     },
     {
@@ -425,7 +425,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       comments: 1,
       shares: 1,
       isLiked: false,
-      isBookmarked: true,
+      // isBookmarked: true, // removed
       tags: ['civil-procedure', 'motions', 'help']
     },
     {
@@ -439,7 +439,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       comments: 7,
       shares: 12,
       isLiked: false,
-      isBookmarked: true,
+      // isBookmarked: true, // removed
       tags: ['finals', 'study-methods', 'polls'],
       poll: {
         id: 'poll1',
@@ -465,7 +465,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       comments: 11,
       shares: 18,
       isLiked: true,
-      isBookmarked: true,
+      // isBookmarked: true, // removed
       tags: ['study-tips', 'productivity', 'case-reading']
     },
     {
@@ -480,7 +480,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       comments: 8,
       shares: 4,
       isLiked: false,
-      isBookmarked: false,
+      // isBookmarked: false, // removed
       tags: ['criminal-law', 'study-group']
     },
     {
@@ -495,7 +495,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       comments: 6,
       shares: 9,
       isLiked: true,
-      isBookmarked: true,
+      // isBookmarked: true, // removed
       tags: ['corporate-law', 'governance', 'careers']
     },
     {
@@ -510,7 +510,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       comments: 14,
       shares: 2,
       isLiked: false,
-      isBookmarked: true,
+      // isBookmarked: true, // removed
       tags: ['administrative-law', 'supplements', 'help']
     },
     {
@@ -524,7 +524,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       comments: 1,
       shares: 2,
       isLiked: false,
-      isBookmarked: false,
+      // isBookmarked: false, // removed
       tags: ['campus-life', 'coffee', 'study-spots']
     }
   ]);
@@ -603,20 +603,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       }
     ]
   });
+  const [hoveredPostId, setHoveredPostId] = useState<string | null>(null);
 
-  // Course color mapping
-  const courseColors: Record<string, string> = {
-    'Contract Law': '#0080BD',
-    'Torts': '#04913A', 
-    'Civil Procedure': '#FFBB06',
-    'Property Law': '#F22F21',
-    'Constitutional Law': '#8E44AD',
-    'Criminal Law': '#E74C3C',
-    'Administrative Law': '#F39C12',
-    'Corporate Law': '#2ECC71',
-    'Evidence': '#3498DB',
-    'Family Law': '#9B59B6'
-  };
+  // Hover state for thread original post only
+  const [isThreadPostHovered, setIsThreadPostHovered] = useState(false);
+
+  // Course colors are now determined by the post's assigned color
 
   // Anonymous name generation
   const adjectives = ['Silly', 'Curious', 'Brave', 'Wise', 'Swift', 'Bright', 'Gentle', 'Fierce'];
@@ -629,14 +621,24 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   };
 
   // Helper functions
-  const getPostColor = (index: number) => {
+  const getPostColor = (postId: string) => {
     const colors = ['#0080BD', '#04913A', '#F22F21', '#FFBB06']; // Blue, Green, Red, Yellow
-    return colors[index % 4];
+    // Use postId to generate a consistent but random color
+    let hash = 0;
+    for (let i = 0; i < postId.length; i++) {
+      hash = ((hash << 5) - hash + postId.charCodeAt(i)) & 0xffffffff;
+    }
+    return colors[Math.abs(hash) % 4];
   };
 
-  const getPostHoverColor = (index: number) => {
+  const getPostHoverColor = (postId: string) => {
     const hoverColors = ['rgba(0, 128, 189, 0.05)', 'rgba(4, 145, 58, 0.05)', 'rgba(242, 47, 33, 0.05)', 'rgba(255, 187, 6, 0.05)'];
-    return hoverColors[index % 4];
+    // Use postId to generate a consistent but random color
+    let hash = 0;
+    for (let i = 0; i < postId.length; i++) {
+      hash = ((hash << 5) - hash + postId.charCodeAt(i)) & 0xffffffff;
+    }
+    return hoverColors[Math.abs(hash) % 4];
   };
 
   // Create post functions
@@ -663,7 +665,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         comments: 0,
         shares: 0,
         isLiked: false,
-        isBookmarked: false
+        // isBookmarked: false // removed
       };
 
       // Add course if posting to My Courses
@@ -718,20 +720,20 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
   // Event handlers
   const handleLike = (postId: string) => {
-    setPosts(posts.map(post => 
+    setPosts(prevPosts => prevPosts.map(post => 
       post.id === postId 
         ? { ...post, isLiked: !post.isLiked, likes: post.isLiked ? post.likes - 1 : post.likes + 1 }
         : post
     ));
   };
 
-  const handleBookmark = (postId: string) => {
-    setPosts(posts.map(post => 
-      post.id === postId 
-        ? { ...post, isBookmarked: !post.isBookmarked }
-        : post
-    ));
-  };
+  // const handleBookmark = (postId: string) => { // removed
+  //   setPosts(posts.map(post => 
+  //     post.id === postId 
+  //       ? { ...post, isBookmarked: !post.isBookmarked }
+  //       : post
+  //     ));
+  // };
 
   const handlePostClick = (postId: string) => {
     setSelectedPostThread(postId);
@@ -740,6 +742,9 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
   const handleBackToFeed = () => {
     setSelectedPostThread(null);
+    setIsThreadPostHovered(false);
+    setHoveredPostId(null);
+    setReplyingTo(null);
   };
 
   const toggleCommentsExpanded = (postId: string) => {
@@ -771,7 +776,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     setNewComment(prev => ({ ...prev, [postId]: '' }));
 
     // Update the comment count in posts
-    setPosts(posts.map(post => 
+    setPosts(prevPosts => prevPosts.map(post => 
       post.id === postId 
         ? { ...post, comments: post.comments + 1 }
         : post
@@ -805,7 +810,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     setReplyingTo(null);
 
     // bump comment count on the post
-    setPosts(posts.map(p => p.id === postId ? { ...p, comments: p.comments + 1 } : p));
+    setPosts(prevPosts => prevPosts.map(p => p.id === postId ? { ...p, comments: p.comments + 1 } : p));
   };
 
   const toggleCommentLike = (postId: string, commentId: string) => {
@@ -839,23 +844,59 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   };
 
   const handleVotePoll = (postId: string, optionId: string) => {
-    setPosts(posts.map(post => {
-      if (post.id === postId && post.poll) {
+    setPosts(prevPosts => prevPosts.map(post => {
+      if (post.id !== postId || !post.poll) return post;
+
+      const previousSelection = post.poll.userVotedOptionId;
+      let updatedTotalVotes = post.poll.totalVotes;
+
+      // 1) First vote (no previous selection)
+      if (!previousSelection) {
+        updatedTotalVotes += 1;
         return {
           ...post,
           poll: {
             ...post.poll,
             userVotedOptionId: optionId,
-            totalVotes: post.poll.totalVotes + 1,
-            options: post.poll.options.map(option => 
-              option.id === optionId 
-                ? { ...option, votes: option.votes + 1 }
-                : option
+            totalVotes: updatedTotalVotes,
+            options: post.poll.options.map(opt => 
+              opt.id === optionId ? { ...opt, votes: opt.votes + 1 } : opt
             )
           }
         };
       }
-      return post;
+
+      // 2) Toggle off (re-click same option)
+      if (previousSelection === optionId) {
+        updatedTotalVotes = Math.max(0, updatedTotalVotes - 1);
+        return {
+          ...post,
+          poll: {
+            ...post.poll,
+            userVotedOptionId: undefined,
+            totalVotes: updatedTotalVotes,
+            options: post.poll.options.map(opt => 
+              opt.id === optionId ? { ...opt, votes: Math.max(0, opt.votes - 1) } : opt
+            )
+          }
+        };
+      }
+
+      // 3) Switch choice (different option)
+      return {
+        ...post,
+        poll: {
+          ...post.poll,
+          userVotedOptionId: optionId,
+          // totalVotes unchanged when switching
+          totalVotes: updatedTotalVotes,
+          options: post.poll.options.map(opt => {
+            if (opt.id === previousSelection) return { ...opt, votes: Math.max(0, opt.votes - 1) };
+            if (opt.id === optionId) return { ...opt, votes: opt.votes + 1 };
+            return opt;
+          })
+        }
+      };
     }));
   };
 
@@ -864,16 +905,22 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     ? posts.filter(post => post.course) // Only show posts with course tags
     : posts.filter(post => !post.course); // Only show posts without course tags
 
+  // Reset hover states when feed mode changes
+  React.useEffect(() => {
+    setHoveredPostId(null);
+    setIsThreadPostHovered(false);
+    setReplyingTo(null);
+  }, [feedMode]);
+
   // Render thread view
   const renderThreadView = () => {
     const selectedPost = posts.find(p => p.id === selectedPostThread);
     if (!selectedPost) return null;
     
-    // Find the index of the selected post in filtered posts to maintain color consistency
-    const postIndex = filteredPosts.findIndex(p => p.id === selectedPostThread);
+    // Color consistency is now maintained by using post ID instead of index
 
     return (
-      <div className="fixed inset-0 overflow-y-auto" style={{ backgroundColor: '#FAF5EF', zIndex: 9999999999 }}>
+      <div className="fixed inset-0 overflow-y-auto z-[9999]" style={{ backgroundColor: '#FAF5EF' }}>
         <div className="max-w-4xl mx-auto p-6 min-h-screen">
           <div className="mb-4">
             <Button
@@ -886,17 +933,21 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             </Button>
           </div>
           
-          {/* Original Post */}
+          {/* Original Post (highlight on hover, only this area is hoverable/clickable) */}
           <Card 
-            className="mb-6 border-l-4" 
+            className="mb-6 border-l-4 cursor-pointer" 
             style={{ 
               backgroundColor: '#FEFBF6',
-              borderLeftColor: getPostColor(postIndex)
+              borderLeftColor: getPostColor(selectedPost.id),
+              boxShadow: isThreadPostHovered ? `0 0 0 2px ${getPostHoverColor(selectedPost.id)}` : undefined
             }}
+            onMouseEnter={() => setIsThreadPostHovered(true)}
+            onMouseLeave={() => setIsThreadPostHovered(false)}
+            onClick={() => { /* no-op click target for post area in thread view */ }}
           >
             <div className="p-6">
               <div className="flex items-start gap-3 mb-4">
-                <ProfileBubble userName={selectedPost.author.name} size="lg" borderColor={getPostColor(postIndex)} />
+                <ProfileBubble userName={selectedPost.author.name} size="lg" borderColor={getPostColor(selectedPost.id)} />
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <h4 className="font-semibold text-gray-900">{selectedPost.author.name}</h4>
@@ -912,7 +963,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
               {selectedPost.course && (
                 <span 
                   className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold text-white mb-3"
-                  style={{ backgroundColor: courseColors[selectedPost.course] || '#752432' }}
+                  style={{ backgroundColor: getPostColor(selectedPost.id) }}
                 >
                   {selectedPost.course}
                 </span>
@@ -926,41 +977,47 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                   <h4 className="font-medium text-gray-900 mb-3">{selectedPost.poll.question}</h4>
                   <div className="space-y-2">
                     {selectedPost.poll.options.map((option) => {
+                      const hasVoted = selectedPost.poll!.userVotedOptionId !== undefined;
                       const percentage = selectedPost.poll!.totalVotes > 0 
                         ? (option.votes / selectedPost.poll!.totalVotes * 100) 
                         : 0;
                       const isSelected = selectedPost.poll!.userVotedOptionId === option.id;
                       
                       return (
-                        <div
+                        <button
                           key={option.id}
-                          className={`p-3 rounded-lg border transition-all relative overflow-hidden ${
+                          onClick={() => handleVotePoll(selectedPost.id, option.id)}
+                          className={`w-full text-left p-3 rounded-lg border transition-all relative overflow-hidden ${
                             isSelected 
                               ? 'bg-gray-50'
-                              : 'border-gray-200 bg-white'
+                              : hasVoted
+                              ? 'border-gray-200 bg-gray-50'
+                              : 'border-gray-200 hover:border-gray-300 bg-white'
                           }`}
                           style={{
-                            borderColor: isSelected ? getPostColor(postIndex) : undefined,
-                            backgroundColor: isSelected ? `${getPostColor(postIndex)}0D` : undefined
+                            borderColor: isSelected ? getPostColor(selectedPost.id) : undefined,
+                            backgroundColor: isSelected ? `${getPostColor(selectedPost.id)}0D` : undefined
                           }}
                         >
-                          <div 
-                            className="absolute inset-0 bg-gray-100 transition-all duration-300"
-                            style={{ width: `${percentage}%` }}
-                          />
+                          {hasVoted && (
+                            <div 
+                              className="absolute inset-0 bg-gray-100 transition-all duration-300"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          )}
                           <div className="relative flex items-center justify-between">
                             <span className="text-sm font-medium">{option.text}</span>
-                            <span className="text-xs text-gray-600">
-                              {option.votes} votes ({percentage.toFixed(1)}%)
-                            </span>
+                            {hasVoted && (
+                              <span className="text-xs text-gray-600">
+                                {option.votes} votes ({percentage.toFixed(1)}%)
+                              </span>
+                            )}
                           </div>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
-                  <div className="mt-3 text-xs text-gray-500">
-                    {selectedPost.poll.totalVotes} total votes
-                  </div>
+                  <div className="mt-3 text-xs text-gray-500">{selectedPost.poll.totalVotes} total votes</div>
                 </div>
               )}
 
@@ -973,11 +1030,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       selectedPost.isLiked ? '' : 'text-gray-600'
                     }`}
                     style={{
-                      color: selectedPost.isLiked ? getPostColor(postIndex) : undefined
+                      color: selectedPost.isLiked ? getPostColor(selectedPost.id) : undefined
                     }}
                     onMouseEnter={(e) => {
                       if (!selectedPost.isLiked) {
-                        e.currentTarget.style.color = getPostColor(postIndex);
+                        e.currentTarget.style.color = getPostColor(selectedPost.id);
                       }
                     }}
                     onMouseLeave={(e) => {
@@ -991,7 +1048,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                   </button>
                   <span className="flex items-center gap-2 text-sm text-gray-600">
                     <MessageCircle className="w-4 h-4" />
-                    {mockComments[selectedPostThread!] ? mockComments[selectedPostThread!].length : 0} comments
+                    {mockComments[selectedPost.id] ? mockComments[selectedPost.id].length : 0} comments
                   </span>
                 </div>
               </div>
@@ -999,19 +1056,19 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
               {/* Add top-level reply (comment) to post */}
               <div className="mt-4">
                 <div className="flex gap-3">
-                  <ProfileBubble userName="Justin" size="md" borderColor={getPostColor(postIndex)} />
+                  <ProfileBubble userName="Justin" size="md" borderColor={getPostColor(selectedPost.id)} />
                   <div className="flex-1">
                     <Textarea
                       placeholder="Write a comment..."
-                      value={newComment[selectedPostThread!] || ''}
-                      onChange={(e) => setNewComment(prev => ({ ...prev, [selectedPostThread!]: e.target.value }))}
+                      value={newComment[selectedPost.id] || ''}
+                      onChange={(e) => setNewComment(prev => ({ ...prev, [selectedPost.id]: e.target.value }))}
                       className="min-h-[60px] text-sm resize-none"
                     />
                     <div className="flex justify-end mt-2">
                       <Button
                         size="sm"
-                        onClick={() => addComment(selectedPostThread!)}
-                        disabled={!newComment[selectedPostThread!]?.trim()}
+                        onClick={() => addComment(selectedPost.id)}
+                        disabled={!newComment[selectedPost.id]?.trim()}
                         className="bg-[#752432] hover:bg-[#752432]/90 text-white"
                       >
                         Comment
@@ -1025,11 +1082,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
           {/* Comments */}
           <div className="space-y-4">
-            {mockComments[selectedPostThread!]?.map((comment) => (
+            {mockComments[selectedPost.id]?.map((comment) => (
               <Card key={comment.id} style={{ backgroundColor: '#FEFBF6' }}>
                 <div className="p-4">
                   <div className="flex items-start gap-3">
-                    <ProfileBubble userName={comment.author.name} size="md" borderColor={getPostColor(postIndex)} />
+                    <ProfileBubble userName={comment.author.name} size="md" borderColor={getPostColor(selectedPost.id)} />
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <h5 className="font-medium text-gray-900 text-sm">{comment.author.name}</h5>
@@ -1045,11 +1102,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                             comment.isLiked ? '' : 'text-gray-600'
                           }`}
                           style={{
-                            color: comment.isLiked ? getPostColor(postIndex) : undefined
+                            color: comment.isLiked ? getPostColor(selectedPost.id) : undefined
                           }}
                           onMouseEnter={(e) => {
                             if (!comment.isLiked) {
-                              e.currentTarget.style.color = getPostColor(postIndex);
+                              e.currentTarget.style.color = getPostColor(selectedPost.id);
                             }
                           }}
                           onMouseLeave={(e) => {
@@ -1057,14 +1114,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                               e.currentTarget.style.color = '';
                             }
                           }}
-                          onClick={() => toggleCommentLike(selectedPostThread!, comment.id)}
+                          onClick={() => toggleCommentLike(selectedPost.id, comment.id)}
                         >
                           <Heart className={`w-3 h-3 ${comment.isLiked ? 'fill-current' : ''}`} />
                           {comment.likes}
                         </button>
                         <button 
                           className="text-xs font-medium text-gray-600 hover:text-blue-500 transition-colors"
-                          onClick={(e) => { e.stopPropagation(); setReplyingTo(prev => prev === `${selectedPostThread}:${comment.id}` ? null : `${selectedPostThread}:${comment.id}`); }}
+                          onClick={(e) => { e.stopPropagation(); setReplyingTo(prev => prev === `${selectedPost.id}:${comment.id}` ? null : `${selectedPost.id}:${comment.id}`); }}
                         >
                           Reply
                         </button>
@@ -1076,7 +1133,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                         <div className="mt-3 ml-4 space-y-2">
                           {comment.replies.map((reply) => (
                             <div key={reply.id} className="flex items-start gap-2">
-                              <ProfileBubble userName={reply.author.name} size="sm" borderColor={getPostColor(postIndex)} />
+                              <ProfileBubble userName={reply.author.name} size="sm" borderColor={getPostColor(selectedPost.id)} />
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
                                   <h6 className="font-medium text-gray-900 text-xs">{reply.author.name}</h6>
@@ -1092,11 +1149,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                       reply.isLiked ? '' : 'text-gray-600'
                                     }`}
                                     style={{
-                                      color: reply.isLiked ? getPostColor(postIndex) : undefined
+                                      color: reply.isLiked ? getPostColor(selectedPost.id) : undefined
                                     }}
                                     onMouseEnter={(e) => {
                                       if (!reply.isLiked) {
-                                        e.currentTarget.style.color = getPostColor(postIndex);
+                                        e.currentTarget.style.color = getPostColor(selectedPost.id);
                                       }
                                     }}
                                     onMouseLeave={(e) => {
@@ -1104,14 +1161,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                         e.currentTarget.style.color = '';
                                       }
                                     }}
-                                    onClick={() => toggleReplyLike(selectedPostThread!, comment.id, reply.id)}
+                                    onClick={() => toggleReplyLike(selectedPost.id, comment.id, reply.id)}
                                   >
                                     <Heart className={`w-3 h-3 ${reply.isLiked ? 'fill-current' : ''}`} />
                                     {reply.likes}
                                   </button>
                                   <button 
                                     className="text-xs font-medium text-gray-600 hover:text-blue-500 transition-colors"
-                                    onClick={(e) => { e.stopPropagation(); setReplyingTo(prev => prev === `${selectedPostThread}:${comment.id}` ? null : `${selectedPostThread}:${comment.id}`); }}
+                                    onClick={(e) => { e.stopPropagation(); setReplyingTo(prev => prev === `${selectedPost.id}:${comment.id}` ? null : `${selectedPost.id}:${comment.id}`); }}
                                   >
                                     Reply
                                   </button>
@@ -1120,6 +1177,26 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                               </div>
                             </div>
                           ))}
+                        </div>
+                      )}
+
+                      {/* reply composer (only one level deep) */}
+                      {replyingTo === `${selectedPost.id}:${comment.id}` && (
+                        <div className="mt-2 ml-4 flex gap-2">
+                          <Textarea
+                            value={replyText[`${selectedPost.id}:${comment.id}`] || ''}
+                            onChange={(e) => setReplyText(prev => ({ ...prev, [`${selectedPost.id}:${comment.id}`]: e.target.value }))}
+                            placeholder="Write a reply..."
+                            className="min-h-[40px] text-xs flex-1"
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => addReply(selectedPost.id, comment.id)}
+                            disabled={!replyText[`${selectedPost.id}:${comment.id}`]?.trim()}
+                            className="bg-[#752432] hover:bg-[#752432]/90 text-white"
+                          >
+                            Reply
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -1182,36 +1259,29 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       </div>
       <div className="overflow-y-auto px-4 pb-4" style={{ height: 'calc(100vh - 120px)' }}>
         <div className="space-y-4 mt-4">
-          {filteredPosts.map((post, index) => (
+          {filteredPosts.map((post) => (
             <Card 
               key={post.id} 
-              className="overflow-hidden transition-all duration-200 border-l-4"
+              className="overflow-hidden transition-all duration-200 border-l-4 cursor-pointer"
               style={{ 
-                backgroundColor: '#FEFBF6',
-                borderLeftColor: getPostColor(index)
+                backgroundColor: hoveredPostId === post.id ? getPostHoverColor(post.id) : '#FEFBF6',
+                borderLeftColor: getPostColor(post.id)
               }}
+              onClick={() => handlePostClick(post.id)}
+              onMouseEnter={() => setHoveredPostId(post.id)}
+              onMouseLeave={() => setHoveredPostId(prev => (prev === post.id ? null : prev))}
             >
               <div 
-                className="p-4 cursor-pointer"
-                style={{ backgroundColor: '#FEFBF6' }}
+                className="p-4"
+                style={{ backgroundColor: 'transparent' }}
               >
-                {/* Clickable Post Body (header/title/content) */}
-                <div
-                  onClick={() => handlePostClick(post.id)}
-                  onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => {
-                    const parent = e.currentTarget.parentElement as HTMLDivElement | null;
-                    if (parent) parent.style.backgroundColor = getPostHoverColor(index);
-                  }}
-                  onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => {
-                    const parent = e.currentTarget.parentElement as HTMLDivElement | null;
-                    if (parent) parent.style.backgroundColor = '#FEFBF6';
-                  }}
-                >
+                {/* Post Body (header/title/content) */}
+                <div>
                 {/* Post Header */}
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
-                      <ProfileBubble userName={post.author.name} size="md" borderColor={getPostColor(index)} />
+                      <ProfileBubble userName={post.author.name} size="md" borderColor={getPostColor(post.id)} />
                       <div>
                         <div className="flex items-center gap-2">
                           <h4 className="font-semibold text-gray-900 text-sm">{post.author.name}</h4>
@@ -1224,28 +1294,6 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       </div>
                     </div>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-gray-400 hover:text-gray-600 h-8 w-8 p-0"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <MoreHorizontal className="w-3.5 h-3.5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-36">
-                      <DropdownMenuItem className="flex items-center gap-2 text-gray-700">
-                        <Megaphone className="w-4 h-4" />
-                        Report
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="flex items-center gap-2 text-gray-700">
-                        <EyeOff className="w-4 h-4" />
-                        Hide
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </div>
 
                 {/* Post Title */}
@@ -1258,7 +1306,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                   <div className="flex items-center gap-2 mb-3">
                     <span 
                       className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold text-white"
-                      style={{ backgroundColor: courseColors[post.course] || '#752432' }}
+                      style={{ backgroundColor: getPostColor(post.id) }}
                     >
                       {post.course}
                     </span>
@@ -1272,15 +1320,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 {/* Poll Component */}
                 {post.poll && (
                   <div 
-                    className="mb-4 p-4 bg-gray-50 rounded-lg"
-                    onMouseEnter={(e) => {
-                      const container = (e.currentTarget.parentElement as HTMLDivElement | null);
-                      if (container) container.style.backgroundColor = getPostHoverColor(index);
-                    }}
-                    onMouseLeave={(e) => {
-                      const container = (e.currentTarget.parentElement as HTMLDivElement | null);
-                      if (container) container.style.backgroundColor = '#FEFBF6';
-                    }}
+                    className="mb-4 p-4 rounded-lg"
+                    style={{ backgroundColor: '#F3F4F6' }}
                   >
                     <h4 className="font-medium text-gray-900 mb-3">{post.poll.question}</h4>
                     <div className="space-y-2">
@@ -1300,16 +1341,15 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                             }}
                             className={`w-full text-left p-3 rounded-lg border transition-all relative overflow-hidden ${
                               isSelected 
-                                ? 'bg-gray-50 cursor-not-allowed'
+                                ? 'bg-gray-50'
                                 : hasVoted
-                                ? 'border-gray-200 bg-gray-50 cursor-not-allowed'
+                                ? 'border-gray-200 bg-gray-50'
                                 : 'border-gray-200 hover:border-gray-300 bg-white'
                             }`}
                             style={{
-                              borderColor: isSelected ? getPostColor(index) : undefined,
-                              backgroundColor: isSelected ? `${getPostColor(index)}0D` : undefined
+                              borderColor: isSelected ? getPostColor(post.id) : undefined,
+                              backgroundColor: isSelected ? `${getPostColor(post.id)}0D` : undefined
                             }}
-                            disabled={hasVoted}
                           >
                             {hasVoted && (
                               <div 
@@ -1329,15 +1369,13 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                         );
                       })}
                     </div>
-                    <div className="mt-3 text-xs text-gray-500">
-                      {post.poll!.userVotedOptionId ? `${post.poll.totalVotes} total votes` : ''}
-                    </div>
+                    <div className="mt-3 text-xs text-gray-500">{`${post.poll.totalVotes} total votes`}</div>
                   </div>
                 )}
                 </div>
 
                 {/* Post Actions (home feed) - not hoverable for navigation */}
-                <div className="flex items-center justify-between pt-4 mt-1 border-t border-gray-200" onMouseEnter={(e) => e.stopPropagation()} onMouseLeave={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-start pt-4 mt-1 border-t border-gray-200" onMouseEnter={(e) => e.stopPropagation()} onMouseLeave={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-4">
                     <button
                       onClick={(e) => {
@@ -1346,11 +1384,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       }}
                       className={`flex items-center gap-1.5 text-xs font-medium transition-colors`}
                       style={{
-                        color: post.isLiked ? getPostColor(index) : '#6B7280'
+                        color: post.isLiked ? getPostColor(post.id) : '#6B7280'
                       }}
                       onMouseEnter={(e) => {
                         if (!post.isLiked) {
-                          e.currentTarget.style.color = getPostColor(index);
+                          e.currentTarget.style.color = getPostColor(post.id);
                         }
                       }}
                       onMouseLeave={(e) => {
@@ -1373,31 +1411,6 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       {post.comments}
                     </button>
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleBookmark(post.id);
-                    }}
-                    className="p-1.5 rounded-full transition-colors"
-                    style={{
-                      color: post.isBookmarked ? getPostColor(index) : '#9CA3AF',
-                      backgroundColor: post.isBookmarked ? getPostHoverColor(index) : 'transparent'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!post.isBookmarked) {
-                        e.currentTarget.style.color = getPostColor(index);
-                        e.currentTarget.style.backgroundColor = getPostHoverColor(index);
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!post.isBookmarked) {
-                        e.currentTarget.style.color = '#9CA3AF';
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }
-                    }}
-                    >
-                    <Bookmark className={`w-4 h-4 ${post.isBookmarked ? 'fill-current' : ''}`} />
-                  </button>
                 </div>
 
                 {/* Inline Comments Section */}
@@ -1405,7 +1418,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                   <div className="pt-4 border-t border-gray-100 mt-4" onMouseEnter={(e) => e.stopPropagation()} onMouseLeave={(e) => e.stopPropagation()}>
                     {/* Add Comment Input */}
                     <div className="flex gap-3 mb-4">
-                      <ProfileBubble userName="Justin" size="md" borderColor={getPostColor(index)} />
+                      <ProfileBubble userName="Justin" size="md" borderColor={getPostColor(post.id)} />
                       <div className="flex-1">
                         <Textarea
                           placeholder="Write a comment..."
@@ -1434,7 +1447,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                     <div className="space-y-4">
                       {mockComments[post.id]?.map((comment) => (
                         <div key={comment.id} className="flex gap-3" onClick={(e) => e.stopPropagation()}>
-                          <ProfileBubble userName={comment.author.name} size="md" borderColor={getPostColor(index)} />
+                          <ProfileBubble userName={comment.author.name} size="md" borderColor={getPostColor(post.id)} />
                           <div className="flex-1">
                             <div className="bg-gray-50 rounded-lg p-3">
                               <div className="flex items-center gap-2 mb-1">
@@ -1452,11 +1465,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                     comment.isLiked ? '' : 'text-gray-600'
                                   }`}
                                   style={{
-                                    color: comment.isLiked ? getPostColor(index) : undefined
+                                    color: comment.isLiked ? getPostColor(post.id) : undefined
                                   }}
                                   onMouseEnter={(e) => {
                                     if (!comment.isLiked) {
-                                      e.currentTarget.style.color = getPostColor(index);
+                                      e.currentTarget.style.color = getPostColor(post.id);
                                     }
                                   }}
                                   onMouseLeave={(e) => {
@@ -1464,32 +1477,33 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                       e.currentTarget.style.color = '';
                                     }
                                   }}
+                                  onClick={(e) => { e.stopPropagation(); toggleCommentLike(post.id, comment.id); }}
                                 >
                                   <Heart className={`w-3 h-3 ${comment.isLiked ? 'fill-current' : ''}`} />
                                   {comment.likes}
                                 </button>
                                 <button 
                                   className="text-xs font-medium text-gray-600 hover:text-blue-500 transition-colors"
-                                  onClick={(e: React.MouseEvent) => { e.stopPropagation(); setReplyingTo(prev => prev === `${selectedPostThread}:${comment.id}` ? null : `${selectedPostThread}:${comment.id}`); }}
+                                  onClick={(e: React.MouseEvent) => { e.stopPropagation(); setReplyingTo(prev => prev === `${post.id}:${comment.id}` ? null : `${post.id}:${comment.id}`); }}
                                 >
                                   Reply
                                 </button>
                               </div>
                             </div>
                             {/* reply composer (only one level deep) */}
-                            {replyingTo === `${selectedPostThread}:${comment.id}` && (
+                            {replyingTo === `${post.id}:${comment.id}` && (
                               <div className="mt-2 ml-3 flex gap-2">
                                 <Textarea
-                                  value={replyText[`${selectedPostThread}:${comment.id}`] || ''}
-                                  onChange={(e) => setReplyText(prev => ({ ...prev, [`${selectedPostThread}:${comment.id}`]: e.target.value }))}
+                                  value={replyText[`${post.id}:${comment.id}`] || ''}
+                                  onChange={(e) => setReplyText(prev => ({ ...prev, [`${post.id}:${comment.id}`]: e.target.value }))}
                                   placeholder="Write a reply..."
                                   className="min-h-[40px] text-xs flex-1"
                                   onClick={(e: React.MouseEvent) => e.stopPropagation()}
                                 />
                                 <Button
                                   size="sm"
-                                  onClick={(e: React.MouseEvent) => { e.stopPropagation(); addReply(selectedPostThread!, comment.id); }}
-                                  disabled={!replyText[`${selectedPostThread}:${comment.id}`]?.trim()}
+                                  onClick={(e: React.MouseEvent) => { e.stopPropagation(); addReply(post.id, comment.id); }}
+                                  disabled={!replyText[`${post.id}:${comment.id}`]?.trim()}
                                   className="bg-[#752432] hover:bg-[#752432]/90 text-white"
                                 >
                                   Reply
@@ -1737,3 +1751,4 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
 // Export interfaces for use in other components
 export type { Post, Comment, Poll, PollOption };
+

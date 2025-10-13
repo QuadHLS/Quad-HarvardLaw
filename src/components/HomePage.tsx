@@ -610,15 +610,19 @@ interface Course {
 // MyCourses component props
 interface MyCoursesProps {
   onNavigateToCourse?: (courseName: string) => void;
-  semester?: string;
   courses?: Course[];
+  allUserCourses?: UserCourse[];
+  selectedSemester?: string;
+  onSemesterChange?: (semester: string) => void;
 }
 
 // MyCourses component
 function MyCourses({ 
   onNavigateToCourse, 
-  semester = 'Fall 2025',
-  courses 
+  courses,
+  allUserCourses,
+  selectedSemester,
+  onSemesterChange
 }: MyCoursesProps) {
   // Use provided courses or empty array
   const myCoursesData = courses || [];
@@ -628,7 +632,39 @@ function MyCourses({
       <div className="px-4 py-2 border-b border-gray-200" style={{ backgroundColor: '#F8F4ED' }}>
         <div className="flex items-center gap-2">
           <Book className="w-4 h-4 text-[#752432]" />
-          <h3 className="font-semibold text-gray-900">{semester}</h3>
+          {onSemesterChange && selectedSemester && (
+            <div className="flex gap-1">
+              {['Fall', 'Winter', 'Spring'].map((term) => {
+                const year = selectedSemester.slice(0, 4);
+                const semesterCode = `${year}${term === 'Fall' ? 'FA' : term === 'Winter' ? 'WI' : 'SP'}`;
+                const isSelected = selectedSemester === semesterCode;
+                
+                // Check if this semester has any courses
+                const termCode = term === 'Fall' ? 'FA' : term === 'Winter' ? 'WI' : 'SP';
+                const hasCourses = allUserCourses?.some(course => {
+                  const courseTerm = course.schedule?.semester?.slice(-2);
+                  return courseTerm === termCode;
+                });
+                
+                // Only render button if there are courses for this semester
+                if (!hasCourses) return null;
+                
+                return (
+                  <button
+                    key={term}
+                    onClick={() => onSemesterChange(semesterCode)}
+                    className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+                      isSelected 
+                        ? 'bg-[#752432] text-white' 
+                        : 'text-gray-600 hover:text-[#752432] hover:bg-gray-100'
+                    }`}
+                  >
+                    {term}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
       <div className="px-3 pb-3 pt-0 space-y-2">
@@ -809,8 +845,8 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
     fetchUserProfile();
   }, [user]);
 
-  // Get current semester using the same logic as calendar
-  const getCurrentSemesterCode = () => {
+  // Get current semester using date-based logic
+  const getCurrentSemester = () => {
     const today = new Date();
     const year = today.getFullYear();
     const month = today.getMonth() + 1; // getMonth() is 0-indexed
@@ -834,24 +870,10 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
     }
   };
 
-  const currentSemesterCode = getCurrentSemesterCode();
+  const currentSemester = getCurrentSemester();
+  const [selectedSemester, setSelectedSemester] = useState<string>(currentSemester);
 
-  // Format semester code for display (e.g., "2025FA" -> "Fall 2025")
-  const formatSemesterDisplay = (semesterCode: string): string => {
-    if (!semesterCode || semesterCode === 'TBD') return 'Current Semester';
-    
-    const year = semesterCode.slice(0, 4);
-    const term = semesterCode.slice(4);
-    
-    const termMap: Record<string, string> = {
-      'FA': 'Fall',
-      'SP': 'Spring',
-      'WI': 'Winter'
-    };
-    
-    const termName = termMap[term] || term;
-    return `${termName} ${year}`;
-  };
+  // Semester display formatting is now handled in the MyCourses component
 
   // Transform user courses to Course format for MyCourses component
   useEffect(() => {
@@ -860,28 +882,14 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
       return;
     }
 
-    // Filter courses for current semester only
-    const currentSemesterCourses = userCourses.filter(course => {
-      return course.schedule?.semester === currentSemesterCode;
-    });
-
-    if (currentSemesterCourses.length === 0) {
-      setTransformedCourses([]);
-      return;
-    }
-
-    // Color cycle: green, blue, yellow, red
+    // Helper functions
     const colorCycle = ['#04913A', '#0080BD', '#FFBB06', '#F22F21'];
-    
-    // Helper to get course color based on index
     const getCourseColor = (index: number): string => {
       return colorCycle[index % 4];
     };
 
-    // Helper to format days string
     const formatDays = (daysStr: string): string => {
       if (!daysStr || daysStr === 'TBD') return 'TBD';
-      // Convert full day names to abbreviations if needed
       return daysStr
         .replace(/Monday/g, 'M')
         .replace(/Tuesday/g, 'Tu')
@@ -892,10 +900,35 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
         .replace(/Tue/g, 'Tu')
         .replace(/Wed/g, 'W')
         .replace(/Thu/g, 'Th')
-        .replace(/Fri/g, 'F')
-        .replace(/,/g, '·')
-        .replace(/\s+/g, '    '); // Add consistent spacing
+        .replace(/Fri/g, 'F');
     };
+
+    const getLastNames = (professorStr: string): string => {
+      if (!professorStr || professorStr === 'TBD') return 'TBD';
+      
+      const names = professorStr.split(/[,;]/).map(name => name.trim());
+      const lastNames = names.map(name => {
+        const parts = name.split(' ');
+        return parts[parts.length - 1];
+      });
+      
+      return lastNames.join('; ');
+    };
+
+    // Filter courses for selected semester (only match last 2 characters: FA, WI, SP)
+    const selectedSemesterCourses = userCourses.filter(course => {
+      const courseSemester = course.schedule?.semester;
+      const selectedTerm = selectedSemester.slice(-2); // Get last 2 characters (FA, WI, SP)
+      const courseTerm = courseSemester?.slice(-2); // Get last 2 characters from course
+      return courseTerm === selectedTerm;
+    });
+
+    if (selectedSemesterCourses.length === 0) {
+      setTransformedCourses([]);
+      return;
+    }
+
+    // Helper functions already defined above
 
     // Helper to get next class time
     const getNextClass = (course: UserCourse): string => {
@@ -967,24 +1000,9 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
       }
     };
 
-    // Helper to extract last names from professor string
-    const getLastNames = (professorStr: string): string => {
-      if (!professorStr || professorStr === 'TBD') return 'TBD';
-      
-      // Split by semicolon if multiple professors
-      const professors = professorStr.split(';').map(p => p.trim());
-      
-      const lastNames = professors.map(prof => {
-        // The format in database is "firstname lastname"
-        // We want just the lastname (last word)
-        const parts = prof.trim().split(/\s+/);
-        return parts[parts.length - 1]; // Get the last word
-      });
-      
-      return lastNames.join('; ');
-    };
+    // getLastNames function already defined above
 
-    const transformed = currentSemesterCourses.map((course, index) => ({
+    const transformed = selectedSemesterCourses.map((course, index) => ({
       id: `${index + 1}`,
       name: formatDisplayCourseName(course.class), // Format to hide section numbers for 1L courses
       code: '', // We don't have course codes in the current data structure
@@ -999,7 +1017,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
     }));
 
     setTransformedCourses(transformed);
-  }, [userCourses, currentSemesterCode]);
+  }, [userCourses, selectedSemester]);
 
 
 
@@ -1031,33 +1049,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
     return () => clearInterval(interval);
   }, []);
 
-  const currentDate = new Date();
-
-  // Semester detection logic
-  const getCurrentSemester = () => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth() + 1; // getMonth() is 0-indexed
-    const day = currentDate.getDate();
-    
-    // Fall: September 2 - November 25
-    if ((month === 9 && day >= 2) || month === 10 || (month === 11 && day <= 25)) {
-      return `${year}FA`;
-    }
-    // Winter: January 5 - January 21
-    else if (month === 1 && day >= 5 && day <= 21) {
-      return `${year}WI`;
-    }
-    // Spring: January 26 - April 24
-    else if ((month === 1 && day >= 26) || month === 2 || month === 3 || (month === 4 && day <= 24)) {
-      return `${year}SP`;
-    }
-    // Default to current year Fall if outside semester periods
-    else {
-      return `${year}FA`;
-    }
-  };
-
-  const currentSemester = getCurrentSemester();
+  // currentSemester is already defined above
 
   // Parse course schedule and get courses for current day
   const parseCourseSchedule = (scheduleString: string) => {
@@ -1167,8 +1159,10 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                     <div>
               <MyCourses 
                 onNavigateToCourse={onNavigateToCourse}
-                semester={formatSemesterDisplay(currentSemesterCode)}
                 courses={transformedCourses}
+                allUserCourses={userCourses}
+                selectedSemester={selectedSemester}
+                onSemesterChange={setSelectedSemester}
               />
                     </div>
             </div>

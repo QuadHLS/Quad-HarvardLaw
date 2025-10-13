@@ -23,6 +23,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar as CalendarComponent } from './ui/calendar';
 import { PomodoroTimer } from './PomodoroTimer';
 import { supabase } from '../lib/supabase';
+import { Feed } from './FeedComponent';
 
 interface TodoItem {
   id: string;
@@ -687,6 +688,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
   const [loading, setLoading] = useState(true);
   const [semesterProgressVisible, setSemesterProgressVisible] = useState(false);
   const [isMonthSwitching, setIsMonthSwitching] = useState(false);
+  const [feedMode, setFeedMode] = useState<'campus' | 'my-courses'>('campus');
   
   // Calendar state
   const today = new Date();
@@ -1152,9 +1154,9 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
       <div className="max-w-full mx-auto p-6">
         <div className="flex gap-6">
           {/* Left Content */}
-          <div className="flex-1 min-w-0">
+          <div className="w-64 flex-shrink-0">
             {/* Todo Box */}
-            <div className="mb-8 w-64">
+            <div className="mb-8">
               <TodoList 
                 user={user}
                 onPomodoroStateChange={(state) => console.log('Pomodoro state:', state)}
@@ -1162,13 +1164,22 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                 </div>
 
             {/* My Courses Section */}
-            <div className="w-64">
+                    <div>
               <MyCourses 
                 onNavigateToCourse={onNavigateToCourse}
                 semester={formatSemesterDisplay(currentSemesterCode)}
                 courses={transformedCourses}
               />
+                    </div>
             </div>
+
+          {/* Middle Content - Feed */}
+          <div className="flex-1 min-w-0">
+            <Feed 
+              feedMode={feedMode}
+              onFeedModeChange={setFeedMode}
+              myCourses={transformedCourses.map(c => c.name)}
+            />
           </div>
 
           {/* Right Sidebar - Calendar and Schedule */}

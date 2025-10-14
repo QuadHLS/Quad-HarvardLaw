@@ -342,7 +342,21 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         'Fri': 'Fri'
       };
       
-      const courseDays = course.days.map(d => d);
+      // Handle both array format and comma-separated string format for days
+      let courseDays: string[];
+      if (Array.isArray(course.days)) {
+        // If it's already an array, flatten any comma-separated strings within it
+        courseDays = course.days.flatMap(d => 
+          typeof d === 'string' && d.includes(',') 
+            ? d.split(',').map(day => day.trim())
+            : [d]
+        );
+      } else if (typeof course.days === 'string') {
+        // If it's a string, split by comma
+        courseDays = course.days.split(',').map(d => d.trim());
+      } else {
+        courseDays = [];
+      }
       
       // Only show course in its starting time slot
       if (!courseDays.includes(dayMap[day])) {
@@ -352,6 +366,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       // Filter by current semester (normalize values to be robust against spacing/case)
       const validSemesters = (semesterMap[currentSemester] || []).map(normalizeSemesterValue);
       const normalizedCourseSemester = normalizeSemesterValue(course.semester as unknown as string);
+      
       if (!validSemesters.includes(normalizedCourseSemester)) {
         return false;
       }
@@ -479,7 +494,23 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       const normalizedCourseSemester = normalizeSemesterValue(course.semester as unknown as string);
       if (!validSemesters.includes(normalizedCourseSemester)) return false;
       
-      if (!course.days.includes(dayMap[day])) return false;
+      // Handle both array format and comma-separated string format for days
+      let courseDays: string[];
+      if (Array.isArray(course.days)) {
+        // If it's already an array, flatten any comma-separated strings within it
+        courseDays = course.days.flatMap(d => 
+          typeof d === 'string' && d.includes(',') 
+            ? d.split(',').map(day => day.trim())
+            : [d]
+        );
+      } else if (typeof course.days === 'string') {
+        // If it's a string, split by comma
+        courseDays = course.days.split(',').map(d => d.trim());
+      } else {
+        courseDays = [];
+      }
+      
+      if (!courseDays.includes(dayMap[day])) return false;
       
       const timeParts = course.time.split('-');
       if (timeParts.length !== 2) return false;
@@ -602,11 +633,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   // Auto-populate 1L required courses when section is selected
   useEffect(() => {
     const autoPopulate1L = () => {
-      console.log('Auto-populate check:', { classYear, section, allCourseDataLength: allCourseData.length });
-      
       if (classYear === '1L' && section && allCourseData.length > 0) {
-        console.log('Auto-populating 1L Section', section, 'courses...');
-        console.log('Available courses:', allCourseData.map(c => c.course_name));
         
         const sectionNumber = section;
         const requiredCourses = [
@@ -619,8 +646,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
           `Legislation and Regulation ${sectionNumber}`
         ];
 
-        console.log('Required courses:', requiredCourses);
-
         const newSelectedCourses: CourseData[] = [];
 
         for (let i = 0; i < 7; i++) {
@@ -630,8 +655,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
           const matchingCourses = allCourseData.filter(
             (course) => course.course_name === courseName
           );
-
-          console.log(`Looking for ${courseName}, found ${matchingCourses.length} matches`);
 
           if (matchingCourses.length > 0) {
             const course = matchingCourses[0];
@@ -643,23 +666,15 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
               credits: course.credits,
               semester: course.semester as 'Spring' | 'Fall' | 'Winter',
               days: course.days ? course.days.split(';').map((d: string) => normalizeDay(d)) : [],
-              time: course.times ? normalizeTimeRange(course.times.split(';').map((t: string) => t.trim())[0]) : 'TBD',
+              time: course.times ? normalizeTimeRange(course.times.split('|').map((t: string) => t.trim())[0]) : 'TBD',
               location: course.location || undefined
             };
             
-            console.log('Created course data:', {
-              ...courseData,
-              daysString: course.days,
-              timesString: course.times,
-              semesterString: course.semester
-            });
 
             newSelectedCourses.push(courseData);
-            console.log('Added course:', courseData);
           }
         }
 
-        console.log('Final selected courses:', newSelectedCourses);
         setSelectedCourses(newSelectedCourses);
       }
     };
@@ -671,7 +686,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   useEffect(() => {
     const handleLRWCourse = async () => {
       if (classYear === '1L' && section && lrwSection && allCourseData.length > 0) {
-        console.log('Handling LRW course selection:', { section, lrwSection, allCourseDataLength: allCourseData.length });
         
         // Support multiple naming variants and spacing, e.g.:
         // "First Year Legal Research and Writing 1A", "First Year Legal Research and Writing 1 A",
@@ -703,24 +717,18 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
           ];
           
           if (exactMatches.includes(name)) {
-            console.log('Found exact LRW match:', name, 'semester:', course.semester);
             return true;
           }
           
           // Fallback: match base + section and A/B suffix with optional space
           const matches = lrwBases.some((base) => {
             const pattern = new RegExp(`^${base}\\s+${section}\\s*${lrwSection}$`, 'i');
-            const isMatch = pattern.test(name);
-            if (isMatch) {
-              console.log('Found pattern LRW match:', name, 'semester:', course.semester);
-            }
-            return isMatch;
+            return pattern.test(name);
           });
           
           return matches;
         });
 
-        console.log('Found LRW matching courses:', matchingCourses.length, matchingCourses.map(c => ({ name: c.course_name, semester: c.semester })));
 
         if (matchingCourses.length > 0) {
           const newLrwCourses: CourseData[] = matchingCourses.map((course: any) => ({
@@ -730,7 +738,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
             credits: course.credits,
             semester: course.semester as 'Spring' | 'Fall' | 'Winter',
             days: course.days ? course.days.split(';').map((d: string) => normalizeDay(d)) : [],
-            time: course.times ? normalizeTimeRange(course.times.split(';').map((t: string) => t.trim())[0]) : 'TBD',
+            time: course.times ? normalizeTimeRange(course.times.split('|').map((t: string) => t.trim())[0]) : 'TBD',
             location: course.location || undefined
           }));
 
@@ -746,12 +754,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
           newLrwCourses.sort(sortBySemesterPriority);
 
           setSelectedCourses([...filteredCourses, ...newLrwCourses]);
-          console.log('Updated LRW courses (Fall and Spring):', newLrwCourses.map(c => ({ name: c.courseName, semester: c.semester })));
-        } else {
-          console.log('No LRW courses found for section', section, lrwSection);
-          console.log('Available courses:', allCourseData.map(c => c.course_name).filter(name => 
-            /First Year Legal Research and Writing|Legal Research and Writing|^LRW\b/i.test(name)
-          ));
         }
       }
     };
@@ -1597,13 +1599,12 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                       professor: selectedCourse.instructor || 'TBA',
                       credits: selectedCourse.credits || 3,
                       semester: selectedCourse.semester as 'Spring' | 'Fall' | 'Winter' || 'Fall', // Use actual semester from course data
-                      days: selectedCourse.days ? selectedCourse.days.split(',').map((d: string) => d.trim()) : ['TBA'],
-                      time: selectedCourse.times || 'TBA',
+                      days: selectedCourse.days ? selectedCourse.days.split(';').map((d: string) => d.trim()) : ['TBA'],
+                      time: selectedCourse.times ? normalizeTimeRange(selectedCourse.times.split('|').map((t: string) => t.trim())[0]) : 'TBA',
                       location: selectedCourse.location,
                       original_course_id: selectedCourse.original_course_id
                     };
                     
-                    console.log('Adding course with original_course_id:', newCourse.original_course_id);
                     setSelectedCourses(prev => [...prev, newCourse]);
                     
                     // Scroll to bottom of course list

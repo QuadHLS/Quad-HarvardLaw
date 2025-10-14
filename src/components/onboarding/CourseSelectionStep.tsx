@@ -190,7 +190,7 @@ export function CourseSelectionStep({ onNext, onBack, basicInfo }: CourseSelecti
               instructor: course.instructor,
               credits: course.credits,
               days: course.days.split(';').map((d: string) => d.trim()).join(' • '),
-              times: course.times.split(';').map((t: string) => t.trim())[0] || 'TBD',
+              times: course.times.split('|').map((t: string) => t.trim())[0] || 'TBD',
               location: course.location || 'Location TBD'
             } : null;
 
@@ -286,7 +286,7 @@ export function CourseSelectionStep({ onNext, onBack, basicInfo }: CourseSelecti
           instructor: course.instructor,
           credits: course.credits,
           days: course.days.split(';').map((d: string) => d.trim()).join(' • '),
-          times: course.times.split(';').map((t: string) => t.trim())[0] || 'TBD',
+          times: course.times.split('|').map((t: string) => t.trim())[0] || 'TBD',
           location: course.location || 'Location TBD'
         } : null;
         
@@ -327,7 +327,7 @@ export function CourseSelectionStep({ onNext, onBack, basicInfo }: CourseSelecti
           instructor: course.instructor,
           credits: course.credits,
           days: course.days.split(';').map((d: string) => d.trim()).join(' • '),
-          times: course.times.split(';').map((t: string) => t.trim())[0] || 'TBD',
+          times: course.times.split('|').map((t: string) => t.trim())[0] || 'TBD',
           location: course.location || 'Location TBD'
         } : null;
         

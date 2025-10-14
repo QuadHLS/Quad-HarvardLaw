@@ -11,7 +11,6 @@ export interface ExamFilterOptions {
 
 /**
  * Hook for fetching exam filter options with proper authentication handling
- * Similar to useRealTimePageCount but for exam data
  */
 export function useExamFilterOptions() {
   const [isLoading, setIsLoading] = useState(false)

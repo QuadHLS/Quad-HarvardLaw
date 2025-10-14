@@ -81,14 +81,65 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     return rawName;
   };
 
-  // Display-only formatter: map semester codes to names
+  // Display-only formatter: map semester codes to names with full multi-semester support
   const formatDisplaySemester = (value: string | undefined | null): string => {
     if (!value) return 'TBD';
     const v = value.trim();
-    if (/^2025FA$/i.test(v) || /Fall/i.test(v)) return 'Fall';
-    if (/^2026WI$/i.test(v) || /Winter/i.test(v)) return 'Winter';
-    if (/^2026SP$/i.test(v) || /Spring/i.test(v)) return 'Spring';
+    
+    // Handle full year codes like "2025FA", "2025FS", etc.
+    if (/^202[5-6](FA|WI|SP|FS|FW|WS)$/i.test(v)) {
+      const semesterCode = v.slice(-2).toUpperCase();
+      return getSemesterDisplayName(semesterCode);
+    }
+    
+    // Handle individual semester names
+    if (/Fall/i.test(v)) return 'Fall';
+    if (/Winter/i.test(v)) return 'Winter';
+    if (/Spring/i.test(v)) return 'Spring';
+    
+    // Handle direct semester codes
+    if (/^(FA|WI|SP|FS|FW|WS)$/i.test(v)) {
+      return getSemesterDisplayName(v.toUpperCase());
+    }
+    
     return v;
+  };
+
+  // Helper function to get individual semesters from a semester code (same as planner)
+  const getSemestersFromCode = (semesterCode: string): ('FA' | 'WI' | 'SP')[] => {
+    switch (semesterCode) {
+      case 'FA': return ['FA'];
+      case 'WI': return ['WI'];
+      case 'SP': return ['SP'];
+      case 'FS': return ['FA', 'SP'];
+      case 'FW': return ['FA', 'WI'];
+      case 'WS': return ['WI', 'SP'];
+      default: return [];
+    }
+  };
+
+  // Helper function to get full semester name for display
+  const getSemesterDisplayName = (semesterCode: string): string => {
+    switch (semesterCode) {
+      case 'FA': return 'Fall';
+      case 'WI': return 'Winter';
+      case 'SP': return 'Spring';
+      case 'FS': return 'Fall-Spring';
+      case 'FW': return 'Fall-Winter';
+      case 'WS': return 'Winter-Spring';
+      default: return semesterCode;
+    }
+  };
+
+  // Helper function to check if a course term matches a selected semester
+  const courseMatchesSemester = (courseTerm: string, selectedSemester: 'FA' | 'WI' | 'SP'): boolean => {
+    if (!courseTerm || courseTerm === 'TBD') return false;
+    
+    // Get the semester code from the course term (last 2 characters)
+    const semesterCode = courseTerm.slice(-2);
+    const semesters = getSemestersFromCode(semesterCode);
+    
+    return semesters.includes(selectedSemester);
   };
 
   // Normalize semester values for comparisons (handles codes, names, and whitespace)
@@ -327,12 +378,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
   const getCoursesForTimeSlot = (day: string, timeSlot: string) => {
     const filteredCourses = selectedCourses.filter(course => {
-      // Filter by current semester
-      const semesterMap: { [key: string]: string[] } = {
-        'Fall 2025': ['Fall', 'Fall 2025', '2025FA'],
-        'Winter 2026': ['Winter', 'Winter 2026', '2026WI'],
-        'Spring 2026': ['Spring', 'Spring 2026', '2026SP']
-      };
       
       const dayMap: { [key: string]: string } = {
         'Mon': 'Mon',
@@ -363,11 +408,13 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         return false;
       }
       
-      // Filter by current semester (normalize values to be robust against spacing/case)
-      const validSemesters = (semesterMap[currentSemester] || []).map(normalizeSemesterValue);
-      const normalizedCourseSemester = normalizeSemesterValue(course.semester as unknown as string);
+      // Filter by current semester using multi-semester logic
+      const currentSemesterCode = currentSemester === 'Fall 2025' ? 'FA' : 
+                                  currentSemester === 'Winter 2026' ? 'WI' : 
+                                  currentSemester === 'Spring 2026' ? 'SP' : 'FA';
       
-      if (!validSemesters.includes(normalizedCourseSemester)) {
+      // Check if course matches current semester (handles FS, FW, WS codes)
+      if (!courseMatchesSemester(course.semester as string, currentSemesterCode)) {
         return false;
       }
 
@@ -483,16 +530,14 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     };
 
     return selectedCourses.some(course => {
-      // Filter by current semester
-      const semesterMap: { [key: string]: string[] } = {
-        'Fall 2025': ['Fall', 'Fall 2025', '2025FA'],
-        'Winter 2026': ['Winter', 'Winter 2026', '2026WI'],
-        'Spring 2026': ['Spring', 'Spring 2026', '2026SP']
-      };
       
-      const validSemesters = (semesterMap[currentSemester] || []).map(normalizeSemesterValue);
-      const normalizedCourseSemester = normalizeSemesterValue(course.semester as unknown as string);
-      if (!validSemesters.includes(normalizedCourseSemester)) return false;
+      // Filter by current semester using multi-semester logic
+      const currentSemesterCode = currentSemester === 'Fall 2025' ? 'FA' : 
+                                  currentSemester === 'Winter 2026' ? 'WI' : 
+                                  currentSemester === 'Spring 2026' ? 'SP' : 'FA';
+      
+      // Check if course matches current semester (handles FS, FW, WS codes)
+      if (!courseMatchesSemester(course.semester as string, currentSemesterCode)) return false;
       
       // Handle both array format and comma-separated string format for days
       let courseDays: string[];
@@ -1145,16 +1190,13 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                         </CardTitle>
                         <p className="text-sm text-gray-600 mt-1">
                           Schedule • {(() => {
-                            // Calculate credits for current semester
-                            const semesterMap: { [key: string]: string[] } = {
-                              'Fall 2025': ['Fall', 'Fall 2025', '2025FA'],
-                              'Winter 2026': ['Winter', 'Winter 2026', '2026WI'],
-                              'Spring 2026': ['Spring', 'Spring 2026', '2026SP']
-                            };
-                            const validSemesters = (semesterMap[currentSemester] || []).map(normalizeSemesterValue);
+                            // Calculate credits for current semester using multi-semester logic
+                            const currentSemesterCode = currentSemester === 'Fall 2025' ? 'FA' : 
+                                                        currentSemester === 'Winter 2026' ? 'WI' : 
+                                                        currentSemester === 'Spring 2026' ? 'SP' : 'FA';
+                            
                             const semesterCourses = selectedCourses.filter(course => {
-                              const normalizedCourseSemester = normalizeSemesterValue(course.semester as unknown as string);
-                              return validSemesters.includes(normalizedCourseSemester);
+                              return courseMatchesSemester(course.semester as string, currentSemesterCode);
                             });
                             const semesterCredits = semesterCourses.reduce((sum, course) => sum + course.credits, 0);
                             return `${semesterCredits} Credits`;

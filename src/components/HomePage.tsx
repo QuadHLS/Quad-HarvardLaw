@@ -66,6 +66,30 @@ const formatDisplayCourseName = (rawName: string): string => {
   return rawName;
 };
 
+// Helper function to get individual semesters from a semester code (same as planner and onboarding)
+const getSemestersFromCode = (semesterCode: string): ('FA' | 'WI' | 'SP')[] => {
+  switch (semesterCode) {
+    case 'FA': return ['FA'];
+    case 'WI': return ['WI'];
+    case 'SP': return ['SP'];
+    case 'FS': return ['FA', 'SP'];
+    case 'FW': return ['FA', 'WI'];
+    case 'WS': return ['WI', 'SP'];
+    default: return [];
+  }
+};
+
+// Helper function to check if a course term matches a selected semester
+const courseMatchesSemester = (courseTerm: string, selectedSemester: 'FA' | 'WI' | 'SP'): boolean => {
+  if (!courseTerm || courseTerm === 'TBD') return false;
+  
+  // Get the semester code from the course term (last 2 characters)
+  const semesterCode = courseTerm.slice(-2);
+  const semesters = getSemestersFromCode(semesterCode);
+  
+  return semesters.includes(selectedSemester);
+};
+
 interface TodoItemProps {
   todo: TodoItem;
   isEditing: boolean;
@@ -639,11 +663,11 @@ function MyCourses({
                 const semesterCode = `${year}${term === 'Fall' ? 'FA' : term === 'Winter' ? 'WI' : 'SP'}`;
                 const isSelected = selectedSemester === semesterCode;
                 
-                // Check if this semester has any courses
+                // Check if this semester has any courses using multi-semester logic
                 const termCode = term === 'Fall' ? 'FA' : term === 'Winter' ? 'WI' : 'SP';
                 const hasCourses = allUserCourses?.some(course => {
-                  const courseTerm = course.schedule?.semester?.slice(-2);
-                  return courseTerm === termCode;
+                  const courseSemester = course.schedule?.semester;
+                  return courseMatchesSemester(courseSemester, termCode);
                 });
                 
                 // Only render button if there are courses for this semester
@@ -916,12 +940,13 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
       return lastNames.join('; ');
     };
 
-    // Filter courses for selected semester (only match last 2 characters: FA, WI, SP)
+    // Filter courses for selected semester using multi-semester logic
     const selectedSemesterCourses = userCourses.filter(course => {
       const courseSemester = course.schedule?.semester;
-      const selectedTerm = selectedSemester.slice(-2); // Get last 2 characters (FA, WI, SP)
-      const courseTerm = courseSemester?.slice(-2); // Get last 2 characters from course
-      return courseTerm === selectedTerm;
+      const selectedTerm = selectedSemester.slice(-2) as 'FA' | 'WI' | 'SP'; // Get last 2 characters (FA, WI, SP)
+      
+      // Use multi-semester logic to check if course matches selected semester
+      return courseMatchesSemester(courseSemester, selectedTerm);
     });
 
     if (selectedSemesterCourses.length === 0) {
@@ -1075,8 +1100,11 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
     const dayOfWeek = selectedDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
     
     return userCourses.filter(course => {
-      // Check if course is for current semester
-      if (course.schedule?.semester && course.schedule.semester !== currentSemester) {
+      // Check if course is for current semester using multi-semester logic
+      const courseSemester = course.schedule?.semester;
+      const currentTerm = currentSemester.slice(-2) as 'FA' | 'WI' | 'SP';
+      
+      if (!courseMatchesSemester(courseSemester, currentTerm)) {
         return false;
       }
       

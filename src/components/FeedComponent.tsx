@@ -454,8 +454,35 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           .maybeSingle();
 
         if (profile?.classes && profile.classes.length > 0) {
-          // Extract course names from the course objects
-          const courseNames = profile.classes.map((course: any) => course.class);
+          // Extract course names from the course objects and clean them
+          const courseNames = profile.classes.map((course: any) => {
+            const className = course.class;
+            
+            // Clean 1L course names (remove section numbers 1-7)
+            const required1LPatterns = [
+              'Civil Procedure',
+              'Contracts',
+              'Criminal Law',
+              'Torts',
+              'Constitutional Law',
+              'Property',
+              'Legislation and Regulation'
+            ];
+            
+            for (const pattern of required1LPatterns) {
+              if (className.startsWith(pattern + ' ')) {
+                return pattern; // Return base name without section number
+              }
+            }
+            
+            // Clean "First Year Legal Research and Writing" (remove section numbers/letters)
+            if (className.startsWith('First Year Legal Research and Writing ')) {
+              return 'First Year Legal Research and Writing';
+            }
+            
+            // Return original name if no cleaning needed
+            return className;
+          });
           
           // Get course IDs for user's classes
           const { data: userCourses } = await supabase

@@ -47,7 +47,6 @@ interface UserProfile {
   class_year: string;
 }
 
-// Display-only formatter: hide trailing section number (1-7) for 1L required course names.
 const formatDisplayCourseName = (rawName: string): string => {
   if (!rawName) return rawName;
   const requiredPatterns = [
@@ -66,7 +65,6 @@ const formatDisplayCourseName = (rawName: string): string => {
   return rawName;
 };
 
-// Helper function to get individual semesters from a semester code (same as planner and onboarding)
 const getSemestersFromCode = (semesterCode: string): ('FA' | 'WI' | 'SP')[] => {
   switch (semesterCode) {
     case 'FA': return ['FA'];
@@ -79,11 +77,9 @@ const getSemestersFromCode = (semesterCode: string): ('FA' | 'WI' | 'SP')[] => {
   }
 };
 
-// Helper function to check if a course term matches a selected semester
 const courseMatchesSemester = (courseTerm: string, selectedSemester: 'FA' | 'WI' | 'SP'): boolean => {
   if (!courseTerm || courseTerm === 'TBD') return false;
   
-  // Get the semester code from the course term (last 2 characters)
   const semesterCode = courseTerm.slice(-2);
   const semesters = getSemestersFromCode(semesterCode);
   
@@ -302,7 +298,7 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
     }
   };
 
-  // Helper function to format due dates
+  // Format due dates
   const formatDueDate = (dateString: string) => {
     // Convert "Dec 15" format to "Mon, Dec 15" format
     const currentYear = new Date().getFullYear();
@@ -317,7 +313,7 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
     return `${dayName}, ${monthName} ${day}`;
   };
 
-  // Todo functions
+  // Todo management
   const toggleTodo = (id: string) => {
     const updatedTodos = todos.map(todo => 
       todo.id === id ? { ...todo, completed: !todo.completed } : todo
@@ -954,7 +950,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
       return;
     }
 
-    // Helper functions already defined above
+    // Helper functions defined above
 
     // Helper to get next class time
     const getNextClass = (course: UserCourse): string => {
@@ -1026,7 +1022,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
       }
     };
 
-    // getLastNames function already defined above
+    // getLastNames function defined above
 
     const transformed = selectedSemesterCourses.map((course, index) => ({
       id: `${index + 1}`,

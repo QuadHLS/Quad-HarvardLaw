@@ -38,7 +38,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   const [currentPage, setCurrentPage] = useState(1);
   const courseListRef = useRef<HTMLDivElement>(null);
   
-  // Form state for Page 1
+  // Basic info form
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [classYear, setClassYear] = useState<ClassYear | ''>('');
@@ -46,14 +46,14 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   const [lrwSection, setLrwSection] = useState<'A' | 'B' | ''>('');
   const [loading, setLoading] = useState(false);
 
-  // Form state for Page 2
+  // Course selection
   const [selectedCourses, setSelectedCourses] = useState<CourseData[]>([]);
   const [showCourseDialog, setShowCourseDialog] = useState(false);
   const [currentSemester, setCurrentSemester] = useState<'Fall 2025' | 'Winter 2026' | 'Spring 2026'>('Fall 2025');
   const [allCourseData, setAllCourseData] = useState<any[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(false);
   
-  // Course dialog state variables
+  // Course search dialog
   const [searchQuery, setSearchQuery] = useState('');
   const [availableCourses, setAvailableCourses] = useState<any[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
@@ -61,7 +61,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   const [showMaxCourseWarning, setShowMaxCourseWarning] = useState(false);
   const [showScrollIndicator, setShowScrollIndicator] = useState(true);
 
-  // Display-only formatter: hide trailing section number (1-7) for 1L required courses.
+  // Hide section numbers for 1L courses in display
   const formatDisplayCourseName = (rawName: string): string => {
     if (!rawName) return rawName;
     const requiredPatterns = [
@@ -81,23 +81,23 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     return rawName;
   };
 
-  // Display-only formatter: map semester codes to names with full multi-semester support
+  // Convert semester codes to readable names
   const formatDisplaySemester = (value: string | undefined | null): string => {
     if (!value) return 'TBD';
     const v = value.trim();
     
-    // Handle full year codes like "2025FA", "2025FS", etc.
+    // Full year codes like "2025FA", "2025FS"
     if (/^202[5-6](FA|WI|SP|FS|FW|WS)$/i.test(v)) {
       const semesterCode = v.slice(-2).toUpperCase();
       return getSemesterDisplayName(semesterCode);
     }
     
-    // Handle individual semester names
+    // Individual semester names
     if (/Fall/i.test(v)) return 'Fall';
     if (/Winter/i.test(v)) return 'Winter';
     if (/Spring/i.test(v)) return 'Spring';
     
-    // Handle direct semester codes
+    // Direct semester codes
     if (/^(FA|WI|SP|FS|FW|WS)$/i.test(v)) {
       return getSemesterDisplayName(v.toUpperCase());
     }
@@ -105,7 +105,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     return v;
   };
 
-  // Helper function to get individual semesters from a semester code (same as planner)
+  // Get individual semesters from a code
   const getSemestersFromCode = (semesterCode: string): ('FA' | 'WI' | 'SP')[] => {
     switch (semesterCode) {
       case 'FA': return ['FA'];
@@ -118,7 +118,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     }
   };
 
-  // Helper function to get full semester name for display
+  // Get full semester name for display
   const getSemesterDisplayName = (semesterCode: string): string => {
     switch (semesterCode) {
       case 'FA': return 'Fall';
@@ -131,18 +131,18 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     }
   };
 
-  // Helper function to check if a course term matches a selected semester
+  // Check if course term matches selected semester
   const courseMatchesSemester = (courseTerm: string, selectedSemester: 'FA' | 'WI' | 'SP'): boolean => {
     if (!courseTerm || courseTerm === 'TBD') return false;
     
-    // Get the semester code from the course term (last 2 characters)
+    // Last 2 characters are the semester code
     const semesterCode = courseTerm.slice(-2);
     const semesters = getSemestersFromCode(semesterCode);
     
     return semesters.includes(selectedSemester);
   };
 
-  // Normalize semester values for comparisons (handles codes, names, and whitespace)
+  // Clean up semester values for comparison
   const normalizeSemesterValue = (value: string | undefined | null): string => {
     if (!value) return '';
     const v = String(value).trim();
@@ -152,25 +152,24 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     return v;
   };
 
-  // Helper to extract a likely last name from an instructor string
-  // Handles formats like "Last, First Middle" or "First Middle Last"
+  // Extract last name from instructor string
   const extractLastName = (instructor: string | undefined | null): string => {
     if (!instructor) return '';
-    // If multiple instructors are present, use the first one's last name
+    // Use first instructor if multiple
     const firstInstructor = instructor.split(';')[0]?.trim() || '';
     const value = firstInstructor;
     if (!value) return '';
     if (value.includes(',')) {
-      // Current format is "First, Last" → take the part after the comma
+      // "First, Last" format - take part after comma
       const parts = value.split(',');
       return (parts[1] || '').trim() || value.trim();
     }
-    // Otherwise assume last token is last name
+    // Assume last token is last name
     const parts = value.split(/\s+/);
     return parts[parts.length - 1] || value;
   };
 
-  // Normalize day strings to three-letter codes to match calendar dayMap
+  // Convert day names to three-letter codes
   const normalizeDay = (day: string): string => {
     const d = (day || '').trim();
     const map: Record<string, string> = {
@@ -183,17 +182,13 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     return map[d] || d;
   };
 
-  // Normalize time ranges like "3:45PM – 5:45PM" → "3:45 PM-5:45 PM"
+  // Clean up time range formatting
   const normalizeTimeRange = (raw: string | undefined | null): string => {
     if (!raw) return 'TBD';
     let s = String(raw).trim();
-    // Replace en/em dashes with hyphen
     s = s.replace(/[–—]/g, '-');
-    // Collapse spaces around hyphen
     s = s.replace(/\s*-\s*/g, '-');
-    // Ensure space before AM/PM
     s = s.replace(/(\d)\s*(AM|PM)\b/gi, '$1 $2');
-    // Uppercase AM/PM
     s = s.replace(/\b(am|pm)\b/g, (m) => m.toUpperCase());
     return s;
   };
@@ -202,7 +197,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     console.log('handleNext called', { currentPage, isStep1Valid: isStep1Valid(), user: user?.id });
     
     if (currentPage === 1) {
-      // Save basic information to profiles table
+      // Save basic info to profiles table
       if (!isStep1Valid()) {
         console.log('Form not valid:', { name, classYear, section });
         alert('Please fill in all required fields');
@@ -258,15 +253,15 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     }
   };
 
-  // Phone number formatting function
+  // Format phone number as user types
   const formatPhoneNumber = (value: string) => {
-    // Remove all non-numeric characters
+    // Strip non-numeric characters
     const phoneNumber = value.replace(/[^\d]/g, '');
     
-    // Don't format if empty
+    // Skip formatting if empty
     if (!phoneNumber) return '';
     
-    // Format based on length
+    // Format based on input length
     if (phoneNumber.length <= 3) {
       return `(${phoneNumber}`;
     } else if (phoneNumber.length <= 6) {
@@ -281,7 +276,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     setPhone(formatted);
   };
 
-  // Name capitalization function
+  // Capitalize name properly
   const capitalizeName = (value: string) => {
     return value
       .split(' ')
@@ -301,16 +296,16 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     return name.trim() && classYear && section;
   };
 
-  // Page 2 helper functions
+  // Course selection helpers
   const totalCredits = selectedCourses.reduce((sum, course) => sum + course.credits, 0);
 
-  // Check if course requirements are met
+  // Validate course requirements
   const areRequirementsMet = () => {
     if (classYear === '1L') {
-      // 1L: Need 9 required courses (7 initial + 2 LRW), 10th elective is optional
+      // 1L needs 9 required courses (7 initial + 2 LRW), 10th elective optional
       return selectedCourses.length >= 9 && selectedCourses.length <= 10;
     } else if (classYear === '2L' || classYear === '3L') {
-      // 2L/3L: Need at least 3 required courses, max 10 total courses
+      // 2L/3L need at least 3 required courses, max 10 total
       return selectedCourses.length >= 3 && selectedCourses.length <= 10;
     }
     return false;
@@ -319,7 +314,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   const handleRemoveCourse = (courseId: string) => {
     const courseToRemove = selectedCourses.find(course => course.id === courseId);
     
-    // Check if this is a required course that cannot be removed
+    // Can't remove required courses
     if (courseToRemove && classYear === '1L') {
       const isRequired = selectedCourses.indexOf(courseToRemove) < 7 || 
                         courseToRemove.courseName.includes('First Year Legal Research and Writing') ||
@@ -387,51 +382,51 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         'Fri': 'Fri'
       };
       
-      // Handle both array format and comma-separated string format for days
+      // Handle array or comma-separated days
       let courseDays: string[];
       if (Array.isArray(course.days)) {
-        // If it's already an array, flatten any comma-separated strings within it
+        // Flatten comma-separated strings in array
         courseDays = course.days.flatMap(d => 
           typeof d === 'string' && d.includes(',') 
             ? d.split(',').map(day => day.trim())
             : [d]
         );
       } else if (typeof course.days === 'string') {
-        // If it's a string, split by comma
+        // Split string by comma
         courseDays = course.days.split(',').map(d => d.trim());
       } else {
         courseDays = [];
       }
       
-      // Only show course in its starting time slot
+      // Show course only in starting time slot
       if (!courseDays.includes(dayMap[day])) {
         return false;
       }
       
-      // Filter by current semester using multi-semester logic
+      // Filter by current semester
       const currentSemesterCode = currentSemester === 'Fall 2025' ? 'FA' : 
                                   currentSemester === 'Winter 2026' ? 'WI' : 
                                   currentSemester === 'Spring 2026' ? 'SP' : 'FA';
       
-      // Check if course matches current semester (handles FS, FW, WS codes)
+      // Check if course matches current semester
       if (!courseMatchesSemester(course.semester as string, currentSemesterCode)) {
         return false;
       }
 
-      // Parse course time range
+      // Parse time range
       const timeParts = course.time.split('-');
       if (timeParts.length !== 2) return false;
       
       let startTime = timeParts[0].trim();
       let endTime = timeParts[1].trim();
       
-      // Handle cases where AM/PM is only on the end time
+      // Handle AM/PM only on end time
       const endAmPm = endTime.match(/(AM|PM)/i);
       if (endAmPm && !startTime.match(/(AM|PM)/i)) {
         startTime += ' ' + endAmPm[0];
       }
       
-      // Handle cases where both times have AM/PM
+      // Handle both times with AM/PM
       if (course.time.includes('AM') && course.time.includes('PM')) {
         const fullTimeMatch = course.time.match(/(\d{1,2}:\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}:\d{2})\s*(AM|PM)/i);
         if (fullTimeMatch) {
@@ -440,7 +435,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         }
       }
       
-      // Convert times to 24-hour format for comparison
+      // Convert to 24-hour format
       const convertTo24Hour = (time: string) => {
         const match = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
         if (!match) return null;
@@ -460,7 +455,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       
       if (!courseStart || !slotTime) return false;
       
-      // Only show course in its starting time slot
+      // Show course only in starting time slot
       const courseStartHour = Math.floor(courseStart / 60) * 60; // Round DOWN to nearest hour
       const slotHour = slotTime;
       
@@ -473,7 +468,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     return filteredCourses;
   };
 
-  // Calculate how many time slots a course spans
+  // Calculate course time span
   const getCourseSpan = (course: CourseData) => {
     const timeParts = course.time.split('-');
     if (timeParts.length !== 2) return 1;
@@ -519,7 +514,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     return Math.ceil(durationInMinutes / 60); // Each time slot is 1 hour
   };
 
-  // Check if a time slot should be hidden (part of a multi-hour course)
   const isTimeSlotOccupied = (day: string, timeSlot: string) => {
     const dayMap: { [key: string]: string } = {
       'Mon': 'Mon',
@@ -531,25 +525,25 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
     return selectedCourses.some(course => {
       
-      // Filter by current semester using multi-semester logic
+      // Filter by current semester
       const currentSemesterCode = currentSemester === 'Fall 2025' ? 'FA' : 
                                   currentSemester === 'Winter 2026' ? 'WI' : 
                                   currentSemester === 'Spring 2026' ? 'SP' : 'FA';
       
-      // Check if course matches current semester (handles FS, FW, WS codes)
+      // Check if course matches current semester
       if (!courseMatchesSemester(course.semester as string, currentSemesterCode)) return false;
       
-      // Handle both array format and comma-separated string format for days
+      // Handle array or comma-separated days
       let courseDays: string[];
       if (Array.isArray(course.days)) {
-        // If it's already an array, flatten any comma-separated strings within it
+        // Flatten comma-separated strings in array
         courseDays = course.days.flatMap(d => 
           typeof d === 'string' && d.includes(',') 
             ? d.split(',').map(day => day.trim())
             : [d]
         );
       } else if (typeof course.days === 'string') {
-        // If it's a string, split by comma
+        // Split string by comma
         courseDays = course.days.split(',').map(d => d.trim());
       } else {
         courseDays = [];
@@ -568,7 +562,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         startTime += ' ' + endAmPm[0];
       }
       
-      // Handle cases where both times have AM/PM (e.g., "9:00 AM-1:00 PM")
+      // Handle both times with AM/PM (e.g., "9:00 AM-1:00 PM")
       if (course.time.includes('AM') && course.time.includes('PM')) {
         const fullTimeMatch = course.time.match(/(\d{1,2}:\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}:\d{2})\s*(AM|PM)/i);
         if (fullTimeMatch) {
@@ -597,11 +591,10 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       
       if (!courseStart || !courseEnd || !slotTime) return false;
       
-      // Round course start time to nearest hour for consistency
+      // Round start time to nearest hour
       const courseStartHour = Math.floor(courseStart / 60) * 60;
       
-      // Check if this slot is within the course time but not the starting slot
-      // A slot is occupied if it's part of a multi-hour course that started in a previous slot
+      // Check if slot is occupied by multi-hour course
       return slotTime >= courseStartHour && slotTime < courseEnd && slotTime !== courseStartHour;
     });
   };
@@ -618,14 +611,14 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     }
   };
 
-  // Fetch courses from API for all students (1L, 2L, 3L)
+  // Fetch courses from API
   useEffect(() => {
     const fetchCourses = async () => {
       if (classYear === '1L' || classYear === '2L' || classYear === '3L') {
         console.log('Fetching courses for class year:', classYear);
         setCoursesLoading(true);
         try {
-          // Use the Courses table which has all the course information
+          // Get courses from Courses table
           const { data: courses, error } = await supabase
             .from('Courses')
             .select('*')
@@ -642,11 +635,10 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
             return;
           }
 
-          // Filter courses by year level if the table has that column
-          // For now, get all courses since we don't know the exact structure
+          // Get all courses for now
           const allCourses = courses || [];
 
-          // Transform to match the expected format for auto-population
+          // Transform to expected format
           const transformedCourses = allCourses.map((course: any) => ({
             course_number: course.course_number || course.id,
           course_name: course.course_name,
@@ -675,7 +667,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     fetchCourses();
   }, [classYear]);
 
-  // Auto-populate 1L required courses when section is selected
+  // Auto-populate 1L required courses
   useEffect(() => {
     const autoPopulate1L = () => {
       if (classYear === '1L' && section && allCourseData.length > 0) {
@@ -1261,13 +1253,13 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                                         let startTime = timeParts[0]?.trim() || '';
                                         let endTime = timeParts[1]?.trim() || '';
                                         
-                                        // Handle cases where AM/PM is only on the end time
+                                        // Handle AM/PM only on end time
                                         const endAmPm = endTime.match(/(AM|PM)/i);
                                         if (endAmPm && !startTime.match(/(AM|PM)/i)) {
                                           startTime += ' ' + endAmPm[0];
                                         }
                                         
-                                        // Handle cases where both times have AM/PM
+                                        // Handle both times with AM/PM
                                         if (course.time.includes('AM') && course.time.includes('PM')) {
                                           const fullTimeMatch = course.time.match(/(\d{1,2}:\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}:\d{2})\s*(AM|PM)/i);
                                           if (fullTimeMatch) {

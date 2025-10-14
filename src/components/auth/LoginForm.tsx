@@ -46,7 +46,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
       setError(error.message);
       setLoading(false);
     }
-    // If successful, the user will be redirected
   };
 
   return (

@@ -19,9 +19,6 @@ import { OnboardingFlow } from './components/onboarding/OnboardingFlow';
 import { supabase } from './lib/supabase';
 import type { Outline } from './types';
 
-// Courses will be derived from outlines data
-
-// Calendar Event Interface
 interface CalendarEvent {
   id: string;
   title: string;
@@ -34,9 +31,7 @@ interface CalendarEvent {
   description?: string;
 }
 
-// Main App Content Component
 function AppContent({ user }: { user: any }) {
-  // Local auth state: remove authGuard and check directly here
   const [authLoading, setAuthLoading] = useState(true);
   const [isVerified, setIsVerified] = useState(false);
 
@@ -45,7 +40,6 @@ function AppContent({ user }: { user: any }) {
 
     const checkAuthAndProfile = async () => {
       try {
-        // Determine current user
         let currentUser = user;
         if (!currentUser) {
           const { data } = await supabase.auth.getSession();
@@ -61,7 +55,6 @@ function AppContent({ user }: { user: any }) {
           return;
         }
 
-        // Check if user has already verified their access code and completed onboarding
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('access_code_verified, classes_filled')
@@ -70,7 +63,6 @@ function AppContent({ user }: { user: any }) {
 
         if (error) {
           console.error('Error fetching profile:', error);
-          // If profile doesn't exist or error, require verification
           if (isMounted) {
             setIsVerified(false);
             setHasCompletedOnboarding(false);
@@ -80,9 +72,7 @@ function AppContent({ user }: { user: any }) {
         }
 
         if (isMounted) {
-          // Set verification status based on database
           setIsVerified(profile?.access_code_verified === true);
-          // Temporarily disable database check for testing - always start with onboarding
           setHasCompletedOnboarding(false);
           setAuthLoading(false);
         }

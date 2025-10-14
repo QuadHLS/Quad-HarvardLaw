@@ -187,7 +187,7 @@ export function OutlinePage({
     }
   };
 
-  // Upload helper functions
+  // Upload functions
   const formatOutlineDisplayName = (course: string, instructor: string, year: string, grade: string): string => {
     // Get last 2 digits of year
     const lastTwoDigits = year.slice(-2);
@@ -204,10 +204,8 @@ export function OutlinePage({
       .map(name => name.charAt(0).toUpperCase())
       .join('');
     
-    // Generate random 3-digit number
-    const randomNumber = Math.floor(Math.random() * 900) + 100; // 100-999
+    const randomNumber = Math.floor(Math.random() * 900) + 100;
     
-    // Format: [YY] CC PP (G) #XXX
     return `[${lastTwoDigits}] ${courseInitials} ${instructorInitials} (${grade}) #${randomNumber}`;
   };
 
@@ -491,8 +489,6 @@ export function OutlinePage({
       // Get file size and page count
       const fileSize = uploadFile.size;
       
-      // Set page count to 1 to satisfy database constraint (pages > 0)
-      // This will be updated later by the background page counting process
       const pageCount = 1;
 
       // Create new row in outlines table
@@ -554,7 +550,7 @@ export function OutlinePage({
 
   const handleDownload = async (outline: Outline) => {
     try {
-      // Try different possible file path formats
+      // Try different file path formats
       const possiblePaths = [
         outline.file_path,
         outline.file_name,
@@ -615,7 +611,7 @@ export function OutlinePage({
         file_type: outline.file_type
       });
 
-      // Try different possible file path formats
+      // Try different file path formats
       const possiblePaths = [
         outline.file_path,
         outline.file_name,

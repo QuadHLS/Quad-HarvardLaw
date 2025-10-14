@@ -21,7 +21,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   if (!user) {
-    // This will be handled by the routing logic in App.tsx
     return null
   }
 

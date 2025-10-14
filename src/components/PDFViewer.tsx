@@ -434,7 +434,6 @@ export function PDFViewer({ fileUrl, fileName: _fileName, onDownload, onClose, h
       setCurrentSearchIndex(nextIndex);
       const result = searchResults[nextIndex];
       setCurrentPage(result.page);
-      // All results on the page will be highlighted automatically when the page renders
     }
   };
 
@@ -444,7 +443,6 @@ export function PDFViewer({ fileUrl, fileName: _fileName, onDownload, onClose, h
       setCurrentSearchIndex(prevIndex);
       const result = searchResults[prevIndex];
       setCurrentPage(result.page);
-      // All results on the page will be highlighted automatically when the page renders
     }
   };
 

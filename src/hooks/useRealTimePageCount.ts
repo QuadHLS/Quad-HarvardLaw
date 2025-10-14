@@ -134,8 +134,6 @@ export function useRealTimePageCount() {
       for (let i = 0; i < outlines.length; i++) {
         const outline = outlines[i]
         
-        // Check if we need to update the page count
-        // Only update if it's still 1 (the old default) or if it's been a while since last update
         const shouldUpdate = outline.pages === 1 || 
                            (outline.updated_at && 
                             new Date(outline.updated_at) < new Date(Date.now() - 24 * 60 * 60 * 1000))

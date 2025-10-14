@@ -18,12 +18,12 @@ const courseColors = {
   'Clinic': '#FFBB06'       // Yellow
 };
 
-// Helper function to get course color based on type
+// Get course color by type
 const getCourseColor = (courseType: string): string => {
   return courseColors[courseType as keyof typeof courseColors] || courseColors['Course'];
 };
 
-// Helper function to convert hex to RGB
+// Convert hex to RGB
 const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result ? {
@@ -33,7 +33,7 @@ const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
   } : null;
 };
 
-// Helper function to convert semester abbreviation to full name
+// Convert semester code to full name
 const getSemesterFullName = (abbreviation: 'FA' | 'WI' | 'SP' | 'FS' | 'FW' | 'WS'): string => {
   switch (abbreviation) {
     case 'FA': return 'Fall';
@@ -46,7 +46,7 @@ const getSemesterFullName = (abbreviation: 'FA' | 'WI' | 'SP' | 'FS' | 'FW' | 'W
   }
 };
 
-// Helper function to get individual semesters from a semester code
+// Get individual semesters from code
 const getSemestersFromCode = (semesterCode: string): ('FA' | 'WI' | 'SP')[] => {
   switch (semesterCode) {
     case 'FA': return ['FA'];
@@ -59,7 +59,7 @@ const getSemestersFromCode = (semesterCode: string): ('FA' | 'WI' | 'SP')[] => {
   }
 };
 
-// Helper function to check if a course term matches a selected semester
+// Check if course term matches selected semester
 const courseMatchesSemester = (courseTerm: string, selectedSemester: 'FA' | 'WI' | 'SP'): boolean => {
   if (!courseTerm || courseTerm === 'TBD') return false;
   
@@ -70,7 +70,7 @@ const courseMatchesSemester = (courseTerm: string, selectedSemester: 'FA' | 'WI'
   return semesters.includes(selectedSemester);
 };
 
-// Helper function to truncate text to 100 words
+// Truncate text to 100 words
 const truncateText = (text: string, maxWords: number = 100): { truncated: string; isTruncated: boolean } => {
   if (!text || text === 'TBD') return { truncated: text, isTruncated: false };
   
@@ -93,7 +93,7 @@ const truncateText = (text: string, maxWords: number = 100): { truncated: string
   return { truncated, isTruncated: true };
 };
 
-// Helper function to format course description with proper spacing for exam types
+// Format course description with proper spacing
 const formatCourseDescription = (text: string): string => {
   if (!text || text === 'TBD') return text;
   
@@ -345,7 +345,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
 
 
 
-  // Helper function to clean course name by removing redundant words
+  // Clean course name by removing redundant words
   const getCleanCourseName = (name: string, type: string) => {
     if (type === 'Seminar' && name.includes('Seminar')) {
       return name.replace(/\s*Seminar\s*/g, ' ').trim();
@@ -408,22 +408,6 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     const result = matchesSearch && matchesTerm && matchesAreaOfInterest && 
            matchesType && matchesRequirements && matchesDays && notScheduled;
     
-    // Debug logging for first few courses (can be removed in production)
-    // if (courses.indexOf(course) < 3) {
-    //   console.log('Course filter debug:', {
-    //     courseName: course.name,
-    //     courseTerm: course.term,
-    //     convertedTerm: courseTerm,
-    //     selectedTerm,
-    //     matchesTerm,
-    //     matchesSearch,
-    //     matchesAreaOfInterest,
-    //     matchesType,
-    //     matchesDays,
-    //     notScheduled,
-    //     result
-    //   });
-    // }
     
     return result;
   }).sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically by course name
@@ -500,7 +484,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     }
   };
 
-  // Helper function to parse time string (e.g., "1:30 PM - 3:30 PM | 4:00 PM - 5:00 PM")
+  // Parse time string
   const parseTimeString = (timeStr: string) => {
     if (!timeStr || timeStr === 'TBD') {
       return null; // No fallback - TBD courses shouldn't be parsed
@@ -526,7 +510,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     return null;
   };
 
-  // Helper function to clean up times display - show time only once if same for all days
+  // Clean up times display - show time only once if same for all days
   const getCleanTimesDisplay = (times: string): string => {
     if (!times || times === 'TBD') {
       return 'TBD';
@@ -543,7 +527,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     return times;
   };
 
-  // Helper function to get the specific time for a given day
+  // Get specific time for a given day
   const getTimeForDay = (course: ScheduledCourse, targetDay: string): string => {
     if (!course.days || !course.times || course.times === 'TBD') {
       return 'TBD';
@@ -764,7 +748,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     if (fullName.includes(',')) {
       return fullName.split(',')[0].trim();
     }
-    // Fallback to original logic for other formats
+    // Fallback for other formats
     const parts = fullName.replace('Professor ', '').split(' ');
     return parts[parts.length - 1];
   };
@@ -841,7 +825,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     return startIndex * 64; // 64px per hour slot (no need to add header height since it's positioned within the relative container)
   };
 
-  // Save schedule functionality
+  // Save schedule
   const handleSaveSchedule = async () => {
     if (!saveScheduleName.trim()) {
       toast.error('Please enter a schedule name');

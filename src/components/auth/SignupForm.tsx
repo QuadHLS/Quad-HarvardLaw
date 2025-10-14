@@ -100,7 +100,6 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
       setError(error.message);
       setLoading(false);
     }
-    // If successful, the user will be redirected
   };
 
   if (success) {

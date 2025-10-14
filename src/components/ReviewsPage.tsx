@@ -8,7 +8,6 @@ import { Dialog, DialogTrigger } from './ui/dialog';
 import { supabase } from '../lib/supabase';
 import { ReviewForm } from './ReviewForm';
 
-// Database review interface
 interface Review {
   id: string;
   user_id: string;
@@ -18,35 +17,28 @@ interface Review {
   year: string;
   grade: 'DS' | 'H' | 'P';
   
-  // Ratings (1-10 scale)
   overall_rating: number;
   readings_rating: number;
   cold_calls_rating: number;
   exam_rating: number;
   
-  
-  // Review text
   overall_review: string;
   readings_review?: string;
   cold_calls_review?: string;
   exam_review?: string;
   
-  // Course details
   laptops_allowed?: boolean;
   assessment_type?: 'Project' | 'Final Exam' | 'Both';
   has_cold_calls?: boolean;
   
-  // Engagement
   helpful_count: number;
   not_helpful_count: number;
   
-  // Metadata
   anonymous: boolean;
   created_at: string;
   updated_at: string;
 }
 
-// Database interfaces
 interface Professor {
   id: string;
   name: string;
@@ -67,9 +59,6 @@ interface ProfessorCourse {
   created_at: string;
 }
 
-// ProfessorStats removed (not used in this UI)
-
-// Processed professor data for display
 interface ProcessedProfessor {
   firstName: string;
   lastName: string;
@@ -83,7 +72,6 @@ interface ProcessedProfessor {
   totalReviews: number;
 }
 
-// Review form data
 interface ReviewFormData {
   professor_name: string;
   course_name: string;
@@ -507,7 +495,7 @@ export function ReviewsPage() {
       .map(([year, yearReviews]) => ({ year, reviews: yearReviews }));
   };
 
-  // Icons helpers for the details row
+  // Icons for details row
   const getColdCallIcon = (_hasColdCalls?: boolean) => (
     <Megaphone className="w-4 h-4 text-gray-500" />
   );

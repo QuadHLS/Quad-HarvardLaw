@@ -374,6 +374,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   const [selectedPostThread, setSelectedPostThread] = useState<string | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [likingPosts, setLikingPosts] = useState<Set<string>>(new Set());
 
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
   const [newComment, setNewComment] = useState<Record<string, string>>({});
@@ -387,15 +389,6 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
   // Course colors are now determined by the post's assigned color
 
-  // Anonymous name generation
-  const adjectives = ['Silly', 'Curious', 'Brave', 'Wise', 'Swift', 'Bright', 'Gentle', 'Fierce'];
-  const animals = ['Squirrel', 'Owl', 'Fox', 'Bear', 'Eagle', 'Wolf', 'Deer', 'Hawk'];
-
-  const generateAnonymousName = () => {
-    const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-    const animal = animals[Math.floor(Math.random() * animals.length)];
-    return `${adjective} ${animal}`;
-  };
 
   // Format timestamp
   const formatTimestamp = (timestamp: string) => {
@@ -438,35 +431,37 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.log('No user found, skipping fetchPosts');
+        setLoading(false);
+        return;
+      }
+      
+      console.log('Fetching posts for user:', user.id, 'feedMode:', feedMode);
 
-      // Build query based on feed mode
+      // Build query based on feed mode - use simple select first
       let query = supabase
         .from('posts')
-        .select(`
-          *,
-          course:feedcourses!course_id(name),
-          polls(
-            *,
-            poll_options(*)
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (feedMode === 'my-courses') {
-        // Get user's courses from profiles
+        // Get user's courses from profiles table
         const { data: profile } = await supabase
           .from('profiles')
           .select('classes')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
         if (profile?.classes && profile.classes.length > 0) {
+          // Extract course names from the course objects
+          const courseNames = profile.classes.map((course: any) => course.class);
+          
           // Get course IDs for user's classes
           const { data: userCourses } = await supabase
             .from('feedcourses')
             .select('id')
-            .in('name', profile.classes);
+            .in('name', courseNames);
 
           if (userCourses && userCourses.length > 0) {
             const courseIds = userCourses.map((c: any) => c.id);
@@ -492,18 +487,36 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
       if (error) {
         console.error('Error fetching posts:', error);
+        console.error('Error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        setLoading(false);
         return;
       }
 
       // Transform data to match UI interface
       const transformedPosts: Post[] = await Promise.all(
         (data || []).map(async (post: any) => {
-          // Get author info
+          // Get author info from profiles table
           const { data: author } = await supabase
             .from('profiles')
-            .select('name, year')
+            .select('full_name, class_year')
             .eq('id', post.author_id)
-            .single();
+            .maybeSingle();
+
+          // Get course info if course_id exists
+          let course = undefined;
+          if (post.course_id) {
+            const { data: courseData } = await supabase
+              .from('feedcourses')
+              .select('name')
+              .eq('id', post.course_id)
+              .maybeSingle();
+            course = courseData;
+          }
 
           // Check if user liked this post
           const { data: like } = await supabase
@@ -512,33 +525,74 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             .eq('user_id', user.id)
             .eq('likeable_type', 'post')
             .eq('likeable_id', post.id)
-            .single();
+            .maybeSingle();
 
-          // Transform poll data if exists
+          // Get actual likes count from database
+          const { count: actualLikesCount } = await supabase
+            .from('likes')
+            .select('*', { count: 'exact', head: true })
+            .eq('likeable_type', 'post')
+            .eq('likeable_id', post.id);
+
+          // Get actual comments count from database
+          const { count: actualCommentsCount } = await supabase
+            .from('comments')
+            .select('*', { count: 'exact', head: true })
+            .eq('post_id', post.id);
+
+          // Get poll data if this is a poll post
           let poll = undefined;
-          if (post.polls && post.polls.length > 0) {
-            const pollData = post.polls[0];
+          if (post.post_type === 'poll') {
+            const { data: pollData } = await supabase
+              .from('polls')
+              .select('*')
+              .eq('post_id', post.id)
+              .maybeSingle();
             
-            // Check if user voted on this poll
-            const { data: userVote } = await supabase
-              .from('poll_votes')
-              .select('option_id')
-              .eq('user_id', user.id)
-              .eq('poll_id', pollData.id)
-              .single();
+            if (pollData) {
+              // Check if user voted on this poll
+              const { data: userVote } = await supabase
+                .from('poll_votes')
+                .select('option_id')
+                .eq('user_id', user.id)
+                .eq('poll_id', pollData.id)
+                .maybeSingle();
 
-            poll = {
-              id: pollData.id,
-              question: pollData.question,
-              options: pollData.poll_options.map((opt: any) => ({
-                id: opt.id,
-                text: opt.text,
-                votes: opt.votes
-              })),
-              totalVotes: pollData.total_votes,
-              userVotedOptionId: userVote?.option_id
-            };
+              // Get poll options with actual vote counts
+              const { data: options } = await supabase
+                .from('poll_options')
+                .select('*')
+                .eq('poll_id', pollData.id);
+
+              // Calculate actual vote counts for each option
+              const optionsWithVotes = await Promise.all(
+                (options || []).map(async (opt: any) => {
+                  const { count: voteCount } = await supabase
+                    .from('poll_votes')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('option_id', opt.id);
+                  
+                  return {
+                    id: opt.id,
+                    text: opt.text,
+                    votes: voteCount || 0
+                  };
+                })
+              );
+
+              // Calculate total votes
+              const totalVotes = optionsWithVotes.reduce((sum, opt) => sum + opt.votes, 0);
+
+              poll = {
+                id: pollData.id,
+                question: pollData.question,
+                options: optionsWithVotes,
+                totalVotes: totalVotes,
+                userVotedOptionId: userVote?.option_id
+              };
+            }
           }
+
 
           return {
             id: post.id,
@@ -549,13 +603,13 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             post_type: post.post_type,
             is_anonymous: post.is_anonymous,
             created_at: post.created_at,
-            likes_count: post.likes_count,
-            comments_count: post.comments_count,
+            likes_count: actualLikesCount || 0,
+            comments_count: actualCommentsCount || 0,
             author: author ? {
-              name: post.is_anonymous ? generateAnonymousName() : author.name,
-              year: author.year
+              name: post.is_anonymous ? `Anonymous User` : author.full_name,
+              year: author.class_year
             } : undefined,
-            course: post.course ? { name: post.course.name } : undefined,
+            course: course ? { name: course.name } : undefined,
             isLiked: !!like,
             poll
           };
@@ -574,13 +628,10 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     try {
       const { data, error } = await supabase
         .from('comments')
-        .select(`
-          *,
-          author:profiles!author_id(name, year)
-        `)
+        .select('*')
         .eq('post_id', postId)
         .is('parent_comment_id', null) // Only top-level comments
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching comments:', error);
@@ -590,15 +641,19 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       // Transform and organize comments with replies
       const transformedComments: Comment[] = await Promise.all(
         (data || []).map(async (comment: any) => {
+          // Get author info for this comment
+          const { data: commentAuthor } = await supabase
+            .from('profiles')
+            .select('full_name, class_year')
+            .eq('id', comment.author_id)
+            .maybeSingle();
+
           // Get replies for this comment
           const { data: replies } = await supabase
             .from('comments')
-            .select(`
-              *,
-              author:profiles!author_id(name, year)
-            `)
+            .select('*')
             .eq('parent_comment_id', comment.id)
-            .order('created_at', { ascending: true });
+            .order('created_at', { ascending: false });
 
           // Check if user liked this comment
           const { data: { user } } = await supabase.auth.getUser();
@@ -608,23 +663,57 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             .eq('user_id', user?.id)
             .eq('likeable_type', 'comment')
             .eq('likeable_id', comment.id)
-            .single();
+            .maybeSingle();
 
-          const transformedReplies = replies?.map((reply: any) => ({
-            id: reply.id,
-            post_id: reply.post_id,
-            parent_comment_id: reply.parent_comment_id,
-            author_id: reply.author_id,
-            content: reply.content,
-            is_anonymous: reply.is_anonymous,
-            created_at: reply.created_at,
-            likes_count: reply.likes_count,
-            author: reply.author ? {
-              name: reply.is_anonymous ? generateAnonymousName() : reply.author.name,
-              year: reply.author.year
-            } : undefined,
-            isLiked: !!like
-          })) || [];
+          // Get actual likes count for this comment
+          const { count: actualCommentLikesCount } = await supabase
+            .from('likes')
+            .select('*', { count: 'exact', head: true })
+            .eq('likeable_type', 'comment')
+            .eq('likeable_id', comment.id);
+
+          const transformedReplies = await Promise.all(
+            (replies || []).map(async (reply: any) => {
+              // Get author info for this reply
+              const { data: replyAuthor } = await supabase
+                .from('profiles')
+                .select('full_name, class_year')
+                .eq('id', reply.author_id)
+                .maybeSingle();
+
+              // Check if user liked this reply
+              const { data: replyLike } = await supabase
+                .from('likes')
+                .select('id')
+                .eq('user_id', user?.id)
+                .eq('likeable_type', 'comment')
+                .eq('likeable_id', reply.id)
+                .maybeSingle();
+
+              // Get actual likes count for this reply
+              const { count: actualReplyLikesCount } = await supabase
+                .from('likes')
+                .select('*', { count: 'exact', head: true })
+                .eq('likeable_type', 'comment')
+                .eq('likeable_id', reply.id);
+
+              return {
+                id: reply.id,
+                post_id: reply.post_id,
+                parent_comment_id: reply.parent_comment_id,
+                author_id: reply.author_id,
+                content: reply.content,
+                is_anonymous: reply.is_anonymous,
+                created_at: reply.created_at,
+                likes_count: actualReplyLikesCount || 0,
+                author: replyAuthor ? {
+                  name: reply.is_anonymous ? `Anonymous User` : replyAuthor.full_name,
+                  year: replyAuthor.class_year
+                } : undefined,
+                isLiked: !!replyLike
+              };
+            })
+          );
 
           return {
             id: comment.id,
@@ -634,10 +723,10 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             content: comment.content,
             is_anonymous: comment.is_anonymous,
             created_at: comment.created_at,
-            likes_count: comment.likes_count,
-            author: comment.author ? {
-              name: comment.is_anonymous ? generateAnonymousName() : comment.author.name,
-              year: comment.author.year
+            likes_count: actualCommentLikesCount || 0,
+            author: commentAuthor ? {
+              name: comment.is_anonymous ? `Anonymous User` : commentAuthor.full_name,
+              year: commentAuthor.class_year
             } : undefined,
             isLiked: !!like,
             replies: transformedReplies
@@ -654,10 +743,21 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     }
   };
 
-  // Load posts when component mounts or feedMode changes
+  // Track user authentication state
   useEffect(() => {
-    fetchPosts();
-  }, [feedMode]);
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    getUser();
+  }, []);
+
+  // Load posts when component mounts, feedMode changes, or user changes
+  useEffect(() => {
+    if (user) {
+      fetchPosts();
+    }
+  }, [feedMode, user]);
 
 
   // Load comments when thread view opens
@@ -693,7 +793,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           .from('feedcourses')
           .select('id')
           .eq('name', selectedCourseForPost)
-          .single();
+          .maybeSingle();
         courseId = course?.id || null;
       }
 
@@ -787,14 +887,30 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
   // Event handlers
   const handleLike = async (postId: string) => {
+    // Prevent multiple simultaneous like operations on the same post
+    if (likingPosts.has(postId)) return;
+    
     try {
+      setLikingPosts(prev => new Set(prev).add(postId));
+      
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       const post = posts.find(p => p.id === postId);
       if (!post) return;
 
-      if (post.isLiked) {
+      // Double-check the current like state from database
+      const { data: currentLike } = await supabase
+        .from('likes')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('likeable_type', 'post')
+        .eq('likeable_id', postId)
+        .maybeSingle();
+
+      const isCurrentlyLiked = !!currentLike;
+
+      if (isCurrentlyLiked) {
         // Unlike the post
         const { error } = await supabase
           .from('likes')
@@ -823,10 +939,26 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         }
       }
 
-      // Refresh posts to get updated counts
-      await fetchPosts();
+      // Update local state immediately for better UX
+      setPosts(prevPosts => 
+        prevPosts.map(p => 
+          p.id === postId 
+            ? { 
+                ...p, 
+                isLiked: !isCurrentlyLiked,
+                likes_count: isCurrentlyLiked ? p.likes_count - 1 : p.likes_count + 1
+              }
+            : p
+        )
+      );
     } catch (error) {
       console.error('Error in handleLike:', error);
+    } finally {
+      setLikingPosts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(postId);
+        return newSet;
+      });
     }
   };
 
@@ -850,11 +982,18 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     setReplyingTo(null);
   };
 
-  const toggleCommentsExpanded = (postId: string) => {
+  const toggleCommentsExpanded = async (postId: string) => {
+    const isCurrentlyExpanded = expandedComments[postId];
+    
     setExpandedComments(prev => ({
       ...prev,
       [postId]: !prev[postId]
     }));
+    
+    // If we're expanding comments and they haven't been fetched yet, fetch them
+    if (!isCurrentlyExpanded && !comments[postId]) {
+      await fetchComments(postId);
+    }
   };
 
   const addComment = async (postId: string) => {
@@ -881,9 +1020,17 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
     setNewComment(prev => ({ ...prev, [postId]: '' }));
 
-      // Refresh comments and posts
+      // Refresh comments to get the new comment
       await fetchComments(postId);
-      await fetchPosts();
+      
+      // Update post comment count locally
+      setPosts(prevPosts => 
+        prevPosts.map(p => 
+          p.id === postId 
+            ? { ...p, comments_count: p.comments_count + 1 }
+            : p
+        )
+      );
     } catch (error) {
       console.error('Error in addComment:', error);
     }
@@ -916,9 +1063,17 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     setReplyText(prev => ({ ...prev, [key]: '' }));
     setReplyingTo(null);
 
-      // Refresh comments and posts
+      // Refresh comments to get the new reply
       await fetchComments(postId);
-      await fetchPosts();
+      
+      // Update post comment count locally
+      setPosts(prevPosts => 
+        prevPosts.map(p => 
+          p.id === postId 
+            ? { ...p, comments_count: p.comments_count + 1 }
+            : p
+        )
+      );
     } catch (error) {
       console.error('Error in addReply:', error);
     }
@@ -932,7 +1087,18 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       const comment = comments[postId]?.find(c => c.id === commentId);
       if (!comment) return;
 
-      if (comment.isLiked) {
+      // Double-check the current like state from database
+      const { data: currentLike } = await supabase
+        .from('likes')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('likeable_type', 'comment')
+        .eq('likeable_id', commentId)
+        .maybeSingle();
+
+      const isCurrentlyLiked = !!currentLike;
+
+      if (isCurrentlyLiked) {
         // Unlike the comment
         const { error } = await supabase
           .from('likes')
@@ -961,8 +1127,19 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         }
       }
 
-      // Refresh comments
-      await fetchComments(postId);
+      // Update local state immediately for better UX
+      setComments(prevComments => ({
+        ...prevComments,
+        [postId]: (prevComments[postId] || []).map(comment =>
+          comment.id === commentId
+            ? {
+                ...comment,
+                isLiked: !isCurrentlyLiked,
+                likes_count: isCurrentlyLiked ? comment.likes_count - 1 : comment.likes_count + 1
+              }
+            : comment
+        )
+      }));
     } catch (error) {
       console.error('Error in toggleCommentLike:', error);
     }
@@ -977,7 +1154,18 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       const reply = comment?.replies?.find(r => r.id === replyId);
       if (!reply) return;
 
-      if (reply.isLiked) {
+      // Double-check the current like state from database
+      const { data: currentLike } = await supabase
+        .from('likes')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('likeable_type', 'comment')
+        .eq('likeable_id', replyId)
+        .maybeSingle();
+
+      const isCurrentlyLiked = !!currentLike;
+
+      if (isCurrentlyLiked) {
         // Unlike the reply
         const { error } = await supabase
           .from('likes')
@@ -1006,8 +1194,26 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         }
       }
 
-      // Refresh comments
-      await fetchComments(postId);
+      // Update local state immediately for better UX
+      setComments(prevComments => ({
+        ...prevComments,
+        [postId]: (prevComments[postId] || []).map(comment =>
+          comment.id === commentId
+            ? {
+                ...comment,
+                replies: (comment.replies || []).map(reply =>
+                  reply.id === replyId
+                    ? {
+                        ...reply,
+                        isLiked: !isCurrentlyLiked,
+                        likes_count: isCurrentlyLiked ? reply.likes_count - 1 : reply.likes_count + 1
+                      }
+                    : reply
+                )
+              }
+            : comment
+        )
+      }));
     } catch (error) {
       console.error('Error in toggleReplyLike:', error);
     }
@@ -1025,6 +1231,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
       if (!previousSelection) {
         // First vote
+        console.log('Inserting poll vote:', {
+          poll_id: post.poll.id,
+          option_id: optionId,
+          user_id: user.id
+        });
+        
         const { error } = await supabase
           .from('poll_votes')
           .insert({
@@ -1037,8 +1249,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           console.error('Error voting on poll:', error);
           return;
         }
+        
+        console.log('Poll vote inserted successfully');
       } else if (previousSelection === optionId) {
         // Toggle off (re-click same option)
+        console.log('Removing poll vote for poll:', post.poll.id, 'user:', user.id);
+        
         const { error } = await supabase
           .from('poll_votes')
           .delete()
@@ -1049,8 +1265,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           console.error('Error removing poll vote:', error);
           return;
         }
+        
+        console.log('Poll vote removed successfully');
       } else {
         // Switch choice (different option)
+        console.log('Updating poll vote from', previousSelection, 'to', optionId);
+        
         const { error } = await supabase
           .from('poll_votes')
           .update({ option_id: optionId })
@@ -1061,10 +1281,35 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           console.error('Error updating poll vote:', error);
           return;
         }
+        
+        console.log('Poll vote updated successfully');
       }
 
-      // Refresh posts to get updated poll data
-      await fetchPosts();
+      // Update local state for poll voting
+      setPosts(prevPosts => 
+        prevPosts.map(p => 
+          p.id === postId 
+            ? { 
+                ...p, 
+                poll: p.poll ? {
+                  ...p.poll,
+                  userVotedOptionId: previousSelection === optionId ? undefined : optionId,
+                  totalVotes: previousSelection === optionId 
+                    ? p.poll.totalVotes - 1 
+                    : previousSelection 
+                    ? p.poll.totalVotes 
+                    : p.poll.totalVotes + 1,
+                  options: p.poll.options.map(opt => ({
+                    ...opt,
+                    votes: opt.id === optionId 
+                      ? (previousSelection === optionId ? opt.votes - 1 : opt.votes + 1)
+                      : (previousSelection === opt.id ? opt.votes - 1 : opt.votes)
+                  }))
+                } : undefined
+              }
+            : p
+        )
+      );
     } catch (error) {
       console.error('Error in handleVotePoll:', error);
     }
@@ -1435,6 +1680,27 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           <div className="flex items-center justify-center py-8">
             <div className="text-gray-500">Loading posts...</div>
           </div>
+        ) : filteredPosts.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="text-gray-400 mb-4">
+              <MessageCircle className="w-12 h-12 mx-auto" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              {feedMode === 'campus' ? 'No campus posts yet' : 'No course posts yet'}
+            </h3>
+            <p className="text-gray-500 mb-4">
+              {feedMode === 'campus' 
+                ? 'Be the first to share something with the campus community!'
+                : 'No posts in your courses yet. Start a discussion!'
+              }
+            </p>
+            <Button
+              onClick={() => setShowCreatePostDialog(true)}
+              className="bg-[#752432] hover:bg-[#752432]/90 text-white"
+            >
+              Create First Post
+            </Button>
+          </div>
         ) : (
         <div className="space-y-4 mt-4">
             {filteredPosts.map((post) => (
@@ -1560,7 +1826,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                         e.stopPropagation();
                         handleLike(post.id);
                       }}
-                      className={`flex items-center gap-1.5 text-xs font-medium transition-colors`}
+                      disabled={likingPosts.has(post.id)}
+                      className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${likingPosts.has(post.id) ? 'opacity-50 cursor-not-allowed' : ''}`}
                       style={{
                         color: post.isLiked ? getPostColor(post.id) : '#6B7280'
                       }}
@@ -1580,9 +1847,9 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                     </button>
                     <button 
                       className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-blue-500 transition-colors"
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.stopPropagation();
-                        toggleCommentsExpanded(post.id);
+                        await toggleCommentsExpanded(post.id);
                       }}
                     >
                       <MessageCircle className="w-4 h-4" />
@@ -1668,6 +1935,51 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                 </button>
                               </div>
                             </div>
+                            
+                            {/* Replies Display */}
+                            {comment.replies && comment.replies.length > 0 && (
+                              <div className="mt-3 ml-4 space-y-2">
+                                {comment.replies.map((reply) => (
+                                  <div key={reply.id} className="flex items-start gap-2">
+                                    <ProfileBubble userName={reply.author?.name || 'Anonymous'} size="sm" borderColor={getPostColor(post.id)} />
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <h6 className="font-medium text-gray-900 text-xs">{reply.author?.name || 'Anonymous'}</h6>
+                                        <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>
+                                        <span className="text-xs text-gray-500">•</span>
+                                        <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>
+                                      </div>
+                                      <p className="text-gray-800 text-xs mb-2">{reply.content}</p>
+                                      <div className="flex items-center gap-3">
+                                        <button 
+                                          className={`flex items-center gap-1 text-xs font-medium transition-colors ${
+                                            reply.isLiked ? '' : 'text-gray-600'
+                                          }`}
+                                          style={{
+                                            color: reply.isLiked ? getPostColor(post.id) : undefined
+                                          }}
+                                          onMouseEnter={(e) => {
+                                            if (!reply.isLiked) {
+                                              e.currentTarget.style.color = getPostColor(post.id);
+                                            }
+                                          }}
+                                          onMouseLeave={(e) => {
+                                            if (!reply.isLiked) {
+                                              e.currentTarget.style.color = '';
+                                            }
+                                          }}
+                                          onClick={(e) => { e.stopPropagation(); toggleReplyLike(post.id, comment.id, reply.id); }}
+                                        >
+                                          <Heart className={`w-3 h-3 ${reply.isLiked ? 'fill-current' : ''}`} />
+                                          {reply.likes_count}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            
                             {/* reply composer (only one level deep) */}
                             {replyingTo === `${post.id}:${comment.id}` && (
                               <div className="mt-2 ml-3 flex gap-2">

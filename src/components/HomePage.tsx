@@ -1175,7 +1175,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
             <Feed 
               feedMode={feedMode}
               onFeedModeChange={setFeedMode}
-              myCourses={transformedCourses.map(c => c.name)}
+              myCourses={[...new Set(userCourses.map(c => c.class))]}
               onThreadViewChange={setIsThreadViewOpen}
             />
           </div>

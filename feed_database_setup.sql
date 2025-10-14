@@ -116,9 +116,15 @@ CREATE POLICY "Users can manage their own likes" ON likes FOR ALL USING (auth.ui
 CREATE POLICY "Users can view all poll votes" ON poll_votes FOR SELECT USING (true);
 CREATE POLICY "Users can manage their own poll votes" ON poll_votes FOR ALL USING (auth.uid() = user_id);
 
--- Read-only policies for other tables
+-- Polls policies
 CREATE POLICY "Users can view polls" ON polls FOR SELECT USING (true);
+CREATE POLICY "Users can create polls" ON polls FOR INSERT WITH CHECK (true);
+
+-- Poll options policies  
 CREATE POLICY "Users can view poll options" ON poll_options FOR SELECT USING (true);
+CREATE POLICY "Users can create poll options" ON poll_options FOR INSERT WITH CHECK (true);
+
+-- Feedcourses policies
 CREATE POLICY "Users can view feedcourses" ON feedcourses FOR SELECT USING (true);
 
 -- ==============================================
@@ -239,6 +245,10 @@ CREATE TRIGGER trigger_update_poll_votes_count
   FOR EACH ROW
   EXECUTE FUNCTION update_poll_votes_count();
 
+-- Note: Likes cleanup is handled by the application layer
+-- The CASCADE constraints will handle comments, polls, and poll votes automatically
+-- Likes for posts and comments will be cleaned up by the application when deleting posts
+
 -- ==============================================
 -- COMPLETION MESSAGE
 -- ==============================================
@@ -249,6 +259,7 @@ CREATE TRIGGER trigger_update_poll_votes_count
 -- ✅ Performance indexes
 -- ✅ Auto-updating count functions and triggers
 -- ✅ Proper foreign key relationships and constraints
+-- ✅ CASCADE deletions for comments, polls, and poll votes
 --
 -- Next steps:
 -- 1. Populate the feedcourses table with your course data

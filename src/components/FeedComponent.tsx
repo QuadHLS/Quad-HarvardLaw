@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
 // Interfaces
 interface PollOption {
@@ -19,37 +20,41 @@ interface Poll {
 interface Post {
   id: string;
   title: string;
-  author: {
-    name: string;
-    avatar: string;
-    year: string;
-    // verified removed
-  };
   content: string;
-  timestamp: string;
-  course?: string;
-  type: 'text' | 'study-tip' | 'achievement' | 'question' | 'resource' | 'poll';
-  likes: number;
-  comments: number;
-  shares: number;
-  isLiked: boolean;
-  // isBookmarked: boolean; // removed
-  tags?: string[];
+  author_id: string;
+  course_id?: string;
+  post_type: 'text' | 'poll';
+  is_anonymous: boolean;
+  created_at: string;
+  likes_count: number;
+  comments_count: number;
+  // UI computed fields
+  author?: {
+    name: string;
+    year: string;
+  };
+  course?: {
+    name: string;
+  };
+  isLiked?: boolean;
   poll?: Poll;
 }
 
 interface Comment {
   id: string;
-  author: {
-    name: string;
-    avatar: string;
-    year: string;
-    // verified removed
-  };
+  post_id: string;
+  parent_comment_id?: string;
+  author_id: string;
   content: string;
-  timestamp: string;
-  likes: number;
-  isLiked: boolean;
+  is_anonymous: boolean;
+  created_at: string;
+  likes_count: number;
+  // UI computed fields
+  author?: {
+    name: string;
+    year: string;
+  };
+  isLiked?: boolean;
   replies?: Comment[];
 }
 
@@ -367,242 +372,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   const [selectedCourseForPost, setSelectedCourseForPost] = useState('');
   const [isAnonymousPost, setIsAnonymousPost] = useState(false);
   const [selectedPostThread, setSelectedPostThread] = useState<string | null>(null);
-  const [posts, setPosts] = useState<Post[]>([
-    {
-      id: '1',
-      title: 'Contract Law Study Tips - Case Brief Method Works!',
-      author: { name: 'Sarah Chen', avatar: '👩‍💼', year: '2L' },
-      content: 'Just finished my Contracts outline! 📚 Using the case brief method really helped organize everything. Anyone else struggling with consideration doctrine?',
-      timestamp: '2 hours ago',
-      course: 'Contract Law',
-      type: 'study-tip',
-      likes: 24,
-      comments: 2,
-      shares: 3,
-      isLiked: false,
-      // isBookmarked: true, // removed
-      tags: ['contracts', 'outlines', 'study-tips']
-    },
-    {
-      id: '2',
-      title: 'Torts Study Group - Saturday Library Session',
-      author: { name: 'Marcus Johnson', avatar: '👨‍🎓', year: '3L' },
-      content: 'Hosting a Torts study group this Saturday at 2 PM in the library! We\'ll be covering negligence and strict liability. DM me if you want to join 🤝',
-      timestamp: '4 hours ago',
-      course: 'Torts',
-      type: 'text',
-      likes: 18,
-      comments: 2,
-      shares: 6,
-      isLiked: true,
-      // isBookmarked: false, // removed
-      tags: ['study-group', 'torts', 'negligence']
-    },
-    {
-      id: '3',
-      title: 'First A- on Property Law Exam! 🎉',
-      author: { name: 'Emma Rodriguez', avatar: '👩‍⚖️', year: '1L' },
-      content: '🎉 Just got my first A- on a Property Law exam! The key was understanding the bundle of rights concept early on. Thank you to everyone who shared their notes!',
-      timestamp: '6 hours ago',
-      course: 'Property Law',
-      type: 'achievement',
-      likes: 56,
-      comments: 2,
-      shares: 2,
-      isLiked: true,
-      // isBookmarked: false, // removed
-      tags: ['achievement', 'property-law', 'exam']
-    },
-    {
-      id: '4',
-      title: 'Help with Civil Procedure: Rule 12(b)(6) vs Rule 56?',
-      author: { name: 'David Park', avatar: '👨‍💻', year: '2L' },
-      content: 'Question about Civil Procedure: Can someone explain the difference between Rule 12(b)(6) and Rule 56? I keep getting confused about when to use each motion 🤔',
-      timestamp: '8 hours ago',
-      course: 'Civil Procedure',
-      type: 'question',
-      likes: 12,
-      comments: 1,
-      shares: 1,
-      isLiked: false,
-      // isBookmarked: true, // removed
-      tags: ['civil-procedure', 'motions', 'help']
-    },
-    {
-      id: '5',
-      title: 'Best Study Method for Final Exams?',
-      author: { name: 'Jessica Liu', avatar: '👩‍🏫', year: '3L' },
-      content: 'With finals approaching, I\'m curious what study methods work best for everyone. What\'s your go-to strategy?',
-      timestamp: '1 day ago',
-      type: 'poll',
-      likes: 31,
-      comments: 7,
-      shares: 12,
-      isLiked: false,
-      // isBookmarked: true, // removed
-      tags: ['finals', 'study-methods', 'polls'],
-      poll: {
-        id: 'poll1',
-        question: 'What\'s your primary study method for finals?',
-        options: [
-          { id: 'opt1', text: 'Flashcards & memorization', votes: 24 },
-          { id: 'opt2', text: 'Practice exams & outlines', votes: 45 },
-          { id: 'opt3', text: 'Study groups & discussion', votes: 18 },
-          { id: 'opt4', text: 'Visual aids & diagrams', votes: 12 }
-        ],
-        totalVotes: 99,
-        expiresAt: '2 days'
-      }
-    },
-    {
-      id: '6',
-      title: 'Pro Tip: Pomodoro Technique for Case Reading',
-      author: { name: 'Alex Thompson', avatar: '👨‍⚖️', year: '1L' },
-      content: 'Pro tip: Use the Pomodoro technique for reading cases! 25 minutes focused reading, 5-minute break. I\'ve increased my retention by 40% 🍅⏰',
-      timestamp: '1 day ago',
-      type: 'study-tip',
-      likes: 43,
-      comments: 11,
-      shares: 18,
-      isLiked: true,
-      // isBookmarked: true, // removed
-      tags: ['study-tips', 'productivity', 'case-reading']
-    },
-    {
-      id: '7',
-      title: 'Criminal Law Study Group - Mens Rea & Actus Reus',
-      author: { name: 'Rachel Martinez', avatar: '👩‍🎓', year: '2L' },
-      content: 'Criminal Law study group forming for next week! We\'ll focus on mens rea and actus reus. Meeting Tuesday 6 PM in Room 205 📚⚖️',
-      timestamp: '1 day ago',
-      course: 'Criminal Law',
-      type: 'text',
-      likes: 15,
-      comments: 8,
-      shares: 4,
-      isLiked: false,
-      // isBookmarked: false, // removed
-      tags: ['criminal-law', 'study-group']
-    },
-    {
-      id: '8',
-      title: 'Corporate Governance Seminar Insights',
-      author: { name: 'Kevin Zhang', avatar: '👨‍💼', year: '3L' },
-      content: 'Amazing seminar on Corporate Governance today! Key takeaway: understanding fiduciary duties is crucial for in-house counsel roles 💼',
-      timestamp: '2 days ago',
-      course: 'Corporate Law',
-      type: 'resource',
-      likes: 28,
-      comments: 6,
-      shares: 9,
-      isLiked: true,
-      // isBookmarked: true, // removed
-      tags: ['corporate-law', 'governance', 'careers']
-    },
-    {
-      id: '9',
-      title: 'Looking for Administrative Law Supplements',
-      author: { name: 'Sofia Rodriguez', avatar: '👩‍⚖️', year: '1L' },
-      content: 'Can anyone recommend good supplements for Administrative Law? The casebook is dense and I need something more accessible 📖',
-      timestamp: '2 days ago',
-      course: 'Administrative Law',
-      type: 'question',
-      likes: 22,
-      comments: 14,
-      shares: 2,
-      isLiked: false,
-      // isBookmarked: true, // removed
-      tags: ['administrative-law', 'supplements', 'help']
-    },
-    {
-      id: '10',
-      title: 'New Coffee Shop Discovery!',
-      author: { name: 'Maria Santos', avatar: '👩‍🔬', year: '2L' },
-      content: 'Anyone else loving the new coffee shop that opened across from the law library? Perfect study spot with amazing wifi! ☕️📚',
-      timestamp: '3 hours ago',
-      type: 'text',
-      likes: 15,
-      comments: 1,
-      shares: 2,
-      isLiked: false,
-      // isBookmarked: false, // removed
-      tags: ['campus-life', 'coffee', 'study-spots']
-    }
-  ]);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
   const [newComment, setNewComment] = useState<Record<string, string>>({});
   const [replyingTo, setReplyingTo] = useState<string | null>(null); // format: `${postId}:${commentId}`
   const [replyText, setReplyText] = useState<Record<string, string>>({});
-  const [mockComments, setMockComments] = useState<Record<string, Comment[]>>({
-    '1': [
-      {
-        id: 'c1',
-        author: { name: 'Mike Torres', avatar: '👨‍🎓', year: '2L' },
-        content: 'This is so helpful! I struggled with consideration too. Have you tried the Restatement approach?',
-        timestamp: '1 hour ago',
-        likes: 5,
-        isLiked: false,
-        replies: [
-          {
-            id: 'r1',
-            author: { name: 'Sarah Chen', avatar: '👩‍💼', year: '2L' },
-            content: 'Yes! The Restatement approach really clarified things for me.',
-            timestamp: '45 minutes ago',
-            likes: 2,
-            isLiked: false
-          }
-        ]
-      }
-    ],
-    '2': [
-      {
-        id: 'c2',
-        author: { name: 'Lisa Wang', avatar: '👩‍🎓', year: '1L' },
-        content: 'I\'d love to join! What room in the library?',
-        timestamp: '2 hours ago',
-        likes: 3,
-        isLiked: true
-      }
-    ],
-    '5': [
-      {
-        id: 'c5',
-        author: { name: 'John Davis', avatar: '👨‍🎓', year: '3L' },
-        content: 'I do a combination - practice exams with my outline nearby!',
-        timestamp: '12 hours ago',
-        likes: 8,
-        isLiked: false
-      },
-      {
-        id: 'c5b',
-        author: { name: 'Amy Chen', avatar: '👩‍💼', year: '2L' },
-        content: 'Flashcards work best for me, especially for definitions.',
-        timestamp: '10 hours ago',
-        likes: 5,
-        isLiked: true
-      }
-    ],
-    '6': [
-      {
-        id: 'c6',
-        author: { name: 'Mark Sullivan', avatar: '👨‍⚖️', year: '1L' },
-        content: 'Game changer! I\'ve been doing this for a week and my focus has improved so much.',
-        timestamp: '20 hours ago',
-        likes: 12,
-        isLiked: true
-      }
-    ],
-    '10': [
-      {
-        id: 'c10',
-        author: { name: 'Rachel Kim', avatar: '👩‍🎓', year: '2L' },
-        content: 'Yes! Their cold brew is amazing. I was there this morning.',
-        timestamp: '2 hours ago',
-        likes: 4,
-        isLiked: false
-      }
-    ]
-  });
+  const [comments, setComments] = useState<Record<string, Comment[]>>({});
   const [hoveredPostId, setHoveredPostId] = useState<string | null>(null);
 
   // Hover state for thread original post only
@@ -618,6 +395,19 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
     const animal = animals[Math.floor(Math.random() * animals.length)];
     return `${adjective} ${animal}`;
+  };
+
+  // Format timestamp
+  const formatTimestamp = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} min ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hour${Math.floor(diffInSeconds / 3600) > 1 ? 's' : ''} ago`;
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} day${Math.floor(diffInSeconds / 86400) > 1 ? 's' : ''} ago`;
+    return date.toLocaleDateString();
   };
 
   // Helper functions
@@ -641,52 +431,324 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     return hoverColors[Math.abs(hash) % 4];
   };
 
+  // Database functions
+  const fetchPosts = async () => {
+    try {
+      setLoading(true);
+      
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Build query based on feed mode
+      let query = supabase
+        .from('posts')
+        .select(`
+          *,
+          course:feedcourses!course_id(name),
+          polls(
+            *,
+            poll_options(*)
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (feedMode === 'my-courses') {
+        // Get user's courses from profiles
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('classes')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.classes && profile.classes.length > 0) {
+          // Get course IDs for user's classes
+          const { data: userCourses } = await supabase
+            .from('feedcourses')
+            .select('id')
+            .in('name', profile.classes);
+
+          if (userCourses && userCourses.length > 0) {
+            const courseIds = userCourses.map((c: any) => c.id);
+            query = query.in('course_id', courseIds);
+          } else {
+            // No matching courses found
+            setPosts([]);
+            setLoading(false);
+            return;
+          }
+        } else {
+          // No classes enrolled
+          setPosts([]);
+          setLoading(false);
+          return;
+        }
+      } else {
+        // Campus feed - only posts without course_id
+        query = query.is('course_id', null);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching posts:', error);
+        return;
+      }
+
+      // Transform data to match UI interface
+      const transformedPosts: Post[] = await Promise.all(
+        (data || []).map(async (post: any) => {
+          // Get author info
+          const { data: author } = await supabase
+            .from('profiles')
+            .select('name, year')
+            .eq('id', post.author_id)
+            .single();
+
+          // Check if user liked this post
+          const { data: like } = await supabase
+            .from('likes')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('likeable_type', 'post')
+            .eq('likeable_id', post.id)
+            .single();
+
+          // Transform poll data if exists
+          let poll = undefined;
+          if (post.polls && post.polls.length > 0) {
+            const pollData = post.polls[0];
+            
+            // Check if user voted on this poll
+            const { data: userVote } = await supabase
+              .from('poll_votes')
+              .select('option_id')
+              .eq('user_id', user.id)
+              .eq('poll_id', pollData.id)
+              .single();
+
+            poll = {
+              id: pollData.id,
+              question: pollData.question,
+              options: pollData.poll_options.map((opt: any) => ({
+                id: opt.id,
+                text: opt.text,
+                votes: opt.votes
+              })),
+              totalVotes: pollData.total_votes,
+              userVotedOptionId: userVote?.option_id
+            };
+          }
+
+          return {
+            id: post.id,
+            title: post.title,
+            content: post.content,
+            author_id: post.author_id,
+            course_id: post.course_id,
+            post_type: post.post_type,
+            is_anonymous: post.is_anonymous,
+            created_at: post.created_at,
+            likes_count: post.likes_count,
+            comments_count: post.comments_count,
+            author: author ? {
+              name: post.is_anonymous ? generateAnonymousName() : author.name,
+              year: author.year
+            } : undefined,
+            course: post.course ? { name: post.course.name } : undefined,
+            isLiked: !!like,
+            poll
+          };
+        })
+      );
+
+      setPosts(transformedPosts);
+    } catch (error) {
+      console.error('Error in fetchPosts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchComments = async (postId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('comments')
+        .select(`
+          *,
+          author:profiles!author_id(name, year)
+        `)
+        .eq('post_id', postId)
+        .is('parent_comment_id', null) // Only top-level comments
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching comments:', error);
+        return;
+      }
+
+      // Transform and organize comments with replies
+      const transformedComments: Comment[] = await Promise.all(
+        (data || []).map(async (comment: any) => {
+          // Get replies for this comment
+          const { data: replies } = await supabase
+            .from('comments')
+            .select(`
+              *,
+              author:profiles!author_id(name, year)
+            `)
+            .eq('parent_comment_id', comment.id)
+            .order('created_at', { ascending: true });
+
+          // Check if user liked this comment
+          const { data: { user } } = await supabase.auth.getUser();
+          const { data: like } = await supabase
+            .from('likes')
+            .select('id')
+            .eq('user_id', user?.id)
+            .eq('likeable_type', 'comment')
+            .eq('likeable_id', comment.id)
+            .single();
+
+          const transformedReplies = replies?.map((reply: any) => ({
+            id: reply.id,
+            post_id: reply.post_id,
+            parent_comment_id: reply.parent_comment_id,
+            author_id: reply.author_id,
+            content: reply.content,
+            is_anonymous: reply.is_anonymous,
+            created_at: reply.created_at,
+            likes_count: reply.likes_count,
+            author: reply.author ? {
+              name: reply.is_anonymous ? generateAnonymousName() : reply.author.name,
+              year: reply.author.year
+            } : undefined,
+            isLiked: !!like
+          })) || [];
+
+          return {
+            id: comment.id,
+            post_id: comment.post_id,
+            parent_comment_id: comment.parent_comment_id,
+            author_id: comment.author_id,
+            content: comment.content,
+            is_anonymous: comment.is_anonymous,
+            created_at: comment.created_at,
+            likes_count: comment.likes_count,
+            author: comment.author ? {
+              name: comment.is_anonymous ? generateAnonymousName() : comment.author.name,
+              year: comment.author.year
+            } : undefined,
+            isLiked: !!like,
+            replies: transformedReplies
+          };
+        })
+      );
+
+      setComments(prev => ({
+        ...prev,
+        [postId]: transformedComments
+      }));
+    } catch (error) {
+      console.error('Error in fetchComments:', error);
+    }
+  };
+
+  // Load posts when component mounts or feedMode changes
+  useEffect(() => {
+    fetchPosts();
+  }, [feedMode]);
+
+
+  // Load comments when thread view opens
+  useEffect(() => {
+    if (selectedPostThread) {
+      fetchComments(selectedPostThread);
+    }
+  }, [selectedPostThread]);
+
   // Create post functions
-  const handleCreatePost = () => {
-    if (newPostTitle.trim() && newPost.trim()) {
+  const handleCreatePost = async () => {
+    // Validate title is required
+    if (!newPostTitle.trim()) return;
+    
+    // Validate content based on post type
+    if (newPostType === 'text' && !newPost.trim()) return;
+    if (newPostType === 'poll' && pollOptions.filter(opt => opt.trim()).length < 2) return;
+    
       // Validation: if posting to My Courses, must select a course
       if (newPostTarget === 'my-courses' && !selectedCourseForPost) {
-        return; // Don't create post without course selection
-      }
+      return;
+    }
 
-      // Generate author info based on whether posting anonymously
-      const authorInfo = isAnonymousPost 
-        ? { name: generateAnonymousName(), avatar: '🎭', year: 'Anonymous' }
-        : { name: 'Justin', avatar: '👨‍🎓', year: '2L' };
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-      let newPostData: Post = {
-        id: Date.now().toString(),
-        title: newPostTitle,
-        author: authorInfo,
-        content: newPost,
-        timestamp: 'Just now',
-        type: newPostType,
-        likes: 0,
-        comments: 0,
-        shares: 0,
-        isLiked: false,
-        // isBookmarked: false // removed
-      };
-
-      // Add course if posting to My Courses
+      // Get course_id if posting to My Courses
+      let courseId = null;
       if (newPostTarget === 'my-courses' && selectedCourseForPost) {
-        newPostData.course = selectedCourseForPost;
+        const { data: course } = await supabase
+          .from('feedcourses')
+          .select('id')
+          .eq('name', selectedCourseForPost)
+          .single();
+        courseId = course?.id || null;
       }
 
+      // Create the post
+      const { data: createdPost, error: postError } = await supabase
+        .from('posts')
+        .insert({
+          title: newPostTitle.trim(),
+          content: newPost.trim(),
+          author_id: user.id,
+          course_id: courseId,
+          post_type: newPostType,
+          is_anonymous: isAnonymousPost
+        })
+        .select()
+        .single();
+
+      if (postError) {
+        console.error('Error creating post:', postError);
+        return;
+      }
+
+      // Create poll if it's a poll post
       if (newPostType === 'poll' && pollOptions.filter(opt => opt.trim()).length >= 2) {
-        newPostData.poll = {
-          id: `poll_${Date.now()}`,
-          question: newPost,
-          options: pollOptions.filter(opt => opt.trim()).map((opt, index) => ({
-            id: `opt_${index}`,
-            text: opt.trim(),
-            votes: 0
-          })),
-          totalVotes: 0
-        };
-      }
+        const { data: poll, error: pollError } = await supabase
+          .from('polls')
+          .insert({
+            post_id: createdPost.id,
+            question: newPost.trim()
+          })
+          .select()
+          .single();
 
-      setPosts([newPostData, ...posts]);
+        if (pollError) {
+          console.error('Error creating poll:', pollError);
+          return;
+        }
+
+        // Create poll options
+        const pollOptionsData = pollOptions
+          .filter(opt => opt.trim())
+          .map(opt => ({
+            poll_id: poll.id,
+            text: opt.trim()
+          }));
+
+        const { error: optionsError } = await supabase
+          .from('poll_options')
+          .insert(pollOptionsData);
+
+        if (optionsError) {
+          console.error('Error creating poll options:', optionsError);
+          return;
+        }
+      }
 
       // Reset form
       setNewPost('');
@@ -697,6 +759,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       setSelectedCourseForPost('');
       setIsAnonymousPost(false);
       setShowCreatePostDialog(false);
+
+      // Refresh posts
+      await fetchPosts();
+    } catch (error) {
+      console.error('Error in handleCreatePost:', error);
     }
   };
 
@@ -719,12 +786,48 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   };
 
   // Event handlers
-  const handleLike = (postId: string) => {
-    setPosts(prevPosts => prevPosts.map(post => 
-      post.id === postId 
-        ? { ...post, isLiked: !post.isLiked, likes: post.isLiked ? post.likes - 1 : post.likes + 1 }
-        : post
-    ));
+  const handleLike = async (postId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const post = posts.find(p => p.id === postId);
+      if (!post) return;
+
+      if (post.isLiked) {
+        // Unlike the post
+        const { error } = await supabase
+          .from('likes')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('likeable_type', 'post')
+          .eq('likeable_id', postId);
+
+        if (error) {
+          console.error('Error unliking post:', error);
+          return;
+        }
+      } else {
+        // Like the post
+        const { error } = await supabase
+          .from('likes')
+          .insert({
+            user_id: user.id,
+            likeable_type: 'post',
+            likeable_id: postId
+          });
+
+        if (error) {
+          console.error('Error liking post:', error);
+          return;
+        }
+      }
+
+      // Refresh posts to get updated counts
+      await fetchPosts();
+    } catch (error) {
+      console.error('Error in handleLike:', error);
+    }
   };
 
   // const handleBookmark = (postId: string) => { // removed
@@ -754,156 +857,221 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     }));
   };
 
-  const addComment = (postId: string) => {
+  const addComment = async (postId: string) => {
     const commentText = newComment[postId];
     if (!commentText?.trim()) return;
 
-    const newCommentObj: Comment = {
-      id: `c_${Date.now()}`,
-      author: { name: 'Justin', avatar: '👨‍🎓', year: '2L' },
-      content: commentText.trim(),
-      timestamp: 'Just now',
-      likes: 0,
-      isLiked: false,
-      replies: []
-    };
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    setMockComments(prev => ({
-      ...prev,
-      [postId]: [newCommentObj, ...(prev[postId] || [])]
-    }));
+      const { error } = await supabase
+        .from('comments')
+        .insert({
+          post_id: postId,
+          author_id: user.id,
+      content: commentText.trim(),
+          is_anonymous: false // Could be made configurable
+        });
+
+      if (error) {
+        console.error('Error adding comment:', error);
+        return;
+      }
 
     setNewComment(prev => ({ ...prev, [postId]: '' }));
 
-    // Update the comment count in posts
-    setPosts(prevPosts => prevPosts.map(post => 
-      post.id === postId 
-        ? { ...post, comments: post.comments + 1 }
-        : post
-    ));
+      // Refresh comments and posts
+      await fetchComments(postId);
+      await fetchPosts();
+    } catch (error) {
+      console.error('Error in addComment:', error);
+    }
   };
 
-  const addReply = (postId: string, commentId: string) => {
+  const addReply = async (postId: string, commentId: string) => {
     const key = `${postId}:${commentId}`;
     const text = replyText[key];
     if (!text?.trim()) return;
 
-    const newReply: Comment = {
-      id: `r_${Date.now()}`,
-      author: { name: 'Justin', avatar: '👨‍🎓', year: '2L' },
-      content: text.trim(),
-      timestamp: 'Just now',
-      likes: 0,
-      isLiked: false,
-    };
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    setMockComments(prev => {
-      const existing = prev[postId] ? [...prev[postId]] : [];
-      const updated = existing.map(c => c.id === commentId ? {
-        ...c,
-        replies: [...(c.replies || []), newReply]
-      } : c);
-      return { ...prev, [postId]: updated };
-    });
+      const { error } = await supabase
+        .from('comments')
+        .insert({
+          post_id: postId,
+          parent_comment_id: commentId,
+          author_id: user.id,
+          content: text.trim(),
+          is_anonymous: false // Could be made configurable
+        });
+
+      if (error) {
+        console.error('Error adding reply:', error);
+        return;
+      }
 
     setReplyText(prev => ({ ...prev, [key]: '' }));
     setReplyingTo(null);
 
-    // bump comment count on the post
-    setPosts(prevPosts => prevPosts.map(p => p.id === postId ? { ...p, comments: p.comments + 1 } : p));
+      // Refresh comments and posts
+      await fetchComments(postId);
+      await fetchPosts();
+    } catch (error) {
+      console.error('Error in addReply:', error);
+    }
   };
 
-  const toggleCommentLike = (postId: string, commentId: string) => {
-    setMockComments(prev => {
-      const current = prev[postId] ? [...prev[postId]] : [];
-      const updated = current.map(c => {
-        if (c.id !== commentId) return c;
-        const isLiked = !c.isLiked;
-        const likes = isLiked ? c.likes + 1 : Math.max(0, c.likes - 1);
-        return { ...c, isLiked, likes };
-      });
-      return { ...prev, [postId]: updated };
-    });
+  const toggleCommentLike = async (postId: string, commentId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const comment = comments[postId]?.find(c => c.id === commentId);
+      if (!comment) return;
+
+      if (comment.isLiked) {
+        // Unlike the comment
+        const { error } = await supabase
+          .from('likes')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('likeable_type', 'comment')
+          .eq('likeable_id', commentId);
+
+        if (error) {
+          console.error('Error unliking comment:', error);
+          return;
+        }
+      } else {
+        // Like the comment
+        const { error } = await supabase
+          .from('likes')
+          .insert({
+            user_id: user.id,
+            likeable_type: 'comment',
+            likeable_id: commentId
+          });
+
+        if (error) {
+          console.error('Error liking comment:', error);
+          return;
+        }
+      }
+
+      // Refresh comments
+      await fetchComments(postId);
+    } catch (error) {
+      console.error('Error in toggleCommentLike:', error);
+    }
   };
 
-  const toggleReplyLike = (postId: string, commentId: string, replyId: string) => {
-    setMockComments(prev => {
-      const current = prev[postId] ? [...prev[postId]] : [];
-      const updated = current.map(c => {
-        if (c.id !== commentId) return c;
-        const replies = (c.replies || []).map(r => {
-          if (r.id !== replyId) return r as Comment;
-          const isLiked = !r.isLiked;
-          const likes = isLiked ? r.likes + 1 : Math.max(0, r.likes - 1);
-          return { ...(r as Comment), isLiked, likes };
-        });
-        return { ...c, replies };
-      });
-      return { ...prev, [postId]: updated };
-    });
+  const toggleReplyLike = async (postId: string, commentId: string, replyId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const comment = comments[postId]?.find(c => c.id === commentId);
+      const reply = comment?.replies?.find(r => r.id === replyId);
+      if (!reply) return;
+
+      if (reply.isLiked) {
+        // Unlike the reply
+        const { error } = await supabase
+          .from('likes')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('likeable_type', 'comment')
+          .eq('likeable_id', replyId);
+
+        if (error) {
+          console.error('Error unliking reply:', error);
+          return;
+        }
+      } else {
+        // Like the reply
+        const { error } = await supabase
+          .from('likes')
+          .insert({
+            user_id: user.id,
+            likeable_type: 'comment',
+            likeable_id: replyId
+          });
+
+        if (error) {
+          console.error('Error liking reply:', error);
+          return;
+        }
+      }
+
+      // Refresh comments
+      await fetchComments(postId);
+    } catch (error) {
+      console.error('Error in toggleReplyLike:', error);
+    }
   };
 
-  const handleVotePoll = (postId: string, optionId: string) => {
-    setPosts(prevPosts => prevPosts.map(post => {
-      if (post.id !== postId || !post.poll) return post;
+  const handleVotePoll = async (postId: string, optionId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const post = posts.find(p => p.id === postId);
+      if (!post || !post.poll) return;
 
       const previousSelection = post.poll.userVotedOptionId;
-      let updatedTotalVotes = post.poll.totalVotes;
 
-      // 1) First vote (no previous selection)
       if (!previousSelection) {
-        updatedTotalVotes += 1;
-        return {
-          ...post,
-          poll: {
-            ...post.poll,
-            userVotedOptionId: optionId,
-            totalVotes: updatedTotalVotes,
-            options: post.poll.options.map(opt => 
-              opt.id === optionId ? { ...opt, votes: opt.votes + 1 } : opt
-            )
-          }
-        };
-      }
+        // First vote
+        const { error } = await supabase
+          .from('poll_votes')
+          .insert({
+            poll_id: post.poll.id,
+            option_id: optionId,
+            user_id: user.id
+          });
 
-      // 2) Toggle off (re-click same option)
-      if (previousSelection === optionId) {
-        updatedTotalVotes = Math.max(0, updatedTotalVotes - 1);
-        return {
-          ...post,
-          poll: {
-            ...post.poll,
-            userVotedOptionId: undefined,
-            totalVotes: updatedTotalVotes,
-            options: post.poll.options.map(opt => 
-              opt.id === optionId ? { ...opt, votes: Math.max(0, opt.votes - 1) } : opt
-            )
-          }
-        };
-      }
-
-      // 3) Switch choice (different option)
-      return {
-        ...post,
-        poll: {
-          ...post.poll,
-          userVotedOptionId: optionId,
-          // totalVotes unchanged when switching
-          totalVotes: updatedTotalVotes,
-          options: post.poll.options.map(opt => {
-            if (opt.id === previousSelection) return { ...opt, votes: Math.max(0, opt.votes - 1) };
-            if (opt.id === optionId) return { ...opt, votes: opt.votes + 1 };
-            return opt;
-          })
+        if (error) {
+          console.error('Error voting on poll:', error);
+          return;
         }
-      };
-    }));
+      } else if (previousSelection === optionId) {
+        // Toggle off (re-click same option)
+        const { error } = await supabase
+          .from('poll_votes')
+          .delete()
+          .eq('poll_id', post.poll.id)
+          .eq('user_id', user.id);
+
+        if (error) {
+          console.error('Error removing poll vote:', error);
+          return;
+        }
+      } else {
+        // Switch choice (different option)
+        const { error } = await supabase
+          .from('poll_votes')
+          .update({ option_id: optionId })
+          .eq('poll_id', post.poll.id)
+          .eq('user_id', user.id);
+
+        if (error) {
+          console.error('Error updating poll vote:', error);
+          return;
+        }
+      }
+
+      // Refresh posts to get updated poll data
+      await fetchPosts();
+    } catch (error) {
+      console.error('Error in handleVotePoll:', error);
+    }
   };
 
-  // Filter posts based on feed mode
-  const filteredPosts = feedMode === 'my-courses' 
-    ? posts.filter(post => post.course) // Only show posts with course tags
-    : posts.filter(post => !post.course); // Only show posts without course tags
+  // Posts are already filtered by the database query based on feed mode
+  const filteredPosts = posts;
 
   // Reset hover states when feed mode changes
   React.useEffect(() => {
@@ -952,14 +1120,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           >
             <div className="p-6">
               <div className="flex items-start gap-3 mb-4">
-                <ProfileBubble userName={selectedPost.author.name} size="lg" borderColor={getPostColor(selectedPost.id)} />
+                <ProfileBubble userName={selectedPost.author?.name || 'Anonymous'} size="lg" borderColor={getPostColor(selectedPost.id)} />
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <h4 className="font-semibold text-gray-900">{selectedPost.author.name}</h4>
-                    <span className="text-sm text-gray-500">{selectedPost.author.year}</span>
+                    <h4 className="font-semibold text-gray-900">{selectedPost.author?.name || 'Anonymous'}</h4>
+                    <span className="text-sm text-gray-500">{selectedPost.author?.year || ''}</span>
                     {/* verified badge removed */}
                   </div>
-                  <span className="text-sm text-gray-500">{selectedPost.timestamp}</span>
+                  <span className="text-sm text-gray-500">{formatTimestamp(selectedPost.created_at)}</span>
                 </div>
               </div>
               
@@ -970,7 +1138,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                   className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold text-white mb-3"
                   style={{ backgroundColor: getPostColor(selectedPost.id) }}
                 >
-                  {selectedPost.course}
+                  {selectedPost.course.name}
                 </span>
               )}
               
@@ -1005,17 +1173,17 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                           }}
                         >
                           {hasVoted && (
-                            <div 
-                              className="absolute inset-0 bg-gray-100 transition-all duration-300"
-                              style={{ width: `${percentage}%` }}
-                            />
+                          <div 
+                            className="absolute inset-0 bg-gray-100 transition-all duration-300"
+                            style={{ width: `${percentage}%` }}
+                          />
                           )}
                           <div className="relative flex items-center justify-between">
                             <span className="text-sm font-medium">{option.text}</span>
                             {hasVoted && (
-                              <span className="text-xs text-gray-600">
-                                {option.votes} votes ({percentage.toFixed(1)}%)
-                              </span>
+                            <span className="text-xs text-gray-600">
+                              {option.votes} votes ({percentage.toFixed(1)}%)
+                            </span>
                             )}
                           </div>
                         </button>
@@ -1049,11 +1217,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                     }}
                   >
                     <Heart className={`w-4 h-4 ${selectedPost.isLiked ? 'fill-current' : ''}`} />
-                    {selectedPost.likes}
+                    {selectedPost.likes_count}
                   </button>
                   <span className="flex items-center gap-2 text-sm text-gray-600">
                     <MessageCircle className="w-4 h-4" />
-                    {mockComments[selectedPost.id] ? mockComments[selectedPost.id].length : 0} comments
+                    {selectedPost.comments_count} comments
                   </span>
                 </div>
               </div>
@@ -1087,18 +1255,18 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
           {/* Comments */}
           <div className="space-y-4">
-            {mockComments[selectedPost.id]?.map((comment) => (
+            {comments[selectedPost.id]?.map((comment) => (
               <Card key={comment.id} style={{ backgroundColor: '#FEFBF6' }}>
                 <div className="p-4">
                   <div className="flex items-start gap-3">
-                    <ProfileBubble userName={comment.author.name} size="md" borderColor={getPostColor(selectedPost.id)} />
+                    <ProfileBubble userName={comment.author?.name || 'Anonymous'} size="md" borderColor={getPostColor(selectedPost.id)} />
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <h5 className="font-medium text-gray-900 text-sm">{comment.author.name}</h5>
-                        <span className="text-xs text-gray-500">{comment.author.year}</span>
+                        <h5 className="font-medium text-gray-900 text-sm">{comment.author?.name || 'Anonymous'}</h5>
+                        <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>
                         {/* verified badge removed */}
                         <span className="text-xs text-gray-500">•</span>
-                        <span className="text-xs text-gray-500">{comment.timestamp}</span>
+                        <span className="text-xs text-gray-500">{formatTimestamp(comment.created_at)}</span>
                       </div>
                       <p className="text-gray-800 text-sm mb-2">{comment.content}</p>
                       <div className="flex items-center gap-3">
@@ -1122,7 +1290,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                           onClick={() => toggleCommentLike(selectedPost.id, comment.id)}
                         >
                           <Heart className={`w-3 h-3 ${comment.isLiked ? 'fill-current' : ''}`} />
-                          {comment.likes}
+                          {comment.likes_count}
                         </button>
                         <button 
                           className="text-xs font-medium text-gray-600 hover:text-blue-500 transition-colors"
@@ -1138,14 +1306,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                         <div className="mt-3 ml-4 space-y-2">
                           {comment.replies.map((reply) => (
                             <div key={reply.id} className="flex items-start gap-2">
-                              <ProfileBubble userName={reply.author.name} size="sm" borderColor={getPostColor(selectedPost.id)} />
+                                  <ProfileBubble userName={reply.author?.name || 'Anonymous'} size="sm" borderColor={getPostColor(selectedPost.id)} />
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
-                                  <h6 className="font-medium text-gray-900 text-xs">{reply.author.name}</h6>
-                                  <span className="text-xs text-gray-500">{reply.author.year}</span>
+                                      <h6 className="font-medium text-gray-900 text-xs">{reply.author?.name || 'Anonymous'}</h6>
+                                      <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>
                                   {/* verified badge removed */}
                                   <span className="text-xs text-gray-500">•</span>
-                                  <span className="text-xs text-gray-500">{reply.timestamp}</span>
+                                  <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>
                                 </div>
                                 <p className="text-gray-800 text-xs mb-2">{reply.content.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')}</p>
                                 <div className="flex items-center gap-3">
@@ -1169,7 +1337,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                     onClick={() => toggleReplyLike(selectedPost.id, comment.id, reply.id)}
                                   >
                                     <Heart className={`w-3 h-3 ${reply.isLiked ? 'fill-current' : ''}`} />
-                                    {reply.likes}
+                                    {reply.likes_count}
                                   </button>
                                   <button 
                                     className="text-xs font-medium text-gray-600 hover:text-blue-500 transition-colors"
@@ -1263,8 +1431,13 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         </div>
       </div>
       <div className="overflow-y-auto px-4 pb-4" style={{ height: 'calc(100vh - 120px)' }}>
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="text-gray-500">Loading posts...</div>
+          </div>
+        ) : (
         <div className="space-y-4 mt-4">
-          {filteredPosts.map((post) => (
+            {filteredPosts.map((post) => (
             <Card 
               key={post.id} 
               className="overflow-hidden transition-all duration-200 border-l-4 cursor-pointer"
@@ -1286,15 +1459,15 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
-                      <ProfileBubble userName={post.author.name} size="md" borderColor={getPostColor(post.id)} />
+                      <ProfileBubble userName={post.author?.name || 'Anonymous'} size="md" borderColor={getPostColor(post.id)} />
                       <div>
                         <div className="flex items-center gap-2">
-                          <h4 className="font-semibold text-gray-900 text-sm">{post.author.name}</h4>
-                          <span className="text-xs text-gray-500">{post.author.year}</span>
+                          <h4 className="font-semibold text-gray-900 text-sm">{post.author?.name || 'Anonymous'}</h4>
+                          <span className="text-xs text-gray-500">{post.author?.year || ''}</span>
                           {/* verified badge removed */}
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-500">{post.timestamp}</span>
+                          <span className="text-xs text-gray-500">{formatTimestamp(post.created_at)}</span>
                         </div>
                       </div>
                     </div>
@@ -1313,7 +1486,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold text-white"
                       style={{ backgroundColor: getPostColor(post.id) }}
                     >
-                      {post.course}
+                      {post.course.name}
                     </span>
                   </div>
                 )}
@@ -1403,7 +1576,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       }}
                     >
                       <Heart className={`w-4 h-4 ${post.isLiked ? 'fill-current' : ''}`} />
-                      {post.likes}
+                      {post.likes_count}
                     </button>
                     <button 
                       className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-blue-500 transition-colors"
@@ -1413,7 +1586,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       }}
                     >
                       <MessageCircle className="w-4 h-4" />
-                      {post.comments}
+                      {post.comments_count}
                     </button>
                   </div>
                 </div>
@@ -1450,17 +1623,17 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
                     {/* Comments List */}
                     <div className="space-y-4">
-                      {mockComments[post.id]?.map((comment) => (
+                      {comments[post.id]?.map((comment) => (
                         <div key={comment.id} className="flex gap-3" onClick={(e) => e.stopPropagation()}>
-                          <ProfileBubble userName={comment.author.name} size="md" borderColor={getPostColor(post.id)} />
+                          <ProfileBubble userName={comment.author?.name || 'Anonymous'} size="md" borderColor={getPostColor(post.id)} />
                           <div className="flex-1">
                             <div className="bg-gray-50 rounded-lg p-3">
                               <div className="flex items-center gap-2 mb-1">
-                                <h5 className="font-medium text-gray-900 text-sm">{comment.author.name}</h5>
-                                <span className="text-xs text-gray-500">{comment.author.year}</span>
+                                <h5 className="font-medium text-gray-900 text-sm">{comment.author?.name || 'Anonymous'}</h5>
+                                <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>
                                 {/* verified badge removed */}
                                 <span className="text-xs text-gray-500">•</span>
-                                <span className="text-xs text-gray-500">{comment.timestamp}</span>
+                                <span className="text-xs text-gray-500">{formatTimestamp(comment.created_at)}</span>
                               </div>
                               <p className="text-gray-800 text-sm">{comment.content}</p>
                               {/* comment actions */}
@@ -1485,7 +1658,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                   onClick={(e) => { e.stopPropagation(); toggleCommentLike(post.id, comment.id); }}
                                 >
                                   <Heart className={`w-3 h-3 ${comment.isLiked ? 'fill-current' : ''}`} />
-                                  {comment.likes}
+                                  {comment.likes_count}
                                 </button>
                                 <button 
                                   className="text-xs font-medium text-gray-600 hover:text-blue-500 transition-colors"
@@ -1525,6 +1698,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             </Card>
           ))}
         </div>
+        )}
       </div>
 
       {/* Floating Action Button */}

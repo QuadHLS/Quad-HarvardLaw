@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 
 // Interfaces
@@ -390,8 +390,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   // Course colors are now determined by the post's assigned color
 
 
-  // Format timestamp
-  const formatTimestamp = (timestamp: string) => {
+  // Format timestamp - memoized for performance
+  const formatTimestamp = useCallback((timestamp: string) => {
     const date = new Date(timestamp);
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
@@ -401,10 +401,10 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hour${Math.floor(diffInSeconds / 3600) > 1 ? 's' : ''} ago`;
     if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} day${Math.floor(diffInSeconds / 86400) > 1 ? 's' : ''} ago`;
     return date.toLocaleDateString();
-  };
+  }, []);
 
-  // Helper functions
-  const getPostColor = (postId: string) => {
+  // Helper functions - memoized for performance
+  const getPostColor = useCallback((postId: string) => {
     const colors = ['#0080BD', '#04913A', '#F22F21', '#FFBB06']; // Blue, Green, Red, Yellow
     // Use postId to generate a consistent but random color
     let hash = 0;
@@ -412,9 +412,9 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       hash = ((hash << 5) - hash + postId.charCodeAt(i)) & 0xffffffff;
     }
     return colors[Math.abs(hash) % 4];
-  };
+  }, []);
 
-  const getPostHoverColor = (postId: string) => {
+  const getPostHoverColor = useCallback((postId: string) => {
     const hoverColors = ['rgba(0, 128, 189, 0.05)', 'rgba(4, 145, 58, 0.05)', 'rgba(242, 47, 33, 0.05)', 'rgba(255, 187, 6, 0.05)'];
     // Use postId to generate a consistent but random color
     let hash = 0;
@@ -422,7 +422,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       hash = ((hash << 5) - hash + postId.charCodeAt(i)) & 0xffffffff;
     }
     return hoverColors[Math.abs(hash) % 4];
-  };
+  }, []);
+
+  // Cache for user profiles and course data
+  const [profileCache, setProfileCache] = useState<Record<string, any>>({});
+  const [courseCache, setCourseCache] = useState<Record<string, any>>({});
 
   // Database functions
   const fetchPosts = async () => {
@@ -524,124 +528,169 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         return;
       }
 
-      // Transform data to match UI interface
-      const transformedPosts: Post[] = await Promise.all(
-        (data || []).map(async (post: any) => {
-          // Get author info from profiles table
-          const { data: author } = await supabase
-            .from('profiles')
-            .select('full_name, class_year')
-            .eq('id', post.author_id)
-            .maybeSingle();
+      // Get all unique author IDs and course IDs for batch fetching
+      const authorIds = [...new Set((data || []).map((post: any) => post.author_id))];
+      const courseIds = [...new Set((data || []).map((post: any) => post.course_id).filter(Boolean))];
+      const postIds = (data || []).map((post: any) => post.id);
 
-          // Get course info if course_id exists
-          let course = undefined;
-          if (post.course_id) {
-            const { data: courseData } = await supabase
-              .from('feedcourses')
-              .select('name')
-              .eq('id', post.course_id)
-              .maybeSingle();
-            course = courseData;
-          }
+      // Batch fetch all author profiles
+      const { data: authors } = await supabase
+        .from('profiles')
+        .select('id, full_name, class_year')
+        .in('id', authorIds);
 
-          // Check if user liked this post
-          const { data: like } = await supabase
-            .from('likes')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('likeable_type', 'post')
-            .eq('likeable_id', post.id)
-            .maybeSingle();
+      // Batch fetch all course data
+      const { data: courses } = await supabase
+        .from('feedcourses')
+        .select('id, name')
+        .in('id', courseIds);
 
-          // Get actual likes count from database
-          const { count: actualLikesCount } = await supabase
-            .from('likes')
-            .select('*', { count: 'exact', head: true })
-            .eq('likeable_type', 'post')
-            .eq('likeable_id', post.id);
+      // Batch fetch all user likes for posts
+      const { data: userLikes } = await supabase
+        .from('likes')
+        .select('likeable_id')
+        .eq('user_id', user.id)
+        .eq('likeable_type', 'post')
+        .in('likeable_id', postIds);
 
-          // Get actual comments count from database
-          const { count: actualCommentsCount } = await supabase
-            .from('comments')
-            .select('*', { count: 'exact', head: true })
-            .eq('post_id', post.id);
+      // Batch fetch all likes counts
+      const { data: likesCounts } = await supabase
+        .from('likes')
+        .select('likeable_id')
+        .eq('likeable_type', 'post')
+        .in('likeable_id', postIds);
 
-          // Get poll data if this is a poll post
-          let poll = undefined;
-          if (post.post_type === 'poll') {
-            const { data: pollData } = await supabase
-              .from('polls')
-              .select('*')
-              .eq('post_id', post.id)
-              .maybeSingle();
-            
-            if (pollData) {
-              // Check if user voted on this poll
-              const { data: userVote } = await supabase
-                .from('poll_votes')
-                .select('option_id')
-                .eq('user_id', user.id)
-                .eq('poll_id', pollData.id)
-                .maybeSingle();
+      // Batch fetch all comments counts
+      const { data: commentsCounts } = await supabase
+        .from('comments')
+        .select('post_id')
+        .in('post_id', postIds);
 
-              // Get poll options with actual vote counts
-              const { data: options } = await supabase
-                .from('poll_options')
-                .select('*')
-                .eq('poll_id', pollData.id);
+      // Create lookup maps for faster access
+      const authorsMap = new Map(authors?.map(a => [a.id, a]) || []);
+      const coursesMap = new Map(courses?.map(c => [c.id, c]) || []);
+      const userLikesSet = new Set(userLikes?.map(l => l.likeable_id) || []);
+      
+      // Count likes and comments
+      const likesCountMap = new Map();
+      const commentsCountMap = new Map();
+      
+      likesCounts?.forEach(like => {
+        likesCountMap.set(like.likeable_id, (likesCountMap.get(like.likeable_id) || 0) + 1);
+      });
+      
+      commentsCounts?.forEach(comment => {
+        commentsCountMap.set(comment.post_id, (commentsCountMap.get(comment.post_id) || 0) + 1);
+      });
 
-              // Calculate actual vote counts for each option
-              const optionsWithVotes = await Promise.all(
-                (options || []).map(async (opt: any) => {
-                  const { count: voteCount } = await supabase
-                    .from('poll_votes')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('option_id', opt.id);
-                  
-                  return {
-                    id: opt.id,
-                    text: opt.text,
-                    votes: voteCount || 0
-                  };
-                })
-              );
+      // Get poll data for poll posts
+      const pollPostIds = (data || []).filter((post: any) => post.post_type === 'poll').map((post: any) => post.id);
+      let pollsMap = new Map();
+      let pollOptionsMap = new Map();
+      let pollVotesMap = new Map();
 
-              // Calculate total votes
-              const totalVotes = optionsWithVotes.reduce((sum, opt) => sum + opt.votes, 0);
+      if (pollPostIds.length > 0) {
+        // Batch fetch polls
+        const { data: polls } = await supabase
+          .from('polls')
+          .select('*')
+          .in('post_id', pollPostIds);
 
-              poll = {
-                id: pollData.id,
-                question: pollData.question,
-                options: optionsWithVotes,
-                totalVotes: totalVotes,
-                userVotedOptionId: userVote?.option_id
-              };
+        if (polls && polls.length > 0) {
+          const pollIds = polls.map(p => p.id);
+          pollsMap = new Map(polls.map(p => [p.post_id, p]));
+
+          // Batch fetch poll options
+          const { data: pollOptions } = await supabase
+            .from('poll_options')
+            .select('*')
+            .in('poll_id', pollIds);
+
+          pollOptionsMap = new Map();
+          pollOptions?.forEach(option => {
+            if (!pollOptionsMap.has(option.poll_id)) {
+              pollOptionsMap.set(option.poll_id, []);
             }
+            pollOptionsMap.get(option.poll_id).push(option);
+          });
+
+          // Batch fetch user poll votes
+          const { data: userPollVotes } = await supabase
+            .from('poll_votes')
+          .select('poll_id, option_id')
+          .eq('user_id', user.id)
+          .in('poll_id', pollIds);
+
+          pollVotesMap = new Map(userPollVotes?.map(v => [v.poll_id, v.option_id]) || []);
+
+          // Batch fetch all poll votes for counts
+          const { data: allPollVotes } = await supabase
+            .from('poll_votes')
+            .select('option_id')
+            .in('poll_id', pollIds);
+
+          // Count votes per option
+          const voteCounts = new Map();
+          allPollVotes?.forEach(vote => {
+            voteCounts.set(vote.option_id, (voteCounts.get(vote.option_id) || 0) + 1);
+          });
+
+          // Update poll options with vote counts
+          pollOptionsMap.forEach((options, pollId) => {
+            options.forEach((option: any) => {
+              option.votes = voteCounts.get(option.id) || 0;
+            });
+          });
+        }
+      }
+
+      // Transform data to match UI interface
+      const transformedPosts: Post[] = (data || []).map((post: any) => {
+        const author = authorsMap.get(post.author_id);
+        const course = post.course_id ? coursesMap.get(post.course_id) : undefined;
+        const isLiked = userLikesSet.has(post.id);
+        const likesCount = likesCountMap.get(post.id) || 0;
+        const commentsCount = commentsCountMap.get(post.id) || 0;
+
+        // Handle poll data
+        let poll = undefined;
+        if (post.post_type === 'poll') {
+          const pollData = pollsMap.get(post.id);
+          if (pollData) {
+            const options = pollOptionsMap.get(pollData.id) || [];
+            const totalVotes = options.reduce((sum: number, opt: any) => sum + opt.votes, 0);
+            const userVotedOptionId = pollVotesMap.get(pollData.id);
+
+            poll = {
+              id: pollData.id,
+              question: pollData.question,
+              options: options,
+              totalVotes: totalVotes,
+              userVotedOptionId: userVotedOptionId
+            };
           }
+        }
 
-
-          return {
-            id: post.id,
-            title: post.title,
-            content: post.content,
-            author_id: post.author_id,
-            course_id: post.course_id,
-            post_type: post.post_type,
-            is_anonymous: post.is_anonymous,
-            created_at: post.created_at,
-            likes_count: actualLikesCount || 0,
-            comments_count: actualCommentsCount || 0,
-            author: author ? {
-              name: post.is_anonymous ? `Anonymous User` : author.full_name,
-              year: author.class_year
-            } : undefined,
-            course: course ? { name: course.name } : undefined,
-            isLiked: !!like,
-            poll
-          };
-        })
-      );
+        return {
+          id: post.id,
+          title: post.title,
+          content: post.content,
+          author_id: post.author_id,
+          course_id: post.course_id,
+          post_type: post.post_type,
+          is_anonymous: post.is_anonymous,
+          created_at: post.created_at,
+          likes_count: likesCount,
+          comments_count: commentsCount,
+          author: author ? {
+            name: post.is_anonymous ? `Anonymous User` : author.full_name,
+            year: author.class_year
+          } : undefined,
+          course: course ? { name: course.name } : undefined,
+          isLiked: isLiked,
+          poll
+        };
+      });
 
       setPosts(transformedPosts);
     } catch (error) {
@@ -653,11 +702,15 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
   const fetchComments = async (postId: string) => {
     try {
+      // Get current user first
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Fetch all comments for this post (both top-level and replies)
       const { data, error } = await supabase
         .from('comments')
         .select('*')
         .eq('post_id', postId)
-        .is('parent_comment_id', null) // Only top-level comments
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -665,101 +718,108 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         return;
       }
 
-      // Transform and organize comments with replies
-      const transformedComments: Comment[] = await Promise.all(
-        (data || []).map(async (comment: any) => {
-          // Get author info for this comment
-          const { data: commentAuthor } = await supabase
-            .from('profiles')
-            .select('full_name, class_year')
-            .eq('id', comment.author_id)
-            .maybeSingle();
+      if (!data || data.length === 0) {
+        setComments(prev => ({
+          ...prev,
+          [postId]: []
+        }));
+        return;
+      }
 
-          // Get replies for this comment
-          const { data: replies } = await supabase
-            .from('comments')
-            .select('*')
-            .eq('parent_comment_id', comment.id)
-            .order('created_at', { ascending: false });
+      // Separate top-level comments and replies
+      const topLevelComments = data.filter(comment => !comment.parent_comment_id);
+      const replies = data.filter(comment => comment.parent_comment_id);
 
-          // Check if user liked this comment
-          const { data: { user } } = await supabase.auth.getUser();
-          const { data: like } = await supabase
-            .from('likes')
-            .select('id')
-            .eq('user_id', user?.id)
-            .eq('likeable_type', 'comment')
-            .eq('likeable_id', comment.id)
-            .maybeSingle();
+      // Get all unique author IDs
+      const authorIds = [...new Set(data.map(comment => comment.author_id))];
+      const commentIds = data.map(comment => comment.id);
 
-          // Get actual likes count for this comment
-          const { count: actualCommentLikesCount } = await supabase
-            .from('likes')
-            .select('*', { count: 'exact', head: true })
-            .eq('likeable_type', 'comment')
-            .eq('likeable_id', comment.id);
+      // Batch fetch all author profiles
+      const { data: authors } = await supabase
+        .from('profiles')
+        .select('id, full_name, class_year')
+        .in('id', authorIds);
 
-          const transformedReplies = await Promise.all(
-            (replies || []).map(async (reply: any) => {
-              // Get author info for this reply
-              const { data: replyAuthor } = await supabase
-                .from('profiles')
-                .select('full_name, class_year')
-                .eq('id', reply.author_id)
-                .maybeSingle();
+      // Batch fetch all user likes for comments
+      const { data: userLikes } = await supabase
+        .from('likes')
+        .select('likeable_id')
+        .eq('user_id', user.id)
+        .eq('likeable_type', 'comment')
+        .in('likeable_id', commentIds);
 
-              // Check if user liked this reply
-              const { data: replyLike } = await supabase
-                .from('likes')
-                .select('id')
-                .eq('user_id', user?.id)
-                .eq('likeable_type', 'comment')
-                .eq('likeable_id', reply.id)
-                .maybeSingle();
+      // Batch fetch all likes counts for comments
+      const { data: likesCounts } = await supabase
+        .from('likes')
+        .select('likeable_id')
+        .eq('likeable_type', 'comment')
+        .in('likeable_id', commentIds);
 
-              // Get actual likes count for this reply
-              const { count: actualReplyLikesCount } = await supabase
-                .from('likes')
-                .select('*', { count: 'exact', head: true })
-                .eq('likeable_type', 'comment')
-                .eq('likeable_id', reply.id);
+      // Create lookup maps
+      const authorsMap = new Map(authors?.map(a => [a.id, a]) || []);
+      const userLikesSet = new Set(userLikes?.map(l => l.likeable_id) || []);
+      
+      // Count likes per comment
+      const likesCountMap = new Map();
+      likesCounts?.forEach(like => {
+        likesCountMap.set(like.likeable_id, (likesCountMap.get(like.likeable_id) || 0) + 1);
+      });
 
-              return {
-                id: reply.id,
-                post_id: reply.post_id,
-                parent_comment_id: reply.parent_comment_id,
-                author_id: reply.author_id,
-                content: reply.content,
-                is_anonymous: reply.is_anonymous,
-                created_at: reply.created_at,
-                likes_count: actualReplyLikesCount || 0,
-                author: replyAuthor ? {
-                  name: reply.is_anonymous ? `Anonymous User` : replyAuthor.full_name,
-                  year: replyAuthor.class_year
-                } : undefined,
-                isLiked: !!replyLike
-              };
-            })
-          );
+      // Group replies by parent comment ID
+      const repliesMap = new Map();
+      replies.forEach(reply => {
+        if (!repliesMap.has(reply.parent_comment_id)) {
+          repliesMap.set(reply.parent_comment_id, []);
+        }
+        repliesMap.get(reply.parent_comment_id).push(reply);
+      });
+
+      // Transform top-level comments
+      const transformedComments: Comment[] = topLevelComments.map((comment: any) => {
+        const author = authorsMap.get(comment.author_id);
+        const isLiked = userLikesSet.has(comment.id);
+        const likesCount = likesCountMap.get(comment.id) || 0;
+
+        // Transform replies for this comment
+        const commentReplies = (repliesMap.get(comment.id) || []).map((reply: any) => {
+          const replyAuthor = authorsMap.get(reply.author_id);
+          const replyIsLiked = userLikesSet.has(reply.id);
+          const replyLikesCount = likesCountMap.get(reply.id) || 0;
 
           return {
-            id: comment.id,
-            post_id: comment.post_id,
-            parent_comment_id: comment.parent_comment_id,
-            author_id: comment.author_id,
-            content: comment.content,
-            is_anonymous: comment.is_anonymous,
-            created_at: comment.created_at,
-            likes_count: actualCommentLikesCount || 0,
-            author: commentAuthor ? {
-              name: comment.is_anonymous ? `Anonymous User` : commentAuthor.full_name,
-              year: commentAuthor.class_year
+            id: reply.id,
+            post_id: reply.post_id,
+            parent_comment_id: reply.parent_comment_id,
+            author_id: reply.author_id,
+            content: reply.content,
+            is_anonymous: reply.is_anonymous,
+            created_at: reply.created_at,
+            likes_count: replyLikesCount,
+            author: replyAuthor ? {
+              name: reply.is_anonymous ? `Anonymous User` : replyAuthor.full_name,
+              year: replyAuthor.class_year
             } : undefined,
-            isLiked: !!like,
-            replies: transformedReplies
+            isLiked: replyIsLiked
           };
-        })
-      );
+        });
+
+        return {
+          id: comment.id,
+          post_id: comment.post_id,
+          parent_comment_id: comment.parent_comment_id,
+          author_id: comment.author_id,
+          content: comment.content,
+          is_anonymous: comment.is_anonymous,
+          created_at: comment.created_at,
+          likes_count: likesCount,
+          author: author ? {
+            name: comment.is_anonymous ? `Anonymous User` : author.full_name,
+            year: author.class_year
+          } : undefined,
+          isLiked: isLiked,
+          replies: commentReplies
+        };
+      });
 
       setComments(prev => ({
         ...prev,
@@ -786,11 +846,42 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     }
   }, [feedMode, user]);
 
+  // Add loading state for comments
+  const [loadingComments, setLoadingComments] = useState<Set<string>>(new Set());
+
+  // Optimized comment loading with loading state
+  const toggleCommentsExpanded = async (postId: string) => {
+    const isCurrentlyExpanded = expandedComments[postId];
+    
+    setExpandedComments(prev => ({
+      ...prev,
+      [postId]: !prev[postId]
+    }));
+    
+    // If we're expanding comments and they haven't been fetched yet, fetch them
+    if (!isCurrentlyExpanded && !comments[postId]) {
+      setLoadingComments(prev => new Set(prev).add(postId));
+      await fetchComments(postId);
+      setLoadingComments(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(postId);
+        return newSet;
+      });
+    }
+  };
+
 
   // Load comments when thread view opens
   useEffect(() => {
-    if (selectedPostThread) {
-      fetchComments(selectedPostThread);
+    if (selectedPostThread && !comments[selectedPostThread]) {
+      setLoadingComments(prev => new Set(prev).add(selectedPostThread));
+      fetchComments(selectedPostThread).then(() => {
+        setLoadingComments(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(selectedPostThread);
+          return newSet;
+        });
+      });
     }
   }, [selectedPostThread]);
 
@@ -1009,19 +1100,6 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     setReplyingTo(null);
   };
 
-  const toggleCommentsExpanded = async (postId: string) => {
-    const isCurrentlyExpanded = expandedComments[postId];
-    
-    setExpandedComments(prev => ({
-      ...prev,
-      [postId]: !prev[postId]
-    }));
-    
-    // If we're expanding comments and they haven't been fetched yet, fetch them
-    if (!isCurrentlyExpanded && !comments[postId]) {
-      await fetchComments(postId);
-    }
-  };
 
   const addComment = async (postId: string) => {
     const commentText = newComment[postId];
@@ -1526,8 +1604,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           </Card>
 
           {/* Comments */}
-          <div className="space-y-4">
-            {comments[selectedPost.id]?.map((comment) => (
+          {loadingComments.has(selectedPost.id) ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-8 h-8 border-2 border-[#752432] border-t-transparent rounded-full animate-spin"></div>
+              <span className="ml-3 text-gray-600">Loading comments...</span>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {comments[selectedPost.id]?.map((comment) => (
               <Card key={comment.id} style={{ backgroundColor: '#FEFBF6' }}>
                 <div className="p-4">
                   <div className="flex items-start gap-3">
@@ -1649,7 +1733,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 </div>
               </Card>
             ))}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -1915,9 +2000,18 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       </div>
                     </div>
 
+                    {/* Loading State for Comments */}
+                    {loadingComments.has(post.id) && (
+                      <div className="flex items-center justify-center py-4">
+                        <div className="w-6 h-6 border-2 border-[#752432] border-t-transparent rounded-full animate-spin"></div>
+                        <span className="ml-2 text-sm text-gray-600">Loading comments...</span>
+                      </div>
+                    )}
+
                     {/* Comments List */}
-                    <div className="space-y-4">
-                      {comments[post.id]?.map((comment) => (
+                    {!loadingComments.has(post.id) && (
+                      <div className="space-y-4">
+                        {comments[post.id]?.map((comment) => (
                         <div key={comment.id} className="flex gap-3" onClick={(e) => e.stopPropagation()}>
                           <ProfileBubble userName={comment.author?.name || 'Anonymous'} size="md" borderColor={getPostColor(post.id)} />
                           <div className="flex-1">
@@ -2030,7 +2124,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                           </div>
                         </div>
                       ))}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

@@ -3,6 +3,8 @@ import { Search, Plus, X, Clock, MapPin, Trash2, Calendar, Save, FileText, Chevr
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { Card, CardContent } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
@@ -251,6 +253,31 @@ const getRequirements = (courses: PlannerCourse[]): string[] => {
   return Array.from(requirements).sort();
 };
 
+// Filter options based on search term
+const getFilteredAreas = (courses: PlannerCourse[], searchTerm: string): string[] => {
+  const areas = getSubjectAreas(courses);
+  if (!searchTerm) return areas;
+  return areas.filter(area => 
+    area.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+};
+
+const getFilteredTypes = (courses: PlannerCourse[], searchTerm: string): string[] => {
+  const types = getCourseTypes(courses);
+  if (!searchTerm) return types;
+  return types.filter(type => 
+    type.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+};
+
+const getFilteredRequirements = (courses: PlannerCourse[], searchTerm: string): string[] => {
+  const requirements = getRequirements(courses);
+  if (!searchTerm) return requirements;
+  return requirements.filter(req => 
+    req.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+};
+
 
 // Interface for saved schedules
 interface SavedSchedule {
@@ -270,6 +297,16 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
   const [selectedAreaOfInterest, setSelectedAreaOfInterest] = useState<string>('all-areas');
   const [selectedType, setSelectedType] = useState<string>('all-types');
   const [selectedRequirements, setSelectedRequirements] = useState<string>('all-requirements');
+  
+  // Search states for filters
+  const [areaSearchTerm, setAreaSearchTerm] = useState('');
+  const [typeSearchTerm, setTypeSearchTerm] = useState('');
+  const [requirementsSearchTerm, setRequirementsSearchTerm] = useState('');
+  
+  // Popover states for searchable filters
+  const [areaPopoverOpen, setAreaPopoverOpen] = useState(false);
+  const [typePopoverOpen, setTypePopoverOpen] = useState(false);
+  const [requirementsPopoverOpen, setRequirementsPopoverOpen] = useState(false);
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -289,6 +326,13 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
 
   // State for real course data
   const [courses, setCourses] = useState<PlannerCourse[]>([]);
+
+  // Clear all search terms when filters are reset
+  const clearAllSearchTerms = () => {
+    setAreaSearchTerm('');
+    setTypeSearchTerm('');
+    setRequirementsSearchTerm('');
+  };
 
   // Function to load saved schedules from database
   const loadSavedSchedules = async () => {
@@ -1162,71 +1206,197 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                 <div className="space-y-3 pt-3 border-t border-white/20">
                   {/* Area of Interest */}
                   <div className="relative">
-                    <Select value={selectedAreaOfInterest} onValueChange={setSelectedAreaOfInterest}>
-                      <SelectTrigger className={`bg-white border-gray-300 ${selectedAreaOfInterest !== 'all-areas' ? 'pr-10' : 'pr-3'}`}>
-                        <SelectValue placeholder="Area of Interest" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all-areas">All Areas</SelectItem>
-                        {getSubjectAreas(courses).map(area => (
-                          <SelectItem key={area} value={area}>{area}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {selectedAreaOfInterest !== 'all-areas' && (
-                      <button
-                        onClick={() => setSelectedAreaOfInterest('all-areas')}
-                        className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors z-10"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    )}
+                    <Popover open={areaPopoverOpen} onOpenChange={setAreaPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={areaPopoverOpen}
+                          className="w-full justify-between bg-white border-gray-300 pr-3 pl-3"
+                        >
+                          <span className="text-left flex-1">{selectedAreaOfInterest === 'all-areas' ? 'All Areas' : selectedAreaOfInterest}</span>
+                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[300px] h-[250px] p-0" align="start">
+                        <Command className="h-full flex flex-col">
+                          <CommandInput 
+                            placeholder="Search areas..." 
+                            value={areaSearchTerm}
+                            onValueChange={setAreaSearchTerm}
+                            className="flex-shrink-0"
+                          />
+                          <CommandList className="flex-1 overflow-y-auto">
+                            <CommandEmpty>No areas found.</CommandEmpty>
+                            <CommandGroup>
+                              <CommandItem
+                                value="all-areas"
+                                onSelect={() => {
+                                  setSelectedAreaOfInterest('all-areas');
+                                  setAreaSearchTerm('');
+                                  setAreaPopoverOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={`mr-2 h-4 w-4 ${
+                                    selectedAreaOfInterest === 'all-areas' ? 'opacity-100' : 'opacity-0'
+                                  }`}
+                                />
+                                All Areas
+                              </CommandItem>
+                              {getFilteredAreas(courses, areaSearchTerm).map((area) => (
+                                <CommandItem
+                                  key={area}
+                                  value={area}
+                                  onSelect={() => {
+                                    setSelectedAreaOfInterest(area);
+                                    setAreaSearchTerm('');
+                                    setAreaPopoverOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={`mr-2 h-4 w-4 ${
+                                      selectedAreaOfInterest === area ? 'opacity-100' : 'opacity-0'
+                                    }`}
+                                  />
+                                  {area}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   
                   {/* Course Type */}
                   <div className="relative">
-                    <Select value={selectedType} onValueChange={setSelectedType}>
-                      <SelectTrigger className={`bg-white border-gray-300 ${selectedType !== 'all-types' ? 'pr-10' : 'pr-3'}`}>
-                        <SelectValue placeholder="Course Type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all-types">All Types</SelectItem>
-                        {getCourseTypes(courses).map(type => (
-                          <SelectItem key={type} value={type}>{type}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {selectedType !== 'all-types' && (
-                      <button
-                        onClick={() => setSelectedType('all-types')}
-                        className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors z-10"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    )}
+                    <Popover open={typePopoverOpen} onOpenChange={setTypePopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={typePopoverOpen}
+                          className="w-full justify-between bg-white border-gray-300 pr-3 pl-3"
+                        >
+                          <span className="text-left flex-1">{selectedType === 'all-types' ? 'All Types' : selectedType}</span>
+                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[300px] h-[250px] p-0" align="start">
+                        <Command className="h-full flex flex-col">
+                          <CommandInput 
+                            placeholder="Search types..." 
+                            value={typeSearchTerm}
+                            onValueChange={setTypeSearchTerm}
+                            className="flex-shrink-0"
+                          />
+                          <CommandList className="flex-1 overflow-y-auto">
+                            <CommandEmpty>No types found.</CommandEmpty>
+                            <CommandGroup>
+                              <CommandItem
+                                value="all-types"
+                                onSelect={() => {
+                                  setSelectedType('all-types');
+                                  setTypeSearchTerm('');
+                                  setTypePopoverOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={`mr-2 h-4 w-4 ${
+                                    selectedType === 'all-types' ? 'opacity-100' : 'opacity-0'
+                                  }`}
+                                />
+                                All Types
+                              </CommandItem>
+                              {getFilteredTypes(courses, typeSearchTerm).map((type) => (
+                                <CommandItem
+                                  key={type}
+                                  value={type}
+                                  onSelect={() => {
+                                    setSelectedType(type);
+                                    setTypeSearchTerm('');
+                                    setTypePopoverOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={`mr-2 h-4 w-4 ${
+                                      selectedType === type ? 'opacity-100' : 'opacity-0'
+                                    }`}
+                                  />
+                                  {type}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
 
                   {/* Requirements */}
                   <div className="relative">
-                    <Select value={selectedRequirements} onValueChange={setSelectedRequirements}>
-                      <SelectTrigger className={`bg-white border-gray-300 ${selectedRequirements !== 'all-requirements' ? 'pr-10' : 'pr-3'}`}>
-                        <SelectValue placeholder="Requirements" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all-requirements">All Requirements</SelectItem>
-                        {getRequirements(courses).map(requirement => (
-                          <SelectItem key={requirement} value={requirement}>{requirement}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {selectedRequirements !== 'all-requirements' && (
-                      <button
-                        onClick={() => setSelectedRequirements('all-requirements')}
-                        className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors z-10"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    )}
+                    <Popover open={requirementsPopoverOpen} onOpenChange={setRequirementsPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={requirementsPopoverOpen}
+                          className="w-full justify-between bg-white border-gray-300 pr-3 pl-3"
+                        >
+                          <span className="text-left flex-1">{selectedRequirements === 'all-requirements' ? 'All Requirements' : selectedRequirements}</span>
+                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[300px] h-[250px] p-0" align="start">
+                        <Command className="h-full flex flex-col">
+                          <CommandInput 
+                            placeholder="Search requirements..." 
+                            value={requirementsSearchTerm}
+                            onValueChange={setRequirementsSearchTerm}
+                            className="flex-shrink-0"
+                          />
+                          <CommandList className="flex-1 overflow-y-auto">
+                            <CommandEmpty>No requirements found.</CommandEmpty>
+                            <CommandGroup>
+                              <CommandItem
+                                value="all-requirements"
+                                onSelect={() => {
+                                  setSelectedRequirements('all-requirements');
+                                  setRequirementsSearchTerm('');
+                                  setRequirementsPopoverOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={`mr-2 h-4 w-4 ${
+                                    selectedRequirements === 'all-requirements' ? 'opacity-100' : 'opacity-0'
+                                  }`}
+                                />
+                                All Requirements
+                              </CommandItem>
+                              {getFilteredRequirements(courses, requirementsSearchTerm).map((requirement) => (
+                                <CommandItem
+                                  key={requirement}
+                                  value={requirement}
+                                  onSelect={() => {
+                                    setSelectedRequirements(requirement);
+                                    setRequirementsSearchTerm('');
+                                    setRequirementsPopoverOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={`mr-2 h-4 w-4 ${
+                                      selectedRequirements === requirement ? 'opacity-100' : 'opacity-0'
+                                    }`}
+                                  />
+                                  {requirement}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
 
                   {/* Days of Week Filter */}

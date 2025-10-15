@@ -27,6 +27,8 @@ import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import { Label } from './ui/label';
 import { supabase } from '../lib/supabase';
 import type { Outline, Instructor } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { trackPreview, trackDownload } from '../utils/activityTracker';
 
 interface OutlinePageProps {
   outlines: Outline[];
@@ -87,6 +89,7 @@ export function OutlinePage({
   onHideOutline: _onHideOutline,
   onUnhideAllOutlines: _onUnhideAllOutlines
 }: OutlinePageProps) {
+  const { user } = useAuth();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [previewOutline, setPreviewOutline] = useState<Outline | null>(selectedOutline);
   const [searchSearchTerm, setSearchSearchTerm] = useState('');
@@ -585,6 +588,19 @@ export function OutlinePage({
             // Clean up the blob URL
             window.URL.revokeObjectURL(blobUrl);
             console.log(`Successfully downloaded file from path: ${path}`);
+            
+            // Track download activity
+            if (user) {
+              await trackDownload(
+                user,
+                'outline',
+                outline.id,
+                outline.title,
+                outline.file_type || 'pdf',
+                outline.file_size
+              );
+            }
+            
             return;
           }
         } catch (pathError) {
@@ -856,6 +872,18 @@ export function OutlinePage({
           const url = await getDocumentViewerUrl(outline);
           if (url) {
             setViewerUrl(url);
+            
+            // Track preview activity when viewer loads successfully
+            if (user) {
+              await trackPreview(
+                user,
+                'outline',
+                outline.id,
+                outline.title,
+                outline.file_type || 'pdf',
+                outline.file_size
+              );
+            }
           } else {
             setError('Failed to load document');
           }
@@ -867,7 +895,7 @@ export function OutlinePage({
       };
 
       loadViewer();
-    }, [outline.id]);
+    }, [outline.id, user]);
 
     if (loading) {
       return (

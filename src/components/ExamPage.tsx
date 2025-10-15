@@ -26,6 +26,8 @@ import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import { Label } from './ui/label';
 import { supabase } from '../lib/supabase';
 import type { Outline, Instructor } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { trackPreview, trackDownload } from '../utils/activityTracker';
 
 interface ExamPageProps {
   exams: Outline[];
@@ -86,6 +88,7 @@ export function ExamPage({
   onHideExam: _onHideExam,
   onUnhideAllExams: _onUnhideAllExams
 }: ExamPageProps) {
+  const { user } = useAuth();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [previewExam, setPreviewExam] = useState<Outline | null>(selectedExam);
   const [searchSearchTerm, setSearchSearchTerm] = useState('');
@@ -581,6 +584,19 @@ export function ExamPage({
             link.click();
             document.body.removeChild(link);
             console.log(`Successfully downloaded file from path: ${path}`);
+            
+            // Track download activity
+            if (user) {
+              await trackDownload(
+                user,
+                'exam',
+                exam.id,
+                exam.title,
+                exam.file_type || 'pdf',
+                exam.file_size
+              );
+            }
+            
             return;
           }
         } catch (pathError) {
@@ -849,6 +865,18 @@ export function ExamPage({
           const url = await getDocumentViewerUrl(exam);
           if (url) {
             setViewerUrl(url);
+            
+            // Track preview activity when viewer loads successfully
+            if (user) {
+              await trackPreview(
+                user,
+                'exam',
+                exam.id,
+                exam.title,
+                exam.file_type || 'pdf',
+                exam.file_size
+              );
+            }
           } else {
             setError('Failed to load document');
           }
@@ -860,7 +888,7 @@ export function ExamPage({
       };
 
       loadViewer();
-    }, [exam.id]);
+    }, [exam.id, user]);
 
     if (loading) {
       return (

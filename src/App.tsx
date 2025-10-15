@@ -14,7 +14,6 @@ import { MessagingPage } from './components/MessagingPage';
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/auth/AuthPage';
-import AccessCodeVerification from './components/AccessCodeVerification';
 import { OnboardingFlow } from './components/onboarding/OnboardingFlow';
 import { supabase } from './lib/supabase';
 import type { Outline } from './types';
@@ -33,7 +32,6 @@ interface CalendarEvent {
 
 function AppContent({ user }: { user: any }) {
   const [authLoading, setAuthLoading] = useState(true);
-  const [isVerified, setIsVerified] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -57,28 +55,25 @@ function AppContent({ user }: { user: any }) {
 
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('access_code_verified, classes_filled')
+          .select('classes_filled')
           .eq('id', currentUser.id)
           .maybeSingle();
 
         if (error) {
           console.error('Error fetching profile:', error);
-          if (isMounted) {
-            setIsVerified(false);
-            setHasCompletedOnboarding(false);
-            setAuthLoading(false);
-          }
+        if (isMounted) {
+          setHasCompletedOnboarding(false);
+          setAuthLoading(false);
+        }
           return;
         }
 
         if (isMounted) {
-          setIsVerified(profile?.access_code_verified === true);
           setHasCompletedOnboarding(false);
           setAuthLoading(false);
         }
       } catch (_err) {
         if (isMounted) {
-          setIsVerified(false);
           setAuthLoading(false);
           setHasCompletedOnboarding(false);
         }
@@ -754,30 +749,6 @@ function AppContent({ user }: { user: any }) {
     return <AuthPage />;
   }
 
-  // Always require access code verification
-  if (!isVerified) {
-    return (
-      <AccessCodeVerification
-        onVerified={async () => {
-          // Update the access_code_verified column in the database
-          const { data: { user: currentUser } } = await supabase.auth.getUser();
-          if (currentUser) {
-            const { error } = await supabase
-              .from('profiles')
-              .update({ access_code_verified: true })
-              .eq('id', currentUser.id);
-            
-            if (error) {
-              console.error('Error updating access_code_verified:', error);
-            }
-          }
-          
-          // Mark verified locally
-          setIsVerified(true);
-        }}
-      />
-    );
-  }
 
   // Show onboarding flow if user hasn't completed onboarding
   if (!hasCompletedOnboarding) {

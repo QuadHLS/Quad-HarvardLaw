@@ -26,7 +26,6 @@ import { ScrollArea } from './ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import { Label } from './ui/label';
 import { supabase } from '../lib/supabase';
-import { PDFViewer } from './PDFViewer';
 import type { Outline, Instructor } from '../types';
 
 interface OutlinePageProps {
@@ -904,18 +903,21 @@ export function OutlinePage({
 
     const fileType = outline.file_type?.toLowerCase() || 'pdf';
     
-    if (fileType === 'pdf') {
+    if (fileType === 'pdf' || fileType === 'docx' || fileType === 'doc') {
+      const documentType = fileType === 'pdf' ? 'PDF' : 'Word';
+      const iconColor = fileType === 'pdf' ? 'bg-red-500' : 'bg-blue-500';
+      
       return (
         <div className="h-full flex flex-col">
-          {/* PDF Viewer Header */}
+          {/* Document Viewer Header */}
           <div className="flex items-center justify-between px-4 py-2 border-b border-gray-600 bg-gray-800">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-red-500 rounded flex items-center justify-center">
+              <div className={`w-6 h-6 ${iconColor} rounded flex items-center justify-center`}>
                 <FileText className="w-3 h-3 text-white" />
               </div>
               <div>
                 <h3 className="text-white font-medium text-sm">{outline.title}</h3>
-                <p className="text-gray-400 text-xs">PDF Document</p>
+                <p className="text-gray-400 text-xs">{documentType} Document</p>
               </div>
             </div>
             <Button
@@ -928,49 +930,12 @@ export function OutlinePage({
             </Button>
           </div>
           
-          {/* PDF Viewer */}
-          <div className="flex-1">
-            <PDFViewer
-              fileUrl={viewerUrl}
-              fileName={outline.title}
-              onDownload={() => handleDownload(outline)}
-              onClose={() => setPreviewOutline(null)}
-              hideSearch={true}
-              hideDownload={true}
-            />
-          </div>
-        </div>
-      );
-    } else if (fileType === 'docx' || fileType === 'doc') {
-      return (
-        <div className="h-full flex flex-col">
-          {/* Word Viewer Header */}
-          <div className="flex items-center justify-between px-4 py-2 border-b border-gray-600 bg-gray-800">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-blue-500 rounded flex items-center justify-center">
-                <FileText className="w-3 h-3 text-white" />
-              </div>
-              <div>
-                <h3 className="text-white font-medium text-sm">{outline.title}</h3>
-                <p className="text-gray-400 text-xs">Word Document</p>
-              </div>
-            </div>
-            <Button
-              onClick={() => handleDownload(outline)}
-              size="sm"
-              className="bg-[#752432] hover:bg-[#5a1a26] text-white h-7 px-3 text-xs"
-            >
-              <Download className="w-3 h-3 mr-1" />
-              Download
-            </Button>
-          </div>
-          
-          {/* Word Document Viewer using Office Online */}
+          {/* Google Docs Viewer */}
           <div className="flex-1">
             <iframe
-              src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(viewerUrl)}`}
+              src={`https://docs.google.com/gview?url=${encodeURIComponent(viewerUrl)}&embedded=true`}
               className="w-full h-full border-0"
-              title={`Word Preview: ${outline.title}`}
+              title={`${documentType} Preview: ${outline.title}`}
             />
           </div>
         </div>

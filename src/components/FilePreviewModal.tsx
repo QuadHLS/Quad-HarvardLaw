@@ -1,7 +1,5 @@
 import React from 'react';
 import { Dialog, DialogContent } from './ui/dialog';
-import { PDFViewer } from './PDFViewer';
-import { OfficeWebViewer } from './OfficeWebViewer';
 
 interface FilePreviewModalProps {
   isOpen: boolean;
@@ -21,7 +19,8 @@ export function FilePreviewModal({
   onDownload 
 }: FilePreviewModalProps) {
   const isPDF = fileType.toLowerCase() === 'pdf';
-  const isDOCX = fileType.toLowerCase() === 'docx';
+  const isDOCX = fileType.toLowerCase() === 'docx' || fileType.toLowerCase() === 'doc';
+  const isSupported = isPDF || isDOCX;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -32,26 +31,40 @@ export function FilePreviewModal({
         <div id="file-preview-description" className="sr-only">
           File preview modal for {fileName}
         </div>
-        <div className="h-full">
-          {isPDF && (
-            <PDFViewer
-              fileUrl={fileUrl}
-              fileName={fileName}
-              onDownload={onDownload}
-              onClose={onClose}
-            />
+        <div className="h-full flex flex-col">
+          {/* Header Controls */}
+          <div className="flex items-center justify-end p-2 bg-gray-50 border-b">
+            <div className="flex items-center gap-1">
+              <button
+                onClick={onDownload}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+              >
+                Download
+              </button>
+              <button
+                onClick={onClose}
+                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+
+          {/* Google Docs Viewer */}
+          {isSupported && (
+            <div className="flex-1">
+              <iframe
+                src={`https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`}
+                width="100%"
+                height="100%"
+                frameBorder="0"
+                title={`Document Preview - ${fileName}`}
+                className="w-full h-full"
+              />
+            </div>
           )}
           
-          {isDOCX && (
-            <OfficeWebViewer
-              fileUrl={fileUrl}
-              fileName={fileName}
-              onDownload={onDownload}
-              onClose={onClose}
-            />
-          )}
-          
-          {!isPDF && !isDOCX && (
+          {!isSupported && (
             <div className="flex items-center justify-center h-full bg-gray-100">
               <div className="text-center">
                 <p className="text-gray-600 mb-4">

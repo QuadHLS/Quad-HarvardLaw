@@ -667,7 +667,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     fetchCourses();
   }, [classYear]);
 
-  // Auto-populate 1L required courses
+  // Auto-populate 1L required courses or clear courses when class year changes
   useEffect(() => {
     const autoPopulate1L = () => {
       if (classYear === '1L' && section && allCourseData.length > 0) {
@@ -713,6 +713,10 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         }
 
         setSelectedCourses(newSelectedCourses);
+      } else if (classYear !== '1L') {
+        // Clear courses when switching away from 1L or when class year is deselected
+        setSelectedCourses([]);
+        setLrwSection(''); // Also clear LRW section selection
       }
     };
 
@@ -802,13 +806,14 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     <div className="min-h-screen py-8 px-4" style={{ backgroundColor: '#f9f5f0', minHeight: '100vh' }}>
       <div className={currentPage === 1 ? "max-w-4xl mx-auto" : "max-w-7xl mx-auto"}>
         {/* Go Back to Sign In Button */}
-        <div className="mb-4 flex justify-end">
+        <div className="mb-4 flex justify-start">
           <button
             onClick={() => signOut()}
-            className="px-3 py-1 text-sm text-white rounded hover:opacity-90"
+            className="flex items-center gap-1.5 px-2 py-1 text-xs text-white rounded hover:opacity-90"
             style={{ backgroundColor: '#752432' }}
           >
-            Go Back to Sign In
+            <ArrowLeft className="w-3 h-3" />
+            Sign In
           </button>
         </div>
 
@@ -889,7 +894,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
                       <div className="space-y-2">
                         <Label htmlFor="section">
-                        {classYear === '1L' ? 'Section *' : 'Former Section *'}
+                        {classYear === '2L' || classYear === '3L' ? 'Former Section *' : 'Section *'}
                         </Label>
                       <Select 
                         value={section} 

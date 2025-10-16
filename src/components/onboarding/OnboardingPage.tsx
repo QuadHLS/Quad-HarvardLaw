@@ -26,9 +26,9 @@ interface CourseData {
 
 
 const timeSlots = [
-  '6:00 AM', '7:00 AM', '8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM',
+  '8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM',
   '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM',
-  '6:00 PM', '7:00 PM', '8:00 PM', '9:00 PM'
+  '6:00 PM', '7:00 PM', '8:00 PM'
 ];
 
 const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
@@ -805,17 +805,18 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   return (
     <div className="min-h-screen py-8 px-4" style={{ backgroundColor: '#f9f5f0', minHeight: '100vh' }}>
       <div className={currentPage === 1 ? "max-w-4xl mx-auto" : "max-w-7xl mx-auto"}>
-        {/* Go Back to Sign In Button */}
-        <div className="mb-4 flex justify-start">
-          <button
-            onClick={() => signOut()}
-            className="flex items-center gap-1.5 px-2 py-1 text-xs text-white rounded hover:opacity-90"
-            style={{ backgroundColor: '#752432' }}
-          >
-            <ArrowLeft className="w-3 h-3" />
-            Sign In
-          </button>
-        </div>
+        {/* Go Back to Sign In Button - Only show on first page */}
+        {currentPage === 1 && (
+          <div className="mb-4 flex justify-start">
+            <button
+              onClick={() => signOut()}
+              className="flex items-center gap-1.5 px-2 py-1 text-sm text-gray-600 hover:text-gray-800"
+            >
+              <ArrowLeft className="w-3 h-3" />
+              Sign In
+            </button>
+          </div>
+        )}
 
         {/* Logo */}
         <div className="text-center mb-8">
@@ -959,8 +960,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
           <>
             {/* Header */}
             <div className="text-center mb-8">
-              <h1 className="text-3xl text-gray-900 mb-2">Course Selection</h1>
-              <p className="text-gray-600">Choose your courses and preview your schedule</p>
+              <h1 className="text-3xl text-gray-900 mb-2">Onboarding</h1>
+              <p className="text-gray-600">Add your current course enrollments</p>
             </div>
 
             <div className="flex gap-8">
@@ -1182,23 +1183,9 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                       
                       {/* Semester Title */}
                       <div className="flex-1 text-center">
-                        <CardTitle className="text-3xl font-bold text-gray-900" style={{ color: '#752432' }}>
+                        <CardTitle className="text-4xl font-bold text-gray-900" style={{ color: '#752432' }}>
                           {currentSemester.split(' ')[0]}
                         </CardTitle>
-                        <p className="text-sm text-gray-600 mt-1">
-                          Schedule • {(() => {
-                            // Calculate credits for current semester using multi-semester logic
-                            const currentSemesterCode = currentSemester === 'Fall 2025' ? 'FA' : 
-                                                        currentSemester === 'Winter 2026' ? 'WI' : 
-                                                        currentSemester === 'Spring 2026' ? 'SP' : 'FA';
-                            
-                            const semesterCourses = selectedCourses.filter(course => {
-                              return courseMatchesSemester(course.semester as string, currentSemesterCode);
-                            });
-                            const semesterCredits = semesterCourses.reduce((sum, course) => sum + course.credits, 0);
-                            return `${semesterCredits} Credits`;
-                          })()}
-                        </p>
                       </div>
                       
                       {/* Right Arrow - only show for Fall and Winter */}
@@ -1301,7 +1288,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                                         
                                         // Calculate total height across all slots the course spans
                                         const totalDurationMinutes = courseEnd - courseStart;
-                                        const totalHeightPixels = (totalDurationMinutes / 60) * 48; // 48px per hour
+                                        const totalHeightPixels = (totalDurationMinutes / 60) * 48 - 2; // 48px per hour, minus 2px for border/padding
                                         
                                         // Calculate width and left position for multiple courses in same slot
                                         const courseWidth = courses.length > 1 ? `calc(${100/courses.length}% - 4px)` : 'calc(100% - 8px)';

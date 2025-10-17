@@ -911,6 +911,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           console.error('Posts channel error:', err);
           setRealtimeStatus('disconnected');
         } else if (status === 'SUBSCRIBED') {
+          // Clear the connection timeout once we are subscribed to avoid stale timeout flipping status to red
+          clearTimeout(connectionTimeout);
           setRealtimeStatus('connected');
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           setRealtimeStatus('disconnected');
@@ -1942,15 +1944,22 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             <MessageCircle className="w-4 h-4 text-[#752432]" />
             <h3 className="font-semibold text-gray-900">Feed</h3>
             {/* Real-time connection indicator */}
-            <div className="flex items-center gap-1">
+            <div className="relative flex items-center justify-center w-2 h-2 overflow-visible">
+              {realtimeStatus === 'connected' && (
+                <div 
+                  className="quad-ping"
+                  style={{ backgroundColor: '#22c55e' }}
+                />
+              )}
               <div 
-                className={`w-2 h-2 rounded-full transition-colors duration-300 ${
-                  realtimeStatus === 'connected' 
-                    ? 'bg-green-500' 
+                className="w-2 h-2 rounded-full transition-colors duration-300 shadow-sm relative z-10"
+                style={{
+                  backgroundColor: realtimeStatus === 'connected' 
+                    ? '#22c55e' 
                     : realtimeStatus === 'connecting'
-                    ? 'bg-yellow-500'
-                    : 'bg-red-500'
-                }`}
+                    ? '#eab308'
+                    : '#ef4444'
+                }}
                 title={
                   realtimeStatus === 'connected' 
                     ? 'Real-time connected' 

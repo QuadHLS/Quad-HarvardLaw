@@ -1,15 +1,85 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
-import { ArrowLeft, ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
+import { Badge } from '../ui/badge';
+import { ArrowLeft, ChevronLeft, ChevronRight, Search, X, Calendar, Clock, MapPin, Grid, List } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 
 type ClassYear = '1L' | '2L' | '3L';
+
+
+
+// Convert hex to RGB
+const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : null;
+};
+
+  // Check if a course is a required 1L course (including LRW)
+const isRequired1LCourse = (courseName: string): boolean => {
+  const requiredCourses = [
+    'Contracts',
+    'Torts', 
+    'Civil Procedure',
+    'Criminal Law',
+    'Property',
+    'Constitutional Law',
+    'Legislation and Regulation',
+    'First Year Legal Research and Writing',
+    'Legal Research and Writing',
+    'LRW'
+  ];
+  
+  return requiredCourses.some(required => 
+    courseName.toLowerCase().includes(required.toLowerCase())
+  );
+};
+
+// Convert semester codes to readable names
+const formatSemesterDisplay = (semester: string): string => {
+  if (!semester) return 'TBA';
+  
+  const s = semester.trim();
+  
+  // Handle full year codes like "2025FA", "2025FS"
+  if (/^202[5-6](FA|WI|SP|FS|FW|WS)$/i.test(s)) {
+    const semesterCode = s.slice(-2).toUpperCase();
+    return getSemesterDisplayName(semesterCode);
+  }
+  
+  // Handle direct semester names
+  if (/Fall/i.test(s)) return 'Fall';
+  if (/Winter/i.test(s)) return 'Winter';
+  if (/Spring/i.test(s)) return 'Spring';
+  
+  // Handle direct semester codes
+  if (/^(FA|WI|SP|FS|FW|WS)$/i.test(s)) {
+    return getSemesterDisplayName(s.toUpperCase());
+  }
+  
+  return s;
+};
+
+// Get full semester name for display
+const getSemesterDisplayName = (semesterCode: string): string => {
+  switch (semesterCode) {
+    case 'FA': return 'Fall';
+    case 'WI': return 'Winter';
+    case 'SP': return 'Spring';
+    case 'FS': return 'Fall-Spring';
+    case 'FW': return 'Fall-Winter';
+    case 'WS': return 'Winter-Spring';
+    default: return semesterCode;
+  }
+};
 
 interface CourseData {
   id: string;
@@ -36,7 +106,6 @@ const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   const { user, signOut } = useAuth();
   const [currentPage, setCurrentPage] = useState(1);
-  const courseListRef = useRef<HTMLDivElement>(null);
   
   // Basic info form
   const [name, setName] = useState('');
@@ -48,18 +117,41 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
   // Course selection
   const [selectedCourses, setSelectedCourses] = useState<CourseData[]>([]);
-  const [showCourseDialog, setShowCourseDialog] = useState(false);
   const [currentSemester, setCurrentSemester] = useState<'Fall 2025' | 'Winter 2026' | 'Spring 2026'>('Fall 2025');
   const [allCourseData, setAllCourseData] = useState<any[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(false);
   
-  // Course search dialog
+  // Course search
   const [searchQuery, setSearchQuery] = useState('');
   const [availableCourses, setAvailableCourses] = useState<any[]>([]);
-  const [selectedCourse, setSelectedCourse] = useState<any>(null);
-  const [visuallySelectedCourseIndex, setVisuallySelectedCourseIndex] = useState<number | null>(null);
   const [showMaxCourseWarning, setShowMaxCourseWarning] = useState(false);
-  const [showScrollIndicator, setShowScrollIndicator] = useState(true);
+  
+  // View mode
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  // Handle view mode change with smooth transition
+  const handleViewModeChange = (newViewMode: 'grid' | 'list') => {
+    if (newViewMode === viewMode) return;
+    
+    setIsTransitioning(true);
+    // Wait for items to fully fade out before changing layout
+    setTimeout(() => {
+      setViewMode(newViewMode);
+      // Wait a bit more for layout to settle before fading back in
+      setTimeout(() => {
+        setIsTransitioning(false);
+      }, 25);
+    }, 150);
+  };
+
+  // Get first time only (for courses with multiple time slots)
+  const getFirstTime = (times: string | undefined): string => {
+    if (!times) return 'TBA';
+    // Split by | and take the first time slot
+    const firstTime = times.split('|')[0]?.trim();
+    return firstTime || 'TBA';
+  };
 
   // Hide section numbers for 1L courses in display
   const formatDisplayCourseName = (rawName: string): string => {
@@ -82,28 +174,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   };
 
   // Convert semester codes to readable names
-  const formatDisplaySemester = (value: string | undefined | null): string => {
-    if (!value) return 'TBD';
-    const v = value.trim();
-    
-    // Full year codes like "2025FA", "2025FS"
-    if (/^202[5-6](FA|WI|SP|FS|FW|WS)$/i.test(v)) {
-      const semesterCode = v.slice(-2).toUpperCase();
-      return getSemesterDisplayName(semesterCode);
-    }
-    
-    // Individual semester names
-    if (/Fall/i.test(v)) return 'Fall';
-    if (/Winter/i.test(v)) return 'Winter';
-    if (/Spring/i.test(v)) return 'Spring';
-    
-    // Direct semester codes
-    if (/^(FA|WI|SP|FS|FW|WS)$/i.test(v)) {
-      return getSemesterDisplayName(v.toUpperCase());
-    }
-    
-    return v;
-  };
 
   // Get individual semesters from a code
   const getSemestersFromCode = (semesterCode: string): ('FA' | 'WI' | 'SP')[] => {
@@ -118,18 +188,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     }
   };
 
-  // Get full semester name for display
-  const getSemesterDisplayName = (semesterCode: string): string => {
-    switch (semesterCode) {
-      case 'FA': return 'Fall';
-      case 'WI': return 'Winter';
-      case 'SP': return 'Spring';
-      case 'FS': return 'Fall-Spring';
-      case 'FW': return 'Fall-Winter';
-      case 'WS': return 'Winter-Spring';
-      default: return semesterCode;
-    }
-  };
 
   // Check if course term matches selected semester
   const courseMatchesSemester = (courseTerm: string, selectedSemester: 'FA' | 'WI' | 'SP'): boolean => {
@@ -142,15 +200,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     return semesters.includes(selectedSemester);
   };
 
-  // Clean up semester values for comparison
-  const normalizeSemesterValue = (value: string | undefined | null): string => {
-    if (!value) return '';
-    const v = String(value).trim();
-    if (/^2025FA$/i.test(v) || /Fall/i.test(v)) return 'Fall';
-    if (/^2026WI$/i.test(v) || /Winter/i.test(v)) return 'Winter';
-    if (/^2026SP$/i.test(v) || /Spring/i.test(v)) return 'Spring';
-    return v;
-  };
 
   // Extract last name from instructor string
   const extractLastName = (instructor: string | undefined | null): string => {
@@ -297,7 +346,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   };
 
   // Course selection helpers
-  const totalCredits = selectedCourses.reduce((sum, course) => sum + course.credits, 0);
 
   // Validate course requirements
   const areRequirementsMet = () => {
@@ -311,56 +359,44 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     return false;
   };
 
-  const handleRemoveCourse = (courseId: string) => {
-    const courseToRemove = selectedCourses.find(course => course.id === courseId);
-    
-    // Can't remove required courses
-    if (courseToRemove && classYear === '1L') {
-      const isRequired = selectedCourses.indexOf(courseToRemove) < 7 || 
-                        courseToRemove.courseName.includes('First Year Legal Research and Writing') ||
-                        courseToRemove.courseName.includes('Legal Research and Writing') ||
-                        courseToRemove.courseName.includes('LRW');
-      
-      if (isRequired) {
-        console.log('Cannot remove required course:', courseToRemove.courseName);
-        return; // Don't remove required courses
-      }
-    }
-    
-    setSelectedCourses(prev => prev.filter(course => course.id !== courseId));
-  };
 
 
 
-  const handleAddCourse = () => {
-    setShowCourseDialog(true);
-    setSelectedCourse(null); // Clear any previously selected course
-    setVisuallySelectedCourseIndex(null); // Clear visual selection
-    setSearchQuery(''); // Clear search query
-    fetchAllCourses();
-  };
 
-  const fetchAllCourses = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('Courses')
-        .select('*')
-        .order('course_name');
-      
-      if (error) {
-        console.error('Error fetching courses:', error);
-        return;
-      }
-      
-      setAvailableCourses(data || []);
-    } catch (error) {
-      console.error('Error fetching courses:', error);
-    }
-  };
 
   const handleCourseSelect = (course: any) => {
-    setSelectedCourse(course);
-    setSearchQuery(course.course_name);
+    // Check if user has reached maximum course limit
+    const maxCourses = classYear === '1L' ? 10 : 10;
+    if (selectedCourses.length >= maxCourses) {
+      setShowMaxCourseWarning(true);
+      setTimeout(() => setShowMaxCourseWarning(false), 4000);
+      return;
+    }
+    
+    // Check if course is already selected
+    const isAlreadySelected = selectedCourses.some(selected => 
+      selected.courseName === course.course_name && 
+      selected.professor === course.instructor
+    );
+    
+    if (isAlreadySelected) {
+      return; // Don't add duplicate courses
+    }
+    
+    // Add the selected course to My Courses
+    const newCourse: CourseData = {
+      id: `${course.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Generate unique ID
+      courseName: course.course_name,
+      professor: course.instructor || 'TBA',
+      credits: course.credits || 3,
+      semester: course.semester as 'Spring' | 'Fall' | 'Winter' || 'Fall', // Use actual semester from course data
+      days: course.days ? (typeof course.days === 'string' ? course.days.split(';').map((d: string) => d.trim()) : course.days) : ['TBA'],
+      time: course.times ? normalizeTimeRange(course.times.split('|').map((t: string) => t.trim())[0]) : 'TBA',
+      location: course.location,
+      original_course_id: course.original_course_id
+    };
+    
+    setSelectedCourses(prev => [...prev, newCourse]);
   };
 
   const filteredCourses = searchQuery 
@@ -368,6 +404,14 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         course.course_name.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : availableCourses;
+
+  // Filter out courses that are already selected
+  const availableCoursesFiltered = filteredCourses.filter(course => {
+    return !selectedCourses.some(selected => 
+      selected.courseName === course.course_name && 
+      selected.professor === course.instructor
+    );
+  });
 
 
 
@@ -393,7 +437,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         );
       } else if (typeof course.days === 'string') {
         // Split string by comma
-        courseDays = course.days.split(',').map(d => d.trim());
+        courseDays = (course.days as string).split(',').map((d: string) => d.trim());
       } else {
         courseDays = [];
       }
@@ -468,136 +512,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     return filteredCourses;
   };
 
-  // Calculate course time span
-  const getCourseSpan = (course: CourseData) => {
-    const timeParts = course.time.split('-');
-    if (timeParts.length !== 2) return 1;
-    
-    let startTime = timeParts[0].trim();
-    let endTime = timeParts[1].trim();
-    
-    // Handle cases where AM/PM is only on the end time
-    const endAmPm = endTime.match(/(AM|PM)/i);
-    if (endAmPm && !startTime.match(/(AM|PM)/i)) {
-      startTime += ' ' + endAmPm[0];
-    }
-    
-    // Handle cases where both times have AM/PM (e.g., "9:00 AM-1:00 PM")
-    if (course.time.includes('AM') && course.time.includes('PM')) {
-      const fullTimeMatch = course.time.match(/(\d{1,2}:\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}:\d{2})\s*(AM|PM)/i);
-      if (fullTimeMatch) {
-        startTime = `${fullTimeMatch[1]} ${fullTimeMatch[2]}`;
-        endTime = `${fullTimeMatch[3]} ${fullTimeMatch[4]}`;
-      }
-    }
-    
-    const convertTo24Hour = (time: string) => {
-      const match = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-      if (!match) return null;
-      
-      let hours = parseInt(match[1]);
-      const minutes = parseInt(match[2]);
-      const ampm = match[3].toUpperCase();
-      
-      if (ampm === 'PM' && hours !== 12) hours += 12;
-      if (ampm === 'AM' && hours === 12) hours = 0;
-      
-      return hours * 60 + minutes;
-    };
-    
-    const courseStart = convertTo24Hour(startTime);
-    const courseEnd = convertTo24Hour(endTime);
-    
-    if (!courseStart || !courseEnd) return 1;
-    
-    const durationInMinutes = courseEnd - courseStart;
-    return Math.ceil(durationInMinutes / 60); // Each time slot is 1 hour
-  };
-
-  const isTimeSlotOccupied = (day: string, timeSlot: string) => {
-    const dayMap: { [key: string]: string } = {
-      'Mon': 'Mon',
-      'Tue': 'Tue', 
-      'Wed': 'Wed',
-      'Thu': 'Thu',
-      'Fri': 'Fri'
-    };
-
-    return selectedCourses.some(course => {
-      
-      // Filter by current semester
-      const currentSemesterCode = currentSemester === 'Fall 2025' ? 'FA' : 
-                                  currentSemester === 'Winter 2026' ? 'WI' : 
-                                  currentSemester === 'Spring 2026' ? 'SP' : 'FA';
-      
-      // Check if course matches current semester
-      if (!courseMatchesSemester(course.semester as string, currentSemesterCode)) return false;
-      
-      // Handle array or comma-separated days
-      let courseDays: string[];
-      if (Array.isArray(course.days)) {
-        // Flatten comma-separated strings in array
-        courseDays = course.days.flatMap(d => 
-          typeof d === 'string' && d.includes(',') 
-            ? d.split(',').map(day => day.trim())
-            : [d]
-        );
-      } else if (typeof course.days === 'string') {
-        // Split string by comma
-        courseDays = course.days.split(',').map(d => d.trim());
-      } else {
-        courseDays = [];
-      }
-      
-      if (!courseDays.includes(dayMap[day])) return false;
-      
-      const timeParts = course.time.split('-');
-      if (timeParts.length !== 2) return false;
-      
-      let startTime = timeParts[0].trim();
-      let endTime = timeParts[1].trim();
-      
-      const endAmPm = endTime.match(/(AM|PM)/i);
-      if (endAmPm && !startTime.match(/(AM|PM)/i)) {
-        startTime += ' ' + endAmPm[0];
-      }
-      
-      // Handle both times with AM/PM (e.g., "9:00 AM-1:00 PM")
-      if (course.time.includes('AM') && course.time.includes('PM')) {
-        const fullTimeMatch = course.time.match(/(\d{1,2}:\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}:\d{2})\s*(AM|PM)/i);
-        if (fullTimeMatch) {
-          startTime = `${fullTimeMatch[1]} ${fullTimeMatch[2]}`;
-          endTime = `${fullTimeMatch[3]} ${fullTimeMatch[4]}`;
-        }
-      }
-      
-      const convertTo24Hour = (time: string) => {
-        const match = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-        if (!match) return null;
-        
-        let hours = parseInt(match[1]);
-        const minutes = parseInt(match[2]);
-        const ampm = match[3].toUpperCase();
-        
-        if (ampm === 'PM' && hours !== 12) hours += 12;
-        if (ampm === 'AM' && hours === 12) hours = 0;
-        
-        return hours * 60 + minutes;
-      };
-      
-      const courseStart = convertTo24Hour(startTime);
-      const courseEnd = convertTo24Hour(endTime);
-      const slotTime = convertTo24Hour(timeSlot);
-      
-      if (!courseStart || !courseEnd || !slotTime) return false;
-      
-      // Round start time to nearest hour
-      const courseStartHour = Math.floor(courseStart / 60) * 60;
-      
-      // Check if slot is occupied by multi-hour course
-      return slotTime >= courseStartHour && slotTime < courseEnd && slotTime !== courseStartHour;
-    });
-  };
 
   const handleSemesterNavigation = (direction: 'prev' | 'next') => {
     if (currentSemester === 'Fall 2025' && direction === 'next') {
@@ -655,6 +569,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
           console.log('First transformed course original_course_id:', transformedCourses[0]?.original_course_id);
           console.log('All columns in first transformed course:', Object.keys(transformedCourses[0] || {}));
           setAllCourseData(transformedCourses);
+          setAvailableCourses(allCourses); // Set available courses for the new interface
         } catch (error) {
           console.error('Error fetching courses:', error);
           setAllCourseData([]);
@@ -702,7 +617,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
               professor: course.instructor,
               credits: course.credits,
               semester: course.semester as 'Spring' | 'Fall' | 'Winter',
-              days: course.days ? course.days.split(';').map((d: string) => normalizeDay(d)) : [],
+              days: course.days ? (typeof course.days === 'string' ? course.days.split(';').map((d: string) => normalizeDay(d)) : course.days) : [],
               time: course.times ? normalizeTimeRange(course.times.split('|').map((t: string) => t.trim())[0]) : 'TBD',
               location: course.location || undefined
             };
@@ -965,202 +880,363 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
             </div>
 
             <div className="flex gap-8">
-              {/* Left Side - My Courses */}
-              <div className="w-80 flex-shrink-0">
-                <Card className="shadow-lg">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg text-gray-900">
-                      My Courses
-                    </CardTitle>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {classYear} | Section {section} | {totalCredits} Credits
-                    </p>
-                    <hr className="border-gray-200 mt-2" />
-                  </CardHeader>
-                  <CardContent className="pt-0 px-6 pb-6 flex flex-col h-full">
-                    {/* Course Cards - Scrollable */}
+              {/* Left Side - Course Search and Browse */}
+              <div className="w-80 flex-shrink-0 flex flex-col rounded-lg overflow-hidden shadow-md" style={{ backgroundColor: '#FEFBF6', height: 'calc(100vh - 80px)' }}>
+                {/* Search and Filters */}
+                <div className="p-4 border-b border-gray-200 flex-shrink-0 relative" style={{ backgroundColor: '#752432' }}>
+                  <div className="space-y-3">
                     <div className="relative">
-                      {/* Scroll indicator - show for all class years when they have more than 4 courses */}
-                      {showScrollIndicator && selectedCourses.length > 4 && (
-                        <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none mb-5 animate-bounce opacity-70">
-                          <div className="bg-gray-800 text-white rounded-full px-3 py-1 text-xs flex items-center gap-1 shadow-lg">
-                            <span>Scroll</span>
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </div>
-                        </div>
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        placeholder="Search courses or professors…"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className={`pl-10 bg-white border-gray-300 focus:border-white focus:ring-white ${searchQuery ? 'pr-10' : 'pr-3'}`}
+                      />
+                      {searchQuery && (
+                        <button
+                          onClick={() => setSearchQuery('')}
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors z-10"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
                       )}
-                      <div 
-                        ref={courseListRef} 
-                        className="overflow-y-auto mb-4" 
-                        style={{ maxHeight: '480px', scrollBehavior: 'smooth' }}
-                        onScroll={() => setShowScrollIndicator(false)}
-                      >
-                        <div className="space-y-4">
-                        {coursesLoading ? (
-                          <div className="text-center py-8 text-gray-500">
-                            <p className="text-sm">Loading courses...</p>
-                          </div>
-                        ) : selectedCourses.length === 0 ? (
-                          <div className="text-center py-8 text-gray-500">
-                            <p className="text-sm">No courses selected yet</p>
-                            <p className="text-xs mt-1">
-                              {classYear === '1L' ? 'Courses will auto-populate when section is selected' : 'Click "Add Class" to get started'}
-                            </p>
-                          </div>
-                        ) : (
-                          selectedCourses.map((course, index) => {
-                            // Check if this is a 1L required course
-                            const isRequired1L = classYear === '1L' && (
-                              index < 7 || // First 7 courses are always required
-                              course.courseName.includes('First Year Legal Research and Writing') || // LRW is always required
-                              course.courseName.includes('Legal Research and Writing') ||
-                              course.courseName.includes('LRW')
-                            );
-                            
-                            return (
-                              <div key={course.id} className={`p-3 rounded-lg border ${isRequired1L ? 'bg-blue-50 border-blue-200' : 'bg-gray-50'}`}>
-                                <div className="flex justify-between items-start mb-1">
-                                  <div className="flex items-center gap-2">
-                                    <h3 className="font-medium text-gray-900 text-sm">{formatDisplayCourseName(course.courseName)}</h3>
-                                    {isRequired1L && (
-                                      <span className="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full">
-                                        Required
-                          </span>
-                                    )}
-                        </div>
-                                  {!isRequired1L && (
-                                    <button
-                                      onClick={() => handleRemoveCourse(course.id)}
-                                      className="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-red-100 transition-colors ml-6"
-                                    >
-                                      <X className="w-4 h-4" />
-                                    </button>
-                          )}
-                        </div>
-                                <p className="text-xs text-gray-600 mb-0.5">Semester: {formatDisplaySemester(course.semester)}</p>
-                                <p className="text-xs text-gray-600 mb-0.5">Professor: {course.professor}</p>
-                                <p className="text-xs text-gray-600 mb-0.5">{course.days.join(', ')} {course.time}</p>
-                                <p className="text-xs text-gray-600 mb-0.5">Location: {course.location || 'Location TBD'}</p>
-                                <p className="text-xs text-gray-600">{course.credits} Credits</p>
-                      </div>
-                            );
-                          })
-                        )}
-                        </div>
-                      </div>
-                      {/* Fade overlays */}
-                      <div className="absolute top-0 left-0 right-0 h-8 pointer-events-none bg-gradient-to-b from-white to-transparent"></div>
-                      <div className="absolute bottom-0 left-0 right-0 h-8 pointer-events-none bg-gradient-to-t from-white to-transparent" style={{ marginBottom: '1rem' }}></div>
                     </div>
-
-                    {/* LRW Selection - Only for 1L. Show two professor last names for the selected section. */}
-                    {classYear === '1L' && selectedCourses.length >= 7 && (
-                      <div className={`mb-4 p-4 rounded-lg border-2 ${lrwSection ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-400'}`}>
-                        {(() => {
-                          // Build LRW options for the selected section from available course data
-                          const lrwBases = [
-                            'First Year Legal Research and Writing',
-                            'Legal Research and Writing',
-                            'LRW'
-                          ];
-                          
-                          // Find all LRW courses for this section
-                          const lrwCoursesForSection = allCourseData.filter(c => {
-                            const name = String(c?.course_name || '').trim();
-                            if (!name) return false;
-                            
-                            return lrwBases.some(base => {
-                              const pattern = new RegExp(`^${base}\\s+${section}[AB]`, 'i');
-                              return pattern.test(name);
-                            });
-                          });
-                          
-                          // Find A and B options (prefer Fall semester for professor names)
-                          const optionA = lrwCoursesForSection.find((c: any) => {
-                            const name = String(c.course_name || '');
-                            return (/A\s*$/.test(name) || name.endsWith(`${section}A`)) && 
-                                   (/Fall/i.test(c.semester) || /FA$/i.test(c.semester));
-                          }) || lrwCoursesForSection.find((c: any) => /A\s*$/.test(c.course_name) || c.course_name.endsWith(`${section}A`));
-                          
-                          const optionB = lrwCoursesForSection.find((c: any) => {
-                            const name = String(c.course_name || '');
-                            return (/B\s*$/.test(name) || name.endsWith(`${section}B`)) && 
-                                   (/Fall/i.test(c.semester) || /FA$/i.test(c.semester));
-                          }) || lrwCoursesForSection.find((c: any) => /B\s*$/.test(c.course_name) || c.course_name.endsWith(`${section}B`));
-                          
-                          const lastA = extractLastName(optionA?.instructor) || 'A';
-                          const lastB = extractLastName(optionB?.instructor) || 'B';
+                    
+                    {/* View Mode and Filter Controls */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center bg-white/10 rounded-lg p-1">
+                          <button
+                            onClick={() => handleViewModeChange('grid')}
+                            className={`p-2 rounded-md transition-colors ${
+                              viewMode === 'grid'
+                                ? 'bg-white text-[#752432]'
+                                : 'text-white bg-transparent'
+                            }`}
+                            title="Grid view"
+                            disabled={isTransitioning}
+                          >
+                            <Grid className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleViewModeChange('list')}
+                            className={`p-2 rounded-md transition-colors ${
+                              viewMode === 'list'
+                                ? 'bg-white text-[#752432]'
+                                : 'text-white bg-transparent'
+                            }`}
+                            title="List view"
+                            disabled={isTransitioning}
+                          >
+                            <List className="w-4 h-4" />
+                          </button>
+                        </div>
+                        
+                        {/* Class Year | Section Display */}
+                        <div className="text-white text-sm font-medium">
+                          {classYear} | Section {section}
+                        </div>
+                      </div>
+                      
+                    </div>
+                  </div>
+                  
+                </div>
+                
+                {/* Course List - Scrollable */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
+                  {/* Semester Header */}
+                  <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-200">
+                    <h3 className="font-medium text-gray-900">Available Courses</h3>
+                  <Badge variant="outline" className="text-sm bg-white">
+                    {availableCoursesFiltered.length} available
+                  </Badge>
+                  </div>
+                  
+                  {coursesLoading ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <p className="text-sm">Loading courses...</p>
+                    </div>
+                  ) : availableCoursesFiltered.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                      <p className="text-lg font-medium mb-1">No courses available</p>
+                      <p className="text-sm">Try adjusting your search or select a different semester</p>
+                    </div>
+                  ) : (
+                    <div className={`transition-all duration-500 ease-in-out ${isTransitioning ? 'opacity-0' : 'opacity-100'} ${viewMode === 'grid' ? 'grid grid-cols-1 gap-3' : 'space-y-1'}`}>
+                      {availableCoursesFiltered.map((course, index) => {
+                        // Simple color rotation: green, blue, yellow, red
+                        const colors = ['#04913A', '#0080BD', '#FFBB06', '#F22F21'];
+                        const courseColor = colors[index % 4];
+                        
+                        if (viewMode === 'list') {
+                          // List view - compact layout
                           return (
-                            <>
-                              <p className={`text-sm font-semibold mb-3 ${lrwSection ? 'text-blue-800' : 'text-red-700'}`}>
-                                {!lrwSection ? '⚠️ Select your LRW professor:' : 'LRW Professor:'}
-                              </p>
-                              <div className="flex gap-3">
+                            <div 
+                              key={`${course.id}-${index}`}
+                              className="group transition-all duration-500 ease-in-out cursor-pointer hover:bg-gray-50 bg-white border-2 rounded-lg border-gray-200"
+                              style={{
+                                borderColor: `${courseColor}33`,
+                                '--hover-border-color': `${courseColor}80`,
+                                '--hover-bg-color': `${courseColor}08`
+                              } as React.CSSProperties}
+                              onClick={() => handleCourseSelect(course)}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'scale(1.01)';
+                                e.currentTarget.style.borderColor = `${courseColor}80`;
+                                e.currentTarget.style.backgroundColor = `${courseColor}08`;
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'scale(1)';
+                                e.currentTarget.style.borderColor = `${courseColor}33`;
+                                e.currentTarget.style.backgroundColor = 'white';
+                              }}
+                            >
+                              <div className="px-3 py-1.5 relative">
+                                {/* First line: Course Name (bold) on left, Credits on right */}
+                                <div className="flex items-center justify-between mb-0.5">
+                                  <div className="font-bold text-gray-900 text-xs leading-tight flex-1 pr-2 flex items-center gap-2">
+                                    <span className="group-hover:hidden line-clamp-2 overflow-hidden">
+                                      {formatDisplayCourseName(course.course_name)}
+                                    </span>
+                                    <span className="hidden group-hover:inline line-clamp-2 overflow-hidden">
+                                      {formatDisplayCourseName(course.course_name)}
+                                    </span>
+                                    
+                                  </div>
+                                  
+                                  <div className="flex items-center flex-shrink-0">
+                                    {/* Credits badge */}
+                                    <div className="flex items-center gap-1">
+                                      <Badge 
+                                        variant="outline" 
+                                        className="px-1 py-0 h-auto leading-tight"
+                                        style={{ 
+                                          backgroundColor: courseColor, 
+                                          borderColor: courseColor,
+                                          color: 'white',
+                                          fontSize: '9px'
+                                        }}
+                                      >
+                                        {course.credits || 3} CR
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                {/* Second line: Days and Times on left, Professor Last Name on right */}
+                                <div className="flex items-center justify-between text-xs text-gray-600">
+                                  <div className="flex items-center gap-2">
+                                    <span className="leading-tight">{course.days || 'TBA'}</span>
+                                    <span className="leading-tight">{getFirstTime(course.times)}</span>
+                                  </div>
+                                  
+                                  <span className="leading-tight">{course.instructor ? course.instructor.split(' ').pop() : 'TBD'}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        } else {
+                          // Grid view - card layout
+                          return (
+                            <div
+                              key={`${course.id}-${index}`}
+                              className="group transition-all duration-500 ease-in-out border-2 cursor-pointer hover:shadow-lg relative rounded-lg bg-white border-gray-200"
+                              style={{
+                                '--tw-border-opacity': '0.2',
+                                borderColor: `${courseColor}33`,
+                                '--hover-border-color': `${courseColor}80`,
+                                '--hover-bg-color': `${courseColor}08`
+                              } as React.CSSProperties}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'scale(1.03)';
+                                e.currentTarget.style.borderColor = `${courseColor}80`;
+                                e.currentTarget.style.backgroundColor = `${courseColor}08`;
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'scale(1)';
+                                e.currentTarget.style.borderColor = `${courseColor}33`;
+                                e.currentTarget.style.backgroundColor = 'white';
+                              }}
+                            >
+                              <div className="p-2">
+                                <div className="flex items-start justify-between mb-1">
+                                  <div className="flex-1 min-w-0">
+                                    <h3 className="font-medium text-gray-900 text-sm mb-1">
+                                      {formatDisplayCourseName(course.course_name)}
+                                    </h3>
+                                    <p className="text-xs text-gray-600 mb-1">{course.instructor || 'TBD'}</p>
+                                    <div className="flex items-center gap-2 mb-2">
+                                      {/* No course type badge in grid view */}
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-col items-center gap-1">
+                                    <Badge 
+                                      variant="outline" 
+                                      className="text-xs font-medium"
+                                      style={{ 
+                                        backgroundColor: courseColor, 
+                                        borderColor: courseColor,
+                                        color: 'white'
+                                      }}
+                                    >
+                                      {course.credits || 3} CR
+                                    </Badge>
+                                  </div>
+                                </div>
+                                
+                                <div className="space-y-1 text-xs text-gray-600 mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <Calendar className="w-3 h-3" />
+                                    <span>{course.days || 'TBA'}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Clock className="w-3 h-3" />
+                                    <span>{getFirstTime(course.times)}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <MapPin className="w-3 h-3" />
+                                    <span>{course.location || 'Location TBD'}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-medium text-gray-500">
+                                      {formatSemesterDisplay(course.semester)}
+                                    </span>
+                                  </div>
+                                </div>
+                                
+                                {/* Add to Calendar Button */}
                                 <button
-                                  onClick={() => {
-                                    setLrwSection('A');
-                                    setTimeout(() => {
-                                      if (courseListRef.current) {
-                                        courseListRef.current.scrollTop = courseListRef.current.scrollHeight;
-                                      }
-                                    }, 100);
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleCourseSelect(course);
                                   }}
-                                  className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                                    lrwSection === 'A'
-                                      ? 'bg-blue-600 text-white shadow-md'
-                                      : !lrwSection
-                                      ? 'bg-white text-red-700 border-2 border-red-400 hover:bg-red-50 hover:border-red-500'
-                                      : 'bg-white text-blue-800 border border-blue-300 hover:bg-blue-100'
-                                  }`}
-                                >
-                                  {lastA}
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setLrwSection('B');
-                                    setTimeout(() => {
-                                      if (courseListRef.current) {
-                                        courseListRef.current.scrollTop = courseListRef.current.scrollHeight;
-                                      }
-                                    }, 100);
+                                  className="w-full py-2 px-3 rounded text-xs font-medium transition-all duration-200 opacity-0 group-hover:opacity-100"
+                                  style={{ 
+                                    backgroundColor: courseColor,
+                                    color: 'white'
                                   }}
-                                  className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                                    lrwSection === 'B'
-                                      ? 'bg-blue-600 text-white shadow-md'
-                                      : !lrwSection
-                                      ? 'bg-white text-red-700 border-2 border-red-400 hover:bg-red-50 hover:border-red-500'
-                                      : 'bg-white text-blue-800 border border-blue-300 hover:bg-blue-100'
-                                  }`}
+                                  onMouseEnter={(e) => {
+                                    const rgb = hexToRgb(courseColor);
+                                    if (rgb) {
+                                      e.currentTarget.style.backgroundColor = `rgb(${Math.max(0, rgb.r - 20)}, ${Math.max(0, rgb.g - 20)}, ${Math.max(0, rgb.b - 20)})`;
+                                    }
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = courseColor;
+                                  }}
+                                  title="Add to calendar"
                                 >
-                                  {lastB}
+                                  Add to Calendar
                                 </button>
                               </div>
-                              <p className={`text-xs mt-2 ${lrwSection ? 'text-blue-700' : 'text-red-600 font-medium'}`}>
-                                {!lrwSection
-                                  ? `Required: This will add LRW ${section}A or ${section}B (Fall & Spring)`
-                                  : `Selected: "LRW ${section}${lrwSection}" (Fall & Spring)`}
-                              </p>
-                            </>
+                            </div>
                           );
-                        })()}
-                      </div>
-                    )}
+                        }
+                      })}
+                    </div>
+                  )}
+                </div>
 
-                    {/* Add Class Button - Outside scroll area */}
-                    <button
-                      onClick={handleAddCourse}
-                      className="w-full text-white py-2 text-sm font-medium rounded-md border border-[#752531] flex-shrink-0"
-                      style={{ 
-                        backgroundColor: '#752531',
-                        minHeight: '36px'
-                      }}
-                    >
-                      + Add Class
-                    </button>
-                  </CardContent>
-                </Card>
+                {/* Warning Message */}
+                {showMaxCourseWarning && (
+                  <div className="p-3 bg-red-50 border-2 border-red-400 rounded-lg m-4">
+                    <div className="flex items-start gap-3">
+                      <span className="text-red-600 text-xl flex-shrink-0">⚠️</span>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-red-800 mb-1">Maximum Course Limit Reached</p>
+                        <p className="text-xs text-red-700">
+                          You cannot add more than 10 courses. Please remove an elective course before adding a new one.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* LRW Selection - Only for 1L. Show two professor last names for the selected section. */}
+                {classYear === '1L' && selectedCourses.length >= 7 && (
+                  <div className={`p-2 m-2 rounded h-[80px] ${lrwSection ? 'bg-blue-50' : 'bg-red-50'}`}>
+                    {(() => {
+                      // Build LRW options for the selected section from available course data
+                      const lrwBases = [
+                        'First Year Legal Research and Writing',
+                        'Legal Research and Writing',
+                        'LRW'
+                      ];
+                      
+                      // Find all LRW courses for this section
+                      const lrwCoursesForSection = allCourseData.filter(c => {
+                        const name = String(c?.course_name || '').trim();
+                        if (!name) return false;
+                        
+                        return lrwBases.some(base => {
+                          const pattern = new RegExp(`^${base}\\s+${section}[AB]`, 'i');
+                          return pattern.test(name);
+                        });
+                      });
+                      
+                      // Find A and B options (prefer Fall semester for professor names)
+                      const optionA = lrwCoursesForSection.find((c: any) => {
+                        const name = String(c.course_name || '');
+                        return (/A\s*$/.test(name) || name.endsWith(`${section}A`)) && 
+                               (/Fall/i.test(c.semester) || /FA$/i.test(c.semester));
+                      }) || lrwCoursesForSection.find((c: any) => /A\s*$/.test(c.course_name) || c.course_name.endsWith(`${section}A`));
+                      
+                      const optionB = lrwCoursesForSection.find((c: any) => {
+                        const name = String(c.course_name || '');
+                        return (/B\s*$/.test(name) || name.endsWith(`${section}B`)) && 
+                               (/Fall/i.test(c.semester) || /FA$/i.test(c.semester));
+                      }) || lrwCoursesForSection.find((c: any) => /B\s*$/.test(c.course_name) || c.course_name.endsWith(`${section}B`));
+                      
+                      const lastA = extractLastName(optionA?.instructor) || 'A';
+                      const lastB = extractLastName(optionB?.instructor) || 'B';
+                      return (
+                        <>
+                          <p className={`text-xs font-medium mb-2 ${lrwSection ? 'text-blue-800' : 'text-red-700'}`}>
+                            {!lrwSection ? '⚠️ Select LRW professor:' : 'LRW Professor:'}
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setLrwSection('A');
+                              }}
+                              className={`flex-1 px-2 py-1 rounded text-xs font-medium transition-all ${
+                                lrwSection === 'A'
+                                  ? 'bg-blue-600 text-white'
+                                  : !lrwSection
+                                  ? 'bg-white text-red-700 border border-red-400 hover:bg-red-50'
+                                  : 'bg-white text-blue-800 border border-blue-300 hover:bg-blue-100'
+                              }`}
+                            >
+                              {lastA}
+                            </button>
+                            <button
+                              onClick={() => {
+                                setLrwSection('B');
+                              }}
+                              className={`flex-1 px-2 py-1 rounded text-xs font-medium transition-all ${
+                                lrwSection === 'B'
+                                  ? 'bg-blue-600 text-white'
+                                  : !lrwSection
+                                  ? 'bg-white text-red-700 border border-red-400 hover:bg-red-50'
+                                  : 'bg-white text-blue-800 border border-blue-300 hover:bg-blue-100'
+                              }`}
+                            >
+                              {lastB}
+                            </button>
+                          </div>
+                          <p className={`text-xs mt-1 ${lrwSection ? 'text-blue-700' : 'text-red-600 font-medium'}`}>
+                            {!lrwSection
+                              ? `Required: LRW ${section}A or ${section}B (Fall & Spring)`
+                              : `Selected: LRW ${section}${lrwSection} (Fall & Spring)`}
+                          </p>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
 
               {/* Right Side - Weekly Calendar */}
@@ -1230,7 +1306,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                             {/* Day Cells */}
                             {days.map(day => {
                               const courses = getCoursesForTimeSlot(day, timeSlot);
-                              const isOccupied = isTimeSlotOccupied(day, timeSlot);
                               
                               return (
                                 <div 
@@ -1239,7 +1314,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                                 >
                                   {courses.length > 0 && (
                                     <>
-                                      {courses.map((course, index) => {
+                                      {courses.map((course, courseIndex) => {
                                         // Parse course time to get start and end times
                                         const timeParts = course.time.split('-');
                                         let startTime = timeParts[0]?.trim() || '';
@@ -1292,14 +1367,19 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                                         
                                         // Calculate width and left position for multiple courses in same slot
                                         const courseWidth = courses.length > 1 ? `calc(${100/courses.length}% - 4px)` : 'calc(100% - 8px)';
-                                        const courseLeft = courses.length > 1 ? `${(index * 100/courses.length) + 2}%` : '4px';
+                                        const courseLeft = courses.length > 1 ? `${(courseIndex * 100/courses.length) + 2}%` : '4px';
+                                        
+                                        // Get course color based on its position in the selected courses list
+                                        const courseListIndex = selectedCourses.findIndex(selected => selected.id === course.id);
+                                        const colors = ['#04913A', '#0080BD', '#FFBB06', '#F22F21'];
+                                        const courseColor = colors[courseListIndex % 4];
                                         
                                         return (
                                           <div 
-                                            key={`${course.id}-${day}-${timeSlot}-${index}`}
-                                            className="absolute text-white text-xs p-1 rounded flex flex-col justify-center z-10 border border-white/20"
+                                            key={`${course.id}-${day}-${timeSlot}-${courseIndex}`}
+                                            className="absolute text-white text-xs p-1 rounded flex flex-col justify-center z-10 border border-white/20 group"
                                             style={{ 
-                                              backgroundColor: '#752531',
+                                              backgroundColor: `${courseColor}CC`,
                                               top: `${topPercent}%`,
                                               height: `${totalHeightPixels}px`,
                                               width: courseWidth,
@@ -1321,6 +1401,19 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                                                 </div>
                                               )}
                                             </div>
+                                            
+                                            {/* Remove button - only show if not a 1L required course */}
+                                            {!(classYear === '1L' && isRequired1LCourse(course.courseName)) && (
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setSelectedCourses(prev => prev.filter(selected => selected.id !== course.id));
+                                                }}
+                                                className="absolute top-0 right-0 w-6 h-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-30 bg-white/20 hover:bg-white/30"
+                                              >
+                                                <X className="w-3 h-3 text-white" />
+                                              </button>
+                                            )}
                                           </div>
                                         );
                                       })}
@@ -1427,8 +1520,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                           location: course.location || 'Location TBD',
                           semester: semesterCode,
                           instructor: course.professor,
-                          course_name: course.courseName,
-                          course_number: 1
+                          course_name: course.courseName
                         },
                         professor: course.professor
                       };
@@ -1467,198 +1559,6 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                 )}
       </div>
 
-      {/* Add Class Dialog */}
-      <Dialog open={showCourseDialog} onOpenChange={(open) => {
-        if (!open) {
-          setShowCourseDialog(false);
-          setSelectedCourse(null);
-          setVisuallySelectedCourseIndex(null);
-          setSearchQuery('');
-        }
-      }}>
-          <DialogContent 
-            className="p-0 overflow-hidden [&>button]:hidden flex flex-col"
-            style={{
-              maxWidth: '60vw',
-              width: '60vw',
-              height: '70vh',
-              maxHeight: '70vh'
-            }}
-            aria-describedby="course-selection-description"
-          >
-          {/* Header */}
-          <DialogHeader className="flex-shrink-0 p-4 pb-3 border-b bg-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <DialogTitle className="text-lg font-semibold text-gray-900">Add New Course</DialogTitle>
-                <p id="course-selection-description" className="text-sm text-gray-600 mt-1">
-                  Search and select a course to add to your schedule
-                </p>
-              </div>
-                  <Button
-                variant="outline" 
-                onClick={() => setShowCourseDialog(false)} 
-                size="sm"
-                className="h-6 w-6 p-0"
-              >
-                ×
-                  </Button>
-                </div>
-          </DialogHeader>
-
-          {/* Content Area */}
-          <div className="flex-1 flex overflow-hidden min-h-0">
-            {/* Single Panel */}
-            <div className="w-full flex flex-col bg-gray-50 relative overflow-hidden min-h-0">
-              {/* Search Bar */}
-              <div className="flex-shrink-0 p-3 pt-0.5 bg-white border-b">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    type="text"
-                    placeholder="Search course name..."
-                    value={searchQuery}
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value);
-                    }}
-                    className="pl-10 w-full"
-                  />
-              </div>
-      </div>
-
-              {/* Course Results */}
-              <div className="flex-1 overflow-y-auto min-h-0">
-                {filteredCourses.length > 0 ? (
-                  <div className="p-3 space-y-2">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-medium text-gray-700">
-                        {filteredCourses.length} course{filteredCourses.length !== 1 ? 's' : ''} found
-                      </h3>
-                    </div>
-                    {filteredCourses.map((course, index) => (
-                      <div
-                        key={course.id}
-                        className="bg-white border-2 border-gray-200 rounded-lg p-4 hover:shadow-md transition-all cursor-pointer min-h-[120px]"
-                        style={{
-                          backgroundColor: visuallySelectedCourseIndex === index ? '#75253110' : 'white',
-                          borderColor: visuallySelectedCourseIndex === index ? '#752531' : '#e5e7eb'
-                        }}
-                        onMouseEnter={(e) => {
-                          if (visuallySelectedCourseIndex !== index) {
-                            e.currentTarget.style.backgroundColor = '#75253110';
-                            e.currentTarget.style.borderColor = '#752531';
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (visuallySelectedCourseIndex !== index) {
-                            e.currentTarget.style.backgroundColor = 'white';
-                            e.currentTarget.style.borderColor = '#e5e7eb';
-                          }
-                        }}
-                        onClick={() => {
-                          setVisuallySelectedCourseIndex(index);
-                          handleCourseSelect(course);
-                        }}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1 min-w-0">
-                              <h4 className="text-sm font-medium text-gray-900 mb-1">
-                              {formatDisplayCourseName(course.course_name)}
-                            </h4>
-                            <div className="space-y-1">
-                              <p className="text-xs text-gray-600 mb-0.5">Semester: {formatDisplaySemester(course.semester)}</p>
-                              <p className="text-xs text-gray-600 mb-0.5">Professor: {course.instructor || 'TBD'}</p>
-                              <p className="text-xs text-gray-600 mb-0.5">{course.days || 'TBA'} • {course.times || 'TBA'}</p>
-                              <p className="text-xs text-gray-600 mb-0.5">Location: {course.location && course.location !== 'null' ? course.location : 'Location TBD'}</p>
-                              <p className="text-xs text-gray-600">{course.credits || 3} Credits</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center text-gray-400">
-                      <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No courses found</p>
-                      <p className="text-xs">Try a different search term</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Footer - Fixed Position */}
-          <div className="flex-shrink-0 border-t-2 border-gray-400 bg-gray-50">
-            {/* Warning Message */}
-            {showMaxCourseWarning && (
-              <div className="px-4 pt-3 pb-2">
-                <div className="bg-red-50 border-2 border-red-400 rounded-lg p-3 flex items-start gap-3">
-                  <span className="text-red-600 text-xl flex-shrink-0">⚠️</span>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-red-800 mb-1">Maximum Course Limit Reached</p>
-                    <p className="text-xs text-red-700">
-                      You cannot add more than 10 courses. Please remove an elective course before adding a new one.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-            <div className="flex justify-between items-center gap-4 p-4">
-              <button 
-                onClick={() => {
-                  if (selectedCourse) {
-                    // Check if user has reached maximum course limit
-                    const maxCourses = classYear === '1L' ? 10 : 10;
-                    if (selectedCourses.length >= maxCourses) {
-                      setShowMaxCourseWarning(true);
-                      setTimeout(() => setShowMaxCourseWarning(false), 4000);
-                      return;
-                    }
-                    
-                    // Add the selected course to My Courses
-                    const newCourse: CourseData = {
-                      id: `${selectedCourse.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Generate unique ID
-                      courseName: selectedCourse.course_name,
-                      professor: selectedCourse.instructor || 'TBA',
-                      credits: selectedCourse.credits || 3,
-                      semester: selectedCourse.semester as 'Spring' | 'Fall' | 'Winter' || 'Fall', // Use actual semester from course data
-                      days: selectedCourse.days ? selectedCourse.days.split(';').map((d: string) => d.trim()) : ['TBA'],
-                      time: selectedCourse.times ? normalizeTimeRange(selectedCourse.times.split('|').map((t: string) => t.trim())[0]) : 'TBA',
-                      location: selectedCourse.location,
-                      original_course_id: selectedCourse.original_course_id
-                    };
-                    
-                    setSelectedCourses(prev => [...prev, newCourse]);
-                    
-                    // Scroll to bottom of course list
-                    setTimeout(() => {
-                      if (courseListRef.current) {
-                        courseListRef.current.scrollTop = courseListRef.current.scrollHeight;
-                      }
-                    }, 100);
-                    
-                    // Close dialog and reset
-                    setShowCourseDialog(false);
-                    setSelectedCourse(null);
-                    setVisuallySelectedCourseIndex(null);
-                    setSearchQuery('');
-                  }
-                }} 
-                className="px-4 py-1.5 text-sm font-medium bg-[#752531] hover:bg-[#6B1F2A] text-white rounded-md border-0 cursor-pointer"
-                style={{
-                  backgroundColor: '#752531',
-                  color: 'white'
-                }}
-              >
-                Add Course
-              </button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

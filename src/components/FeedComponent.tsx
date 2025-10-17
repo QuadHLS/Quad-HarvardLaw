@@ -441,7 +441,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     
     const timeout = setTimeout(async () => {
       await fetchPosts(false); // Background refresh, don't show loading screen
-    }, 500); // 500ms debounce
+    }, 150); // 150ms debounce
     
     setFetchPostsTimeout(timeout);
   }, [fetchPostsTimeout]);

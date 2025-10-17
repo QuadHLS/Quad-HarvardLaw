@@ -440,16 +440,18 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     }
     
     const timeout = setTimeout(async () => {
-      await fetchPosts();
+      await fetchPosts(false); // Background refresh, don't show loading screen
     }, 500); // 500ms debounce
     
     setFetchPostsTimeout(timeout);
   }, [fetchPostsTimeout]);
 
   // Database functions
-  const fetchPosts = async () => {
+  const fetchPosts = async (isInitialLoad: boolean = true) => {
     try {
-      setLoading(true);
+      if (isInitialLoad) {
+        setLoading(true);
+      }
       
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();

@@ -388,7 +388,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   const [isThreadPostHovered, setIsThreadPostHovered] = useState(false);
 
   // Real-time connection status
-  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
+  const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
 
   // Course colors are now determined by the post's assigned color
 
@@ -869,6 +869,13 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     if (!user) return;
 
     console.log('Setting up real-time subscriptions for user:', user.id);
+    
+    // Set a timeout to mark as disconnected if connection takes too long
+    const connectionTimeout = setTimeout(() => {
+      if (realtimeStatus === 'connecting') {
+        setRealtimeStatus('disconnected');
+      }
+    }, 10000); // 10 second timeout
 
     // Subscribe to posts changes
     const postsChannel = supabase
@@ -898,9 +905,18 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           setPosts(prev => prev.filter(post => post.id !== payload.old.id));
         }
       )
-      .subscribe((status) => {
+      .subscribe((status, err) => {
         console.log('Posts channel status:', status);
-        setIsRealtimeConnected(status === 'SUBSCRIBED');
+        if (err) {
+          console.error('Posts channel error:', err);
+          setRealtimeStatus('disconnected');
+        } else if (status === 'SUBSCRIBED') {
+          setRealtimeStatus('connected');
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          setRealtimeStatus('disconnected');
+        } else {
+          setRealtimeStatus('connecting');
+        }
       });
 
     // Subscribe to likes changes
@@ -920,7 +936,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           debouncedFetchPosts();
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (err) {
+          console.error('Likes channel error:', err);
+        }
+      });
 
     // Subscribe to comments changes
     const commentsChannel = supabase
@@ -969,7 +989,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           }
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (err) {
+          console.error('Comments channel error:', err);
+        }
+      });
 
     // Subscribe to poll votes changes
     const pollVotesChannel = supabase
@@ -987,7 +1011,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           debouncedFetchPosts();
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (err) {
+          console.error('Poll votes channel error:', err);
+        }
+      });
 
     // Cleanup subscriptions on unmount or user change
     return () => {
@@ -1001,6 +1029,9 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       if (fetchPostsTimeout) {
         clearTimeout(fetchPostsTimeout);
       }
+      
+      // Clear connection timeout
+      clearTimeout(connectionTimeout);
     };
   }, [user, feedMode, expandedComments, selectedPostThread]);
 
@@ -1914,13 +1945,20 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             <div className="flex items-center gap-1">
               <div 
                 className={`w-2 h-2 rounded-full transition-colors duration-300 ${
-                  isRealtimeConnected ? 'bg-green-500' : 'bg-gray-400'
+                  realtimeStatus === 'connected' 
+                    ? 'bg-green-500' 
+                    : realtimeStatus === 'connecting'
+                    ? 'bg-yellow-500'
+                    : 'bg-red-500'
                 }`}
-                title={isRealtimeConnected ? 'Real-time connected' : 'Real-time disconnected'}
+                title={
+                  realtimeStatus === 'connected' 
+                    ? 'Real-time connected' 
+                    : realtimeStatus === 'connecting'
+                    ? 'Real-time connecting...'
+                    : 'Real-time disconnected'
+                }
               />
-              <span className="text-xs text-gray-500">
-                {isRealtimeConnected ? 'Live' : 'Offline'}
-              </span>
             </div>
           </div>
           <div className="flex items-center gap-3">

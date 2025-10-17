@@ -387,6 +387,9 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   // Hover state for thread original post only
   const [isThreadPostHovered, setIsThreadPostHovered] = useState(false);
 
+  // Real-time connection status
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
+
   // Course colors are now determined by the post's assigned color
 
 
@@ -427,6 +430,21 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   // Cache for user profiles and course data
   const [profileCache, setProfileCache] = useState<Record<string, any>>({});
   const [courseCache, setCourseCache] = useState<Record<string, any>>({});
+
+  // Debounced fetchPosts to prevent rapid updates
+  const [fetchPostsTimeout, setFetchPostsTimeout] = useState<NodeJS.Timeout | null>(null);
+  
+  const debouncedFetchPosts = useCallback(() => {
+    if (fetchPostsTimeout) {
+      clearTimeout(fetchPostsTimeout);
+    }
+    
+    const timeout = setTimeout(async () => {
+      await fetchPosts();
+    }, 500); // 500ms debounce
+    
+    setFetchPostsTimeout(timeout);
+  }, [fetchPostsTimeout]);
 
   // Database functions
   const fetchPosts = async () => {
@@ -845,6 +863,146 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       fetchPosts();
     }
   }, [feedMode, user]);
+
+  // Real-time subscriptions
+  useEffect(() => {
+    if (!user) return;
+
+    console.log('Setting up real-time subscriptions for user:', user.id);
+
+    // Subscribe to posts changes
+    const postsChannel = supabase
+      .channel('posts-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'posts'
+        },
+        async (payload) => {
+          console.log('New post received:', payload);
+          // Fetch the new post with all related data (debounced)
+          debouncedFetchPosts();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'posts'
+        },
+        (payload) => {
+          console.log('Post deleted:', payload);
+          setPosts(prev => prev.filter(post => post.id !== payload.old.id));
+        }
+      )
+      .subscribe((status) => {
+        console.log('Posts channel status:', status);
+        setIsRealtimeConnected(status === 'SUBSCRIBED');
+      });
+
+    // Subscribe to likes changes
+    const likesChannel = supabase
+      .channel('likes-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'likes',
+          filter: `likeable_type=eq.post`
+        },
+        async (payload) => {
+          console.log('Likes changed:', payload);
+          // Refresh posts to get updated like counts (debounced)
+          debouncedFetchPosts();
+        }
+      )
+      .subscribe();
+
+    // Subscribe to comments changes
+    const commentsChannel = supabase
+      .channel('comments-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'comments'
+        },
+        async (payload) => {
+          console.log('New comment received:', payload);
+          // Update comment count for the post
+          setPosts(prev => prev.map(post => 
+            post.id === payload.new.post_id 
+              ? { ...post, comments_count: post.comments_count + 1 }
+              : post
+          ));
+          
+          // If comments are expanded for this post, refresh them
+          if (expandedComments[payload.new.post_id] || selectedPostThread === payload.new.post_id) {
+            await fetchComments(payload.new.post_id);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'comments'
+        },
+        async (payload) => {
+          console.log('Comment deleted:', payload);
+          // Update comment count for the post
+          setPosts(prev => prev.map(post => 
+            post.id === payload.old.post_id 
+              ? { ...post, comments_count: Math.max(0, post.comments_count - 1) }
+              : post
+          ));
+          
+          // If comments are expanded for this post, refresh them
+          if (expandedComments[payload.old.post_id] || selectedPostThread === payload.old.post_id) {
+            await fetchComments(payload.old.post_id);
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to poll votes changes
+    const pollVotesChannel = supabase
+      .channel('poll-votes-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'poll_votes'
+        },
+        async (payload) => {
+          console.log('Poll vote changed:', payload);
+          // Refresh posts to get updated poll results (debounced)
+          debouncedFetchPosts();
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscriptions on unmount or user change
+    return () => {
+      console.log('Cleaning up real-time subscriptions');
+      supabase.removeChannel(postsChannel);
+      supabase.removeChannel(likesChannel);
+      supabase.removeChannel(commentsChannel);
+      supabase.removeChannel(pollVotesChannel);
+      
+      // Clear any pending fetchPosts timeout
+      if (fetchPostsTimeout) {
+        clearTimeout(fetchPostsTimeout);
+      }
+    };
+  }, [user, feedMode, expandedComments, selectedPostThread]);
 
   // Add loading state for comments
   const [loadingComments, setLoadingComments] = useState<Set<string>>(new Set());
@@ -1752,6 +1910,18 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           <div className="flex items-center gap-2">
             <MessageCircle className="w-4 h-4 text-[#752432]" />
             <h3 className="font-semibold text-gray-900">Feed</h3>
+            {/* Real-time connection indicator */}
+            <div className="flex items-center gap-1">
+              <div 
+                className={`w-2 h-2 rounded-full transition-colors duration-300 ${
+                  isRealtimeConnected ? 'bg-green-500' : 'bg-gray-400'
+                }`}
+                title={isRealtimeConnected ? 'Real-time connected' : 'Real-time disconnected'}
+              />
+              <span className="text-xs text-gray-500">
+                {isRealtimeConnected ? 'Live' : 'Offline'}
+              </span>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <button

@@ -127,7 +127,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   const [showMaxCourseWarning, setShowMaxCourseWarning] = useState(false);
   
   // View mode
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   // Handle view mode change with smooth transition
@@ -370,9 +370,9 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     if (selectedCourses.length >= maxCourses) {
       setShowMaxCourseWarning(true);
       setTimeout(() => setShowMaxCourseWarning(false), 4000);
-      return;
-    }
-    
+        return;
+      }
+      
     // Check if course is already selected
     const isAlreadySelected = selectedCourses.some(selected => 
       selected.courseName === course.course_name && 
@@ -954,17 +954,17 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                   </Badge>
                   </div>
                   
-                  {coursesLoading ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <p className="text-sm">Loading courses...</p>
-                    </div>
+                        {coursesLoading ? (
+                          <div className="text-center py-8 text-gray-500">
+                            <p className="text-sm">Loading courses...</p>
+                          </div>
                   ) : availableCoursesFiltered.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
+                          <div className="text-center py-8 text-gray-500">
                       <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                       <p className="text-lg font-medium mb-1">No courses available</p>
                       <p className="text-sm">Try adjusting your search or select a different semester</p>
-                    </div>
-                  ) : (
+                          </div>
+                        ) : (
                     <div className={`transition-all duration-500 ease-in-out ${isTransitioning ? 'opacity-0' : 'opacity-100'} ${viewMode === 'grid' ? 'grid grid-cols-1 gap-3' : 'space-y-1'}`}>
                       {availableCoursesFiltered.map((course, index) => {
                         // Simple color rotation: green, blue, yellow, red
@@ -973,7 +973,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                         
                         if (viewMode === 'list') {
                           // List view - compact layout
-                          return (
+                            return (
                             <div 
                               key={`${course.id}-${index}`}
                               className="group transition-all duration-500 ease-in-out cursor-pointer hover:bg-gray-50 bg-white border-2 rounded-lg border-gray-200"
@@ -1103,12 +1103,12 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                                   <div className="flex items-center gap-2">
                                     <span className="text-xs font-medium text-gray-500">
                                       {formatSemesterDisplay(course.semester)}
-                                    </span>
-                                  </div>
+                          </span>
+                        </div>
                                 </div>
                                 
                                 {/* Add to Calendar Button */}
-                                <button
+                                    <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleCourseSelect(course);
@@ -1130,15 +1130,15 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                                   title="Add to calendar"
                                 >
                                   Add to Calendar
-                                </button>
-                              </div>
-                            </div>
-                          );
+                                    </button>
+                        </div>
+                      </div>
+                            );
                         }
                       })}
                     </div>
-                  )}
-                </div>
+                        )}
+                        </div>
 
                 {/* Warning Message */}
                 {showMaxCourseWarning && (
@@ -1155,88 +1155,88 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                   </div>
                 )}
 
-                {/* LRW Selection - Only for 1L. Show two professor last names for the selected section. */}
-                {classYear === '1L' && selectedCourses.length >= 7 && (
+                    {/* LRW Selection - Only for 1L. Show two professor last names for the selected section. */}
+                    {classYear === '1L' && selectedCourses.length >= 7 && (
                   <div className={`p-2 m-2 rounded h-[80px] ${lrwSection ? 'bg-blue-50' : 'bg-red-50'}`}>
-                    {(() => {
-                      // Build LRW options for the selected section from available course data
-                      const lrwBases = [
-                        'First Year Legal Research and Writing',
-                        'Legal Research and Writing',
-                        'LRW'
-                      ];
-                      
-                      // Find all LRW courses for this section
-                      const lrwCoursesForSection = allCourseData.filter(c => {
-                        const name = String(c?.course_name || '').trim();
-                        if (!name) return false;
-                        
-                        return lrwBases.some(base => {
-                          const pattern = new RegExp(`^${base}\\s+${section}[AB]`, 'i');
-                          return pattern.test(name);
-                        });
-                      });
-                      
-                      // Find A and B options (prefer Fall semester for professor names)
-                      const optionA = lrwCoursesForSection.find((c: any) => {
-                        const name = String(c.course_name || '');
-                        return (/A\s*$/.test(name) || name.endsWith(`${section}A`)) && 
-                               (/Fall/i.test(c.semester) || /FA$/i.test(c.semester));
-                      }) || lrwCoursesForSection.find((c: any) => /A\s*$/.test(c.course_name) || c.course_name.endsWith(`${section}A`));
-                      
-                      const optionB = lrwCoursesForSection.find((c: any) => {
-                        const name = String(c.course_name || '');
-                        return (/B\s*$/.test(name) || name.endsWith(`${section}B`)) && 
-                               (/Fall/i.test(c.semester) || /FA$/i.test(c.semester));
-                      }) || lrwCoursesForSection.find((c: any) => /B\s*$/.test(c.course_name) || c.course_name.endsWith(`${section}B`));
-                      
-                      const lastA = extractLastName(optionA?.instructor) || 'A';
-                      const lastB = extractLastName(optionB?.instructor) || 'B';
-                      return (
-                        <>
+                        {(() => {
+                          // Build LRW options for the selected section from available course data
+                          const lrwBases = [
+                            'First Year Legal Research and Writing',
+                            'Legal Research and Writing',
+                            'LRW'
+                          ];
+                          
+                          // Find all LRW courses for this section
+                          const lrwCoursesForSection = allCourseData.filter(c => {
+                            const name = String(c?.course_name || '').trim();
+                            if (!name) return false;
+                            
+                            return lrwBases.some(base => {
+                              const pattern = new RegExp(`^${base}\\s+${section}[AB]`, 'i');
+                              return pattern.test(name);
+                            });
+                          });
+                          
+                          // Find A and B options (prefer Fall semester for professor names)
+                          const optionA = lrwCoursesForSection.find((c: any) => {
+                            const name = String(c.course_name || '');
+                            return (/A\s*$/.test(name) || name.endsWith(`${section}A`)) && 
+                                   (/Fall/i.test(c.semester) || /FA$/i.test(c.semester));
+                          }) || lrwCoursesForSection.find((c: any) => /A\s*$/.test(c.course_name) || c.course_name.endsWith(`${section}A`));
+                          
+                          const optionB = lrwCoursesForSection.find((c: any) => {
+                            const name = String(c.course_name || '');
+                            return (/B\s*$/.test(name) || name.endsWith(`${section}B`)) && 
+                                   (/Fall/i.test(c.semester) || /FA$/i.test(c.semester));
+                          }) || lrwCoursesForSection.find((c: any) => /B\s*$/.test(c.course_name) || c.course_name.endsWith(`${section}B`));
+                          
+                          const lastA = extractLastName(optionA?.instructor) || 'A';
+                          const lastB = extractLastName(optionB?.instructor) || 'B';
+                          return (
+                            <>
                           <p className={`text-xs font-medium mb-2 ${lrwSection ? 'text-blue-800' : 'text-red-700'}`}>
                             {!lrwSection ? '⚠️ Select LRW professor:' : 'LRW Professor:'}
-                          </p>
+                              </p>
                           <div className="flex gap-2">
-                            <button
-                              onClick={() => {
-                                setLrwSection('A');
-                              }}
+                                <button
+                                  onClick={() => {
+                                    setLrwSection('A');
+                                  }}
                               className={`flex-1 px-2 py-1 rounded text-xs font-medium transition-all ${
-                                lrwSection === 'A'
+                                    lrwSection === 'A'
                                   ? 'bg-blue-600 text-white'
-                                  : !lrwSection
+                                      : !lrwSection
                                   ? 'bg-white text-red-700 border border-red-400 hover:bg-red-50'
-                                  : 'bg-white text-blue-800 border border-blue-300 hover:bg-blue-100'
-                              }`}
-                            >
-                              {lastA}
-                            </button>
-                            <button
-                              onClick={() => {
-                                setLrwSection('B');
-                              }}
+                                      : 'bg-white text-blue-800 border border-blue-300 hover:bg-blue-100'
+                                  }`}
+                                >
+                                  {lastA}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setLrwSection('B');
+                                  }}
                               className={`flex-1 px-2 py-1 rounded text-xs font-medium transition-all ${
-                                lrwSection === 'B'
+                                    lrwSection === 'B'
                                   ? 'bg-blue-600 text-white'
-                                  : !lrwSection
+                                      : !lrwSection
                                   ? 'bg-white text-red-700 border border-red-400 hover:bg-red-50'
-                                  : 'bg-white text-blue-800 border border-blue-300 hover:bg-blue-100'
-                              }`}
-                            >
-                              {lastB}
-                            </button>
-                          </div>
+                                      : 'bg-white text-blue-800 border border-blue-300 hover:bg-blue-100'
+                                  }`}
+                                >
+                                  {lastB}
+                                </button>
+                              </div>
                           <p className={`text-xs mt-1 ${lrwSection ? 'text-blue-700' : 'text-red-600 font-medium'}`}>
-                            {!lrwSection
+                                {!lrwSection
                               ? `Required: LRW ${section}A or ${section}B (Fall & Spring)`
                               : `Selected: LRW ${section}${lrwSection} (Fall & Spring)`}
-                          </p>
-                        </>
-                      );
-                    })()}
-                  </div>
-                )}
+                              </p>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
               </div>
 
               {/* Right Side - Weekly Calendar */}

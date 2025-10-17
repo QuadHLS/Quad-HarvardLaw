@@ -61,6 +61,21 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   const { user, signOut } = useAuth();
   const [currentPage, setCurrentPage] = useState(1);
   
+  // Add keyframes for the rotating border animation
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes lrw-spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+  
   // Basic info form
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -137,6 +152,43 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     return semesters.includes(selectedSemester);
   };
 
+  // Normalize a course semester field into codes ['FA'|'WI'|'SP'] for flexible matching
+  const normalizeSemesterToCodes = (term: string | undefined | null): ('FA'|'WI'|'SP')[] => {
+    if (!term) return [];
+    const t = String(term).trim();
+    if (!t) return [];
+    const upper = t.toUpperCase();
+    // Exact 2-letter codes or combined codes e.g., FA, WI, SP, FS, FW, WS
+    if (upper.length === 2) {
+      return getSemestersFromCode(upper);
+    }
+    // Words or mixed, support combinations
+    const hasFall = /FALL|\bFA\b/i.test(t);
+    const hasWinter = /WINTER|\bWI\b/i.test(t);
+    const hasSpring = /SPRING|\bSP\b/i.test(t);
+    const codes: ('FA'|'WI'|'SP')[] = [];
+    if (hasFall) codes.push('FA');
+    if (hasWinter) codes.push('WI');
+    if (hasSpring) codes.push('SP');
+    // If still empty but looks like combined letters e.g., "FS" in a longer string
+    if (codes.length === 0) {
+      const condensed = upper.replace(/[^FWS]/g, '');
+      if (condensed === 'FS') return ['FA','SP'];
+      if (condensed === 'FW') return ['FA','WI'];
+      if (condensed === 'WS') return ['WI','SP'];
+      if (condensed === 'F') return ['FA'];
+      if (condensed === 'W') return ['WI'];
+      if (condensed === 'S') return ['SP'];
+    }
+    return codes;
+  };
+
+  const getSelectedSemesterCode = (): 'FA'|'WI'|'SP' => {
+    if (currentSemester.includes('Fall')) return 'FA';
+    if (currentSemester.includes('Winter')) return 'WI';
+    return 'SP';
+  };
+
 
   // Extract last name from instructor string
   const extractLastName = (instructor: string | undefined | null): string => {
@@ -146,9 +198,9 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     const value = firstInstructor;
     if (!value) return '';
     if (value.includes(',')) {
-      // "First, Last" format - take part after comma
+      // "Last, First" format - take part before comma as last name
       const parts = value.split(',');
-      return (parts[1] || '').trim() || value.trim();
+      return (parts[0] || '').trim() || value.trim();
     }
     // Assume last token is last name
     const parts = value.split(/\s+/);
@@ -178,6 +230,9 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     s = s.replace(/\b(am|pm)\b/g, (m) => m.toUpperCase());
     return s;
   };
+
+  // Remove AM/PM suffix for compact calendar labels
+  const stripAmPm = (t: string): string => t.replace(/\s*(AM|PM)\b/gi, '');
 
   const handleNext = async () => {
     console.log('handleNext called', { currentPage, isStep1Valid: isStep1Valid(), user: user?.id });
@@ -336,11 +391,25 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     setSelectedCourses(prev => [...prev, newCourse]);
   };
 
-  const filteredCourses = searchQuery 
-    ? availableCourses.filter(course =>
-        course.course_name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : availableCourses;
+  const filteredCourses = (searchQuery 
+    ? availableCourses.filter(course => {
+        const q = searchQuery.toLowerCase();
+        const nameMatch = (course.course_name || '').toLowerCase().includes(q);
+        const instructor = course.instructor || '';
+        // consider multiple instructors separated by ';'
+        const lastNames = String(instructor)
+          .split(';')
+          .map((s: string) => extractLastName(s)?.toLowerCase())
+          .filter(Boolean);
+        const profMatch = lastNames.some((ln: string) => ln.includes(q));
+        return nameMatch || profMatch;
+      })
+    : availableCourses)
+    .filter(course => {
+      const selectedCode = getSelectedSemesterCode();
+      const codes = normalizeSemesterToCodes(course.semester);
+      return codes.includes(selectedCode);
+    });
 
   // Filter out courses that are already selected
   const availableCoursesFiltered = filteredCourses.filter(course => {
@@ -678,7 +747,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                 src="/Quad SVG.svg" 
                 alt="Quad Logo" 
                 className="w-auto object-contain"
-                style={{ height: '80px' }}
+                style={{ height: '80px', transform: 'scale(1.2)', transformOrigin: 'center', willChange: 'transform' }}
               />
             </div>
           </div>
@@ -846,6 +915,27 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                         {classYear} | Section {section}
                       </div>
                     </div>
+
+                    {/* Semester Filter Buttons */}
+                    <div className="inline-block w-fit rounded-xl border border-white/20 bg-white/5 p-2">
+                      <div className="flex items-center gap-2">
+                        {(['Fall 2025','Winter 2026','Spring 2026'] as const).map(label => {
+                          const isActive = currentSemester === label;
+                          return (
+                            <button
+                              key={label}
+                              type="button"
+                              onClick={() => setCurrentSemester(label)}
+                              aria-pressed={isActive}
+                              title={`Show ${label.split(' ')[0]} courses`}
+                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-0 ${isActive ? 'bg-white text-[#752432] border-white/20 shadow-sm' : 'bg-transparent text-white border-white/20 hover:bg-white/5 hover:border-white/30'}`}
+                            >
+                              {label.split(' ')[0]}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                   
                 </div>
@@ -883,19 +973,19 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                             key={`${course.id}-${index}`}
                             className="group transition-all duration-500 ease-in-out cursor-pointer hover:bg-gray-50 bg-white border-2 rounded-lg border-gray-200"
                             style={{
-                              borderColor: `${courseColor}33`,
-                              '--hover-border-color': `${courseColor}80`,
+                              borderColor: `${courseColor}66`,
+                              '--hover-border-color': `${courseColor}CC`,
                               '--hover-bg-color': `${courseColor}08`
                             } as React.CSSProperties}
                             onClick={() => handleCourseSelect(course)}
                             onMouseEnter={(e) => {
                               e.currentTarget.style.transform = 'scale(1.01)';
-                              e.currentTarget.style.borderColor = `${courseColor}80`;
+                              e.currentTarget.style.borderColor = `${courseColor}CC`;
                               e.currentTarget.style.backgroundColor = `${courseColor}08`;
                             }}
                             onMouseLeave={(e) => {
                               e.currentTarget.style.transform = 'scale(1)';
-                              e.currentTarget.style.borderColor = `${courseColor}33`;
+                              e.currentTarget.style.borderColor = `${courseColor}66`;
                               e.currentTarget.style.backgroundColor = 'white';
                             }}
                           >
@@ -912,23 +1002,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                                   
                                 </div>
                                 
-                                <div className="flex items-center flex-shrink-0">
-                                  {/* Credits badge */}
-                                  <div className="flex items-center gap-1">
-                                    <Badge 
-                                      variant="outline" 
-                                      className="px-1 py-0 h-auto leading-tight"
-                                      style={{ 
-                                        backgroundColor: courseColor, 
-                                        borderColor: courseColor,
-                                        color: 'white',
-                                        fontSize: '9px'
-                                      }}
-                                    >
-                                      {course.credits || 3} CR
-                                    </Badge>
-                                  </div>
-                                </div>
+                                <div className="flex items-center flex-shrink-0"></div>
                               </div>
                               
                               {/* Second line: Days and Times on left, Professor Last Name on right */}
@@ -938,7 +1012,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                                   <span className="leading-tight">{getFirstTime(course.times)}</span>
                                 </div>
                                 
-                                <span className="leading-tight">{course.instructor ? course.instructor.split(' ').pop() : 'TBD'}</span>
+                                <span className="leading-tight">{course.instructor ? extractLastName(course.instructor) || 'TBD' : 'TBD'}</span>
                               </div>
                             </div>
                           </div>
@@ -965,84 +1039,97 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
                 {/* LRW Selection - Only for 1L. Show two professor last names for the selected section. */}
                 {classYear === '1L' && selectedCourses.length >= 7 && (
-                  <div className={`p-2 m-2 rounded h-[80px] ${lrwSection ? 'bg-blue-50' : 'bg-red-50'}`}>
-                    {(() => {
-                      // Build LRW options for the selected section from available course data
-                      const lrwBases = [
-                        'First Year Legal Research and Writing',
-                        'Legal Research and Writing',
-                        'LRW'
-                      ];
-                      
-                      // Find all LRW courses for this section
-                      const lrwCoursesForSection = allCourseData.filter(c => {
-                        const name = String(c?.course_name || '').trim();
-                        if (!name) return false;
+                  <div className="m-2 relative overflow-hidden rounded-lg" style={{ minHeight: '80px' }}>
+                    <div 
+                      className="absolute inset-0 rounded-lg"
+                      style={{
+                        background: lrwSection 
+                          ? 'conic-gradient(from 0deg, #3b82f6 0deg, #3b82f666 60deg, transparent 120deg, transparent 240deg, #3b82f666 300deg, #3b82f6 360deg)'
+                          : 'conic-gradient(from 0deg, #ef4444 0deg, #ef444466 60deg, transparent 120deg, transparent 240deg, #ef444466 300deg, #ef4444 360deg)',
+                        animation: 'lrw-spin 2.5s linear infinite',
+                        padding: '2px',
+                        zIndex: 0
+                      }}
+                    />
+                    <div className={`relative p-2 rounded-lg h-[80px] ${lrwSection ? 'bg-blue-50' : 'bg-red-50'}`} style={{ zIndex: 10, margin: '2px' }}>
+                      {(() => {
+                        // Build LRW options for the selected section from available course data
+                        const lrwBases = [
+                          'First Year Legal Research and Writing',
+                          'Legal Research and Writing',
+                          'LRW'
+                        ];
                         
-                        return lrwBases.some(base => {
-                          const pattern = new RegExp(`^${base}\\s+${section}[AB]`, 'i');
-                          return pattern.test(name);
+                        // Find all LRW courses for this section
+                        const lrwCoursesForSection = allCourseData.filter(c => {
+                          const name = String(c?.course_name || '').trim();
+                          if (!name) return false;
+                          
+                          return lrwBases.some(base => {
+                            const pattern = new RegExp(`^${base}\\s+${section}[AB]`, 'i');
+                            return pattern.test(name);
+                          });
                         });
-                      });
-                      
-                      // Find A and B options (prefer Fall semester for professor names)
-                      const optionA = lrwCoursesForSection.find((c: any) => {
-                        const name = String(c.course_name || '');
-                        return (/A\s*$/.test(name) || name.endsWith(`${section}A`)) && 
-                               (/Fall/i.test(c.semester) || /FA$/i.test(c.semester));
-                      }) || lrwCoursesForSection.find((c: any) => /A\s*$/.test(c.course_name) || c.course_name.endsWith(`${section}A`));
-                      
-                      const optionB = lrwCoursesForSection.find((c: any) => {
-                        const name = String(c.course_name || '');
-                        return (/B\s*$/.test(name) || name.endsWith(`${section}B`)) && 
-                               (/Fall/i.test(c.semester) || /FA$/i.test(c.semester));
-                      }) || lrwCoursesForSection.find((c: any) => /B\s*$/.test(c.course_name) || c.course_name.endsWith(`${section}B`));
-                      
-                      const lastA = extractLastName(optionA?.instructor) || 'A';
-                      const lastB = extractLastName(optionB?.instructor) || 'B';
-                      return (
-                        <>
-                          <p className={`text-xs font-medium mb-2 ${lrwSection ? 'text-blue-800' : 'text-red-700'}`}>
-                            {!lrwSection ? '⚠️ Select LRW professor:' : 'LRW Professor:'}
-                          </p>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => {
-                                setLrwSection('A');
-                              }}
-                              className={`flex-1 px-2 py-1 rounded text-xs font-medium transition-all ${
-                                lrwSection === 'A'
-                                  ? 'bg-blue-600 text-white'
-                                  : !lrwSection
-                                  ? 'bg-white text-red-700 border border-red-400 hover:bg-red-50'
-                                  : 'bg-white text-blue-800 border border-blue-300 hover:bg-blue-100'
-                              }`}
-                            >
-                              {lastA}
-                            </button>
-                            <button
-                              onClick={() => {
-                                setLrwSection('B');
-                              }}
-                              className={`flex-1 px-2 py-1 rounded text-xs font-medium transition-all ${
-                                lrwSection === 'B'
-                                  ? 'bg-blue-600 text-white'
-                                  : !lrwSection
-                                  ? 'bg-white text-red-700 border border-red-400 hover:bg-red-50'
-                                  : 'bg-white text-blue-800 border border-blue-300 hover:bg-blue-100'
-                              }`}
-                            >
-                              {lastB}
-                            </button>
-                          </div>
-                          <p className={`text-xs mt-1 ${lrwSection ? 'text-blue-700' : 'text-red-600 font-medium'}`}>
-                            {!lrwSection
-                              ? `Required: LRW ${section}A or ${section}B (Fall & Spring)`
-                              : `Selected: LRW ${section}${lrwSection} (Fall & Spring)`}
-                          </p>
-                        </>
-                      );
-                    })()}
+                        
+                        // Find A and B options (prefer Fall semester for professor names)
+                        const optionA = lrwCoursesForSection.find((c: any) => {
+                          const name = String(c.course_name || '');
+                          return (/A\s*$/.test(name) || name.endsWith(`${section}A`)) && 
+                                 (/Fall/i.test(c.semester) || /FA$/i.test(c.semester));
+                        }) || lrwCoursesForSection.find((c: any) => /A\s*$/.test(c.course_name) || c.course_name.endsWith(`${section}A`));
+                        
+                        const optionB = lrwCoursesForSection.find((c: any) => {
+                          const name = String(c.course_name || '');
+                          return (/B\s*$/.test(name) || name.endsWith(`${section}B`)) && 
+                                 (/Fall/i.test(c.semester) || /FA$/i.test(c.semester));
+                        }) || lrwCoursesForSection.find((c: any) => /B\s*$/.test(c.course_name) || c.course_name.endsWith(`${section}B`));
+                        
+                        const lastA = extractLastName(optionA?.instructor) || 'A';
+                        const lastB = extractLastName(optionB?.instructor) || 'B';
+                        return (
+                          <>
+                            <p className={`text-xs font-medium mb-2 ${lrwSection ? 'text-blue-800' : 'text-red-700'}`}>
+                              {!lrwSection ? '⚠️ Select LRW professor:' : 'LRW Professor:'}
+                            </p>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => {
+                                  setLrwSection('A');
+                                }}
+                                className={`flex-1 px-2 py-1 rounded text-xs font-medium transition-all ${
+                                  lrwSection === 'A'
+                                    ? 'bg-blue-600 text-white'
+                                    : !lrwSection
+                                    ? 'bg-white text-red-700 border border-red-400 hover:bg-red-50'
+                                    : 'bg-white text-blue-800 border border-blue-300 hover:bg-blue-100'
+                                }`}
+                              >
+                                {lastA}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setLrwSection('B');
+                                }}
+                                className={`flex-1 px-2 py-1 rounded text-xs font-medium transition-all ${
+                                  lrwSection === 'B'
+                                    ? 'bg-blue-600 text-white'
+                                    : !lrwSection
+                                    ? 'bg-white text-red-700 border border-red-400 hover:bg-red-50'
+                                    : 'bg-white text-blue-800 border border-blue-300 hover:bg-blue-100'
+                                }`}
+                              >
+                                {lastB}
+                              </button>
+                            </div>
+                            <p className={`text-xs mt-1 ${lrwSection ? 'text-blue-700' : 'text-red-600 font-medium'}`}>
+                              {!lrwSection
+                                ? `Required: LRW ${section}A or ${section}B (Fall & Spring)`
+                                : `Selected: LRW ${section}${lrwSection} (Fall & Spring)`}
+                            </p>
+                          </>
+                        );
+                      })()}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1201,13 +1288,9 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                                                 {formatDisplayCourseName(course.courseName)}
                                               </div>
                                               <div className="text-xs opacity-75 leading-tight truncate text-center">
-                                                {startTime}-{endTime}
+                                                {stripAmPm(startTime)}-{stripAmPm(endTime)}
                                               </div>
-                                              {course.location && (
-                                                <div className="text-xs opacity-75 leading-tight truncate text-center">
-                                                  {course.location}
-                                                </div>
-                                              )}
+                                              {/* Location display removed */}
                                             </div>
                                             
                                             {/* Remove button - only show if not a 1L required course */}
@@ -1272,9 +1355,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
             {/* Complete Setup Button */}
             <div className="flex-1 flex justify-end gap-3">
-            <Button
-              className="text-white hover:bg-red-800"
-              style={{ backgroundColor: '#752531' }}
+            <button
+              className="text-sm text-gray-500 hover:text-gray-700"
               onClick={async () => {
                 // Save empty classes array to profiles table
                 if (user) {
@@ -1301,7 +1383,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
               }}
             >
               Skip for now
-            </Button>
+            </button>
             <Button
               disabled={!areRequirementsMet()}
               onClick={async () => {
@@ -1351,16 +1433,12 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                 
                 onComplete();
               }}
-              className={`${
-                areRequirementsMet() 
-                  ? 'text-white hover:bg-green-700' 
-                  : 'text-gray-500 cursor-not-allowed'
-              }`}
+              className={`text-white px-8 py-2 disabled:opacity-50 ${areRequirementsMet() ? 'hover:bg-green-700' : ''}`}
               style={{
-                backgroundColor: areRequirementsMet() ? '#00962c' : '#f3f4f6'
+                backgroundColor: areRequirementsMet() ? '#00962c' : '#752531'
               }}
             >
-              Complete Setup
+              Done!
             </Button>
             </div>
           </div>

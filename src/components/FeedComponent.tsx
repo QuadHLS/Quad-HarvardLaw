@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
 // Interfaces
@@ -368,7 +368,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   const [newPostTitle, setNewPostTitle] = useState('');
   const [newPostType, setNewPostType] = useState<'text' | 'poll'>('text');
   const [pollOptions, setPollOptions] = useState(['', '']);
-  const [newPostTarget, setNewPostTarget] = useState<'campus' | 'my-courses'>('campus');
+  const [newPostTarget, setNewPostTarget] = useState<'campus' | 'my-courses'>(feedMode);
   const [selectedCourseForPost, setSelectedCourseForPost] = useState('');
   const [isAnonymousPost, setIsAnonymousPost] = useState(false);
   const [selectedPostThread, setSelectedPostThread] = useState<string | null>(null);
@@ -390,8 +390,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   // Real-time connection status
   const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
 
-  // Channel references for cleanup
-  const [channels, setChannels] = useState<{
+  // Channel references for cleanup - use refs instead of state
+  const channelsRef = useRef<{
     postsChannel?: any;
     likesChannel?: any;
     commentsChannel?: any;
@@ -439,23 +439,36 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   const [profileCache, setProfileCache] = useState<Record<string, any>>({});
   const [courseCache, setCourseCache] = useState<Record<string, any>>({});
 
-  // Debounced fetchPosts to prevent rapid updates
-  const [fetchPostsTimeout, setFetchPostsTimeout] = useState<NodeJS.Timeout | null>(null);
-  
-  const debouncedFetchPosts = useCallback(() => {
-    if (fetchPostsTimeout) {
-      clearTimeout(fetchPostsTimeout);
+  // Helper function to clean course names (matches CoursePage logic exactly)
+  const cleanCourseName = (className: string): string => {
+    // Clean 1L course names (remove section numbers 1-7)
+    const required1LPatterns = [
+      'Civil Procedure',
+      'Contracts',
+      'Criminal Law',
+      'Torts',
+      'Constitutional Law',
+      'Property',
+      'Legislation and Regulation'
+    ];
+    
+    for (const pattern of required1LPatterns) {
+      if (className.startsWith(pattern + ' ')) {
+        return pattern; // Return base name without section number
+      }
     }
     
-    const timeout = setTimeout(async () => {
-      await fetchPosts(false); // Background refresh, don't show loading screen
-    }, 150); // 150ms debounce
+    // Clean "First Year Legal Research and Writing" (remove section numbers/letters)
+    if (className.startsWith('First Year Legal Research and Writing ')) {
+      return 'First Year Legal Research and Writing';
+    }
     
-    setFetchPostsTimeout(timeout);
-  }, [fetchPostsTimeout]);
+    // Return original name if no cleaning needed
+    return className;
+  };
 
   // Database functions
-  const fetchPosts = async (isInitialLoad: boolean = true) => {
+  const fetchPosts = useCallback(async (isInitialLoad: boolean = true) => {
     try {
       if (isInitialLoad) {
         setLoading(true);
@@ -726,7 +739,22 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     } finally {
       setLoading(false);
     }
-  };
+  }, [feedMode, user]);
+
+  // Debounced fetchPosts to prevent rapid updates
+  const [fetchPostsTimeout, setFetchPostsTimeout] = useState<NodeJS.Timeout | null>(null);
+  
+  const debouncedFetchPosts = useCallback(() => {
+    if (fetchPostsTimeout) {
+      clearTimeout(fetchPostsTimeout);
+    }
+    
+    const timeout = setTimeout(async () => {
+      await fetchPosts(false); // Background refresh, don't show loading screen
+    }, 150); // 150ms debounce
+    
+    setFetchPostsTimeout(timeout);
+  }, [fetchPostsTimeout, fetchPosts]);
 
   const fetchComments = async (postId: string) => {
     try {
@@ -872,7 +900,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     if (user) {
       fetchPosts();
     }
-  }, [feedMode, user]);
+  }, [feedMode, user, fetchPosts]);
 
   // Real-time subscriptions
   useEffect(() => {
@@ -890,6 +918,30 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     // Set up realtime channels
     const setupChannels = async () => {
       console.log('Setting up realtime channels...');
+      
+      // Clean up any existing channels first
+      if (channelsRef.current.postsChannel) {
+        console.log('Removing existing posts channel');
+        supabase.removeChannel(channelsRef.current.postsChannel);
+      }
+      if (channelsRef.current.likesChannel) {
+        console.log('Removing existing likes channel');
+        supabase.removeChannel(channelsRef.current.likesChannel);
+      }
+      if (channelsRef.current.commentsChannel) {
+        console.log('Removing existing comments channel');
+        supabase.removeChannel(channelsRef.current.commentsChannel);
+      }
+      if (channelsRef.current.pollVotesChannel) {
+        console.log('Removing existing poll votes channel');
+        supabase.removeChannel(channelsRef.current.pollVotesChannel);
+      }
+      
+      // Clear the refs
+      channelsRef.current = {};
+      
+      // Small delay to ensure cleanup is complete
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Subscribe to posts changes using postgres_changes
     const postsChannel = supabase
@@ -1049,12 +1101,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       });
 
       // Store channels for cleanup
-      setChannels({
+      channelsRef.current = {
         postsChannel,
         likesChannel,
         commentsChannel,
         pollVotesChannel
-      });
+      };
     };
 
     // Call setupChannels to initialize all channels
@@ -1063,10 +1115,10 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     // Cleanup subscriptions on unmount or user change
     return () => {
       console.log('Cleaning up real-time subscriptions');
-      if (channels.postsChannel) supabase.removeChannel(channels.postsChannel);
-      if (channels.likesChannel) supabase.removeChannel(channels.likesChannel);
-      if (channels.commentsChannel) supabase.removeChannel(channels.commentsChannel);
-      if (channels.pollVotesChannel) supabase.removeChannel(channels.pollVotesChannel);
+      if (channelsRef.current.postsChannel) supabase.removeChannel(channelsRef.current.postsChannel);
+      if (channelsRef.current.likesChannel) supabase.removeChannel(channelsRef.current.likesChannel);
+      if (channelsRef.current.commentsChannel) supabase.removeChannel(channelsRef.current.commentsChannel);
+      if (channelsRef.current.pollVotesChannel) supabase.removeChannel(channelsRef.current.pollVotesChannel);
       
       // Clear any pending fetchPosts timeout
       if (fetchPostsTimeout) {
@@ -1076,7 +1128,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       // Clear connection timeout
       clearTimeout(connectionTimeout);
     };
-  }, [user, feedMode, expandedComments, selectedPostThread]);
+  }, [user, expandedComments, selectedPostThread]);
 
   // Add loading state for comments
   const [loadingComments, setLoadingComments] = useState<Set<string>>(new Set());
@@ -1138,13 +1190,18 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
       // Get course_id if posting to My Courses
       let courseId = null;
-      if (newPostTarget === 'my-courses' && selectedCourseForPost) {
-        const { data: course } = await supabase
-          .from('feedcourses')
-          .select('id')
-          .eq('name', selectedCourseForPost)
-          .maybeSingle();
-        courseId = course?.id || null;
+      if (newPostTarget === 'my-courses') {
+        if (selectedCourseForPost) {
+          // Clean the course name to remove section numbers (same logic as CoursePage)
+          const cleanedCourseName = cleanCourseName(selectedCourseForPost);
+          
+          const { data: course } = await supabase
+            .from('feedcourses')
+            .select('id')
+            .eq('name', cleanedCourseName)
+            .maybeSingle();
+          courseId = course?.id || null;
+        }
       }
 
       // Create the post
@@ -1660,6 +1717,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     setHoveredPostId(null);
     setIsThreadPostHovered(false);
     setReplyingTo(null);
+    // Update post target to match current feed mode
+    setNewPostTarget(feedMode);
   }, [feedMode]);
 
   // Notify parent when thread view state changes
@@ -2519,11 +2578,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                   value={newPost}
                   onChange={(e) => setNewPost(e.target.value)}
                   placeholder="What are your thoughts?"
+                  maxLength={500}
                   className="border-gray-300 focus:border-[#752432] focus:ring-[#752432] min-h-[120px] resize-none"
                   rows={5}
                 />
                 <div className="text-xs text-gray-500 mt-1">
-                  {newPost.length}/40000
+                  {newPost.length}/500
                 </div>
               </div>
             )}
@@ -2533,23 +2593,29 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
               <div className="space-y-3">
                 <h4 className="font-medium text-gray-900">Poll options</h4>
                 {pollOptions.map((option, index) => (
-                  <div key={index} className="flex gap-2">
-                    <Input
-                      value={option}
-                      onChange={(e) => updatePollOption(index, e.target.value)}
-                      placeholder={`Option ${index + 1}`}
-                      className="flex-1"
-                    />
-                    {pollOptions.length > 2 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removePollOption(index)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    )}
+                  <div key={index} className="space-y-1">
+                    <div className="flex gap-2">
+                      <Input
+                        value={option}
+                        onChange={(e) => updatePollOption(index, e.target.value)}
+                        placeholder={`Option ${index + 1}`}
+                        maxLength={300}
+                        className="flex-1"
+                      />
+                      {pollOptions.length > 2 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removePollOption(index)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500 ml-1">
+                      {option.length}/300
+                    </div>
                   </div>
                 ))}
                 {pollOptions.length < 10 && (

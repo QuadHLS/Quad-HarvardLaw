@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Search, MapPin, Clock, Star, Phone, Globe, Utensils, Coffee, Book, Shirt, Home, Calendar, MessageSquare, ExternalLink, Gift, Newspaper, Building2, Wifi, Car, HeartHandshake, GraduationCap, TreePine, Music, Dumbbell, Gamepad2, ShoppingBag, DollarSign, User, Package } from 'lucide-react';
+import { useState } from 'react';
+import { Search, MapPin, Clock, Star, Phone, Book, Home, Calendar, MessageSquare, ExternalLink, Gift, Wifi, Car, HeartHandshake, Dumbbell, DollarSign, User, Package } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -491,17 +491,6 @@ export function ExplorePage() {
 
   const categories = ['All', 'Restaurants', 'Vendors', 'Marketplace', 'Free Stuff', 'News', 'Housing'];
 
-  const getCategoryIcon = (category: string) => {
-    const icons: { [key: string]: any } = {
-      'Restaurants': Utensils,
-      'Vendors': Building2,
-      'Marketplace': ShoppingBag,
-      'Free Stuff': Gift,
-      'News': Newspaper,
-      'Housing': Home
-    };
-    return icons[category] || Compass;
-  };
 
   return (
     <div className="h-full style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} overflow-y-auto">

@@ -390,6 +390,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   // Real-time connection status
   const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
 
+  // Channel references for cleanup
+  const [channels, setChannels] = useState<{
+    postsChannel?: any;
+    likesChannel?: any;
+    commentsChannel?: any;
+    pollVotesChannel?: any;
+  }>({});
+
   // Course colors are now determined by the post's assigned color
 
 
@@ -879,7 +887,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       }
     }, 10000); // 10 second timeout
 
-    // Subscribe to posts changes
+    // Set up realtime channels
+    const setupChannels = async () => {
+      console.log('Setting up realtime channels...');
+
+      // Subscribe to posts changes using postgres_changes
     const postsChannel = supabase
       .channel('posts-changes')
       .on(
@@ -908,34 +920,49 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         }
       )
       .subscribe((status, err) => {
-        console.log('Posts channel status:', status);
+        console.log('Posts channel status:', status, err);
         if (err) {
           console.error('Posts channel error:', err);
           setRealtimeStatus('disconnected');
         } else if (status === 'SUBSCRIBED') {
+          console.log('Posts channel successfully subscribed!');
           // Clear the connection timeout once we are subscribed to avoid stale timeout flipping status to red
           clearTimeout(connectionTimeout);
           setRealtimeStatus('connected');
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          console.log('Posts channel failed:', status);
           setRealtimeStatus('disconnected');
         } else {
+          console.log('Posts channel connecting...', status);
           setRealtimeStatus('connecting');
         }
       });
 
-    // Subscribe to likes changes
+    // Subscribe to likes changes using postgres_changes
     const likesChannel = supabase
       .channel('likes-changes')
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
-          table: 'likes',
-          filter: `likeable_type=eq.post`
+          table: 'likes'
         },
         async (payload) => {
-          console.log('Likes changed:', payload);
+          console.log('Like added:', payload);
+          // Refresh posts to get updated like counts (debounced)
+          debouncedFetchPosts();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'likes'
+        },
+        async (payload) => {
+          console.log('Like removed:', payload);
           // Refresh posts to get updated like counts (debounced)
           debouncedFetchPosts();
         }
@@ -1021,13 +1048,25 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         }
       });
 
+      // Store channels for cleanup
+      setChannels({
+        postsChannel,
+        likesChannel,
+        commentsChannel,
+        pollVotesChannel
+      });
+    };
+
+    // Call setupChannels to initialize all channels
+    setupChannels();
+
     // Cleanup subscriptions on unmount or user change
     return () => {
       console.log('Cleaning up real-time subscriptions');
-      supabase.removeChannel(postsChannel);
-      supabase.removeChannel(likesChannel);
-      supabase.removeChannel(commentsChannel);
-      supabase.removeChannel(pollVotesChannel);
+      if (channels.postsChannel) supabase.removeChannel(channels.postsChannel);
+      if (channels.likesChannel) supabase.removeChannel(channels.likesChannel);
+      if (channels.commentsChannel) supabase.removeChannel(channels.commentsChannel);
+      if (channels.pollVotesChannel) supabase.removeChannel(channels.pollVotesChannel);
       
       // Clear any pending fetchPosts timeout
       if (fetchPostsTimeout) {

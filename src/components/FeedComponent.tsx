@@ -2003,6 +2003,15 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             >
               My Courses
             </button>
+            {/* Add Post button in header */}
+            <button
+              onClick={() => setShowCreatePostDialog(true)}
+              className="w-8 h-8 rounded-md bg-[#752432] hover:bg-[#752432]/90 text-white flex items-center justify-center shadow-sm"
+              aria-label="Create post"
+              title="Create post"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </div>
@@ -2354,13 +2363,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         )}
       </div>
 
-      {/* Floating Action Button */}
-      <button
-        onClick={() => setShowCreatePostDialog(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-[#752432] hover:bg-[#752432]/90 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center z-50"
-      >
-        <Plus className="w-6 h-6" />
-      </button>
+      {/* Floating Action Button removed; moved to header */}
 
       {/* Enhanced Create Post Dialog - Reddit Style */}
       <Dialog open={showCreatePostDialog} onOpenChange={setShowCreatePostDialog}>

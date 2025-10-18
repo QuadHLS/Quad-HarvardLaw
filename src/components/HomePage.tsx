@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   CheckCircle2,
   Circle,
@@ -702,19 +702,33 @@ function MyCourses({
                     className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                     style={{ backgroundColor: course.color }}
                   />
-                  <h4 className="font-medium text-gray-900 text-sm">{course.name}</h4>
+                  <h4
+                    className="font-medium text-gray-900 text-sm leading-tight overflow-hidden"
+                    style={{
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      wordBreak: 'break-word'
+                    }}
+                  >
+                    {course.name}
+                  </h4>
                 </div>
                 <p className="text-[10px] text-gray-600">{course.instructor}</p>
-                <p className="text-[10px] text-gray-500">{course.schedule}</p>
-                <p className="text-[10px] text-gray-600">{course.location}</p>
+                {course.schedule && course.schedule.includes('    ') ? (
+                  <>
+                    <p className="text-[10px] text-gray-500">{course.schedule.split('    ')[0]}</p>
+                    <p className="text-[10px] text-gray-500">{course.schedule.split('    ')[1]}</p>
+                  </>
+                ) : (
+                  <p className="text-[10px] text-gray-500">{course.schedule}</p>
+                )}
+                {course.location && course.location !== 'TBD' && (
+                  <p className="text-[10px] text-gray-600">{course.location}</p>
+                )}
               </div>
               <ChevronRight className="w-4 h-4 text-gray-400" />
             </div>
-          <div className="flex items-center justify-between">
-              <span className={`text-[10px] font-medium ${course.nextClass.includes('Today') ? 'text-[#752432]' : 'text-gray-500'}`}>
-                {course.nextClass}
-            </span>
-          </div>
         </div>
         ))}
         
@@ -927,11 +941,26 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
     const getLastNames = (professorStr: string): string => {
       if (!professorStr || professorStr === 'TBD') return 'TBD';
       
-      const names = professorStr.split(/[,;]/).map(name => name.trim());
-      const lastNames = names.map(name => {
-        const parts = name.split(' ');
-        return parts[parts.length - 1];
-      });
+      // Split professors only by semicolons (not commas which separate last/first)
+      const entries = professorStr
+        .split(';')
+        .map(name => name.trim())
+        .filter(name => name.length > 0);
+      
+      const lastNames = entries
+        .map(entry => {
+          // If formatted as "Last, First", take the part before the comma
+          const commaIndex = entry.indexOf(',');
+          if (commaIndex !== -1) {
+            const lastName = entry.slice(0, commaIndex).trim();
+            if (lastName) return lastName;
+          }
+          
+          // Otherwise assume "First Last"; take the last token
+          const parts = entry.split(/\s+/).filter(part => part.length > 0);
+          return parts.length > 0 ? parts[parts.length - 1] : entry.trim();
+        })
+        .filter(name => name.length > 0);
       
       return lastNames.join('; ');
     };
@@ -1114,6 +1143,17 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
 
   const selectedDayCourses = getCoursesForSelectedDay();
 
+  // Map course name -> color for schedule blocks to match MyCourses dots
+  const courseNameToColor = useMemo(() => {
+    const map: Record<string, string> = {};
+    transformedCourses.forEach(c => {
+      if (c?.name && c?.color) {
+        map[c.name] = c.color;
+      }
+    });
+    return map;
+  }, [transformedCourses]);
+
 
   // Parse time string and convert to position for calendar display
   const parseTimeToPosition = (timeString: string) => {
@@ -1174,7 +1214,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
           {!isThreadViewOpen && (
             <div className="w-64 flex-shrink-0">
               {/* Todo Box */}
-              <div className="mb-8">
+              <div className="mb-4">
                 <TodoList 
                   user={user}
                   onPomodoroStateChange={(state) => console.log('Pomodoro state:', state)}
@@ -1443,24 +1483,22 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                     {selectedDayCourses.map((course, index) => {
                       const timePosition = parseTimeToPosition(course.schedule?.times || '');
                       if (!timePosition) return null;
+                      const displayName = formatDisplayCourseName(course.class);
+                      const bgColor = courseNameToColor[displayName] || '#752432';
                       
                       return (
                         <div
                           key={index}
-                          className="absolute bg-[#752432] text-white rounded text-xs p-2 left-1 right-1 z-10"
+                          className="absolute text-white rounded text-xs p-2 left-1 right-1 z-10"
                           style={{
                             top: `${timePosition.startPosition}px`,
                             height: `${timePosition.height}px`,
+                            backgroundColor: bgColor
                           }}
                         >
-                          <div className="font-medium truncate">{formatDisplayCourseName(course.class)}</div>
+                          <div className="font-medium truncate">{displayName}</div>
                           <div className="text-white/90 mt-1 leading-none flex items-center">
                             <span>{course.schedule?.times || 'TBD'}</span>
-                            {course.schedule?.location && course.schedule.location !== 'TBD' && (
-                              <span className="text-white/80 text-[10px] ml-2">
-                                📍 {course.schedule.location}
-                              </span>
-                            )}
                           </div>
                         </div>
                       );

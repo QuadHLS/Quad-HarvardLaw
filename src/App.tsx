@@ -206,7 +206,7 @@ function AppContent({ user }: { user: any }) {
 
   
   const [activeSection, setActiveSection] = useState('home');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [selectedCourseForSearch, setSelectedCourseForSearch] =
     useState<string>('');
   const [selectedStudent, setSelectedStudent] = useState<string>('');

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, FileText, Star, Beer, Calendar, Menu, User, MessageCircle, Archive, ChevronDown, ChevronRight, BookOpen, Sun, Moon, Palette, MessageSquare, CalendarDays } from 'lucide-react';
+import { Home, FileText, Star, Beer, Calendar, Menu, User, MessageCircle, Archive, ChevronDown, ChevronRight, BookOpen, MessageSquare, CalendarDays } from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -16,7 +16,6 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
   const [isResourcesExpanded, setIsResourcesExpanded] = useState(false);
   const [isResourcesCollapsedExpanded, setIsResourcesCollapsedExpanded] = useState(false);
   const [userName, setUserName] = useState('User');
-  const [theme, setTheme] = useState<'light' | 'dark' | 'beige'>('beige');
   const [showMenuButton, setShowMenuButton] = useState(!isCollapsed);
   // MVP: Temporarily disable unfinished sections
   const enableCalendar = false;
@@ -68,34 +67,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
     fetchUserName();
   }, [user]);
 
-  // Apply theme to document
-  useEffect(() => {
-    const root = document.documentElement;
-    if (theme === 'light') {
-      root.style.setProperty('--background-color', '#ffffff');
-      root.style.setProperty('--text-color', '#000000');
-    } else if (theme === 'dark') {
-      root.style.setProperty('--background-color', '#0e172c');
-      root.style.setProperty('--text-color', '#ffffff');
-    } else {
-      root.style.setProperty('--background-color', '#f9f5f0');
-      root.style.setProperty('--text-color', '#000000');
-    }
-  }, [theme]);
-
-  const handleThemeChange = (newTheme: 'light' | 'dark' | 'beige') => {
-    setTheme(newTheme);
-  };
-
-  const handleThemeToggle = () => {
-    if (theme === 'light') {
-      setTheme('beige');
-    } else if (theme === 'beige') {
-      setTheme('dark');
-    } else {
-      setTheme('light');
-    }
-  };
+  
 
   
 
@@ -108,13 +80,13 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
 
   const menuItems = [
     { id: 'home', label: 'Home', icon: Home },
+    { id: 'planner', label: 'Planner', icon: CalendarDays },
   ];
 
   const resourceItems = [
     { id: 'outlines', label: 'Outlines', icon: FileText },
     { id: 'exams', label: 'Exams', icon: BookOpen },
     { id: 'reviews', label: 'Reviews', icon: Star },
-    { id: 'planner', label: 'Planner', icon: CalendarDays },
   ];
 
   return (
@@ -180,7 +152,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
                 <button
                   key={item.id}
                   onClick={() => onSectionChange(item.id)}
-                  className={`w-full flex items-center px-3 py-2 text-left ${
+                  className={`w-full flex items-center px-3 py-2 text-left rounded-md ${
                     isActive 
                       ? 'bg-white text-gray-800 border-r-2' 
                       : 'text-gray-600 hover:text-gray-800 hover:bg-white'
@@ -203,7 +175,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
               {/* Resources Parent Item */}
               <button
                 onClick={() => setIsResourcesExpanded(!isResourcesExpanded)}
-                className={`w-full flex items-center px-3 py-2 text-left ${
+                className={`w-full flex items-center px-3 py-2 text-left rounded-md ${
                   ['outlines', 'reviews', 'exams'].includes(activeSection)
                     ? 'bg-white text-gray-800 border-r-2' 
                     : 'text-gray-600 hover:text-gray-800 hover:bg-white'
@@ -226,7 +198,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
 
               {/* Resource Sub-items */}
               {isResourcesExpanded && (
-                <div className="ml-6 space-y-1 mt-1" style={{ width: 'calc(100% - 24px)', minWidth: 'calc(100% - 24px)' }}>
+                <div className="ml-4 space-y-1 mt-1" style={{ width: 'calc(100% - 16px)', minWidth: 'calc(100% - 16px)' }}>
                   {resourceItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = activeSection === item.id;
@@ -235,7 +207,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
                       <button
                         key={item.id}
                         onClick={() => onSectionChange(item.id)}
-                        className={`w-full flex items-center px-4 py-2 text-left ${
+                        className={`w-full flex items-center px-3 py-2 text-left rounded-md ${
                           isActive 
                             ? 'bg-white text-gray-800 border-r-2' 
                             : 'text-gray-600 hover:text-gray-800 hover:bg-white'
@@ -260,7 +232,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
             {/* Bar Review */}
             <button
               onClick={() => onSectionChange('barreview')}
-              className={`w-full flex items-center px-3 py-2 text-left ${
+              className={`w-full flex items-center px-3 py-2 text-left rounded-md ${
                 activeSection === 'barreview'
                   ? 'bg-white text-gray-800 border-r-2' 
                   : 'text-gray-600 hover:text-gray-800 hover:bg-white'
@@ -281,7 +253,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
           {/* Spacer to push bottom section down */}
           <div className="flex-1" />
 
-          {/* Bottom Section - Theme, Profile (Calendar/Messaging disabled for MVP) */}
+          {/* Bottom Section - Profile (Calendar/Messaging disabled for MVP) */}
           <div className="border-t border-gray-200">
             {/* Calendar/Messaging temporarily hidden */}
             {enableCalendar && (
@@ -331,40 +303,10 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
               </button>
             )}
             
-            {/* Theme Toggle Section */}
-            <div className="border-t border-gray-200 p-4">
-              <div className="flex items-center justify-center gap-2">
-                <Button
-                  onClick={() => handleThemeChange('light')}
-                  variant="ghost"
-                  size="sm"
-                  className={`p-2 ${theme === 'light' ? 'bg-white' : ''}`}
-                >
-                  <Sun className="w-3 h-3" style={{ color: theme === 'light' ? '#000000' : '#6b7280' }} />
-                </Button>
-                <Button
-                  onClick={() => handleThemeChange('beige')}
-                  variant="ghost"
-                  size="sm"
-                  className={`p-2 ${theme === 'beige' ? 'bg-white' : ''}`}
-                >
-                  <Palette className="w-3 h-3" style={{ color: theme === 'beige' ? '#000000' : '#6b7280' }} />
-                </Button>
-                <Button
-                  onClick={() => handleThemeChange('dark')}
-                  variant="ghost"
-                  size="sm"
-                  className={`p-2 ${theme === 'dark' ? 'bg-white' : ''}`}
-                >
-                  <Moon className="w-3 h-3" style={{ color: theme === 'dark' ? '#000000' : '#6b7280' }} />
-                </Button>
-              </div>
-            </div>
-
-            {/* Profile Section (centered under theme) */}
+            {/* Profile Section */}
             <button
               onClick={() => onSectionChange('profile')}
-              className={`w-full flex items-center justify-center gap-2 py-2 mb-4 ${
+              className={`w-full flex items-center justify-center gap-2 py-2 rounded-md ${
                 activeSection === 'profile'
                   ? 'bg-white text-gray-800 border-r-2' 
                   : 'text-gray-600 hover:text-gray-800 hover:bg-white'
@@ -390,7 +332,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
             {/* Home */}
             <button
               onClick={() => onSectionChange('home')}
-              className={`w-full flex items-center justify-center py-2 ${
+              className={`w-full flex items-center justify-center py-2 rounded-md ${
                 activeSection === 'home'
                   ? 'bg-white text-gray-800 border-r-2' 
                   : 'text-gray-600 hover:text-gray-800 hover:bg-white'
@@ -402,11 +344,26 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
               <Home className="w-5 h-5" style={{ color: '#752432' }} />
             </button>
 
+            {/* Planner */}
+            <button
+              onClick={() => onSectionChange('planner')}
+              className={`w-full flex items-center justify-center py-2 rounded-md ${
+                activeSection === 'planner'
+                  ? 'bg-white text-gray-800 border-r-2' 
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-white'
+              }`}
+              style={{
+                borderRightColor: activeSection === 'planner' ? '#752432' : 'transparent'
+              }}
+            >
+              <CalendarDays className="w-5 h-5" style={{ color: '#752432' }} />
+            </button>
+
             {/* Resources - Click to show dropdown */}
             <div>
               <button
                 onClick={() => setIsResourcesCollapsedExpanded(!isResourcesCollapsedExpanded)}
-                className={`w-full flex items-center justify-center py-2 ${
+                className={`w-full flex items-center justify-center py-2 rounded-md ${
                   ['outlines', 'reviews', 'exams'].includes(activeSection)
                     ? 'bg-white text-gray-800 border-r-2' 
                     : 'text-gray-600 hover:text-gray-800 hover:bg-white'
@@ -430,7 +387,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
                         <button
                           key={item.id}
                           onClick={() => onSectionChange(item.id)}
-                          className={`w-full flex items-center justify-center py-1 ${
+                          className={`w-full flex items-center justify-center py-1 rounded-md ${
                             isActive 
                               ? 'bg-white text-gray-800 border-r-2' 
                               : 'text-gray-600 hover:text-gray-800 hover:bg-white'
@@ -455,7 +412,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
             {/* Bar Review */}
             <button
               onClick={() => onSectionChange('barreview')}
-              className={`w-full flex items-center justify-center py-2 ${
+              className={`w-full flex items-center justify-center py-2 rounded-md ${
                 activeSection === 'barreview'
                   ? 'bg-white text-gray-800 border-r-2' 
                   : 'text-gray-600 hover:text-gray-800 hover:bg-white'
@@ -481,7 +438,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
             {enableCalendar && (
               <button
                 onClick={() => onSectionChange('calendar')}
-                className={`w-full flex items-center justify-center py-2 ${
+                className={`w-full flex items-center justify-center py-2 rounded-md ${
                   activeSection === 'calendar'
                     ? 'bg-white text-gray-800 border-r-2' 
                     : 'text-gray-600 hover:text-gray-800 hover:bg-white'
@@ -500,7 +457,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
             {enableMessaging && (
               <button
                 onClick={() => onSectionChange('messaging')}
-                className={`w-full flex items-center justify-center py-2 ${
+                className={`w-full flex items-center justify-center py-2 rounded-md ${
                   activeSection === 'messaging'
                     ? 'bg-white text-gray-800 border-r-2' 
                     : 'text-gray-600 hover:text-gray-800 hover:bg-white'
@@ -523,18 +480,10 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
               </button>
             )}
             
-            {/* Theme Toggle Icon */}
-            <button
-              onClick={handleThemeToggle}
-              className="w-full flex items-center justify-center py-2 text-gray-600 hover:text-gray-800 hover:bg-white"
-            >
-              {theme === 'light' && <Sun className="w-4 h-4" style={{ color: '#000000' }} />}
-              {theme === 'beige' && <Palette className="w-4 h-4" style={{ color: '#000000' }} />}
-              {theme === 'dark' && <Moon className="w-4 h-4" style={{ color: '#ffffff' }} />}
-            </button>
+            {/* Theme toggle removed */}
             <button
               onClick={() => onSectionChange('profile')}
-              className={`w-full flex items-center justify-center py-2 mb-2 ${
+              className={`w-full flex items-center justify-center py-2 mb-2 rounded-md ${
                 activeSection === 'profile'
                   ? 'bg-white text-gray-800 border-r-2' 
                   : 'text-gray-600 hover:text-gray-800 hover:bg-white'

@@ -890,6 +890,11 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
     }
   };
 
+  // Fetch course students when component loads
+  useEffect(() => {
+    fetchCourseStudents();
+  }, [courseName]);
+
   // Fetch posts when course data is loaded
   useEffect(() => {
     if (userCourse && !loading) {
@@ -1394,43 +1399,33 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
   };
 
   // Mock course data based on courseName
+  const [courseStudents, setCourseStudents] = useState<Array<{ name: string; year: string; }>>([]);
+
   const getCourseData = (name: string) => {
     const courseMap: { [key: string]: any } = {
       'Contract Law': {
         instructor: 'Prof. Chen',
         semester: 'Fall 2025',
         schedule: 'M,W,F 9:00-10:00 AM',
-        location: 'Austin Hall 101',
-        students: [
-          { name: 'Justin Abbey', email: 'jabbey@law.edu', year: '2L' }
-        ]
+        location: 'Austin Hall 101'
       },
       'Torts': {
         instructor: 'Prof. Johnson',
         semester: 'Fall 2025', 
         schedule: 'Tu,Th 10:30-12:00 PM',
-        location: 'Langdell Library North',
-        students: [
-          { name: 'Justin Abbey', email: 'jabbey@law.edu', year: '2L' }
-        ]
+        location: 'Langdell Library North'
       },
       'Property Law': {
         instructor: 'Prof. Chen',
         semester: 'Fall 2025',
         schedule: 'M,W,F 11:30-12:30 PM',
-        location: 'Austin Hall 200',
-        students: [
-          { name: 'Justin Abbey', email: 'jabbey@law.edu', year: '2L' }
-        ]
+        location: 'Austin Hall 200'
       },
       'Civil Procedure': {
         instructor: 'Prof. Martinez',
         semester: 'Fall 2025',
         schedule: 'Tu,Th 2:00-3:30 PM',
-        location: 'Hauser Hall 104',
-        students: [
-          { name: 'Justin Abbey', email: 'jabbey@law.edu', year: '2L' }
-        ]
+        location: 'Hauser Hall 104'
       }
     };
 
@@ -1438,10 +1433,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
       instructor: 'Prof. Smith',
       semester: 'Fall 2025',
       schedule: 'TBD',
-      location: 'TBD',
-      students: [
-        { name: 'Justin Abbey', email: 'jabbey@law.edu', year: '2L' }
-      ]
+      location: 'TBD'
     };
   };
 
@@ -1450,6 +1442,49 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
   // Get the actual course name for color matching
   const actualCourseName = userCourse?.class || courseName;
   const courseColor = getCourseColor(actualCourseName);
+
+  // Fetch real students for the course
+  const fetchCourseStudents = async () => {
+    try {
+      // First get the course ID
+      const { data: course, error: courseError } = await supabase
+        .from('feedcourses')
+        .select('id')
+        .eq('name', courseName)
+        .single();
+
+      if (courseError || !course) {
+        console.error('Error fetching course:', courseError);
+        return;
+      }
+
+      // Get students enrolled in this course
+      const { data: students, error: studentsError } = await supabase
+        .from('course_enrollments')
+        .select(`
+          profiles!inner (
+            full_name,
+            class_year
+          )
+        `)
+        .eq('course_id', course.id);
+
+      if (studentsError) {
+        console.error('Error fetching students:', studentsError);
+        return;
+      }
+
+      // Transform the data
+      const studentList = students?.map((enrollment: any) => ({
+        name: enrollment.profiles.full_name || 'Unknown',
+        year: enrollment.profiles.class_year || ''
+      })) || [];
+
+      setCourseStudents(studentList);
+    } catch (error) {
+      console.error('Error fetching course students:', error);
+    }
+  };
   const darkerCourseColor = getDarkerShade(courseColor);
 
   // Show loading state
@@ -1570,12 +1605,12 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
               <div className="text-white p-4 pb-3" style={{ backgroundColor: courseColor }}>
                 <h3 className="font-medium text-white flex items-center gap-2">
                   <Users className="w-5 h-5 text-white" />
-                    Students ({courseData.students.length})
+                    Students ({courseStudents.length})
                 </h3>
               </div>
               <div className="flex-1 overflow-y-auto bg-white p-3 pt-3">
                 <div className="space-y-2">
-                    {courseData.students.map((student: any, index: number) => (
+                    {courseStudents.map((student: any, index: number) => (
                       <div 
                         key={index} 
                       className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"

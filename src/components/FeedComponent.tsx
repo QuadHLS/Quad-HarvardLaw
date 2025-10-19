@@ -375,12 +375,15 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [likingPosts, setLikingPosts] = useState<Set<string>>(new Set());
 
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
   const [newComment, setNewComment] = useState<Record<string, string>>({});
+  const [commentAnonymously, setCommentAnonymously] = useState<Record<string, boolean>>({});
   const [replyingTo, setReplyingTo] = useState<string | null>(null); // format: `${postId}:${commentId}`
   const [replyText, setReplyText] = useState<Record<string, string>>({});
+  const [replyAnonymously, setReplyAnonymously] = useState<Record<string, boolean>>({});
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
   const [hoveredPostId, setHoveredPostId] = useState<string | null>(null);
 
@@ -750,11 +753,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     }
     
     const timeout = setTimeout(async () => {
+      // Use the current feedMode value directly instead of relying on fetchPosts closure
       await fetchPosts(false); // Background refresh, don't show loading screen
     }, 150); // 150ms debounce
     
     setFetchPostsTimeout(timeout);
-  }, [fetchPostsTimeout, fetchPosts]);
+  }, [fetchPostsTimeout, fetchPosts, feedMode]);
 
   const fetchComments = async (postId: string) => {
     try {
@@ -895,6 +899,34 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     getUser();
   }, []);
 
+  // Fetch user profile data from profiles table
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user?.id) return;
+
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching user profile:', error);
+          return;
+        }
+
+        if (profile) {
+          setUserProfile(profile);
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+
+    fetchUserProfile();
+  }, [user]);
+
   // Load posts when component mounts, feedMode changes, or user changes
   useEffect(() => {
     if (user) {
@@ -955,8 +987,30 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         },
         async (payload) => {
           console.log('New post received:', payload);
-          // Fetch the new post with all related data (debounced)
-          debouncedFetchPosts();
+          
+          // Check if the new post is relevant to current feed mode
+          const newPost = payload.new;
+          if (!newPost) return;
+          
+          // If it's a campus feed, always refresh (campus posts have course_id = null)
+          if (feedMode === 'campus' && !newPost.course_id) {
+            debouncedFetchPosts();
+            return;
+          }
+          
+          // If it's my-courses feed, only refresh if the post is from one of user's courses
+          if (feedMode === 'my-courses' && newPost.course_id) {
+            // Get the course name for this post
+            const { data: course } = await supabase
+              .from('feedcourses')
+              .select('name')
+              .eq('id', newPost.course_id)
+              .maybeSingle();
+              
+            if (course && myCourses.includes(course.name)) {
+              debouncedFetchPosts();
+            }
+          }
         }
       )
       .on(
@@ -1002,8 +1056,31 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         },
         async (payload) => {
           console.log('Like added:', payload);
-          // Refresh posts to get updated like counts (debounced)
-          debouncedFetchPosts();
+          
+          // Check if this like is relevant to current feed mode
+          const like = payload.new;
+          if (!like) return;
+          
+          // Get the post that was liked
+          const { data: postData } = await supabase
+            .from('posts')
+            .select('course_id, is_campus_wide')
+            .eq('id', like.post_id)
+            .single();
+          
+          if (postData) {
+            // Only refresh if the like is relevant to current feed mode
+            const isRelevantToCurrentFeed = 
+              (feedMode === 'campus' && postData.is_campus_wide) ||
+              (feedMode === 'my-courses' && !postData.is_campus_wide && userCourses.includes(postData.course_id));
+            
+            if (isRelevantToCurrentFeed) {
+              console.log('Like is relevant to current feed, refreshing...');
+              debouncedFetchPosts();
+            } else {
+              console.log('Like is not relevant to current feed, skipping refresh');
+            }
+          }
         }
       )
       .on(
@@ -1015,8 +1092,31 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         },
         async (payload) => {
           console.log('Like removed:', payload);
-          // Refresh posts to get updated like counts (debounced)
-          debouncedFetchPosts();
+          
+          // Check if this like removal is relevant to current feed mode
+          const like = payload.old;
+          if (!like) return;
+          
+          // Get the post that was unliked
+          const { data: postData } = await supabase
+            .from('posts')
+            .select('course_id, is_campus_wide')
+            .eq('id', like.post_id)
+            .single();
+          
+          if (postData) {
+            // Only refresh if the like removal is relevant to current feed mode
+            const isRelevantToCurrentFeed = 
+              (feedMode === 'campus' && postData.is_campus_wide) ||
+              (feedMode === 'my-courses' && !postData.is_campus_wide && userCourses.includes(postData.course_id));
+            
+            if (isRelevantToCurrentFeed) {
+              console.log('Like removal is relevant to current feed, refreshing...');
+              debouncedFetchPosts();
+            } else {
+              console.log('Like removal is not relevant to current feed, skipping refresh');
+            }
+          }
         }
       )
       .subscribe((status, err) => {
@@ -1090,8 +1190,41 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         },
         async (payload) => {
           console.log('Poll vote changed:', payload);
-          // Refresh posts to get updated poll results (debounced)
-          debouncedFetchPosts();
+          
+          // Check if this poll vote is relevant to current feed mode
+          if (payload.new || payload.old) {
+            const pollId = payload.new?.poll_id || payload.old?.poll_id;
+            if (pollId) {
+              // Get the post that contains this poll
+              const { data: pollData } = await supabase
+                .from('polls')
+                .select('post_id')
+                .eq('id', pollId)
+                .single();
+              
+              if (pollData) {
+                const { data: postData } = await supabase
+                  .from('posts')
+                  .select('course_id, is_campus_wide')
+                  .eq('id', pollData.post_id)
+                  .single();
+                
+                if (postData) {
+                  // Only refresh if the poll vote is relevant to current feed mode
+                  const isRelevantToCurrentFeed = 
+                    (feedMode === 'campus' && postData.is_campus_wide) ||
+                    (feedMode === 'my-courses' && !postData.is_campus_wide && userCourses.includes(postData.course_id));
+                  
+                  if (isRelevantToCurrentFeed) {
+                    console.log('Poll vote is relevant to current feed, refreshing...');
+                    debouncedFetchPosts();
+                  } else {
+                    console.log('Poll vote is not relevant to current feed, skipping refresh');
+                  }
+                }
+              }
+            }
+          }
         }
       )
       .subscribe((status, err) => {
@@ -1403,8 +1536,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         .insert({
           post_id: postId,
           author_id: user.id,
-      content: commentText.trim(),
-          is_anonymous: false // Could be made configurable
+          content: commentText.trim(),
+          is_anonymous: commentAnonymously[postId] || false
         });
 
       if (error) {
@@ -1413,6 +1546,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       }
 
     setNewComment(prev => ({ ...prev, [postId]: '' }));
+    setCommentAnonymously(prev => ({ ...prev, [postId]: false }));
 
       // Refresh comments to get the new comment
       await fetchComments(postId);
@@ -1446,7 +1580,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           parent_comment_id: commentId,
           author_id: user.id,
           content: text.trim(),
-          is_anonymous: false // Could be made configurable
+          is_anonymous: replyAnonymously[key] || false
         });
 
       if (error) {
@@ -1455,6 +1589,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       }
 
     setReplyText(prev => ({ ...prev, [key]: '' }));
+    setReplyAnonymously(prev => ({ ...prev, [key]: false }));
     setReplyingTo(null);
 
       // Refresh comments to get the new reply
@@ -1765,7 +1900,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <h4 className="font-semibold text-gray-900">{selectedPost.author?.name || 'Anonymous'}</h4>
-                    <span className="text-sm text-gray-500">{selectedPost.author?.year || ''}</span>
+                    {!selectedPost.is_anonymous && <span className="text-sm text-gray-500">{selectedPost.author?.year || ''}</span>}
                     {/* verified badge removed */}
                   </div>
                   <span className="text-sm text-gray-500">{formatTimestamp(selectedPost.created_at)}</span>
@@ -1870,7 +2005,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
               {/* Add top-level reply (comment) to post */}
               <div className="mt-4">
                 <div className="flex gap-3">
-                  <ProfileBubble userName="Justin" size="md" borderColor={getPostColor(selectedPost.id)} />
+                  <ProfileBubble userName={userProfile?.full_name || 'User'} size="md" borderColor={getPostColor(selectedPost.id)} />
                   <div className="flex-1">
                     <Textarea
                       placeholder="Write a comment..."
@@ -1878,7 +2013,35 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       onChange={(e) => setNewComment(prev => ({ ...prev, [selectedPost.id]: e.target.value }))}
                       className="min-h-[60px] text-sm resize-none"
                     />
-                    <div className="flex justify-end mt-2">
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="flex items-center gap-2">
+                        <div className="relative">
+                          <input
+                            type="checkbox"
+                            id={`anonymous-comment-thread-${selectedPost.id}`}
+                            checked={commentAnonymously[selectedPost.id] || false}
+                            onChange={(e) => setCommentAnonymously(prev => ({ ...prev, [selectedPost.id]: e.target.checked }))}
+                            className="sr-only"
+                          />
+                          <div 
+                            className="w-3 h-3 rounded border-2 flex items-center justify-center cursor-pointer transition-colors"
+                            style={{ 
+                              backgroundColor: commentAnonymously[selectedPost.id] ? getPostColor(selectedPost.id) : 'white',
+                              borderColor: commentAnonymously[selectedPost.id] ? getPostColor(selectedPost.id) : '#d1d5db'
+                            }}
+                            onClick={() => setCommentAnonymously(prev => ({ ...prev, [selectedPost.id]: !prev[selectedPost.id] }))}
+                          >
+                            {commentAnonymously[selectedPost.id] && (
+                              <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </div>
+                        </div>
+                        <label htmlFor={`anonymous-comment-thread-${selectedPost.id}`} className="text-xs text-gray-600 cursor-pointer">
+                          Post anonymously
+                        </label>
+                      </div>
                       <Button
                         size="sm"
                         onClick={() => addComment(selectedPost.id)}
@@ -1910,9 +2073,9 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <h5 className="font-medium text-gray-900 text-sm">{comment.author?.name || 'Anonymous'}</h5>
-                        <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>
-                        {/* verified badge removed */}
+                        {!comment.is_anonymous && <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>}
                         <span className="text-xs text-gray-500">•</span>
+                        {/* verified badge removed */}
                         <span className="text-xs text-gray-500">{formatTimestamp(comment.created_at)}</span>
                       </div>
                       <p className="text-gray-800 text-sm mb-2">{comment.content}</p>
@@ -1957,7 +2120,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
                                       <h6 className="font-medium text-gray-900 text-xs">{reply.author?.name || 'Anonymous'}</h6>
-                                      <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>
+                                      {!reply.is_anonymous && <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>}
                                   {/* verified badge removed */}
                                   <span className="text-xs text-gray-500">•</span>
                                   <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>
@@ -1986,12 +2149,6 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                     <Heart className={`w-3 h-3 ${reply.isLiked ? 'fill-current' : ''}`} />
                                     {reply.likes_count}
                                   </button>
-                                  <button 
-                                    className="text-xs font-medium text-gray-600 hover:text-blue-500 transition-colors"
-                                    onClick={(e) => { e.stopPropagation(); setReplyingTo(prev => prev === `${selectedPost.id}:${comment.id}` ? null : `${selectedPost.id}:${comment.id}`); }}
-                                  >
-                                    Reply
-                                  </button>
                                   {/* timestamp shown inline with name */}
                                 </div>
                               </div>
@@ -2002,21 +2159,51 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
                       {/* reply composer (only one level deep) */}
                       {replyingTo === `${selectedPost.id}:${comment.id}` && (
-                        <div className="mt-2 ml-4 flex gap-2">
+                        <div className="mt-2 ml-4 space-y-2">
                           <Textarea
                             value={replyText[`${selectedPost.id}:${comment.id}`] || ''}
                             onChange={(e) => setReplyText(prev => ({ ...prev, [`${selectedPost.id}:${comment.id}`]: e.target.value }))}
                             placeholder="Write a reply..."
-                            className="min-h-[40px] text-xs flex-1"
+                            className="min-h-[40px] text-xs"
                           />
-                          <Button
-                            size="sm"
-                            onClick={() => addReply(selectedPost.id, comment.id)}
-                            disabled={!replyText[`${selectedPost.id}:${comment.id}`]?.trim()}
-                            className="bg-[#752432] hover:bg-[#752432]/90 text-white"
-                          >
-                            Reply
-                          </Button>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="relative">
+                                <input
+                                  type="checkbox"
+                                  id={`anonymous-reply-thread-${selectedPost.id}-${comment.id}`}
+                                  checked={replyAnonymously[`${selectedPost.id}:${comment.id}`] || false}
+                                  onChange={(e) => setReplyAnonymously(prev => ({ ...prev, [`${selectedPost.id}:${comment.id}`]: e.target.checked }))}
+                                  className="sr-only"
+                                />
+                                <div 
+                                  className="w-3 h-3 rounded border-2 flex items-center justify-center cursor-pointer transition-colors"
+                                  style={{ 
+                                    backgroundColor: replyAnonymously[`${selectedPost.id}:${comment.id}`] ? getPostColor(selectedPost.id) : 'white',
+                                    borderColor: replyAnonymously[`${selectedPost.id}:${comment.id}`] ? getPostColor(selectedPost.id) : '#d1d5db'
+                                  }}
+                                  onClick={() => setReplyAnonymously(prev => ({ ...prev, [`${selectedPost.id}:${comment.id}`]: !prev[`${selectedPost.id}:${comment.id}`] }))}
+                                >
+                                  {replyAnonymously[`${selectedPost.id}:${comment.id}`] && (
+                                    <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                  )}
+                                </div>
+                              </div>
+                              <label htmlFor={`anonymous-reply-thread-${selectedPost.id}-${comment.id}`} className="text-xs text-gray-600 cursor-pointer">
+                                Post anonymously
+                              </label>
+                            </div>
+                            <Button
+                              size="sm"
+                              onClick={() => addReply(selectedPost.id, comment.id)}
+                              disabled={!replyText[`${selectedPost.id}:${comment.id}`]?.trim()}
+                              className="bg-[#752432] hover:bg-[#752432]/90 text-white"
+                            >
+                              Reply
+                            </Button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -2167,7 +2354,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       <div>
                         <div className="flex items-center gap-2">
                           <h4 className="font-semibold text-gray-900 text-sm">{post.author?.name || 'Anonymous'}</h4>
-                          <span className="text-xs text-gray-500">{post.author?.year || ''}</span>
+                          {!post.is_anonymous && <span className="text-xs text-gray-500">{post.author?.year || ''}</span>}
                           {/* verified badge removed */}
                         </div>
                         <div className="flex items-center gap-2">
@@ -2301,7 +2488,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                   <div className="pt-4 border-t border-gray-100 mt-4" onMouseEnter={(e) => e.stopPropagation()} onMouseLeave={(e) => e.stopPropagation()}>
                     {/* Add Comment Input */}
                     <div className="flex gap-3 mb-4">
-                      <ProfileBubble userName="Justin" size="md" borderColor={getPostColor(post.id)} />
+                      <ProfileBubble userName={userProfile?.full_name || 'User'} size="md" borderColor={getPostColor(post.id)} />
                       <div className="flex-1">
                         <Textarea
                           placeholder="Write a comment..."
@@ -2310,7 +2497,35 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                           className="min-h-[60px] text-sm resize-none"
                           onClick={(e: React.MouseEvent) => e.stopPropagation()}
                         />
-                        <div className="flex justify-end mt-2">
+                        <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-center gap-2">
+                            <div className="relative">
+                              <input
+                                type="checkbox"
+                                id={`anonymous-comment-${post.id}`}
+                                checked={commentAnonymously[post.id] || false}
+                                onChange={(e) => setCommentAnonymously(prev => ({ ...prev, [post.id]: e.target.checked }))}
+                                className="sr-only"
+                              />
+                              <div 
+                                className="w-3 h-3 rounded border-2 flex items-center justify-center cursor-pointer transition-colors"
+                                style={{ 
+                                  backgroundColor: commentAnonymously[post.id] ? getPostColor(post.id) : 'white',
+                                  borderColor: commentAnonymously[post.id] ? getPostColor(post.id) : '#d1d5db'
+                                }}
+                                onClick={() => setCommentAnonymously(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
+                              >
+                                {commentAnonymously[post.id] && (
+                                  <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                )}
+                              </div>
+                            </div>
+                            <label htmlFor={`anonymous-comment-${post.id}`} className="text-xs text-gray-600 cursor-pointer">
+                              Post anonymously
+                            </label>
+                          </div>
                           <Button
                             size="sm"
                             onClick={(e) => {
@@ -2344,7 +2559,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                             <div className="bg-gray-50 rounded-lg p-3">
                               <div className="flex items-center gap-2 mb-1">
                                 <h5 className="font-medium text-gray-900 text-sm">{comment.author?.name || 'Anonymous'}</h5>
-                                <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>
+                                {!comment.is_anonymous && <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>}
                                 {/* verified badge removed */}
                                 <span className="text-xs text-gray-500">•</span>
                                 <span className="text-xs text-gray-500">{formatTimestamp(comment.created_at)}</span>
@@ -2392,7 +2607,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                     <div className="flex-1">
                                       <div className="flex items-center gap-2 mb-1">
                                         <h6 className="font-medium text-gray-900 text-xs">{reply.author?.name || 'Anonymous'}</h6>
-                                        <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>
+                                        {!reply.is_anonymous && <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>}
                                         <span className="text-xs text-gray-500">•</span>
                                         <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>
                                       </div>
@@ -2429,22 +2644,52 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                             
                             {/* reply composer (only one level deep) */}
                             {replyingTo === `${post.id}:${comment.id}` && (
-                              <div className="mt-2 ml-3 flex gap-2">
+                              <div className="mt-2 ml-3 space-y-2">
                                 <Textarea
                                   value={replyText[`${post.id}:${comment.id}`] || ''}
                                   onChange={(e) => setReplyText(prev => ({ ...prev, [`${post.id}:${comment.id}`]: e.target.value }))}
                                   placeholder="Write a reply..."
-                                  className="min-h-[40px] text-xs flex-1"
+                                  className="min-h-[40px] text-xs"
                                   onClick={(e: React.MouseEvent) => e.stopPropagation()}
                                 />
-                                <Button
-                                  size="sm"
-                                  onClick={(e: React.MouseEvent) => { e.stopPropagation(); addReply(post.id, comment.id); }}
-                                  disabled={!replyText[`${post.id}:${comment.id}`]?.trim()}
-                                  className="bg-[#752432] hover:bg-[#752432]/90 text-white"
-                                >
-                                  Reply
-                                </Button>
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div className="relative">
+                                      <input
+                                        type="checkbox"
+                                        id={`anonymous-reply-${post.id}-${comment.id}`}
+                                        checked={replyAnonymously[`${post.id}:${comment.id}`] || false}
+                                        onChange={(e) => setReplyAnonymously(prev => ({ ...prev, [`${post.id}:${comment.id}`]: e.target.checked }))}
+                                        className="sr-only"
+                                      />
+                                      <div 
+                                        className="w-3 h-3 rounded border-2 flex items-center justify-center cursor-pointer transition-colors"
+                                        style={{ 
+                                          backgroundColor: replyAnonymously[`${post.id}:${comment.id}`] ? getPostColor(post.id) : 'white',
+                                          borderColor: replyAnonymously[`${post.id}:${comment.id}`] ? getPostColor(post.id) : '#d1d5db'
+                                        }}
+                                        onClick={() => setReplyAnonymously(prev => ({ ...prev, [`${post.id}:${comment.id}`]: !prev[`${post.id}:${comment.id}`] }))}
+                                      >
+                                        {replyAnonymously[`${post.id}:${comment.id}`] && (
+                                          <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                          </svg>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <label htmlFor={`anonymous-reply-${post.id}-${comment.id}`} className="text-xs text-gray-600 cursor-pointer">
+                                      Post anonymously
+                                    </label>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); addReply(post.id, comment.id); }}
+                                    disabled={!replyText[`${post.id}:${comment.id}`]?.trim()}
+                                    className="bg-[#752432] hover:bg-[#752432]/90 text-white"
+                                  >
+                                    Reply
+                                  </Button>
+                                </div>
                               </div>
                             )}
                           </div>
@@ -2642,8 +2887,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
               />
               <label htmlFor="anonymous-post" className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                 <span className="text-lg">🎭</span>
-                Post anonymously as random name
-                <span className="text-xs text-gray-500">(e.g., "Silly Squirrel")</span>
+                Post anonymously
               </label>
             </div>
 

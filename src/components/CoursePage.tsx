@@ -1,15 +1,45 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Users, MessageSquare, ChevronUp, ChevronDown, GraduationCap, Clock, MapPin, X } from 'lucide-react';
+import { Users, MessageSquare, GraduationCap, Clock, MapPin, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+
+// Heart component (matching FeedComponent)
+const Heart = ({ className, fill }: { className?: string; fill?: boolean }) => (
+  <svg 
+    className={className} 
+    width="24"
+    height="24"
+    fill={fill ? "currentColor" : "none"} 
+    stroke="currentColor" 
+    strokeWidth="2"
+    viewBox="0 0 24 24" 
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+  </svg>
+);
+
+// MessageCircle component (matching FeedComponent)
+const MessageCircle = ({ className }: { className?: string }) => (
+  <svg 
+    className={className} 
+    width="24"
+    height="24"
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2"
+    viewBox="0 0 24 24" 
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+  </svg>
+);
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
-import { Separator } from './ui/separator';
 import { Textarea } from './ui/textarea';
-import { Checkbox } from './ui/checkbox';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Input } from './ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 
 interface CoursePageOverviewProps {
   courseName: string;
@@ -75,23 +105,12 @@ interface Poll {
 }
 
 
-interface FeedReply {
-  id: string;
-  author: {
-    name: string;
-    initials: string;
-    year: string;
-  };
-  content: string;
-  timestamp: string;
-  likes: number;
-  userLiked: boolean;
-}
 
 export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePageOverviewProps) {
   const { user } = useAuth();
   const [userCourse, setUserCourse] = useState<UserCourse | null>(null);
   const [userCourses, setUserCourses] = useState<UserCourse[]>([]);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [coursePosts, setCoursePosts] = useState<CoursePost[]>([]);
   const [, setPostsLoading] = useState(true);
@@ -120,14 +139,444 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
   const [newPostType, setNewPostType] = useState<'text' | 'poll'>('text');
   const [pollOptions, setPollOptions] = useState(['', '']);
   const [postAnonymously, setPostAnonymously] = useState(false);
-  const [selectedPostForDetail, setSelectedPostForDetail] = useState<CoursePost | null>(null);
-  const [newReplyContent, setNewReplyContent] = useState('');
+  
+  // State for inline comments (matching FeedComponent)
+  const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
+  const [comments, setComments] = useState<Record<string, any[]>>({});
+  const [newComment, setNewComment] = useState<Record<string, string>>({});
+  const [loadingComments, setLoadingComments] = useState<Set<string>>(new Set());
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState<Record<string, string>>({});
+  const [replyAnonymously, setReplyAnonymously] = useState<Record<string, boolean>>({});
   
   // Update poll option
   const updatePollOption = (index: number, value: string) => {
     const newOptions = [...pollOptions];
     newOptions[index] = value;
     setPollOptions(newOptions);
+  };
+
+  // Format timestamp (matching FeedComponent)
+  const formatTimestamp = (timestamp: string) => {
+    const now = new Date();
+    const postDate = new Date(timestamp);
+    const diffInSeconds = Math.floor((now.getTime() - postDate.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) {
+      return 'now';
+    } else if (diffInSeconds < 3600) {
+      const minutes = Math.floor(diffInSeconds / 60);
+      return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    } else if (diffInSeconds < 86400) {
+      const hours = Math.floor(diffInSeconds / 3600);
+      return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    } else if (diffInSeconds < 2592000) {
+      const days = Math.floor(diffInSeconds / 86400);
+      return `${days} day${days > 1 ? 's' : ''} ago`;
+    } else {
+      return postDate.toLocaleDateString();
+    }
+  };
+
+  // Fetch comments for a post (matching FeedComponent)
+  const fetchComments = async (postId: string) => {
+    try {
+      const { data: commentsData, error } = await supabase
+        .from('comments')
+        .select('*')
+        .eq('post_id', postId)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching comments:', error);
+        return;
+      }
+
+      // Separate top-level comments and replies
+      const topLevelComments = (commentsData || []).filter((c: any) => !c.parent_comment_id);
+      const replies = (commentsData || []).filter((c: any) => c.parent_comment_id);
+
+      // Get author info for comments
+      const authorIds = [...new Set(commentsData?.map((c: any) => c.author_id) || [])];
+      const { data: authors } = await supabase
+        .from('profiles')
+        .select('id, full_name, class_year')
+        .in('id', authorIds);
+
+      // Get user likes for comments
+      const commentIds = commentsData?.map((c: any) => c.id) || [];
+      const { data: userLikes } = await supabase
+        .from('likes')
+        .select('likeable_id')
+        .eq('user_id', user?.id)
+        .eq('likeable_type', 'comment')
+        .in('likeable_id', commentIds);
+
+      // Get likes counts for comments
+      const { data: likesCounts } = await supabase
+        .from('likes')
+        .select('likeable_id')
+        .eq('likeable_type', 'comment')
+        .in('likeable_id', commentIds);
+
+      // Create lookup maps
+      const authorsMap = new Map(authors?.map((a: any) => [a.id, a]) || []);
+      const userLikesSet = new Set(userLikes?.map((l: any) => l.likeable_id) || []);
+      
+      // Count likes per comment
+      const likesCountMap = new Map();
+      likesCounts?.forEach((like: any) => {
+        likesCountMap.set(like.likeable_id, (likesCountMap.get(like.likeable_id) || 0) + 1);
+      });
+
+      // Group replies by parent comment ID
+      const repliesMap = new Map();
+      replies.forEach((reply: any) => {
+        if (!repliesMap.has(reply.parent_comment_id)) {
+          repliesMap.set(reply.parent_comment_id, []);
+        }
+        repliesMap.get(reply.parent_comment_id).push(reply);
+      });
+
+      // Transform top-level comments
+      const transformedComments = topLevelComments.map((comment: any) => {
+        const author = authorsMap.get(comment.author_id);
+        const isLiked = userLikesSet.has(comment.id);
+        const likesCount = likesCountMap.get(comment.id) || 0;
+
+        // Transform replies for this comment
+        const commentReplies = (repliesMap.get(comment.id) || []).map((reply: any) => {
+          const replyAuthor = authorsMap.get(reply.author_id);
+          const replyIsLiked = userLikesSet.has(reply.id);
+          const replyLikesCount = likesCountMap.get(reply.id) || 0;
+
+          return {
+            id: reply.id,
+            post_id: reply.post_id,
+            parent_comment_id: reply.parent_comment_id,
+            author_id: reply.author_id,
+            content: reply.content,
+            is_anonymous: reply.is_anonymous,
+            created_at: reply.created_at,
+            likes_count: replyLikesCount,
+            author: replyAuthor ? {
+              name: reply.is_anonymous ? `Anonymous User` : (replyAuthor as any).full_name,
+              year: (replyAuthor as any).class_year
+            } : undefined,
+            isLiked: replyIsLiked
+          };
+        });
+
+        return {
+          id: comment.id,
+          post_id: comment.post_id,
+          parent_comment_id: comment.parent_comment_id,
+          author_id: comment.author_id,
+          content: comment.content,
+          is_anonymous: comment.is_anonymous,
+          created_at: comment.created_at,
+          likes_count: likesCount,
+          author: author ? {
+            name: comment.is_anonymous ? `Anonymous User` : (author as any).full_name,
+            year: (author as any).class_year
+          } : undefined,
+          isLiked: isLiked,
+          replies: commentReplies
+        };
+      });
+
+      setComments(prev => ({
+        ...prev,
+        [postId]: transformedComments
+      }));
+    } catch (error) {
+      console.error('Error in fetchComments:', error);
+    }
+  };
+
+  // Toggle comments expanded (matching FeedComponent)
+  const toggleCommentsExpanded = async (postId: string) => {
+    const isCurrentlyExpanded = expandedComments[postId];
+    
+    setExpandedComments(prev => ({
+      ...prev,
+      [postId]: !prev[postId]
+    }));
+    
+    // If we're expanding comments and they haven't been fetched yet, fetch them
+    if (!isCurrentlyExpanded && !comments[postId]) {
+      setLoadingComments(prev => new Set(prev).add(postId));
+      await fetchComments(postId);
+      setLoadingComments(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(postId);
+        return newSet;
+      });
+    }
+  };
+
+  // Add comment (matching FeedComponent)
+  const addComment = async (postId: string) => {
+    const content = newComment[postId]?.trim();
+    if (!content || !user) return;
+
+    try {
+      const { error } = await supabase
+        .from('comments')
+        .insert({
+          post_id: postId,
+          author_id: user.id,
+          content: content,
+          is_anonymous: postAnonymously
+        });
+
+      if (error) {
+        console.error('Error adding comment:', error);
+        return;
+      }
+
+      // Clear the input
+      setNewComment(prev => ({ ...prev, [postId]: '' }));
+      setPostAnonymously(false);
+
+      // Refresh comments
+      await fetchComments(postId);
+    } catch (error) {
+      console.error('Error adding comment:', error);
+    }
+  };
+
+  // Add reply (matching FeedComponent)
+  const addReply = async (postId: string, parentCommentId: string) => {
+    const content = replyText[`${postId}:${parentCommentId}`]?.trim();
+    if (!content || !user) return;
+
+    try {
+      const { error } = await supabase
+        .from('comments')
+        .insert({
+          post_id: postId,
+          parent_comment_id: parentCommentId,
+          author_id: user.id,
+          content: content,
+          is_anonymous: replyAnonymously[`${postId}:${parentCommentId}`] || false
+        });
+
+      if (error) {
+        console.error('Error adding reply:', error);
+        return;
+      }
+
+      // Clear the input
+      setReplyText(prev => ({ ...prev, [`${postId}:${parentCommentId}`]: '' }));
+      setReplyAnonymously(prev => ({ ...prev, [`${postId}:${parentCommentId}`]: false }));
+      setReplyingTo(null);
+
+      // Refresh comments
+      await fetchComments(postId);
+    } catch (error) {
+      console.error('Error adding reply:', error);
+    }
+  };
+
+  // Toggle comment like (matching FeedComponent)
+  const toggleCommentLike = async (postId: string, commentId: string) => {
+    if (!user) return;
+
+    try {
+      // Check if already liked
+      const { data: currentLike } = await supabase
+        .from('likes')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('likeable_type', 'comment')
+        .eq('likeable_id', commentId)
+        .maybeSingle();
+
+      const isCurrentlyLiked = !!currentLike;
+
+      if (isCurrentlyLiked) {
+        // Unlike
+        const { error } = await supabase
+          .from('likes')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('likeable_type', 'comment')
+          .eq('likeable_id', commentId);
+
+        if (error) {
+          console.error('Error unliking comment:', error);
+          return;
+        }
+      } else {
+        // Like
+        const { error } = await supabase
+          .from('likes')
+          .insert({
+            user_id: user.id,
+            likeable_type: 'comment',
+            likeable_id: commentId
+          });
+
+        if (error) {
+          console.error('Error liking comment:', error);
+          return;
+        }
+      }
+
+      // Refresh comments to get updated like counts
+      await fetchComments(postId);
+    } catch (error) {
+      console.error('Error toggling comment like:', error);
+    }
+  };
+
+  // Toggle reply like (matching FeedComponent)
+  const toggleReplyLike = async (postId: string, _parentCommentId: string, replyId: string) => {
+    if (!user) return;
+
+    try {
+      // Check if already liked
+      const { data: currentLike } = await supabase
+        .from('likes')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('likeable_type', 'comment')
+        .eq('likeable_id', replyId)
+        .maybeSingle();
+
+      const isCurrentlyLiked = !!currentLike;
+
+      if (isCurrentlyLiked) {
+        // Unlike
+        const { error } = await supabase
+          .from('likes')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('likeable_type', 'comment')
+          .eq('likeable_id', replyId);
+
+        if (error) {
+          console.error('Error unliking reply:', error);
+          return;
+        }
+      } else {
+        // Like
+        const { error } = await supabase
+          .from('likes')
+          .insert({
+            user_id: user.id,
+            likeable_type: 'comment',
+            likeable_id: replyId
+          });
+
+        if (error) {
+          console.error('Error liking reply:', error);
+          return;
+        }
+      }
+
+      // Refresh comments to get updated like counts
+      await fetchComments(postId);
+    } catch (error) {
+      console.error('Error toggling reply like:', error);
+    }
+  };
+
+  const handleVotePoll = async (postId: string, optionId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const post = coursePosts.find(p => p.id === postId);
+      if (!post || !post.poll) return;
+
+      const previousSelection = post.poll.userVotedOptionId;
+
+      if (!previousSelection) {
+        // First vote
+        console.log('Inserting poll vote:', {
+          poll_id: post.poll.id,
+          option_id: optionId,
+          user_id: user.id
+        });
+        
+        const { error } = await supabase
+          .from('poll_votes')
+          .insert({
+            poll_id: post.poll.id,
+            option_id: optionId,
+            user_id: user.id
+          });
+
+        if (error) {
+          console.error('Error voting on poll:', error);
+          return;
+        }
+        
+        console.log('Poll vote inserted successfully');
+      } else if (previousSelection === optionId) {
+        // Toggle off (re-click same option)
+        console.log('Removing poll vote for poll:', post.poll.id, 'user:', user.id);
+        
+        const { error } = await supabase
+          .from('poll_votes')
+          .delete()
+          .eq('poll_id', post.poll.id)
+          .eq('user_id', user.id);
+
+        if (error) {
+          console.error('Error removing poll vote:', error);
+          return;
+        }
+        
+        console.log('Poll vote removed successfully');
+      } else {
+        // Switch choice (different option)
+        console.log('Updating poll vote from', previousSelection, 'to', optionId);
+        
+        const { error } = await supabase
+          .from('poll_votes')
+          .update({ option_id: optionId })
+          .eq('poll_id', post.poll.id)
+          .eq('user_id', user.id);
+
+        if (error) {
+          console.error('Error updating poll vote:', error);
+          return;
+        }
+        
+        console.log('Poll vote updated successfully');
+      }
+
+      // Update local state immediately for better UX
+      setCoursePosts(prevPosts => 
+        prevPosts.map(p => 
+          p.id === postId 
+            ? {
+                ...p,
+                poll: p.poll ? {
+                  ...p.poll,
+                  userVotedOptionId: previousSelection === optionId ? undefined : optionId,
+                  totalVotes: previousSelection === optionId 
+                    ? p.poll.totalVotes - 1
+                    : previousSelection 
+                    ? p.poll.totalVotes 
+                    : p.poll.totalVotes + 1,
+                  options: p.poll.options.map(opt => ({
+                    ...opt,
+                    votes: opt.id === optionId 
+                      ? (previousSelection === optionId ? opt.votes - 1 : opt.votes + 1)
+                      : (previousSelection === opt.id ? opt.votes - 1 : opt.votes)
+                  }))
+                } : undefined
+              }
+            : p
+        )
+      );
+    } catch (error) {
+      console.error('Error handling poll vote:', error);
+    }
   };
 
   const debouncedFetchPosts = useCallback(() => {
@@ -153,7 +602,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
       try {
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('classes')
+          .select('classes, full_name')
           .eq('id', user.id)
           .single();
 
@@ -163,20 +612,25 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
           return;
         }
 
-        if (profile?.classes && Array.isArray(profile.classes)) {
-          setUserCourses(profile.classes);
+        if (profile) {
+          // Set user profile data
+          setUserProfile(profile);
           
-          // Find the course that matches the courseName
-          const matchingCourse = profile.classes.find((course: UserCourse) => {
-            // Handle different course name formats (with/without section numbers)
-            const courseClass = course.class || '';
-            return courseClass === courseName || 
-                   courseClass.startsWith(courseName + ' ') ||
-                   courseName.startsWith(courseClass + ' ');
-          });
+          if (profile.classes && Array.isArray(profile.classes)) {
+            setUserCourses(profile.classes);
+            
+            // Find the course that matches the courseName
+            const matchingCourse = profile.classes.find((course: UserCourse) => {
+              // Handle different course name formats (with/without section numbers)
+              const courseClass = course.class || '';
+              return courseClass === courseName || 
+                     courseClass.startsWith(courseName + ' ') ||
+                     courseName.startsWith(courseClass + ' ');
+            });
 
-          if (matchingCourse) {
-            setUserCourse(matchingCourse);
+            if (matchingCourse) {
+              setUserCourse(matchingCourse);
+            }
           }
         }
 
@@ -914,64 +1368,6 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
     return colorMap[color] || '#5a1a26'; // Default darker burgundy
   };
 
-  const handleCreateReply = () => {
-    if (!newReplyContent.trim() || !selectedPostForDetail) return;
-
-    const newReply: FeedReply = {
-      id: `reply_${Date.now()}`,
-      author: { 
-        name: postAnonymously ? 'Anonymous' : 'You', 
-        initials: postAnonymously ? 'AN' : 'YO', 
-        year: '2L' 
-      },
-      content: newReplyContent.trim(),
-      timestamp: 'now',
-      likes: 0,
-      userLiked: false
-    };
-
-    // Update the selected post
-    const updatedPost = {
-      ...selectedPostForDetail,
-      replies: [...(selectedPostForDetail.replies || []), newReply],
-      comments_count: (selectedPostForDetail.comments_count || 0) + 1
-    };
-
-    setSelectedPostForDetail(updatedPost);
-
-    // Update the course posts
-    setCoursePosts(prev => prev.map(post => 
-      post.id === selectedPostForDetail.id ? updatedPost : post
-    ));
-
-    // Reset form
-    setNewReplyContent('');
-    setPostAnonymously(false);
-  };
-
-  const toggleReplyLike = (replyId: string) => {
-    if (!selectedPostForDetail) return;
-
-    const updatedPost = {
-      ...selectedPostForDetail,
-      replies: (selectedPostForDetail.replies || []).map(reply => 
-        reply.id === replyId 
-          ? { 
-              ...reply, 
-              userLiked: !reply.userLiked,
-              likes: reply.userLiked ? reply.likes - 1 : reply.likes + 1
-            }
-          : reply
-      )
-    };
-
-    setSelectedPostForDetail(updatedPost);
-
-    // Update the course posts as well
-    setCoursePosts(prev => prev.map(post => 
-      post.id === selectedPostForDetail.id ? updatedPost : post
-    ));
-  };
 
   // Calculate unread posts count
   const getUnreadPostsCount = () => {
@@ -1203,7 +1599,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
 
           {/* Course Feed - Reddit-style with create post functionality - RIGHT SIDE */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <Card className="h-[600px] flex flex-col overflow-hidden w-full">
+            <Card className="h-[600px] overflow-hidden w-full">
               <div className="text-white p-4 pb-3" style={{ backgroundColor: courseColor }}>
                 <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -1257,217 +1653,393 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                   </Button>
                       </div>
                     </div>
-              <div className="flex-1 p-0 overflow-hidden bg-white">
+              <div className="bg-white" style={{ height: 'calc(600px - 60px)' }}>
                 <div className="h-full overflow-y-auto">
-                  <div className="space-y-0">
+                  <div className="space-y-4 px-4 py-4">
                     {coursePosts.map((post) => (
-                      <Dialog key={post.id}>
-                        <DialogTrigger asChild>
-                          <div 
-                            className="border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
-                            onClick={() => setSelectedPostForDetail(post)}
-                          >
-                            <div className="p-4">
-                              <div className="flex gap-3">
-                                {/* Vote buttons - Reddit style */}
-                                <div className="flex flex-col items-center gap-1 pt-1">
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className={`h-6 px-1 hover:bg-[#752432]/10 ${likingPosts.has(post.id) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      togglePostLike(post.id);
-                                    }}
-                                    disabled={likingPosts.has(post.id)}
-                                  >
-                                    <ChevronUp className={`w-4 h-4 ${post.isLiked ? '' : 'text-gray-400'}`} style={post.isLiked ? { color: courseColor } : {}} />
-                                  </Button>
-                                  <span className={`text-sm font-medium ${post.isLiked ? '' : 'text-gray-700'}`} style={post.isLiked ? { color: courseColor } : {}}>
-                                    {post.likes_count}
-                                  </span>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className="h-6 px-1 hover:bg-gray-100"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <ChevronDown className="w-4 h-4 text-gray-400" />
-                                  </Button>
-                </div>
-
-                                {/* Post content */}
-                                <div className="flex-1 min-w-0">
-                                  {/* Author info */}
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <span className="text-xs text-gray-500 flex items-center gap-1">
-                                      Posted by {post.author?.name || 'Unknown'} • {post.author?.year || ''} • {new Date(post.created_at).toLocaleDateString()}
-                  </span>
-                  </div>
-                          
-                                  {/* Post content */}
-                                  <div className="mb-3">
-                                    <p className="text-gray-800 leading-relaxed line-clamp-2">{post.content}</p>
-                            </div>
-                          
-                                  {/* Action buttons */}
-                                  <div className="flex items-center gap-4 text-xs text-gray-500">
-                                    <div className="flex items-center gap-1">
-                                      <MessageSquare className="w-4 h-4" />
-                                      <span>{post.comments_count} comments</span>
-                          </div>
-                                    <Button variant="ghost" size="sm" className="h-6 px-2 text-xs hover:bg-[#752432]/10" onClick={(e) => e.stopPropagation()}>
-                                      Share
-                                    </Button>
-                              </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                        </DialogTrigger>
-                        
-                        {/* Post Detail Modal */}
-                        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
-                          <DialogHeader>
-                            <div className="flex items-center gap-2">
-                              <Badge 
-                                variant="secondary" 
-                                className="bg-[#752432]/10 text-[#752432] text-xs"
-                              >
-                                {selectedPostForDetail?.tag}
-                              </Badge>
-                              <span className="text-sm text-gray-500">
-                                {selectedPostForDetail?.author?.name} • {selectedPostForDetail?.author?.year} • {new Date(selectedPostForDetail?.created_at || '').toLocaleDateString()}
-                              </span>
-                            </div>
-                            <DialogTitle className="sr-only">Post Discussion</DialogTitle>
-                            <DialogDescription className="sr-only">
-                              View and participate in the course discussion
-                            </DialogDescription>
-                          </DialogHeader>
-                          
-                          {selectedPostForDetail && (
-                            <div className="space-y-6">
-                              {/* Original Post */}
-                              <div className="flex gap-4">
-                                <div className="flex flex-col items-center gap-1">
-                    <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className={`h-8 px-2 hover:bg-[#752432]/10 ${likingPosts.has(selectedPostForDetail.id) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    onClick={() => togglePostLike(selectedPostForDetail.id)}
-                                    disabled={likingPosts.has(selectedPostForDetail.id)}
-                                  >
-                                    <ChevronUp className={`w-5 h-5 ${selectedPostForDetail.isLiked ? 'text-[#752432]' : 'text-gray-400'}`} />
-                                  </Button>
-                                  <span className={`text-lg font-medium ${selectedPostForDetail.isLiked ? 'text-[#752432]' : 'text-gray-700'}`}>
-                                    {selectedPostForDetail.likes_count}
-                                  </span>
-                    <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className="h-8 px-2 hover:bg-gray-100"
-                    >
-                                    <ChevronDown className="w-5 h-5 text-gray-400" />
-                    </Button>
-                  </div>
-                                
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-3 mb-3">
-                                    <div className="w-10 h-10 bg-[#752432] text-white rounded-full flex items-center justify-center font-medium">
-                                      {selectedPostForDetail.author?.initials || 'U'}
-                    </div>
-                              <div>
-                                      <div className="font-medium">{selectedPostForDetail.author?.name || 'Unknown'}</div>
-                                      <div className="text-sm text-gray-500">{selectedPostForDetail.author?.year || ''}</div>
-                              </div>
-                          </div>
-                                  <p className="text-gray-800 leading-relaxed mb-4">{selectedPostForDetail.content}</p>
-                        </div>
-                      </div>
-                              
-                              <Separator />
-                              
-                              {/* Add Reply Section */}
-                <div className="space-y-4">
-                                <h4 className="font-medium">Add a comment</h4>
-                                <Textarea
-                                  placeholder="Share your thoughts or ask a follow-up question..."
-                                  value={newReplyContent}
-                                  onChange={(e) => setNewReplyContent(e.target.value)}
-                                  className="min-h-20"
-                                />
-                                <div className="flex items-center justify-between">
+                      <div 
+                        key={post.id}
+                        className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden transition-all duration-200 border-l-4"
+                        style={{ 
+                          borderLeftColor: courseColor
+                        }}
+                      >
+                        <div className="p-4">
+                          {/* Post Header */}
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3">
+                                <div 
+                                  className="w-8 h-8 rounded-full flex items-center justify-center font-semibold text-white border-2"
+                                  style={{ 
+                                    backgroundColor: courseColor,
+                                    borderColor: courseColor
+                                  }}
+                                >
+                                  {post.author?.initials || 'U'}
+                                </div>
+                                <div>
                                   <div className="flex items-center gap-2">
-                                    <Checkbox
-                                      id="anonymous-reply"
-                                      checked={postAnonymously}
-                                      onCheckedChange={(checked) => setPostAnonymously(checked === true)}
-                                    />
-                                    <label htmlFor="anonymous-reply" className="text-sm text-gray-600 cursor-pointer">
-                                      Post anonymously
-                                    </label>
-                    </div>
-                                  <Button
-                                    onClick={handleCreateReply}
-                                    disabled={!newReplyContent.trim()}
-                                    className="bg-[#752432] hover:bg-[#5a1c24]"
-                                  >
-                                    Reply
-                                  </Button>
-                </div>
-                  </div>
-                  
-                              <Separator />
-                              
-                              {/* Replies */}
-                              <div className="space-y-4">
-                                <h4 className="font-medium">Comments ({(selectedPostForDetail.replies || []).length})</h4>
-                                {(selectedPostForDetail.replies || []).map((reply) => (
-                                  <div key={reply.id} className="flex gap-3 pl-4 border-l-2 border-gray-100">
-                                    <div className="flex flex-col items-center gap-1 pt-1">
-                    <Button 
-                                        variant="ghost" 
-                                        size="sm" 
-                                        className="h-6 px-1"
-                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${courseColor}1a`}
-                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                                        onClick={() => toggleReplyLike(reply.id)}
-                                      >
-                                        <ChevronUp className={`w-4 h-4 ${reply.userLiked ? 'text-[#752432]' : 'text-gray-400'}`} />
-                                      </Button>
-                                      <span className={`text-sm font-medium ${reply.userLiked ? 'text-[#752432]' : 'text-gray-700'}`}>
-                                        {reply.likes}
-                                      </span>
-                                      <Button 
-                                        variant="ghost" 
-                                        size="sm" 
-                                        className="h-6 px-1 hover:bg-gray-100"
-                                      >
-                                        <ChevronDown className="w-4 h-4 text-gray-400" />
-                    </Button>
-                  </div>
-                                    
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <div className="w-8 h-8 bg-[#752432] text-white rounded-full flex items-center justify-center text-sm font-medium">
-                                          {reply.author.initials}
-                    </div>
-                                        <span className="font-medium">{reply.author.name}</span>
-                                        <span className="text-sm text-gray-500">•</span>
-                                        <span className="text-sm text-gray-500">{reply.author.year}</span>
-                                        <span className="text-sm text-gray-500">•</span>
-                                        <span className="text-sm text-gray-500">{reply.timestamp}</span>
-                    </div>
-                                      <p className="text-gray-800 leading-relaxed">{reply.content}</p>
-                    </div>
-                    </div>
-                                ))}
-                  </div>
-                    </div>
+                                    <h4 className="font-semibold text-gray-900 text-sm">{post.author?.name || 'Anonymous'}</h4>
+                                    {!post.is_anonymous && <span className="text-xs text-gray-500">{post.author?.year || ''}</span>}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs text-gray-500">{formatTimestamp(post.created_at)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Post Title */}
+                          <div className="mb-3">
+                            <h2 className="text-lg font-semibold text-gray-900 leading-tight">{post.title}</h2>
+                          </div>
+
+                          {/* Post Content */}
+                          <div className="mb-3">
+                            <p className="text-gray-800 leading-relaxed text-sm">{post.content}</p>
+                          </div>
+
+                          {/* Poll Component */}
+                          {post.poll && (
+                            <div 
+                              className="mb-4 p-4 rounded-lg"
+                              style={{ backgroundColor: '#F3F4F6' }}
+                            >
+                              <h4 className="font-medium text-gray-900 mb-3">{post.poll.question}</h4>
+                              <div className="space-y-2">
+                                {post.poll.options.map((option) => {
+                                  const hasVoted = post.poll!.userVotedOptionId !== undefined;
+                                  const percentage = hasVoted && post.poll!.totalVotes > 0 
+                                    ? (option.votes / post.poll!.totalVotes * 100) 
+                                    : 0;
+                                  const isSelected = post.poll!.userVotedOptionId === option.id;
+                                  
+                                  return (
+                                    <button
+                                      key={option.id}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleVotePoll(post.id, option.id);
+                                      }}
+                                      className={`w-full text-left p-3 rounded-lg border transition-all relative overflow-hidden ${
+                                        isSelected 
+                                          ? 'bg-gray-50'
+                                          : hasVoted
+                                          ? 'border-gray-200 bg-gray-50'
+                                          : 'border-gray-200 hover:border-gray-300 bg-white'
+                                      }`}
+                                      style={{
+                                        borderColor: isSelected ? courseColor : undefined,
+                                        backgroundColor: isSelected ? `${courseColor}0D` : undefined
+                                      }}
+                                    >
+                                      {hasVoted && (
+                                        <div 
+                                          className="absolute inset-0 bg-gray-100 transition-all duration-300"
+                                          style={{ width: `${percentage}%` }}
+                                        />
+                                      )}
+                                      <div className="relative flex items-center justify-between">
+                                        <span className="text-sm font-medium">{option.text}</span>
+                                        {hasVoted && (
+                                          <span className="text-xs text-gray-600">
+                                            {option.votes} votes ({percentage.toFixed(1)}%)
+                                          </span>
+                                        )}
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <div className="mt-3 text-xs text-gray-500">{`${post.poll.totalVotes} total votes`}</div>
+                            </div>
                           )}
-                        </DialogContent>
-                      </Dialog>
+
+                          {/* Post Actions */}
+                          <div className="flex items-center justify-start pt-4 mt-1 border-t border-gray-200">
+                            <div className="flex items-center gap-4">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  togglePostLike(post.id);
+                                }}
+                                disabled={likingPosts.has(post.id)}
+                                className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${likingPosts.has(post.id) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                style={{
+                                  color: post.isLiked ? courseColor : '#6B7280'
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (!post.isLiked) {
+                                    e.currentTarget.style.color = courseColor;
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (!post.isLiked) {
+                                    e.currentTarget.style.color = '#6B7280';
+                                  }
+                                }}
+                              >
+                                <Heart className={`w-4 h-4 ${post.isLiked ? 'fill-current' : ''}`} />
+                                {post.likes_count}
+                              </button>
+                              <button 
+                                className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-blue-500 transition-colors"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  await toggleCommentsExpanded(post.id);
+                                }}
+                              >
+                                <MessageCircle className="w-4 h-4" />
+                                {post.comments_count}
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Inline Comments Section */}
+                          {expandedComments[post.id] && (
+                            <div className="pt-4 border-t border-gray-100 mt-4">
+                              {/* Add Comment Input */}
+                              <div className="flex gap-3 mb-4">
+                                <div 
+                                  className="w-8 h-8 rounded-full flex items-center justify-center font-semibold text-white border-2"
+                                  style={{ 
+                                    backgroundColor: courseColor,
+                                    borderColor: courseColor
+                                  }}
+                                >
+                                  {userProfile?.full_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || 'U'}
+                                </div>
+                                <div className="flex-1">
+                                  <Textarea
+                                    placeholder="Write a comment..."
+                                    value={newComment[post.id] || ''}
+                                    onChange={(e) => setNewComment(prev => ({ ...prev, [post.id]: e.target.value }))}
+                                    className="min-h-[60px] text-sm resize-none"
+                                    onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                                  />
+                                  <div className="flex items-center justify-between mt-2">
+                                    <div className="flex items-center gap-2">
+                                      <div className="relative">
+                                        <input
+                                          type="checkbox"
+                                          id={`anonymous-comment-${post.id}`}
+                                          checked={postAnonymously}
+                                          onChange={(e) => setPostAnonymously(e.target.checked)}
+                                          className="sr-only"
+                                        />
+                                        <div 
+                                          className="w-3 h-3 rounded border-2 flex items-center justify-center cursor-pointer transition-colors"
+                                          style={{ 
+                                            backgroundColor: postAnonymously ? courseColor : 'white',
+                                            borderColor: postAnonymously ? courseColor : '#d1d5db'
+                                          }}
+                                          onClick={() => setPostAnonymously(!postAnonymously)}
+                                        >
+                                          {postAnonymously && (
+                                            <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                            </svg>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <label htmlFor={`anonymous-comment-${post.id}`} className="text-xs text-gray-600 cursor-pointer">
+                                        Post anonymously
+                                      </label>
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        addComment(post.id);
+                                      }}
+                                      disabled={!newComment[post.id]?.trim()}
+                                      className="bg-[#752432] hover:bg-[#752432]/90 text-white"
+                                    >
+                                      Comment
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Loading State for Comments */}
+                              {loadingComments.has(post.id) && (
+                                <div className="flex items-center justify-center py-4">
+                                  <div className="w-6 h-6 border-2 border-[#752432] border-t-transparent rounded-full animate-spin"></div>
+                                  <span className="ml-2 text-sm text-gray-600">Loading comments...</span>
+                                </div>
+                              )}
+
+                              {/* Comments List */}
+                              {!loadingComments.has(post.id) && (
+                                <div className="space-y-4">
+                                  {comments[post.id]?.map((comment) => (
+                                    <div key={comment.id} className="flex gap-3" onClick={(e) => e.stopPropagation()}>
+                                      <div 
+                                        className="w-8 h-8 rounded-full flex items-center justify-center font-semibold text-white border-2"
+                                        style={{ 
+                                          backgroundColor: courseColor,
+                                          borderColor: courseColor
+                                        }}
+                                      >
+                                        {comment.author?.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || 'U'}
+                                      </div>
+                                      <div className="flex-1">
+                                        <div className="bg-gray-50 rounded-lg p-3">
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <h5 className="font-medium text-gray-900 text-sm">{comment.author?.name || 'Anonymous'}</h5>
+                                            {!comment.is_anonymous && <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>}
+                                            <span className="text-xs text-gray-500">•</span>
+                                            <span className="text-xs text-gray-500">{formatTimestamp(comment.created_at)}</span>
+                                          </div>
+                                          <p className="text-gray-800 text-sm">{comment.content}</p>
+                                          {/* comment actions */}
+                                          <div className="mt-2 flex items-center gap-3">
+                                            <button 
+                                              className={`flex items-center gap-1 text-xs font-medium transition-colors ${
+                                                comment.isLiked ? '' : 'text-gray-600'
+                                              }`}
+                                              style={{
+                                                color: comment.isLiked ? courseColor : undefined
+                                              }}
+                                              onMouseEnter={(e) => {
+                                                if (!comment.isLiked) {
+                                                  e.currentTarget.style.color = courseColor;
+                                                }
+                                              }}
+                                              onMouseLeave={(e) => {
+                                                if (!comment.isLiked) {
+                                                  e.currentTarget.style.color = '';
+                                                }
+                                              }}
+                                              onClick={(e) => { e.stopPropagation(); toggleCommentLike(post.id, comment.id); }}
+                                            >
+                                              <Heart className={`w-3 h-3 ${comment.isLiked ? 'fill-current' : ''}`} />
+                                              {comment.likes_count}
+                                            </button>
+                                            <button 
+                                              className="text-xs font-medium text-gray-600 hover:text-blue-500 transition-colors"
+                                              onClick={(e: React.MouseEvent) => { e.stopPropagation(); setReplyingTo(prev => prev === `${post.id}:${comment.id}` ? null : `${post.id}:${comment.id}`); }}
+                                            >
+                                              Reply
+                                            </button>
+                                          </div>
+                                        </div>
+                                        
+                                        {/* Replies Display */}
+                                        {comment.replies && comment.replies.length > 0 && (
+                                          <div className="mt-3 ml-4 space-y-2">
+                                            {comment.replies.map((reply: any) => (
+                                              <div key={reply.id} className="flex items-start gap-2">
+                                                <div 
+                                                  className="w-6 h-6 rounded-full flex items-center justify-center font-semibold text-white border-2 text-xs"
+                                                  style={{ 
+                                                    backgroundColor: courseColor,
+                                                    borderColor: courseColor
+                                                  }}
+                                                >
+                                                  {reply.author?.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || 'U'}
+                                                </div>
+                                                <div className="flex-1">
+                                                  <div className="flex items-center gap-2 mb-1">
+                                                    <h6 className="font-medium text-gray-900 text-xs">{reply.author?.name || 'Anonymous'}</h6>
+                                                    {!reply.is_anonymous && <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>}
+                                                    <span className="text-xs text-gray-500">•</span>
+                                                    <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>
+                                                  </div>
+                                                  <p className="text-gray-800 text-xs mb-2">{reply.content}</p>
+                                                  <div className="flex items-center gap-3">
+                                                    <button 
+                                                      className={`flex items-center gap-1 text-xs font-medium transition-colors ${
+                                                        reply.isLiked ? '' : 'text-gray-600'
+                                                      }`}
+                                                      style={{
+                                                        color: reply.isLiked ? courseColor : undefined
+                                                      }}
+                                                      onMouseEnter={(e) => {
+                                                        if (!reply.isLiked) {
+                                                          e.currentTarget.style.color = courseColor;
+                                                        }
+                                                      }}
+                                                      onMouseLeave={(e) => {
+                                                        if (!reply.isLiked) {
+                                                          e.currentTarget.style.color = '';
+                                                        }
+                                                      }}
+                                                      onClick={(e) => { e.stopPropagation(); toggleReplyLike(post.id, comment.id, reply.id); }}
+                                                    >
+                                                      <Heart className={`w-3 h-3 ${reply.isLiked ? 'fill-current' : ''}`} />
+                                                      {reply.likes_count}
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+
+                                        {/* Reply composer */}
+                                        {replyingTo === `${post.id}:${comment.id}` && (
+                                          <div className="mt-2 ml-4 space-y-2">
+                                            <Textarea
+                                              value={replyText[`${post.id}:${comment.id}`] || ''}
+                                              onChange={(e) => setReplyText(prev => ({ ...prev, [`${post.id}:${comment.id}`]: e.target.value }))}
+                                              placeholder="Write a reply..."
+                                              className="min-h-[40px] text-xs"
+                                            />
+                                            <div className="flex items-center justify-between">
+                                              <div className="flex items-center gap-2">
+                                                <div className="relative">
+                                                  <input
+                                                    type="checkbox"
+                                                    id={`anonymous-reply-${post.id}-${comment.id}`}
+                                                    checked={replyAnonymously[`${post.id}:${comment.id}`] || false}
+                                                    onChange={(e) => setReplyAnonymously(prev => ({ ...prev, [`${post.id}:${comment.id}`]: e.target.checked }))}
+                                                    className="sr-only"
+                                                  />
+                                                  <div 
+                                                    className="w-3 h-3 rounded border-2 flex items-center justify-center cursor-pointer transition-colors"
+                                                    style={{ 
+                                                      backgroundColor: replyAnonymously[`${post.id}:${comment.id}`] ? courseColor : 'white',
+                                                      borderColor: replyAnonymously[`${post.id}:${comment.id}`] ? courseColor : '#d1d5db'
+                                                    }}
+                                                    onClick={() => setReplyAnonymously(prev => ({ ...prev, [`${post.id}:${comment.id}`]: !prev[`${post.id}:${comment.id}`] }))}
+                                                  >
+                                                    {replyAnonymously[`${post.id}:${comment.id}`] && (
+                                                      <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                      </svg>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                                <label htmlFor={`anonymous-reply-${post.id}-${comment.id}`} className="text-xs text-gray-600 cursor-pointer">
+                                                  Post anonymously
+                                                </label>
+                                              </div>
+                                              <Button
+                                                size="sm"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  addReply(post.id, comment.id);
+                                                }}
+                                                disabled={!replyText[`${post.id}:${comment.id}`]?.trim()}
+                                                className="bg-[#752432] hover:bg-[#752432]/90 text-white"
+                                              >
+                                                Reply
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -1593,17 +2165,32 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
 
             {/* Anonymous Posting Option */}
             <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-              <input
-                type="checkbox"
-                id="anonymous-post"
-                checked={postAnonymously}
-                onChange={(e) => setPostAnonymously(e.target.checked)}
-                className="w-4 h-4 text-[#752432] bg-gray-100 border-gray-300 rounded focus:ring-[#752432] focus:ring-2"
-              />
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  id="anonymous-post"
+                  checked={postAnonymously}
+                  onChange={(e) => setPostAnonymously(e.target.checked)}
+                  className="sr-only"
+                />
+                <div 
+                  className="w-3 h-3 rounded border-2 flex items-center justify-center cursor-pointer transition-colors"
+                  style={{ 
+                    backgroundColor: postAnonymously ? courseColor : 'white',
+                    borderColor: postAnonymously ? courseColor : '#d1d5db'
+                  }}
+                  onClick={() => setPostAnonymously(!postAnonymously)}
+                >
+                  {postAnonymously && (
+                    <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+              </div>
               <label htmlFor="anonymous-post" className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                 <span className="text-lg">🎭</span>
-                Post anonymously as random name
-                <span className="text-xs text-gray-500">(e.g., "Silly Squirrel")</span>
+                Post anonymously
               </label>
             </div>
 

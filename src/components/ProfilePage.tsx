@@ -185,11 +185,18 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       }
 
       try {
-        const { data: profile, error } = await supabase
+        let query = supabase
           .from('profiles')
-          .select('full_name, email, phone, class_year, section, classes, age, hometown, summer_city, summer_firm, instagram, linkedin, avatar_url, photo_urls')
-          .eq('id', user.id)
-          .single();
+          .select('full_name, email, phone, class_year, section, classes, age, hometown, summer_city, summer_firm, instagram, linkedin, avatar_url, photo_urls');
+
+        // If viewing another student's profile, fetch by name; otherwise fetch by user ID
+        if (studentName && studentName !== user.email) {
+          query = query.eq('full_name', studentName);
+        } else {
+          query = query.eq('id', user.id);
+        }
+
+        const { data: profile, error } = await query.single();
 
         if (error) {
           console.error('Error fetching profile:', error);
@@ -240,7 +247,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
     };
 
     fetchProfileData();
-  }, [user]);
+  }, [user, studentName]);
   
 
   const [editedData, setEditedData] = useState<ProfileData | null>(null);
@@ -878,7 +885,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                       </div>
                     )}
                   </div>
-                  {isEditing && (!studentName || studentName === 'Justin Abbey') && (
+                  {isEditing && !studentName && (
                     <div className="flex flex-col gap-2 mt-4">
                       <input
                         type="file"
@@ -933,7 +940,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                       <p className="text-base sm:text-lg text-gray-600 break-words">{profileData.year} Student • Section {profileData.section} • Harvard Law School</p>
                     </div>
                     {/* Show Edit and Settings buttons only for main user */}
-                    {(!studentName || studentName === 'Justin Abbey') && !isEditing && (
+                    {!studentName && !isEditing && (
                       <div className="flex gap-1.5 flex-shrink-0">
                         <Button onClick={handleEdit} variant="outline" className="gap-1.5 text-xs px-2 py-1 h-7">
                           <Edit className="w-3 h-3" />
@@ -962,7 +969,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                   
                   {/* Social Media Icons */}
                   <div className="flex items-center gap-4 mb-4">
-                    {isEditing && (!studentName || studentName === 'Justin Abbey') ? (
+                    {isEditing && !studentName ? (
                       <div className="flex items-center gap-2">
                         <img 
                           src="/Instagram_Glyph_Gradient.png" 
@@ -1001,7 +1008,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                       </div>
                     )}
                     
-                    {isEditing && (!studentName || studentName === 'Justin Abbey') ? (
+                    {isEditing && !studentName ? (
                       <div className="flex items-center gap-2">
                         <img 
                           src="/LI-In-Bug.png" 
@@ -1052,7 +1059,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 md:gap-x-16 gap-y-3 text-base text-gray-600">
                     <div className="flex items-center gap-2">
                       <strong>Age:</strong> 
-                      {isEditing && (!studentName || studentName === 'Justin Abbey') ? (
+                      {isEditing && !studentName ? (
                         <Input
                           value={editedData?.age || ''}
                           onChange={(e) => editedData && setEditedData({ ...editedData, age: parseInt(e.target.value) || 0 })}
@@ -1066,7 +1073,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                     </div>
                     <div className="flex items-center gap-2">
                       <strong>Hometown:</strong> 
-                      {isEditing && (!studentName || studentName === 'Justin Abbey') ? (
+                      {isEditing && !studentName ? (
                         <Input
                           value={editedData?.hometown || ''}
                           onChange={(e) => editedData && setEditedData({ ...editedData, hometown: e.target.value })}
@@ -1079,7 +1086,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                     </div>
                     <div className="flex items-center gap-2">
                       <strong>Summer City:</strong> 
-                      {isEditing && (!studentName || studentName === 'Justin Abbey') ? (
+                      {isEditing && !studentName ? (
                         <Input
                           value={editedData?.summerCity || ''}
                           onChange={(e) => editedData && setEditedData({ ...editedData, summerCity: e.target.value })}
@@ -1092,7 +1099,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                     </div>
                     <div className="flex items-center gap-2">
                       <strong>Summer Firm:</strong> 
-                      {isEditing && (!studentName || studentName === 'Justin Abbey') ? (
+                      {isEditing && !studentName ? (
                         <Input
                           value={editedData?.summerFirm || ''}
                           onChange={(e) => editedData && setEditedData({ ...editedData, summerFirm: e.target.value })}
@@ -1110,7 +1117,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                     {!isEditing ? (
                       <>
                         {/* Show Message and Match buttons only for other students */}
-                        {studentName && studentName !== 'Justin Abbey' && (
+                        {studentName && (
                           <>
                             <Button 
                               className="gap-2 text-white hover:opacity-90" 
@@ -1156,7 +1163,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                 <CardTitle>About</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {isEditing && (!studentName || studentName === 'Justin Abbey') ? (
+                        {isEditing && !studentName ? (
                   <Textarea
                     value={editedData?.bio || ''}
                     onChange={(e) => editedData && setEditedData({ ...editedData, bio: e.target.value })}
@@ -1190,7 +1197,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>Photos</CardTitle>
-                  {isEditing && (!studentName || studentName === 'Justin Abbey') && (
+                  {isEditing && !studentName && (
                     <div className="flex gap-2">
                       <input
                         type="file"
@@ -1231,7 +1238,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                     {/* Display actual photos only */}
                     {profileData.photo_urls.map((photoUrl, index) => (
                       <div key={index} className="relative group rounded-lg overflow-hidden">
-                        {isEditing && (!studentName || studentName === 'Justin Abbey') ? (
+                        {isEditing && !studentName ? (
                           <div
                             onClick={() => handleDeletePhoto(photoUrl)}
                             className="cursor-pointer relative"
@@ -1268,7 +1275,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                       Upload up to 20 photos to showcase your personality, interests, and experiences. 
                       Let others get to know the real you! ✨
                     </p>
-                    {isEditing && (!studentName || studentName === 'Justin Abbey') && (
+                    {isEditing && !studentName && (
                       <div className="flex justify-center">
                         <input
                           type="file"

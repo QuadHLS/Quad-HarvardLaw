@@ -58,12 +58,20 @@ interface Comment {
   replies?: Comment[];
 }
 
+// Course interface matching the structure from profiles.classes
+interface Course {
+  course_id: string; // UUID from Courses table
+  class: string;
+  professor: string;
+  schedule?: any;
+}
+
 // Component props interface
 interface FeedProps {
   onPostClick?: (postId: string) => void;
   feedMode?: 'campus' | 'my-courses';
   onFeedModeChange?: (mode: 'campus' | 'my-courses') => void;
-  myCourses?: string[];
+  myCourses?: Course[];
   onThreadViewChange?: (isOpen: boolean) => void;
 }
 
@@ -361,7 +369,7 @@ const DialogDescription = ({ children }: { children: React.ReactNode }) => (
 //   </button>
 // );
 
-export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCourses = ['Contract Law', 'Torts', 'Civil Procedure', 'Property Law'], onThreadViewChange }: FeedProps) {
+export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCourses = [], onThreadViewChange }: FeedProps) {
   // State management
   const [showCreatePostDialog, setShowCreatePostDialog] = useState(false);
   const [newPost, setNewPost] = useState('');
@@ -457,34 +465,6 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   const [profileCache, setProfileCache] = useState<Record<string, any>>({});
   const [courseCache, setCourseCache] = useState<Record<string, any>>({});
 
-  // Helper function to clean course names (matches CoursePage logic exactly)
-  const cleanCourseName = (className: string): string => {
-    // Clean 1L course names (remove section numbers 1-7)
-    const required1LPatterns = [
-      'Civil Procedure',
-      'Contracts',
-      'Criminal Law',
-      'Torts',
-      'Constitutional Law',
-      'Property',
-      'Legislation and Regulation'
-    ];
-    
-    for (const pattern of required1LPatterns) {
-      if (className.startsWith(pattern + ' ')) {
-        return pattern; // Return base name without section number
-      }
-    }
-    
-    // Clean "First Year Legal Research and Writing" (remove section numbers/letters)
-    if (className.startsWith('First Year Legal Research and Writing ')) {
-      return 'First Year Legal Research and Writing';
-    }
-    
-    // Return original name if no cleaning needed
-    return className;
-  };
-
   // Database functions
   const fetchPosts = useCallback(async (isInitialLoad: boolean = true) => {
     try {
@@ -517,47 +497,13 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           .maybeSingle();
 
         if (profile?.classes && profile.classes.length > 0) {
-          // Extract course names from the course objects and clean them
-          const courseNames = profile.classes.map((course: any) => {
-            const className = course.class;
-            
-            // Clean 1L course names (remove section numbers 1-7)
-            const required1LPatterns = [
-              'Civil Procedure',
-              'Contracts',
-              'Criminal Law',
-              'Torts',
-              'Constitutional Law',
-              'Property',
-              'Legislation and Regulation'
-            ];
-            
-            for (const pattern of required1LPatterns) {
-              if (className.startsWith(pattern + ' ')) {
-                return pattern; // Return base name without section number
-              }
-            }
-            
-            // Clean "First Year Legal Research and Writing" (remove section numbers/letters)
-            if (className.startsWith('First Year Legal Research and Writing ')) {
-              return 'First Year Legal Research and Writing';
-            }
-            
-            // Return original name if no cleaning needed
-            return className;
-          });
-          
-          // Get course IDs for user's classes
-          const { data: userCourses } = await supabase
-            .from('feedcourses')
-            .select('id')
-            .in('name', courseNames);
+          // Extract course UUIDs directly from the course objects
+          const courseIds = profile.classes.map((course: any) => course.course_id).filter(Boolean);
 
-          if (userCourses && userCourses.length > 0) {
-            const courseIds = userCourses.map((c: any) => c.id);
+          if (courseIds.length > 0) {
             query = query.in('course_id', courseIds);
           } else {
-            // No matching courses found
+            // No valid course IDs found
             setPosts([]);
             setLoading(false);
             return;
@@ -598,10 +544,10 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         .select('id, full_name, class_year')
         .in('id', authorIds);
 
-      // Batch fetch all course data
+      // Batch fetch all course data from Courses table
       const { data: courses } = await supabase
-        .from('feedcourses')
-        .select('id, name')
+        .from('Courses')
+        .select('id, course_name')
         .in('id', courseIds);
 
       // Batch fetch all user likes for posts
@@ -745,7 +691,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             name: post.is_anonymous ? `Anonymous User` : author.full_name,
             year: author.class_year
           } : undefined,
-          course: course ? { name: course.name } : undefined,
+          course: course ? { name: course.course_name } : undefined,
           isLiked: isLiked,
           poll
         };
@@ -1013,14 +959,9 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           
           // If it's my-courses feed, only refresh if the post is from one of user's courses
           if (feedMode === 'my-courses' && newPost.course_id) {
-            // Get the course name for this post
-            const { data: course } = await supabase
-              .from('feedcourses')
-              .select('name')
-              .eq('id', newPost.course_id)
-              .maybeSingle();
-              
-            if (course && myCourses.includes(course.name)) {
+            // Check if the course UUID is in the user's courses
+            const userCourseIds = myCourses.map(c => c.course_id);
+            if (userCourseIds.includes(newPost.course_id)) {
               debouncedFetchPosts();
             }
           }
@@ -1337,19 +1278,10 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       if (!user) return;
 
       // Get course_id if posting to My Courses
+      // selectedCourseForPost now contains the course UUID directly
       let courseId = null;
-      if (newPostTarget === 'my-courses') {
-        if (selectedCourseForPost) {
-          // Clean the course name to remove section numbers (same logic as CoursePage)
-          const cleanedCourseName = cleanCourseName(selectedCourseForPost);
-          
-          const { data: course } = await supabase
-            .from('feedcourses')
-            .select('id')
-            .eq('name', cleanedCourseName)
-            .maybeSingle();
-          courseId = course?.id || null;
-        }
+      if (newPostTarget === 'my-courses' && selectedCourseForPost) {
+        courseId = selectedCourseForPost;
       }
 
       // Create the post
@@ -2787,7 +2719,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                   >
                     <option value="">Choose a course...</option>
                     {myCourses.map((course) => (
-                      <option key={course} value={course}>{course}</option>
+                      <option key={course.course_id} value={course.course_id}>{course.class}</option>
                     ))}
                   </select>
                 </div>

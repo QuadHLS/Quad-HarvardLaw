@@ -50,6 +50,7 @@ interface CoursePageOverviewProps {
 }
 
 interface UserCourse {
+  course_id: string; // UUID from Courses table
   class: string;
   professor: string;
   schedule?: {
@@ -644,34 +645,6 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
     fetchCourseData();
   }, [user, courseName]);
 
-  // Helper function to clean course names (matches HomePage feed logic exactly)
-  const cleanCourseName = (className: string): string => {
-    // Clean 1L course names (remove section numbers 1-7)
-    const required1LPatterns = [
-      'Civil Procedure',
-      'Contracts',
-      'Criminal Law',
-      'Torts',
-      'Constitutional Law',
-      'Property',
-      'Legislation and Regulation'
-    ];
-    
-    for (const pattern of required1LPatterns) {
-      if (className.startsWith(pattern + ' ')) {
-        return pattern; // Return base name without section number
-      }
-    }
-    
-    // Clean "First Year Legal Research and Writing" (remove section numbers/letters)
-    if (className.startsWith('First Year Legal Research and Writing ')) {
-      return 'First Year Legal Research and Writing';
-    }
-    
-    // Return original name if no cleaning needed
-    return className;
-  };
-
   // Fetch posts for this specific course
   const fetchCoursePosts = async (isInitialLoad: boolean = true) => {
     try {
@@ -679,7 +652,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
         setPostsLoading(true);
       }
       
-      // Get current user (matches HomePage feed logic exactly)
+      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         console.log('No user found, skipping fetchCoursePosts');
@@ -687,34 +660,19 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
         return;
       }
       
-      const actualCourseName = userCourse?.class || courseName;
-      if (!actualCourseName) {
-        setPostsLoading(false);
-        return;
-      }
-      
-
-      // Clean the course name to match feedcourses table (same logic as HomePage feed)
-      const cleanedCourseName = cleanCourseName(actualCourseName);
-
-      // Get course ID from feedcourses table
-      const { data: course } = await supabase
-        .from('feedcourses')
-        .select('id')
-        .eq('name', cleanedCourseName)
-        .maybeSingle();
-
-      if (!course) {
+      // Check if we have a course with UUID
+      if (!userCourse?.course_id) {
+        console.log('No course UUID found');
         setCoursePosts([]);
         setPostsLoading(false);
         return;
       }
 
-      // Fetch posts for this course
+      // Fetch posts for this course using the course UUID directly
       const { data: posts, error: postsError } = await supabase
         .from('posts')
         .select('*')
-        .eq('course_id', course.id)
+        .eq('course_id', userCourse.course_id)
         .order('created_at', { ascending: false });
 
       if (postsError) {
@@ -892,8 +850,10 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
 
   // Fetch course students when component loads
   useEffect(() => {
-    fetchCourseStudents();
-  }, [courseName]);
+    if (userCourse?.course_id) {
+      fetchCourseStudents();
+    }
+  }, [userCourse]);
 
   // Fetch posts when course data is loaded
   useEffect(() => {
@@ -957,18 +917,8 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
           },
           async (payload: any) => {
             // Only refresh if the post is for this course
-            if (payload.new.course_id) {
-              const actualCourseName = userCourse?.class || courseName;
-              const cleanedCourseName = cleanCourseName(actualCourseName);
-              const { data: course } = await supabase
-                .from('feedcourses')
-                .select('id')
-                .eq('name', cleanedCourseName)
-                .maybeSingle();
-              
-              if (course && payload.new.course_id === course.id) {
-                debouncedFetchPosts();
-              }
+            if (payload.new.course_id && userCourse?.course_id && payload.new.course_id === userCourse.course_id) {
+              debouncedFetchPosts();
             }
           }
         )
@@ -1176,35 +1126,24 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
     if (newPostType === 'poll' && pollOptions.filter(opt => opt.trim()).length < 2) return;
 
     try {
-      // Get current user (matches HomePage feed logic exactly)
+      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const actualCourseName = userCourse?.class || courseName;
-      
-      // Clean the course name to match feedcourses table (same logic as HomePage feed)
-      const cleanedCourseName = cleanCourseName(actualCourseName);
-      
-      // Get course ID from feedcourses table
-      const { data: course } = await supabase
-        .from('feedcourses')
-        .select('id')
-        .eq('name', cleanedCourseName)
-        .maybeSingle();
-
-      if (!course) {
-        console.error('Course not found in feedcourses:', cleanedCourseName);
+      // Check if we have a course with UUID
+      if (!userCourse?.course_id) {
+        console.error('No course UUID found');
         return;
       }
 
-      // Create the post (matches HomePage feed logic exactly)
+      // Create the post using the course UUID directly
       const { data: createdPost, error: postError } = await supabase
         .from('posts')
         .insert({
           title: newPostTitle.trim(),
           content: newPostContent.trim(),
           author_id: user.id,
-          course_id: course.id,
+          course_id: userCourse.course_id,
           post_type: newPostType,
           is_anonymous: postAnonymously
         })
@@ -1446,19 +1385,13 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
   // Fetch real students for the course
   const fetchCourseStudents = async () => {
     try {
-      // First get the course ID
-      const { data: course, error: courseError } = await supabase
-        .from('feedcourses')
-        .select('id')
-        .eq('name', courseName)
-        .single();
-
-      if (courseError || !course) {
-        console.error('Error fetching course:', courseError);
+      // Check if we have a course UUID
+      if (!userCourse?.course_id) {
+        console.log('No course UUID available for fetching students');
         return;
       }
 
-      // Get students enrolled in this course
+      // Get students enrolled in this course using the course UUID directly
       const { data: students, error: studentsError } = await supabase
         .from('course_enrollments')
         .select(`
@@ -1467,7 +1400,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
             class_year
           )
         `)
-        .eq('course_id', course.id);
+        .eq('course_id', userCourse.course_id);
 
       if (studentsError) {
         console.error('Error fetching students:', studentsError);
@@ -1567,7 +1500,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
           >
             <div className="flex items-start justify-between">
               <div>
-                <h1 className="text-3xl font-bold mb-2">{cleanCourseName(userCourse?.class || courseName)}</h1>
+                <h1 className="text-3xl font-bold mb-2">{userCourse?.class || courseName}</h1>
                 <p className="text-white/90 text-lg mb-4">
                   {getLastNames(userCourse?.professor || 'TBD')}
                 </p>
@@ -2090,7 +2023,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MessageSquare className="w-5 h-5" />
-              Create Post for {cleanCourseName(userCourse?.class || courseName)}
+              Create Post for {userCourse?.class || courseName}
             </DialogTitle>
             <DialogDescription>
               Share your thoughts, ask questions, or start a discussion with your classmates.

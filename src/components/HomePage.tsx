@@ -35,6 +35,7 @@ interface TodoItem {
 }
 
 interface UserCourse {
+  course_id: string; // UUID from Courses table
   class: string;
   professor: string;
   schedule?: any;
@@ -1239,7 +1240,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
             <Feed 
               feedMode={feedMode}
               onFeedModeChange={setFeedMode}
-              myCourses={[...new Set(userCourses.map(c => c.class))]}
+              myCourses={userCourses}
               onThreadViewChange={setIsThreadViewOpen}
             />
           </div>

@@ -1113,30 +1113,8 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                   </div>
                   
                   {/* Action Buttons */}
-                  <div className="flex gap-3 pt-2">
-                    {!isEditing ? (
-                      <>
-                        {/* Show Message and Match buttons only for other students */}
-                        {studentName && (
-                          <>
-                            <Button 
-                              className="gap-2 text-white hover:opacity-90" 
-                              style={{ backgroundColor: '#752432' }}
-                            >
-                              <MessageSquare className="w-4 h-4" />
-                              Message
-                            </Button>
-                            <Button 
-                              className="gap-2 text-white hover:opacity-90" 
-                              style={{ backgroundColor: '#752432' }}
-                            >
-                              <Heart className="w-4 h-4" />
-                              Match
-                            </Button>
-                          </>
-                        )}
-                      </>
-                    ) : (
+                  {isEditing && (
+                    <div className="flex gap-3 pt-2">
                       <div className="flex gap-2">
                         <Button onClick={handleSave} className="gap-2 text-white hover:opacity-90" style={{ backgroundColor: '#752432' }}>
                           <Save className="w-4 h-4" />
@@ -1147,8 +1125,8 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                           Cancel
                         </Button>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

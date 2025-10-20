@@ -8,9 +8,7 @@ import { PlannerPage } from './components/PlannerPage';
 import { HomePage } from './components/HomePage';
 import { CoursePage } from './components/CoursePage';
 import { BarReviewPage } from './components/BarReviewPage';
-import { CalendarPage } from './components/CalendarPage';
 import { ProfilePage } from './components/ProfilePage';
-import { MessagingPage } from './components/MessagingPage';
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/auth/AuthPage';
@@ -18,17 +16,6 @@ import { OnboardingFlow } from './components/onboarding/OnboardingFlow';
 import { supabase } from './lib/supabase';
 import type { Outline } from './types';
 
-interface CalendarEvent {
-  id: string;
-  title: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  type: 'class' | 'exam' | 'assignment' | 'study' | 'meeting' | 'personal';
-  course?: string;
-  location?: string;
-  description?: string;
-}
 
 function AppContent({ user }: { user: any }) {
   const [authLoading, setAuthLoading] = useState(true);
@@ -213,8 +200,6 @@ function AppContent({ user }: { user: any }) {
 
   const [sortBy] = useState('Highest Rated');
 
-  // Shared calendar events state
-  const [calendarEvents] = useState<CalendarEvent[]>([]);
 
   // Fetch outlines from Supabase with pagination (only after login)
   useEffect(() => {
@@ -875,14 +860,10 @@ function AppContent({ user }: { user: any }) {
             studentName={selectedStudent}
             onBack={handleBackFromStudentProfile}
           />
-        ) : activeSection === 'calendar' ? (
-          <CalendarPage additionalEvents={calendarEvents} />
         ) : activeSection === 'barreview' ? (
           <BarReviewPage />
         ) : activeSection === 'profile' ? (
           <ProfilePage />
-        ) : activeSection === 'messaging' ? (
-          <MessagingPage />
         ) : (
           <div className="flex items-center justify-center h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
             <div className="text-center p-8">

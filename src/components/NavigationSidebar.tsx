@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, FileText, Star, Beer, Calendar, Menu, User, MessageCircle, Archive, ChevronDown, ChevronRight, BookOpen, MessageSquare, CalendarDays } from 'lucide-react';
+import { Home, FileText, Star, Beer, Menu, User, Archive, ChevronDown, ChevronRight, BookOpen, MessageSquare, CalendarDays } from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -18,8 +18,6 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
   const [userName, setUserName] = useState('User');
   const [showMenuButton, setShowMenuButton] = useState(!isCollapsed);
   // MVP: Temporarily disable unfinished sections
-  const enableCalendar = false;
-  const enableMessaging = false;
 
   // Handle delayed menu button teleport
   useEffect(() => {
@@ -255,53 +253,6 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
 
           {/* Bottom Section - Profile (Calendar/Messaging disabled for MVP) */}
           <div className="border-t border-gray-200">
-            {/* Calendar/Messaging temporarily hidden */}
-            {enableCalendar && (
-              <button
-                onClick={() => onSectionChange('calendar')}
-                className={`w-full flex items-center px-3 py-2 text-left ${
-                  activeSection === 'calendar'
-                    ? 'bg-white text-gray-800 border-r-2' 
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-white'
-                }`}
-                style={{
-                  borderRightColor: activeSection === 'calendar' ? '#752432' : 'transparent'
-                }}
-              >
-                <Calendar 
-                  className="w-5 h-5 mr-2" 
-                  style={{ color: '#752432' }}
-                />
-                <span className="font-medium text-sm">Calendar</span>
-              </button>
-            )}
-
-            {enableMessaging && (
-              <button
-                onClick={() => onSectionChange('messaging')}
-                className={`w-full flex items-center px-3 py-2 text-left ${
-                  activeSection === 'messaging'
-                    ? 'bg-white text-gray-800 border-r-2' 
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-white'
-                }`}
-                style={{
-                  borderRightColor: activeSection === 'messaging' ? '#752432' : 'transparent'
-                }}
-              >
-                <div className="relative mr-2">
-                  <MessageCircle 
-                    className="w-5 h-5" 
-                    style={{ color: '#752432' }}
-                  />
-                  {/* Small unread notification bubble */}
-                  <div 
-                    className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-white"
-                    style={{ backgroundColor: '#752432' }}
-                  />
-                </div>
-                <span className="font-medium text-sm">Messaging</span>
-              </button>
-            )}
             
             {/* Profile Section */}
             <button
@@ -434,51 +385,6 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
       {isCollapsed && (
         <div className="py-3">
           <div className="space-y-2">
-            {/* Calendar/Messaging collapsed icons hidden for MVP */}
-            {enableCalendar && (
-              <button
-                onClick={() => onSectionChange('calendar')}
-                className={`w-full flex items-center justify-center py-2 rounded-md ${
-                  activeSection === 'calendar'
-                    ? 'bg-white text-gray-800 border-r-2' 
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-white'
-                }`}
-                style={{
-                  borderRightColor: activeSection === 'calendar' ? '#752432' : 'transparent'
-                }}
-              >
-                <Calendar 
-                  className="w-5 h-5" 
-                  style={{ color: '#752432' }}
-                />
-              </button>
-            )}
-
-            {enableMessaging && (
-              <button
-                onClick={() => onSectionChange('messaging')}
-                className={`w-full flex items-center justify-center py-2 rounded-md ${
-                  activeSection === 'messaging'
-                    ? 'bg-white text-gray-800 border-r-2' 
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-white'
-                }`}
-                style={{
-                  borderRightColor: activeSection === 'messaging' ? '#752432' : 'transparent'
-                }}
-              >
-                <div className="relative">
-                  <MessageCircle 
-                    className="w-5 h-5" 
-                    style={{ color: '#752432' }}
-                  />
-                  {/* Small unread notification bubble */}
-                  <div 
-                    className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-white"
-                    style={{ backgroundColor: '#752432' }}
-                  />
-                </div>
-              </button>
-            )}
             
             {/* Theme toggle removed */}
             <button

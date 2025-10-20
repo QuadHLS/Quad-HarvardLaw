@@ -401,6 +401,21 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     pollVotesChannel?: any;
   }>({});
 
+  const fetchPostsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Refs for realtime callbacks to access current state without causing re-subscriptions
+  const expandedCommentsRef = useRef<Record<string, boolean>>({});
+  const selectedPostThreadRef = useRef<string | null>(null);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    expandedCommentsRef.current = expandedComments;
+  }, [expandedComments]);
+
+  useEffect(() => {
+    selectedPostThreadRef.current = selectedPostThread;
+  }, [selectedPostThread]);
+
   // Course colors are now determined by the post's assigned color
 
 
@@ -745,11 +760,9 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   }, [feedMode, user]);
 
   // Debounced fetchPosts to prevent rapid updates
-  const [fetchPostsTimeout, setFetchPostsTimeout] = useState<NodeJS.Timeout | null>(null);
-  
   const debouncedFetchPosts = useCallback(() => {
-    if (fetchPostsTimeout) {
-      clearTimeout(fetchPostsTimeout);
+    if (fetchPostsTimeoutRef.current) {
+      clearTimeout(fetchPostsTimeoutRef.current);
     }
     
     const timeout = setTimeout(async () => {
@@ -757,8 +770,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       await fetchPosts(false); // Background refresh, don't show loading screen
     }, 150); // 150ms debounce
     
-    setFetchPostsTimeout(timeout);
-  }, [fetchPostsTimeout, fetchPosts, feedMode]);
+    fetchPostsTimeoutRef.current = timeout;
+  }, [fetchPosts]);
 
   const fetchComments = async (postId: string) => {
     try {
@@ -1145,7 +1158,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           ));
           
           // If comments are expanded for this post, refresh them
-          if (expandedComments[payload.new.post_id] || selectedPostThread === payload.new.post_id) {
+          // Use refs to get current state without dependency issues
+          if (expandedCommentsRef.current[payload.new.post_id] || selectedPostThreadRef.current === payload.new.post_id) {
             await fetchComments(payload.new.post_id);
           }
         }
@@ -1167,7 +1181,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           ));
           
           // If comments are expanded for this post, refresh them
-          if (expandedComments[payload.old.post_id] || selectedPostThread === payload.old.post_id) {
+          // Use refs to get current state without dependency issues
+          if (expandedCommentsRef.current[payload.old.post_id] || selectedPostThreadRef.current === payload.old.post_id) {
             await fetchComments(payload.old.post_id);
           }
         }
@@ -1254,14 +1269,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       if (channelsRef.current.pollVotesChannel) supabase.removeChannel(channelsRef.current.pollVotesChannel);
       
       // Clear any pending fetchPosts timeout
-      if (fetchPostsTimeout) {
-        clearTimeout(fetchPostsTimeout);
+      if (fetchPostsTimeoutRef.current) {
+        clearTimeout(fetchPostsTimeoutRef.current);
       }
       
       // Clear connection timeout
       clearTimeout(connectionTimeout);
     };
-  }, [user, expandedComments, selectedPostThread]);
+  }, [user]);
 
   // Add loading state for comments
   const [loadingComments, setLoadingComments] = useState<Set<string>>(new Set());

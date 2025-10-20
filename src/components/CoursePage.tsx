@@ -127,7 +127,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
     pollVotesChannel?: any;
   }>({});
 
-  const [fetchPostsTimeout, setFetchPostsTimeout] = useState<NodeJS.Timeout | null>(null);
+  const fetchPostsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Unread tracking state
   const [lastReadTime] = useState<string>('now');
@@ -580,16 +580,16 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
   };
 
   const debouncedFetchPosts = useCallback(() => {
-    if (fetchPostsTimeout) {
-      clearTimeout(fetchPostsTimeout);
+    if (fetchPostsTimeoutRef.current) {
+      clearTimeout(fetchPostsTimeoutRef.current);
     }
     
     const timeout = setTimeout(async () => {
       await fetchCoursePosts(false); // Background refresh, don't show loading screen
     }, 150); // 150ms debounce
     
-    setFetchPostsTimeout(timeout);
-  }, [fetchPostsTimeout]);
+    fetchPostsTimeoutRef.current = timeout;
+  }, []);
 
   // Fetch user's course data from profiles table
   useEffect(() => {
@@ -1155,16 +1155,16 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
       channelsRef.current = {};
       clearTimeout(connectionTimeout);
     };
-  }, [user, userCourse, courseName, debouncedFetchPosts, realtimeStatus]);
+  }, [user, userCourse, courseName]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
-      if (fetchPostsTimeout) {
-        clearTimeout(fetchPostsTimeout);
+      if (fetchPostsTimeoutRef.current) {
+        clearTimeout(fetchPostsTimeoutRef.current);
       }
     };
-  }, [fetchPostsTimeout]);
+  }, []);
 
   // Create post for this course (matches HomePage feed logic exactly)
   const handleCreateCoursePost = async () => {

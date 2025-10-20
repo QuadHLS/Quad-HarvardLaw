@@ -14,6 +14,7 @@ interface SelectedClass {
 }
 
 interface CourseSchedule {
+  id?: string;
   course_number: number;
   course_name: string;
   semester: string;
@@ -80,7 +81,7 @@ export function CourseSelectionStep({ onNext, onBack, basicInfo }: CourseSelecti
 
           const { data: courses, error } = await supabase
             .from('Courses')
-            .select('course_number, course_name, instructor, credits, days, times, location, semester')
+            .select('id, course_number, course_name, instructor, credits, days, times, location, semester')
             .order('course_name');
 
           if (error) {
@@ -271,7 +272,7 @@ export function CourseSelectionStep({ onNext, onBack, basicInfo }: CourseSelecti
 
     setScheduleOptionsBySlot((prev) => ({ ...prev, [index]: [] }));
     
-    if (lawClass && selectedProfessor && ((basicInfo.classYear === '2L' || basicInfo.classYear === '3L') || (basicInfo.classYear === '1L' && index === 7))) {
+        if (lawClass && selectedProfessor && ((basicInfo.classYear === '2L' || basicInfo.classYear === '3L') || (basicInfo.classYear === '1L' && index === 7))) {
       const matchingCourses = allCourseData.filter(
         (course) => course.course_name === lawClass.name && course.instructor === selectedProfessor.name
       );
@@ -279,7 +280,8 @@ export function CourseSelectionStep({ onNext, onBack, basicInfo }: CourseSelecti
       if (matchingCourses.length > 0) {
         const course = matchingCourses[0];
         
-        const scheduleOption = course.days && course.times ? {
+            const scheduleOption = course.days && course.times ? {
+          id: course.id,
           course_number: course.course_number,
           course_name: course.course_name,
           semester: course.semester,
@@ -321,6 +323,7 @@ export function CourseSelectionStep({ onNext, onBack, basicInfo }: CourseSelecti
         const course = matchingCourses[0];
         
         const scheduleOption = course.days && course.times ? {
+        id: course.id,
           course_number: course.course_number,
           course_name: course.course_name,
           semester: course.semester,
@@ -384,6 +387,7 @@ export function CourseSelectionStep({ onNext, onBack, basicInfo }: CourseSelecti
             class: selected.lawClass!.name,
             professor: selected.professor!.name,
             schedule: selected.scheduleOption,
+            course_id: selected.scheduleOption?.id || null,
           })),
         classes_filled: true,
         updated_at: new Date().toISOString(),

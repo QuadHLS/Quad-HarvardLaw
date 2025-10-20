@@ -45,6 +45,7 @@ interface CourseData {
   time: string;
   location?: string;
   original_course_id?: number;
+  course_uuid?: string;
 }
 
 
@@ -377,7 +378,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     
     // Add the selected course to My Courses
     const newCourse: CourseData = {
-      id: `${course.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Generate unique ID
+      id: `${course.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // UI instance ID
       courseName: course.course_name,
       professor: course.instructor || 'TBA',
       credits: course.credits || 3,
@@ -385,7 +386,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       days: course.days ? (typeof course.days === 'string' ? course.days.split(';').map((d: string) => d.trim()) : course.days) : ['TBA'],
       time: course.times ? normalizeTimeRange(course.times.split('|').map((t: string) => t.trim())[0]) : 'TBA',
       location: course.location,
-      original_course_id: course.original_course_id
+      original_course_id: course.original_course_id,
+      course_uuid: course.id
     };
     
     setSelectedCourses(prev => [...prev, newCourse]);
@@ -560,8 +562,9 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
           // Transform to expected format
           const transformedCourses = allCourses.map((course: any) => ({
+            id: course.id,
             course_number: course.course_number || course.id,
-          course_name: course.course_name,
+            course_name: course.course_name,
             semester: course.semester || 'Fall',
             instructor: course.instructor || 'TBD',
             credits: course.credits || 4,
@@ -625,7 +628,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
               semester: course.semester as 'Spring' | 'Fall' | 'Winter',
               days: course.days ? (typeof course.days === 'string' ? course.days.split(';').map((d: string) => normalizeDay(d)) : course.days) : [],
               time: course.times ? normalizeTimeRange(course.times.split('|').map((t: string) => t.trim())[0]) : 'TBD',
-              location: course.location || undefined
+              location: course.location || undefined,
+              course_uuid: course.id
             };
             
 
@@ -701,7 +705,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
             semester: course.semester as 'Spring' | 'Fall' | 'Winter',
             days: course.days ? course.days.split(';').map((d: string) => normalizeDay(d)) : [],
             time: course.times ? normalizeTimeRange(course.times.split('|').map((t: string) => t.trim())[0]) : 'TBD',
-            location: course.location || undefined
+            location: course.location || undefined,
+            course_uuid: course.id
           }));
 
           // Sort by semester priority: Fall first, then Spring
@@ -1412,7 +1417,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                           instructor: course.professor,
                           course_name: course.courseName
                         },
-                        professor: course.professor
+                        professor: course.professor,
+                        course_id: (course as any).course_uuid || null
                       };
                     });
 

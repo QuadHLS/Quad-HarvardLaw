@@ -23,6 +23,7 @@ interface SelectedClass {
 }
 
 interface CourseSchedule {
+  id?: string;
   course_number: number;
   course_name: string;
   semester: string;
@@ -153,7 +154,7 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
           const { data: courses, error } = await supabase
             .from('Courses')
             .select(
-              'course_number, course_name, instructor, credits, days, times, location, semester'
+              'id, course_number, course_name, instructor, credits, days, times, location, semester'
             )
             .order('course_name');
 
@@ -283,6 +284,7 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
 
             // Create schedule directly from course data (synchronous)
             const scheduleOption = course.days && course.times ? {
+              id: course.id,
               course_number: course.course_number,
               course_name: course.course_name,
               semester: course.semester,
@@ -432,6 +434,7 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
           const time = times[0] || 'TBD';
 
           scheduleOptions.push({
+            id: course.id,
             course_number: course.course_number,
             course_name: course.course_name,
             semester: course.semester,
@@ -444,6 +447,7 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
         } else {
           // If no days/times, create a single schedule option
           scheduleOptions.push({
+            id: course.id,
             course_number: course.course_number,
             course_name: course.course_name,
             semester: course.semester,
@@ -697,6 +701,7 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
             class: selected.lawClass!.name,
             professor: selected.professor!.name,
             schedule: selected.scheduleOption,
+            course_id: (selected as any).scheduleOption?.id || null,
           })),
         classes_filled: true, // Mark that classes have been filled
         updated_at: new Date().toISOString(),

@@ -197,6 +197,7 @@ function AppContent({ user }: { user: any }) {
   const [selectedCourseForSearch, setSelectedCourseForSearch] =
     useState<string>('');
   const [selectedStudent, setSelectedStudent] = useState<string>('');
+  const [previousSection, setPreviousSection] = useState<string>('home');
 
   const [sortBy] = useState('Highest Rated');
 
@@ -439,13 +440,14 @@ function AppContent({ user }: { user: any }) {
   };
 
   const handleNavigateToStudentProfile = (studentName: string) => {
+    setPreviousSection(activeSection); // Remember where we came from
     setSelectedStudent(studentName);
     setActiveSection('student-profile');
   };
 
   const handleBackFromStudentProfile = () => {
     setSelectedStudent('');
-    setActiveSection('home');
+    setActiveSection(previousSection); // Go back to where we came from
   };
 
 

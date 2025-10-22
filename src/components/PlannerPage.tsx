@@ -72,8 +72,30 @@ const courseMatchesSemester = (courseTerm: string, selectedSemester: 'FA' | 'WI'
   return semesters.includes(selectedSemester);
 };
 
-// Truncate text to 100 words
-const truncateText = (text: string, maxWords: number = 100): { truncated: string; isTruncated: boolean } => {
+// Determine current term by date (matches Home page logic)
+const getCurrentTermByDate = (): 'FA' | 'WI' | 'SP' => {
+  const today = new Date();
+  const month = today.getMonth() + 1; // 1-12
+  const day = today.getDate();
+
+  // Fall: September 2 - November 25
+  if ((month === 9 && day >= 2) || month === 10 || (month === 11 && day <= 25)) {
+    return 'FA';
+  }
+  // Winter: January 5 - January 21
+  if (month === 1 && day >= 5 && day <= 21) {
+    return 'WI';
+  }
+  // Spring: January 26 - April 24
+  if ((month === 1 && day >= 26) || month === 2 || month === 3 || (month === 4 && day <= 24)) {
+    return 'SP';
+  }
+  // Default to Fall
+  return 'FA';
+};
+
+// Truncate text to 150 words
+const truncateText = (text: string, maxWords: number = 150): { truncated: string; isTruncated: boolean } => {
   if (!text || text === 'TBD') return { truncated: text, isTruncated: false };
   
   // Remove HTML tags for word counting
@@ -84,7 +106,7 @@ const truncateText = (text: string, maxWords: number = 100): { truncated: string
     return { truncated: text, isTruncated: false };
   }
   
-  // Find the position in the original HTML text that corresponds to 100 words
+  // Find the position in the original HTML text that corresponds to 150 words
   const wordsToKeep = words.slice(0, maxWords);
   const textToKeep = wordsToKeep.join(' ');
   
@@ -121,6 +143,8 @@ const formatCourseDescription = (text: string): string => {
   // Add line break before "Prerequisite:" or "Prerequisites:" only if there's text before it
   formatted = formatted.replace(/([^\s])\s*<strong>Prerequisite:<\/strong>/gi, '$1<br/><br/><strong>Prerequisite:</strong>');
   formatted = formatted.replace(/([^\s])\s*<strong>Prerequisites:<\/strong>/gi, '$1<br/><br/><strong>Prerequisites:</strong>');
+  // Add line break before "Note:" only if there's text before it
+  formatted = formatted.replace(/([^\s])\s*<strong>Note:<\/strong>/gi, '$1<br/><br/><strong>Note:</strong>');
   
   // Add line breaks before and after exam type patterns
   const examTypePatterns = [
@@ -293,7 +317,11 @@ interface PlannerPageProps {
 export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
   const [scheduledCourses, setScheduledCourses] = useState<ScheduledCourse[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTerm, setSelectedTerm] = useState<'FA' | 'WI' | 'SP'>('FA');
+  // Default selection: if Fall or Winter, select Spring; if Spring, select Fall
+  const [selectedTerm, setSelectedTerm] = useState<'FA' | 'WI' | 'SP'>(() => {
+    const current = getCurrentTermByDate();
+    return current === 'SP' ? 'FA' : 'SP';
+  });
   const [selectedAreaOfInterest, setSelectedAreaOfInterest] = useState<string>('all-areas');
   const [selectedType, setSelectedType] = useState<string>('all-types');
   const [selectedRequirements, setSelectedRequirements] = useState<string>('all-requirements');
@@ -1109,8 +1137,8 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                     const isFallOrSpring = selectedTerm === 'FA' || selectedTerm === 'SP';
                     const shouldShowHover = isFallOrSpring && semesterCredits > 0 && ((semesterCredits >= 1 && semesterCredits <= 9) || semesterCredits > 16);
                     
-                    // Determine credit color: red for 0-9 and 17+, white for 10-16
-                    const creditColor = (semesterCredits >= 0 && semesterCredits <= 9) || semesterCredits >= 17 ? 'text-red-500' : 'text-white';
+                    // Determine credit color: 0 => white, 1-9 => red, 10-16 => white, 17+ => red
+                    const creditColor = (semesterCredits > 0 && semesterCredits <= 9) || semesterCredits >= 17 ? 'text-red-500' : 'text-white';
                     
                     if (shouldShowHover) {
                       return (
@@ -1547,25 +1575,26 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                     return (
                       <div 
                         key={course.id}
-                        className={`group transition-all duration-200 cursor-pointer hover:bg-gray-50 bg-white border-2 ${
+                        className={`group transition-all duration-200 cursor-pointer hover:bg-gray-50 bg-white border-2 rounded-lg ${
                           hasConflict ? 'border-red-500 bg-red-50' : 'border-gray-200'
                         }`}
+                        style={hasConflict ? {} : { borderColor: `${getCourseColor(course.delivery_mode)}66` }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.transform = 'scale(1.01)';
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.transform = 'scale(1)';
                         }}
-                        onClick={() => showCourseDetail(course)}
+                        onClick={() => addCourseToSchedule(course)}
                       >
                         <div className="px-3 py-1.5 relative">
                           {/* First line: Course Name (bold) on left, Credits on right */}
                           <div className="flex items-center justify-between mb-0.5">
                             <div className="font-bold text-gray-900 text-xs leading-tight flex-1 pr-2 flex items-center gap-2">
-                              <span className="group-hover:hidden">
+                              <span className="group-hover:hidden line-clamp-2 break-words">
                                 {getCleanCourseName(course.name, course.delivery_mode)}
                               </span>
-                              <span className="hidden group-hover:inline">
+                              <span className="hidden group-hover:inline line-clamp-2 break-words">
                                 {(() => {
                                   const cleanName = getCleanCourseName(course.name, course.delivery_mode);
                                   // For Reading Groups only, truncate to 13 characters on hover
@@ -1615,32 +1644,6 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                             <div className="flex items-center gap-2">
                               <span className="leading-tight">{course.days}</span>
                               <span className="leading-tight">{getCleanTimesDisplay(course.times)}</span>
-                              
-                              {/* Add button - appears on hover */}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  addCourseToSchedule(course);
-                                }}
-                                className="w-4 h-4 rounded-sm flex items-center justify-center transition-all duration-200 opacity-0 group-hover:opacity-100"
-                                style={{ 
-                                  backgroundColor: getCourseColor(course.delivery_mode),
-                                  color: 'white'
-                                }}
-                                onMouseEnter={(e) => {
-                                  const currentBg = getCourseColor(course.delivery_mode);
-                                  const rgb = hexToRgb(currentBg);
-                                  if (rgb) {
-                                    e.currentTarget.style.backgroundColor = `rgb(${Math.max(0, rgb.r - 30)}, ${Math.max(0, rgb.g - 30)}, ${Math.max(0, rgb.b - 30)})`;
-                                  }
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.backgroundColor = getCourseColor(course.delivery_mode);
-                                }}
-                                title="Add to calendar"
-                              >
-                                <Plus className="w-2.5 h-2.5" />
-                              </button>
                             </div>
                             
                             <span className="leading-tight">{getLastName(course.faculty)}</span>
@@ -1788,7 +1791,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
         <div className="flex-1 flex flex-col relative" style={{ height: 'calc(100vh - 80px)' }}>
           {/* Calendar */}
           <div className="flex-1 p-6" style={{ backgroundColor: '#FAF5EF', overflowY: 'auto' }}>
-            <div className="bg-white rounded-lg shadow-lg border border-gray-200">
+            <div className="bg-white rounded-lg overflow-hidden shadow-lg border border-gray-200">
               <div className="grid grid-cols-6">
                 {/* Time column */}
                 <div className="border-r border-gray-200">
@@ -2024,9 +2027,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
           {scheduledCourses.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="text-center" style={{ transform: 'translateX(calc(16.67% + 2%))' }}>
-                <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                <h3 className="text-lg font-medium text-gray-500 mb-2">Your schedule is empty</h3>
-                <p className="text-gray-400">Click on courses from the left to add them to your calendar</p>
+                <h3 className="text-lg font-medium text-gray-500">Your schedule is empty</h3>
               </div>
             </div>
           )}
@@ -2205,15 +2206,15 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
         <DialogContent 
           className="p-0"
           style={{ 
-            width: '700px', 
-            height: '600px', 
-            maxWidth: '700px', 
-            maxHeight: '600px',
-            minWidth: '700px',
-            minHeight: '600px'
+            width: '805px', 
+            height: '690px', 
+            maxWidth: '805px', 
+            maxHeight: '690px',
+            minWidth: '805px',
+            minHeight: '690px'
           }}
         >
-          <div className="w-full h-full flex flex-col" style={{ height: '600px' }}>
+          <div className="w-full h-full flex flex-col" style={{ height: '690px' }}>
             <DialogHeader className="flex-shrink-0 p-6 pb-4 border-b">
             <div className="flex items-center">
               <DialogTitle className="text-xl font-semibold text-gray-900 flex items-center gap-2">
@@ -2250,7 +2251,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
           </DialogHeader>
           
           {selectedCourseForDetail && (
-              <div className="overflow-y-auto px-6 py-4 space-y-4" style={{ height: '400px' }}>
+              <div className="overflow-y-auto px-6 py-4 space-y-4" style={{ height: '490px' }}>
               {/* Course Description */}
               <div>
                 {(() => {
@@ -2288,12 +2289,22 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-gray-700 block mb-1">Days</label>
-                    <p className="text-sm text-gray-900">{selectedCourseForDetail.days}</p>
+                    <p 
+                      className="text-sm"
+                      style={{ color: getCourseColor(selectedCourseForDetail.delivery_mode) }}
+                    >
+                      {selectedCourseForDetail.days}
+                    </p>
                   </div>
                   
                   <div>
                     <label className="text-sm font-medium text-gray-700 block mb-1">Times</label>
-                    <p className="text-sm text-gray-900">{getCleanTimesDisplay(selectedCourseForDetail.times)}</p>
+                    <p 
+                      className="text-sm"
+                      style={{ color: getCourseColor(selectedCourseForDetail.delivery_mode) }}
+                    >
+                      {getCleanTimesDisplay(selectedCourseForDetail.times)}
+                    </p>
                   </div>
                 </div>
                 
@@ -2312,7 +2323,12 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                   
                   <div>
                     <label className="text-sm font-medium text-gray-700 block mb-1">Location</label>
-                    <p className="text-sm text-gray-900">{selectedCourseForDetail.location}</p>
+                    <p 
+                      className="text-sm"
+                      style={{ color: getCourseColor(selectedCourseForDetail.delivery_mode) }}
+                    >
+                      {selectedCourseForDetail.location}
+                    </p>
                   </div>
                 </div>
                 

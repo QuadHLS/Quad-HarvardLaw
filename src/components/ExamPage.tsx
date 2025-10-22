@@ -1046,7 +1046,7 @@ export function ExamPage({
   return (
     <div className="h-screen flex flex-col bg-[#F8F4ED] w-full">
       <div className="" style={{ backgroundColor: '#752432' }}>
-        <div className="p-4">
+        <div className="p-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <h1 className="text-2xl font-semibold text-white">
@@ -1102,7 +1102,7 @@ export function ExamPage({
         
         {/* Filters Row - Only show for Search and Saved tabs */}
         {activeTab !== 'upload' && (
-          <div className="p-4 border-t-0">
+          <div className="p-3 border-t-0">
             <div className="flex items-center gap-4 flex-wrap">
               {activeTab === 'search' && (
                 <>
@@ -1117,13 +1117,16 @@ export function ExamPage({
                           variant="outline"
                           role="combobox"
                           aria-expanded={courseComboboxOpen}
-                          className="w-48 justify-between bg-input-background border-border hover:bg-gray-100 transition-colors"
+                          className="justify-between bg-input-background border-border hover:bg-gray-100 transition-colors"
+                          style={{ width: '160px', minWidth: '160px', maxWidth: '160px' }}
                         >
-                          {displaySelectedCourse ? displaySelectedCourse : 'Select Course'}
-                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          <span className="truncate text-left flex-1 overflow-hidden">
+                            {displaySelectedCourse ? displaySelectedCourse : 'Select Course'}
+                          </span>
+                          <ChevronDown className="ml-2 h-4 w-4 flex-shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-48 p-0">
+                      <PopoverContent className="w-80 p-0">
                         <Command>
                           <CommandInput placeholder="Search courses..." />
                           <CommandList>
@@ -1160,14 +1163,21 @@ export function ExamPage({
                           variant="outline"
                           role="combobox"
                           aria-expanded={professorComboboxOpen}
-                          className="w-48 justify-between bg-input-background border-border hover:bg-gray-100 transition-colors"
+                          className="justify-between bg-input-background border-border hover:bg-gray-100 transition-colors"
+                          style={{ width: '160px', minWidth: '160px', maxWidth: '160px' }}
                           disabled={!selectedCourse}
                         >
-                          {displaySelectedInstructor ? displaySelectedInstructor : 'Select Professor'}
-                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          <span className="text-left flex-1 min-w-0">
+                            {displaySelectedInstructor ? (
+                              <span className="truncate block overflow-hidden">{displaySelectedInstructor}</span>
+                            ) : (
+                              'Select Professor'
+                            )}
+                          </span>
+                          <ChevronDown className="ml-2 h-4 w-4 flex-shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-48 p-0">
+                      <PopoverContent className="p-0">
                         <Command>
                           <CommandInput placeholder="Search professors..." />
                           <CommandList>
@@ -1198,10 +1208,13 @@ export function ExamPage({
                       Grade:
                     </label>
                     <Select value={selectedGrade || 'all-grades'} onValueChange={(value) => setSelectedGrade(value === 'all-grades' ? undefined : value)}>
-                      <SelectTrigger className="w-32 bg-input-background border-border hover:bg-gray-100 transition-colors">
-                        <SelectValue placeholder="All" />
+                      <SelectTrigger 
+                        className="bg-input-background border-border hover:bg-gray-100 transition-colors px-2"
+                        style={{ width: '60px', minWidth: '60px', maxWidth: '60px' }}
+                      >
+                        <SelectValue placeholder="All" className="truncate overflow-hidden text-sm" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent style={{ width: '64px', minWidth: '64px', maxWidth: '64px' }}>
                         <SelectItem value="all-grades">All</SelectItem>
                         {availableGradesForSelection.map(grade => (
                           <SelectItem key={grade} value={grade}>{grade}</SelectItem>
@@ -1217,10 +1230,13 @@ export function ExamPage({
                     </label>
                     <div className="flex items-center gap-2">
                       <Select value={selectedYear || 'all-years'} onValueChange={(value) => setSelectedYear(value === 'all-years' ? undefined : value)}>
-                        <SelectTrigger className="w-32 bg-input-background border-border hover:bg-gray-100 transition-colors">
-                          <SelectValue placeholder="All" />
+                        <SelectTrigger 
+                          className="bg-input-background border-border hover:bg-gray-100 transition-colors px-2"
+                          style={{ width: '80px', minWidth: '80px', maxWidth: '80px' }}
+                        >
+                          <SelectValue placeholder="All" className="truncate overflow-hidden text-sm" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent style={{ width: '72px', minWidth: '72px', maxWidth: '72px' }}>
                           <SelectItem value="all-years">All</SelectItem>
                           {availableYearsForSelection.map(year => (
                             <SelectItem key={year} value={year}>{year}</SelectItem>
@@ -1253,10 +1269,13 @@ export function ExamPage({
                       Course:
                     </label>
                     <Select value={savedCourseFilter || 'all-courses'} onValueChange={(value) => setSavedCourseFilter(value === 'all-courses' ? '' : value)}>
-                      <SelectTrigger className="w-48 bg-input-background border-border hover:bg-gray-100 transition-colors">
-                        <SelectValue placeholder="All courses..." />
+                      <SelectTrigger 
+                        className="bg-input-background border-border hover:bg-gray-100 transition-colors"
+                        style={{ width: '160px', minWidth: '160px', maxWidth: '160px' }}
+                      >
+                        <SelectValue placeholder="All courses..." className="truncate overflow-hidden" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="w-80">
                         <SelectItem value="all-courses">All Courses</SelectItem>
                         {savedCourses.map(course => (
                           <SelectItem key={course} value={course}>{course}</SelectItem>
@@ -1271,10 +1290,13 @@ export function ExamPage({
                       Grade:
                     </label>
                     <Select value={savedGradeFilter || 'all-grades'} onValueChange={(value) => setSavedGradeFilter(value === 'all-grades' ? undefined : value)}>
-                      <SelectTrigger className="w-32 bg-input-background border-border hover:bg-gray-100 transition-colors">
-                        <SelectValue placeholder="All" />
+                      <SelectTrigger 
+                        className="bg-input-background border-border hover:bg-gray-100 transition-colors px-2"
+                        style={{ width: '60px', minWidth: '60px', maxWidth: '60px' }}
+                      >
+                        <SelectValue placeholder="All" className="truncate min-w-0 overflow-hidden text-sm" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent style={{ width: '64px', minWidth: '64px', maxWidth: '64px' }}>
                         <SelectItem value="all-grades">All</SelectItem>
                         {availableGradesForSaved.map(grade => (
                           <SelectItem key={grade} value={grade}>{grade}</SelectItem>
@@ -1290,10 +1312,13 @@ export function ExamPage({
                     </label>
                     <div className="flex items-center gap-2">
                       <Select value={savedYearFilter || 'all-years'} onValueChange={(value) => setSavedYearFilter(value === 'all-years' ? undefined : value)}>
-                        <SelectTrigger className="w-32 bg-input-background border-border hover:bg-gray-100 transition-colors">
-                          <SelectValue placeholder="All" />
+                        <SelectTrigger 
+                          className="bg-input-background border-border hover:bg-gray-100 transition-colors px-2"
+                          style={{ width: '80px', minWidth: '80px', maxWidth: '80px' }}
+                        >
+                          <SelectValue placeholder="All" className="truncate min-w-0 overflow-hidden text-sm" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent style={{ width: '72px', minWidth: '72px', maxWidth: '72px' }}>
                           <SelectItem value="all-years">All</SelectItem>
                           {availableYearsForSaved.map(year => (
                             <SelectItem key={year} value={year}>{year}</SelectItem>

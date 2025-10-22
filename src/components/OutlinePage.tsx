@@ -8,7 +8,6 @@ import {
   Calendar,
   User,
   BookOpen,
-  Tags,
   Award,
   X,
   Upload,
@@ -97,7 +96,6 @@ export function OutlinePage({
   // Separate filter states for saved tab
   const [savedGradeFilter, setSavedGradeFilter] = useState<string | undefined>(undefined);
   const [savedYearFilter, setSavedYearFilter] = useState<string | undefined>(undefined);
-  const [savedTagsFilter, setSavedTagsFilter] = useState<string[]>(['Attack', 'Outline']);
   // Combobox states
   const [courseComboboxOpen, setCourseComboboxOpen] = useState(false);
   const [professorComboboxOpen, setProfessorComboboxOpen] = useState(false);
@@ -691,7 +689,6 @@ export function OutlinePage({
     setSavedCourseFilter('');
     setSavedGradeFilter(undefined);
     setSavedYearFilter(undefined);
-    setSavedTagsFilter(['Attack', 'Outline']); // Keep both selected by default
   };
 
   const activeSearchFilterCount = [
@@ -705,8 +702,7 @@ export function OutlinePage({
   const activeSavedFilterCount = [
     savedCourseFilter && savedCourseFilter !== '' ? 1 : 0,
     savedGradeFilter && savedGradeFilter !== '' ? 1 : 0,
-    savedYearFilter && savedYearFilter !== '' ? 1 : 0,
-    savedTagsFilter.length !== 2 ? 1 : 0 // Only count if not both Attack and Outline selected
+    savedYearFilter && savedYearFilter !== '' ? 1 : 0
   ].reduce((sum, count) => sum + count, 0);
 
   const OutlineListItem = ({ outline }: { outline: Outline }) => (
@@ -1235,41 +1231,18 @@ export function OutlinePage({
                     </Select>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium flex items-center gap-1 text-white">
-                      <Tags className="w-4 h-4" />
-                      Type:
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <div className="flex gap-2">
-                        {['Attack', 'Outline'].map(tag => (
-                          <Badge
-                            key={tag}
-                            className={`cursor-pointer transition-all duration-200 border ${
-                              selectedTags.includes(tag)
-                                ? 'bg-white text-[#752432] border-white hover:bg-gray-50 hover:shadow-sm'
-                                : 'bg-gray-300 text-gray-700 border-gray-400 hover:bg-gray-400 hover:text-gray-800'
-                            }`}
-                            onClick={() => handleTagToggle(tag)}
-                          >
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                      {activeSearchFilterCount > 0 && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={clearSearchFilters}
-                          className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:border-white/50 h-7 px-2 py-0 flex items-center gap-1 transition-all active:scale-95"
-                          title="Clear filters"
-                        >
-                          <X className="w-3 h-3" />
-                          <span className="text-xs">{activeSearchFilterCount}</span>
-                        </Button>
-                      )}
-                    </div>
-                  </div>
+                  {activeSearchFilterCount > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearSearchFilters}
+                      className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:border-white/50 h-7 px-2 py-0 flex items-center gap-1 transition-all active:scale-95"
+                      title="Clear filters"
+                    >
+                      <X className="w-3 h-3" />
+                      <span className="text-xs">{activeSearchFilterCount}</span>
+                    </Button>
+                  )}
                 </>
               )}
 
@@ -1329,47 +1302,18 @@ export function OutlinePage({
                     </Select>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium flex items-center gap-1 text-white">
-                      <Tags className="w-4 h-4" />
-                      Type:
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <div className="flex gap-2">
-                        {['Attack', 'Outline'].map(tag => (
-                          <Badge
-                            key={tag}
-                            className={`cursor-pointer transition-all duration-200 border ${
-                              savedTagsFilter.includes(tag)
-                                ? 'bg-white text-[#752432] border-white hover:bg-gray-50 hover:shadow-sm'
-                                : 'bg-gray-300 text-gray-700 border-gray-400 hover:bg-gray-400 hover:text-gray-800'
-                            }`}
-                            onClick={() => {
-                              setSavedTagsFilter(prev => 
-                                prev.includes(tag) 
-                                  ? prev.filter(t => t !== tag)
-                                  : [...prev, tag]
-                              );
-                            }}
-                          >
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                      {activeSavedFilterCount > 0 && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={clearSavedFilters}
-                          className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:border-white/50 h-7 px-2 py-0 flex items-center gap-1 transition-all active:scale-95"
-                          title="Clear saved filters"
-                        >
-                          <X className="w-3 h-3" />
-                          <span className="text-xs">{activeSavedFilterCount}</span>
-                        </Button>
-                      )}
-                    </div>
-                  </div>
+                  {activeSavedFilterCount > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearSavedFilters}
+                      className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:border-white/50 h-7 px-2 py-0 flex items-center gap-1 transition-all active:scale-95"
+                      title="Clear saved filters"
+                    >
+                      <X className="w-3 h-3" />
+                      <span className="text-xs">{activeSavedFilterCount}</span>
+                    </Button>
+                  )}
                 </>
               )}
 

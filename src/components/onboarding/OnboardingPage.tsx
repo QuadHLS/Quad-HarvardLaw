@@ -1044,18 +1044,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
                 {/* LRW Selection - Only for 1L. Show two professor last names for the selected section. */}
                 {classYear === '1L' && selectedCourses.length >= 7 && (
-                  <div className="m-2 relative overflow-hidden rounded-lg" style={{ minHeight: '80px' }}>
-                    <div 
-                      className="absolute inset-0 rounded-lg"
-                      style={{
-                        background: lrwSection 
-                          ? 'conic-gradient(from 0deg, #3b82f6 0deg, #3b82f666 60deg, transparent 120deg, transparent 240deg, #3b82f666 300deg, #3b82f6 360deg)'
-                          : 'conic-gradient(from 0deg, #ef4444 0deg, #ef444466 60deg, transparent 120deg, transparent 240deg, #ef444466 300deg, #ef4444 360deg)',
-                        animation: 'lrw-spin 2.5s linear infinite',
-                        padding: '2px',
-                        zIndex: 0
-                      }}
-                    />
+                  <div className="m-2 relative overflow-hidden rounded-lg glow-outline" style={{ minHeight: '80px' }}>
                     <div className={`relative p-2 rounded-lg h-[80px] ${lrwSection ? 'bg-blue-50' : 'bg-red-50'}`} style={{ zIndex: 10, margin: '2px' }}>
                       {(() => {
                         // Build LRW options for the selected section from available course data

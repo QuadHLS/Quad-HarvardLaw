@@ -1161,7 +1161,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                         prev.filter(course => !courseMatchesSemester(course.term, selectedTerm))
                       );
                     }}
-                  className="flex items-center gap-1.5 bg-white/10 border-white/30 text-white hover:bg-white hover:text-red-600"
+                    className="glow-hover-only flex items-center gap-1.5 bg-white/10 border-white/30 text-white"
                   >
                     <Trash2 className="w-4 h-4" />
                     Clear All
@@ -1175,8 +1175,8 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                 size="sm"
                 onClick={handleOpenSaveDialog}
                 disabled={scheduledCourses.length === 0}
-                className={`flex items-center gap-1.5 bg-white/10 border-white/30 text-white ${
-                  scheduledCourses.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white hover:text-[#752432]'
+                className={`glow-on-hover flex items-center gap-1.5 bg-white/10 border-white/30 text-white ${
+                  scheduledCourses.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
               >
                 <Save className="w-4 h-4" />
@@ -1191,7 +1191,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                   setShowSavedSchedulesDialog(true);
                   loadSavedSchedules(); // Refresh saved schedules when opening dialog
                 }}
-                className="flex items-center gap-1.5 bg-white/10 border-white/30 text-white hover:bg-white hover:text-[#752432]"
+                className="glow-hover-only flex items-center gap-1.5 bg-white/10 border-white/30 text-white"
               >
                 <FolderOpen className="w-4 h-4" />
                 Saved Schedules

@@ -114,7 +114,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
   const [userProfile, setUserProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [coursePosts, setCoursePosts] = useState<CoursePost[]>([]);
-  const [, setPostsLoading] = useState(true);
+  const [postsLoading, setPostsLoading] = useState(true);
   const [likingPosts, setLikingPosts] = useState<Set<string>>(new Set());
   
   // Real-time connection status
@@ -1007,8 +1007,17 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
           },
           async (payload: any) => {
             console.log('Comment added:', payload);
-            // Refresh posts to get updated comment counts (debounced)
-            debouncedFetchPosts();
+            // Update comment count for the post locally
+            setCoursePosts(prev => prev.map(post => 
+              post.id === payload.new.post_id 
+                ? { ...post, comments_count: post.comments_count + 1 }
+                : post
+            ));
+            
+            // If comments are expanded for this post, refresh them
+            if (expandedComments[payload.new.post_id]) {
+              await fetchComments(payload.new.post_id);
+            }
           }
         )
         .on(
@@ -1020,8 +1029,17 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
           },
           async (payload: any) => {
             console.log('Comment removed:', payload);
-            // Refresh posts to get updated comment counts (debounced)
-            debouncedFetchPosts();
+            // Update comment count for the post locally
+            setCoursePosts(prev => prev.map(post => 
+              post.id === payload.old.post_id 
+                ? { ...post, comments_count: Math.max(0, post.comments_count - 1) }
+                : post
+            ));
+            
+            // If comments are expanded for this post, refresh them
+            if (expandedComments[payload.old.post_id]) {
+              await fetchComments(payload.old.post_id);
+            }
           }
         )
         .subscribe((_status: any, err: any) => {
@@ -1541,7 +1559,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                     Students ({courseStudents.length})
                 </h3>
               </div>
-              <div className="flex-1 overflow-y-auto bg-white p-3 pt-3">
+              <div className="flex-1 overflow-y-auto bg-white p-3 pt-0 -mt-3">
                 <div className="space-y-2">
                     {courseStudents.map((student: any, index: number) => (
                       <div 
@@ -1623,8 +1641,14 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                     </div>
               <div className="bg-white" style={{ height: 'calc(600px - 60px)' }}>
                 <div className="h-full overflow-y-auto">
-                  <div className="space-y-4 px-4 py-4">
-                    {coursePosts.map((post) => (
+                  <div className="space-y-4 px-4 py-4 pt-1">
+                    {!postsLoading && coursePosts.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-gray-500">
+                          <MessageSquare className="w-12 h-12 mb-4 opacity-50" />
+                          <h3 className="text-lg font-medium mb-2">No posts yet</h3>
+                        </div>
+                    ) : (
+                      coursePosts.map((post) => (
                       <div 
                         key={post.id}
                         className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden transition-all duration-200 border-l-4"
@@ -2008,7 +2032,8 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                           )}
                         </div>
                       </div>
-                    ))}
+                    ))
+                    )}
                   </div>
                 </div>
               </div>

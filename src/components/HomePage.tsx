@@ -1213,17 +1213,17 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
         <div className={`flex gap-6 ${isThreadViewOpen ? 'justify-center' : ''}`}>
           {/* Left Content - Only show when not in thread view */}
           {!isThreadViewOpen && (
-            <div className="w-64 flex-shrink-0">
+            <div className="w-64 flex-shrink-0 space-y-4">
               {/* Todo Box */}
-              <div className="mb-4">
+              <div>
                 <TodoList 
                   user={user}
                   onPomodoroStateChange={(state) => console.log('Pomodoro state:', state)}
                 />
-                  </div>
+              </div>
 
               {/* My Courses Section */}
-                      <div>
+              <div>
                 <MyCourses 
                   onNavigateToCourse={onNavigateToCourse}
                   courses={transformedCourses}
@@ -1231,8 +1231,8 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
                   selectedSemester={selectedSemester}
                   onSemesterChange={setSelectedSemester}
                 />
-                      </div>
               </div>
+            </div>
           )}
 
           {/* Feed Content - Always rendered */}

@@ -1498,14 +1498,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       // Refresh comments to get the new comment
       await fetchComments(postId);
       
-      // Update post comment count locally
-      setPosts(prevPosts => 
-        prevPosts.map(p => 
-          p.id === postId 
-            ? { ...p, comments_count: p.comments_count + 1 }
-            : p
-        )
-      );
+      // Note: Comment count is automatically updated via realtime subscription
     } catch (error) {
       console.error('Error in addComment:', error);
     }
@@ -1542,14 +1535,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       // Refresh comments to get the new reply
       await fetchComments(postId);
       
-      // Update post comment count locally
-      setPosts(prevPosts => 
-        prevPosts.map(p => 
-          p.id === postId 
-            ? { ...p, comments_count: p.comments_count + 1 }
-            : p
-        )
-      );
+      // Note: Comment count is automatically updated via realtime subscription
     } catch (error) {
       console.error('Error in addReply:', error);
     }

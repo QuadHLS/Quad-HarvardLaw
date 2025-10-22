@@ -193,7 +193,7 @@ function AppContent({ user }: { user: any }) {
 
   
   const [activeSection, setActiveSection] = useState('home');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [selectedCourseForSearch, setSelectedCourseForSearch] =
     useState<string>('');
   const [selectedStudent, setSelectedStudent] = useState<string>('');
@@ -779,7 +779,7 @@ function AppContent({ user }: { user: any }) {
 
 
       {/* Main Content */}
-      <div className={`flex-1 overflow-hidden ${sidebarCollapsed ? 'ml-16' : 'ml-40'}`} style={{ transition: 'margin-left 300ms ease-in-out' }}>
+      <div className={`flex-1 overflow-hidden ${sidebarCollapsed ? 'ml-16' : 'ml-40'}`} style={{ transition: 'margin-left 300ms ease' }}>
         {activeSection === 'outlines' ? (
           <OutlinePage
           outlines={sortedOutlines}

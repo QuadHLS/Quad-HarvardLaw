@@ -1101,12 +1101,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                 </div>
               </div>
 
-              {/* Action Buttons - removed duplicate Save, now shown next to Clear All */}
-              </div>
-            </div>
-            
-            {/* Summary Stats and Actions */}
-            <div className="flex items-center gap-3 ml-auto">
+              {/* Credits summary next to term selector */}
               <div className="flex flex-col gap-0.5">
                 <div className="text-xs">
                   <span className="text-white/80">Total Credits: </span>
@@ -1149,6 +1144,13 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                   </div>
                 </TooltipProvider>
               </div>
+
+              {/* Action Buttons - removed duplicate Save, now shown next to Clear All */}
+              </div>
+            </div>
+            
+            {/* Summary Stats and Actions */}
+            <div className="flex items-center gap-3 ml-auto">
               
               {scheduledCourses.length > 0 && (
                 <>
@@ -1991,21 +1993,16 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                                   </div>
                                 </div>
                                 
-                                {/* Remove button */}
+                                {/* Remove button - show on hover only */}
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     removeCourseFromSchedule(course.scheduledId);
                                   }}
-                                  className={`absolute top-0 right-0 w-5 h-5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-30 ${
-                                    hasTimeConflict 
-                                      ? 'bg-red-200 hover:bg-red-300' 
-                                      : 'bg-white/20 hover:bg-white/30'
-                                  }`}
+                                  className={`absolute top-0 right-0 w-5 h-5 rounded-md bg-white flex items-center justify-center z-50 opacity-0 group-hover:opacity-100 transition-opacity`}
+                                  aria-label="Remove from calendar"
                                 >
-                                  <X className={`w-3 h-3 ${
-                                    hasTimeConflict ? 'text-red-800' : 'text-white'
-                                  }`} />
+                                  <X className="w-3 h-3 text-red-600" />
                                 </button>
                               </div>
                             );

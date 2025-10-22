@@ -186,7 +186,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
         .from('comments')
         .select('*')
         .eq('post_id', postId)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching comments:', error);
@@ -1490,7 +1490,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
   };
 
   return (
-    <div className="h-full overflow-auto" style={{ backgroundColor: '#FAF5EF' }}>
+    <div className="h-full overflow-hidden" style={{ backgroundColor: '#FAF5EF' }}>
       <style>{`
         .quad-ping {
           position: absolute;
@@ -1639,9 +1639,9 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                   </Button>
                       </div>
                     </div>
-              <div className="bg-white" style={{ height: 'calc(600px - 60px)' }}>
+              <div className="bg-white" style={{ height: 'calc(100vh - 200px)' }}>
                 <div className="h-full overflow-y-auto">
-                  <div className="space-y-4 px-4 py-4 pt-1">
+                  <div className="space-y-4 px-4 py-4 pt-1" style={{ paddingBottom: '160px' }}>
                     {!postsLoading && coursePosts.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-gray-500">
                           <MessageSquare className="w-12 h-12 mb-4 opacity-50" />
@@ -1847,7 +1847,17 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                         addComment(post.id);
                                       }}
                                       disabled={!newComment[post.id]?.trim()}
-                                      className="bg-[#752432] hover:bg-[#752432]/90 text-white"
+                                      className="text-white"
+                                      style={{ 
+                                        backgroundColor: courseColor,
+                                        '--hover-color': `${courseColor}90`
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor = `${courseColor}90`;
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = courseColor;
+                                      }}
                                     >
                                       Comment
                                     </Button>
@@ -2016,7 +2026,17 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                                   addReply(post.id, comment.id);
                                                 }}
                                                 disabled={!replyText[`${post.id}:${comment.id}`]?.trim()}
-                                                className="bg-[#752432] hover:bg-[#752432]/90 text-white"
+                                                className="text-white"
+                                                style={{ 
+                                                  backgroundColor: courseColor,
+                                                  '--hover-color': `${courseColor}90`
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                  e.currentTarget.style.backgroundColor = `${courseColor}90`;
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                  e.currentTarget.style.backgroundColor = courseColor;
+                                                }}
                                               >
                                                 Reply
                                               </Button>
@@ -2208,7 +2228,17 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                 </Button>
                 <Button 
                   onClick={handleCreateCoursePost}
-                  className="bg-[#752432] hover:bg-[#752432]/90"
+                  className="text-white"
+                  style={{ 
+                    backgroundColor: courseColor,
+                    '--hover-color': `${courseColor}90`
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = `${courseColor}90`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = courseColor;
+                  }}
                   disabled={
                     !newPostTitle.trim() || 
                     (newPostType === 'text' && !newPostContent.trim()) ||

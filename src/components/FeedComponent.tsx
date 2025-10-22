@@ -1802,8 +1802,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     // Color consistency is now maintained by using post ID instead of index
 
     return (
-      <div className="w-full">
-        <div className="p-6">
+      <div className="w-full h-full overflow-y-auto" style={{ 
+        scrollbarWidth: 'thin',
+        scrollbarColor: '#752531 transparent'
+      }}>
+        <div className="p-6" style={{ paddingBottom: '80px' }}>
           <div className="mb-4">
             <Button
               variant="ghost"
@@ -2480,7 +2483,17 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                               addComment(post.id);
                             }}
                             disabled={!newComment[post.id]?.trim()}
-                            className="bg-[#752432] hover:bg-[#752432]/90 text-white"
+                            className="text-white"
+                            style={{ 
+                              backgroundColor: getPostColor(post.id),
+                              '--hover-color': `${getPostColor(post.id)}90`
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = `${getPostColor(post.id)}90`;
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = getPostColor(post.id);
+                            }}
                           >
                             Comment
                           </Button>
@@ -2632,7 +2645,17 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                     size="sm"
                                     onClick={(e: React.MouseEvent) => { e.stopPropagation(); addReply(post.id, comment.id); }}
                                     disabled={!replyText[`${post.id}:${comment.id}`]?.trim()}
-                                    className="bg-[#752432] hover:bg-[#752432]/90 text-white"
+                                    className="text-white"
+                                    style={{ 
+                                      backgroundColor: getPostColor(post.id),
+                                      '--hover-color': `${getPostColor(post.id)}90`
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.backgroundColor = `${getPostColor(post.id)}90`;
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.backgroundColor = getPostColor(post.id);
+                                    }}
                                   >
                                     Reply
                                   </Button>

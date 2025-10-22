@@ -136,7 +136,7 @@ const formatCourseDescription = (text: string): string => {
   ];
   
   boldPatterns.forEach(pattern => {
-    const regex = new RegExp(`\\b${pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi');
+    const regex = new RegExp(`\\b${pattern.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}`, 'gi');
     formatted = formatted.replace(regex, `<strong>${pattern}</strong>`);
   });
   
@@ -146,20 +146,11 @@ const formatCourseDescription = (text: string): string => {
   // Add line break before "Note:" only if there's text before it
   formatted = formatted.replace(/([^\s])\s*<strong>Note:<\/strong>/gi, '$1<br/><br/><strong>Note:</strong>');
   
-  // Add line breaks before and after exam type patterns
-  const examTypePatterns = [
-    '<strong>Exam Type:</strong> No Exam',
-    '<strong>Exam Type:</strong> One-Day Take-Home', 
-    '<strong>Exam Type:</strong> Any Day Take-Home',
-    '<strong>Exam Type:</strong> In Class'
-  ];
-  
-  examTypePatterns.forEach(pattern => {
-    // Add line break before exam type only if there's text before it
-    formatted = formatted.replace(new RegExp(`([^\\s])\\s*${pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi'), `$1<br/><br/>${pattern}`);
-    // Add line break after exam type
-    formatted = formatted.replace(new RegExp(`${pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^<])`, 'gi'), `${pattern}<br/><br/>$1`);
-  });
+  // Add line breaks around "Exam Type:" regardless of the specific value shown
+  // Add line break before only if there's non-whitespace before it
+  formatted = formatted.replace(/([^\s])\s*<strong>Exam Type:<\/strong>/gi, '$1<br/><br/><strong>Exam Type:</strong>');
+  // Add line break after recognized Exam Type tokens (supports combinations and optional commas)
+  formatted = formatted.replace(/(<strong>Exam Type:<\/strong>\s*(?:(?:No\s+Exam|One-?Day|Take\s*Home|In\s*Class)(?:\s+|\s*,\s*)?)+)/gi, '$1<br/><br/>' );
   
   return formatted;
 };
@@ -1633,7 +1624,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                                     fontSize: '9px'
                                   }}
                                 >
-                                  {course.credits}
+                                  {course.credits} CR
                                 </Badge>
                               </div>
                             </div>
@@ -1700,11 +1691,11 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                         }}
                         onClick={() => showCourseDetail(course)}
                       >
-                        <CardContent className="p-4 relative">
-                          <div className="flex items-start justify-between mb-3">
+                        <CardContent className="p-3 relative">
+                          <div className="flex items-start justify-between mb-2">
                             <div className="flex-1">
-                              <h3 className="font-medium text-gray-900 mb-1">{getCleanCourseName(course.name, course.delivery_mode)}</h3>
-                              <p className="text-sm text-gray-600 mb-2">{getLastName(course.faculty)}</p>
+                              <h3 className="font-medium text-gray-900 mb-1 text-sm">{getCleanCourseName(course.name, course.delivery_mode)}</h3>
+                              <p className="text-xs text-gray-600 mb-1">{getLastName(course.faculty)}</p>
                               <div className="flex items-center gap-2">
                                 <Badge 
                                   variant="outline"
@@ -1715,17 +1706,17 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                                 </Badge>
                               </div>
                             </div>
-                            <div className="flex flex-col items-center gap-2">
+                            <div className="flex flex-col items-center gap-2 ml-2">
                               <Badge 
                                 variant="outline" 
-                                className="text-sm font-medium"
+                                className="text-xs font-medium"
                                 style={{ 
                                   backgroundColor: getCourseColor(course.delivery_mode), 
                                   borderColor: getCourseColor(course.delivery_mode),
                                   color: 'white'
                                 }}
                               >
-                                {course.credits}
+                                {course.credits} CR
                               </Badge>
                             </div>
                           </div>
@@ -1981,7 +1972,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                                   <div className={`text-xs mb-0.5 ${
                                     hasTimeConflict ? 'text-red-800 opacity-90' : 'text-white opacity-90'
                                   }`}>
-                                    {course.credits} • {getLastName(course.faculty)}
+                                    {course.credits} CR • {getLastName(course.faculty)}
                                   </div>
                                   <div className={`text-xs mb-1 ${
                                     hasTimeConflict ? 'text-red-700 opacity-60' : 'text-white opacity-60'
@@ -2229,7 +2220,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                       color: 'white'
                     }}
                   >
-                    {selectedCourseForDetail.credits}
+                    {selectedCourseForDetail.credits} CR
                   </Badge>
                 )}
               </DialogTitle>

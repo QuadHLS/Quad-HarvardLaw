@@ -1052,7 +1052,7 @@ export function OutlinePage({
 
   return (
     <div className="h-screen flex flex-col bg-[#F8F4ED] w-full">
-      <div className="border-b border-gray-200 shadow-sm" style={{ backgroundColor: '#752432' }}>
+      <div className="" style={{ backgroundColor: '#752432' }}>
         <div className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">

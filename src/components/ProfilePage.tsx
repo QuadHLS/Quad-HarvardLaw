@@ -187,7 +187,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       try {
         let query = supabase
           .from('profiles')
-          .select('full_name, email, phone, class_year, section, classes, age, hometown, summer_city, summer_firm, instagram, linkedin, avatar_url, photo_urls');
+          .select('full_name, email, phone, class_year, section, classes, age, hometown, summer_city, summer_firm, instagram, linkedin, avatar_url, photo_urls, bio');
 
         // If viewing another student's profile, fetch by name; otherwise fetch by user ID
         if (studentName && studentName !== user.email) {
@@ -220,7 +220,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
             hometown: profile.hometown || '',
             summerCity: profile.summer_city || '',
             summerFirm: profile.summer_firm || '',
-            bio: '',
+            bio: profile.bio || '',
             currentCourses: profile.classes?.map((cls: any) => ({
               class: cls.class || '',
               professor: cls.professor || '',
@@ -1000,11 +1000,6 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                           alt="Instagram" 
                           className="h-6 w-auto" 
                         />
-                        {!profileData.instagram && profileData.linkedin && (
-                          <span className="text-sm text-gray-400">
-                            Show your creative side! ✨
-                          </span>
-                        )}
                       </div>
                     )}
                     
@@ -1039,20 +1034,10 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                           alt="LinkedIn" 
                           className="h-6 w-auto" 
                         />
-                        {!profileData.linkedin && profileData.instagram && (
-                          <span className="text-sm text-gray-400">
-                            Grow your career network! 🎯
-                          </span>
-                        )}
                       </div>
                     )}
                     
-                    {/* Show message only when both are empty */}
-                    {!profileData.instagram && !profileData.linkedin && !isEditing && (
-                      <span className="text-sm text-gray-400">
-                        Let others find you online! ⚡
-                      </span>
-                    )}
+                    
                   </div>
                   
                   {/* Personal Information Grid */}
@@ -1244,49 +1229,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                       </div>
                     ))}
                   </div>
-                ) : (
-                  /* Show motivational message when no photos */
-                  <div className="text-center py-12">
-                    <div className="text-6xl mb-4">📸</div>
-                    <h3 className="text-xl font-semibold text-gray-800 mb-2">Share Your Story!</h3>
-                    <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                      Upload up to 20 photos to showcase your personality, interests, and experiences. 
-                      Let others get to know the real you! ✨
-                    </p>
-                    {isEditing && !studentName && (
-                      <div className="flex justify-center">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={handlePhotoUpload}
-                          className="hidden"
-                          id="photo-upload-empty"
-                          disabled={uploadingPhotos}
-                        />
-                        <Button 
-                          size="lg" 
-                          className="gap-2 text-white hover:opacity-90"
-                          style={{ backgroundColor: '#752432' }}
-                          disabled={uploadingPhotos}
-                          onClick={() => document.getElementById('photo-upload-empty')?.click()}
-                        >
-                          {uploadingPhotos ? (
-                            <div className="flex items-center gap-2">
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                              <span>Uploading...</span>
-                  </div>
-                          ) : (
-                            <>
-                              <Upload className="w-5 h-5" />
-                              Upload Your First Photos
-                            </>
-                          )}
-                        </Button>
-                </div>
-                    )}
-                  </div>
-                )}
+                ) : null}
               </CardContent>
             </Card>
 

@@ -1546,7 +1546,10 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
           </div>
           
           {/* Course List - Scrollable */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0" style={{ 
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#752531 transparent'
+          }}>
             {/* Semester Header */}
             <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-200">
               <h3 className="font-medium text-gray-900">{getSemesterFullName(selectedTerm)} Courses</h3>
@@ -1788,7 +1791,12 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
         {/* Calendar Grid */}
         <div className="flex-1 flex flex-col relative" style={{ height: 'calc(100vh - 80px)' }}>
           {/* Calendar */}
-          <div className="flex-1 p-6" style={{ backgroundColor: '#FAF5EF', overflowY: 'auto' }}>
+          <div className="flex-1 p-6" style={{ 
+            backgroundColor: '#FAF5EF', 
+            overflowY: 'auto',
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#752531 transparent'
+          }}>
             <div className="bg-white rounded-lg overflow-hidden shadow-lg border border-gray-200">
               <div className="grid grid-cols-6">
                 {/* Time column */}
@@ -2119,7 +2127,10 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                 Select a saved schedule to load onto the planner.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 max-h-96 overflow-y-auto">
+            <div className="space-y-4 max-h-96 overflow-y-auto" style={{ 
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#752531 transparent'
+            }}>
             {savedSchedules.length === 0 ? (
               <div className="text-center py-8">
                 <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
@@ -2244,7 +2255,11 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
           </DialogHeader>
           
           {selectedCourseForDetail && (
-              <div className="overflow-y-auto px-6 py-4 space-y-4" style={{ height: '490px' }}>
+              <div className="overflow-y-auto px-6 py-4 space-y-4" style={{ 
+                height: '490px',
+                scrollbarWidth: 'thin',
+                scrollbarColor: '#752531 transparent'
+              }}>
               {/* Course Description */}
               <div>
                 {(() => {

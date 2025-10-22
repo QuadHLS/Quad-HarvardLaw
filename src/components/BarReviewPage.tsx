@@ -34,7 +34,6 @@ export function BarReviewPage({}: BarReviewPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [rsvpLoading, setRsvpLoading] = useState(false);
   const [attendees, setAttendees] = useState<string[]>([]);
-  const [attendeesLoading, setAttendeesLoading] = useState(false);
 
   // Fetch bar review events from Supabase
   useEffect(() => {
@@ -65,36 +64,10 @@ export function BarReviewPage({}: BarReviewPageProps) {
           throw currentError;
         }
 
-        if (currentEventData) {
-          setCurrentEvent(currentEventData);
-          
-          // Fetch actual RSVP count from bar_count table
-          const { count: rsvpCountData, error: countError } = await supabase
-            .from('bar_count')
-            .select('*', { count: 'exact', head: true });
+        let eventData = currentEventData;
 
-
-          if (!countError && rsvpCountData !== null) {
-            setRsvpCount(rsvpCountData);
-          } else {
-            setRsvpCount(0);
-          }
-
-          // Check if current user has RSVPed
-          if (user) {
-            const { data: userRsvp, error: userRsvpError } = await supabase
-              .from('bar_count')
-              .select('*')
-              .eq('identity', user.id)
-              .maybeSingle();
-
-            setIsRSVPed(!!userRsvp && !userRsvpError);
-          }
-
-          // Fetch all attendees
-          fetchAttendees();
-        } else {
-          // Try to get the most recent event as fallback
+        // If no current event, get the most recent event as fallback
+        if (!eventData) {
           const { data: recentEventData, error: recentError } = await supabase
             .from('bar_review_events')
             .select('*')
@@ -102,36 +75,44 @@ export function BarReviewPage({}: BarReviewPageProps) {
             .limit(1)
             .maybeSingle();
 
-          if (recentEventData && !recentError) {
-            setCurrentEvent(recentEventData);
-            
-            // Fetch actual RSVP count for recent event too
-            const { count: recentRsvpCount, error: recentCountError } = await supabase
-              .from('bar_count')
-              .select('*', { count: 'exact', head: true });
-
-            if (!recentCountError && recentRsvpCount !== null) {
-              setRsvpCount(recentRsvpCount);
-            } else {
-              setRsvpCount(0);
-            }
-
-            // Check if current user has RSVPed for recent event too
-            if (user) {
-              const { data: userRsvp, error: userRsvpError } = await supabase
-                .from('bar_count')
-                .select('*')
-                .eq('identity', user.id)
-                .maybeSingle();
-
-              setIsRSVPed(!!userRsvp && !userRsvpError);
-            }
-
-            // Fetch all attendees for recent event too
-            fetchAttendees();
+          if (recentError) {
+            console.error('Error fetching recent event:', recentError);
+            throw recentError;
           }
+
+          eventData = recentEventData;
         }
 
+        if (eventData) {
+          setCurrentEvent(eventData);
+          
+          // Run all remaining queries in parallel for better performance
+          const [rsvpCountResult, userRsvpResult] = await Promise.all([
+            // Fetch RSVP count
+            supabase
+              .from('bar_count')
+              .select('*', { count: 'exact', head: true }),
+            
+            // Check if current user has RSVPed (only if user exists)
+            user ? supabase
+              .from('bar_count')
+              .select('*')
+              .eq('identity', user.id)
+              .maybeSingle() : Promise.resolve({ data: null, error: null })
+          ]);
+
+          // Set RSVP count
+          if (!rsvpCountResult.error && rsvpCountResult.count !== null) {
+            setRsvpCount(rsvpCountResult.count);
+          } else {
+            setRsvpCount(0);
+          }
+
+          // Set user RSVP status
+          if (user) {
+            setIsRSVPed(!!userRsvpResult.data && !userRsvpResult.error);
+          }
+        }
 
       } catch (err) {
         console.error('Error fetching bar review events:', err);
@@ -142,7 +123,7 @@ export function BarReviewPage({}: BarReviewPageProps) {
     };
 
     fetchBarReviewEvents();
-  }, []);
+  }, [user]);
 
   // Fetch attendees when attendee list is opened
   useEffect(() => {
@@ -172,7 +153,6 @@ export function BarReviewPage({}: BarReviewPageProps) {
 
   // Fetch attendee names from profiles table
   const fetchAttendees = async () => {
-    setAttendeesLoading(true);
     try {
       // Get all user IDs who RSVPed
       const { data: rsvpData, error: rsvpError } = await supabase
@@ -219,8 +199,6 @@ export function BarReviewPage({}: BarReviewPageProps) {
     } catch (error) {
       console.error('Error fetching attendees:', error);
       setAttendees([]);
-    } finally {
-      setAttendeesLoading(false);
     }
   };
 
@@ -361,7 +339,11 @@ export function BarReviewPage({}: BarReviewPageProps) {
   // Show loading state
   if (loading) {
     return (
-      <div className="h-full style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} overflow-auto">
+      <div className="h-full overflow-auto" style={{ 
+        backgroundColor: 'var(--background-color, #f9f5f0)',
+        scrollbarWidth: 'thin',
+        scrollbarColor: '#752531 transparent'
+      }}>
         <div className="max-w-6xl mx-auto p-6">
           <div className="mb-8">
             <h1 className="text-3xl font-medium text-gray-900 mb-2">Bar Review</h1>
@@ -381,7 +363,11 @@ export function BarReviewPage({}: BarReviewPageProps) {
   // Show error state
   if (error) {
     return (
-      <div className="h-full style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} overflow-auto">
+      <div className="h-full overflow-auto" style={{ 
+        backgroundColor: 'var(--background-color, #f9f5f0)',
+        scrollbarWidth: 'thin',
+        scrollbarColor: '#752531 transparent'
+      }}>
         <div className="max-w-6xl mx-auto p-6">
           <div className="mb-8">
             <h1 className="text-3xl font-medium text-gray-900 mb-2">Bar Review</h1>
@@ -404,7 +390,11 @@ export function BarReviewPage({}: BarReviewPageProps) {
   }
 
   return (
-    <div className="h-full style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} overflow-auto">
+    <div className="h-full overflow-auto" style={{ 
+      backgroundColor: 'var(--background-color, #f9f5f0)',
+      scrollbarWidth: 'thin',
+      scrollbarColor: '#752531 transparent'
+    }}>
       <div className="max-w-6xl mx-auto p-6">
         {/* Header */}
         <div className="mb-8">
@@ -587,13 +577,13 @@ export function BarReviewPage({}: BarReviewPageProps) {
                   </Button>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="space-y-0">
-                  <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-md style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} mb-4">
+                  <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-md mb-4" style={{ 
+                    backgroundColor: 'var(--background-color, #f9f5f0)',
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: '#752531 transparent'
+                  }}>
                     <div className="grid grid-cols-1 gap-0.5 p-2">
-                      {attendeesLoading ? (
-                        <div className="text-xs text-gray-500 py-2 text-center">
-                          Loading attendees...
-                        </div>
-                      ) : attendees.length > 0 ? (
+                      {attendees.length > 0 ? (
                         attendees.map((name, index) => (
                           <div 
                             key={index} 

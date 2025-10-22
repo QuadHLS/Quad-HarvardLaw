@@ -529,7 +529,11 @@ export function ReviewsPage() {
   // Show loading state
   if (loading) {
     return (
-      <div className="h-full overflow-auto flex items-center justify-center" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+      <div className="h-full overflow-auto flex items-center justify-center" style={{ 
+        backgroundColor: 'var(--background-color, #f9f5f0)',
+        scrollbarWidth: 'thin',
+        scrollbarColor: '#752531 transparent'
+      }}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#752432] mx-auto mb-4"></div>
           <p className="text-gray-600">Loading reviews...</p>
@@ -541,7 +545,11 @@ export function ReviewsPage() {
   // Show error state
   if (error) {
     return (
-      <div className="h-full overflow-auto flex items-center justify-center" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+      <div className="h-full overflow-auto flex items-center justify-center" style={{ 
+        backgroundColor: 'var(--background-color, #f9f5f0)',
+        scrollbarWidth: 'thin',
+        scrollbarColor: '#752531 transparent'
+      }}>
         <div className="text-center">
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Reviews</h3>
@@ -555,7 +563,11 @@ export function ReviewsPage() {
   }
 
   return (
-    <div className="h-full overflow-auto" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+    <div className="h-full overflow-auto" style={{ 
+      backgroundColor: 'var(--background-color, #f9f5f0)',
+      scrollbarWidth: 'thin',
+      scrollbarColor: '#752531 transparent'
+    }}>
       {/* Header - Full Width */}
       <div className="border-b border-gray-200 pt-6 pb-6 px-6" style={{ backgroundColor: selectedProfessor && selectedCourse ? getSelectedHeaderColor() : '#752531' }}>
         <div className="max-w-full mx-auto">
@@ -722,7 +734,10 @@ export function ReviewsPage() {
       <div className="max-w-full mx-auto p-6">
         <div className="h-full flex flex-col">
 
-        <div className="flex-1 overflow-y-auto pt-6">
+        <div className="flex-1 overflow-y-auto pt-6" style={{ 
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#752531 transparent'
+        }}>
           <div className="min-w-0">
             {filteredProfessors.length === 0 ? (
               <div className="text-center py-12">

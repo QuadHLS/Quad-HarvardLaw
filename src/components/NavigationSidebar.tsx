@@ -12,6 +12,19 @@ interface NavigationSidebarProps {
 }
 
 export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed, onToggleCollapsed }: NavigationSidebarProps) {
+  // Start collapsed and auto-expand on load
+  const [isAutoExpanded, setIsAutoExpanded] = useState(false);
+  
+  // Auto-expand on component mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsAutoExpanded(true);
+    }, 100); // Small delay for smooth animation
+    
+    return () => clearTimeout(timer);
+  }, []);
+  
+  const isCollapsedOverride = !isAutoExpanded;
   const { user } = useAuth();
   const [isResourcesExpanded, setIsResourcesExpanded] = useState(false);
   const [isResourcesCollapsedExpanded, setIsResourcesCollapsedExpanded] = useState(false);
@@ -30,7 +43,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
   
   useEffect(() => {
     setIsTransitioning(true);
-    if (isCollapsed) {
+    if (isCollapsedOverride) {
       setShowText(false); // Hide text immediately when collapsing
       setShowSubItems([false, false, false]); // Hide all sub-items
       setBarReviewOffset(0); // Reset Bar Review position
@@ -64,7 +77,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
     }
     const timer = setTimeout(() => setIsTransitioning(false), 300);
     return () => clearTimeout(timer);
-  }, [isCollapsed]);
+  }, [isCollapsedOverride]);
 
   // Fetch user's name from profiles table
   useEffect(() => {
@@ -123,16 +136,16 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
   return (
     <div 
       className={`group text-gray-800 flex flex-col border-r border-gray-200 h-full flex-shrink-0 ${
-        isCollapsed ? 'w-16' : 'w-40'
+        isCollapsedOverride ? 'w-16' : 'w-40'
       }`}
       style={{ backgroundColor: 'var(--background-color, #f9f5f0)', transition: 'width 300ms ease-in-out', minWidth: '4rem' }}
-      onMouseEnter={() => isCollapsed && onToggleCollapsed()}
-      onMouseLeave={() => !isCollapsed && onToggleCollapsed()}
+      onMouseEnter={() => {/* Disabled for now - sidebar always extended */}}
+      onMouseLeave={() => {/* Disabled for now - sidebar always extended */}}
     >
       {/* Header */}
       <div className="p-4">
         <div className={`flex items-center justify-center relative ${
-          isCollapsed ? 'flex-col gap-2' : 'flex-row'
+          isCollapsedOverride ? 'flex-col gap-2' : 'flex-row'
         }`}>
           <button
             onClick={() => onSectionChange('home')}
@@ -159,8 +172,8 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
             }`}
             style={{ borderRightColor: activeSection === 'home' ? '#752432' : 'transparent' }}
           >
-            <Home className={`${!isCollapsed ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
-            {!isCollapsed && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Home</span>}
+            <Home className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
+            {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Home</span>}
           </button>
 
           {/* Planner */}
@@ -171,8 +184,8 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
             }`}
             style={{ borderRightColor: activeSection === 'planner' ? '#752432' : 'transparent' }}
           >
-            <CalendarDays className={`${!isCollapsed ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
-            {!isCollapsed && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Planner</span>}
+            <CalendarDays className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
+            {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Planner</span>}
           </button>
 
           {/* Resources - always expanded */}
@@ -182,12 +195,12 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
             }`}
             style={{ borderRightColor: ['outlines', 'reviews', 'exams'].includes(activeSection) ? '#752432' : 'transparent' }}
           >
-            <Archive className={`${!isCollapsed ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
-            {!isCollapsed && showText && <span className="font-medium text-sm flex-1 transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Resources</span>}
+            <Archive className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
+            {!isCollapsedOverride && showText && <span className="font-medium text-sm flex-1 transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Resources</span>}
           </div>
 
           {/* Resource items - only render when they should be visible */}
-          {!isCollapsed && (
+          {!isCollapsedOverride && (
             <div className="ml-4 space-y-1 mt-1">
               {resourceItems.map((item, index) => {
                 const Icon = item.icon;
@@ -225,7 +238,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
             <div className="w-5 h-5 flex-shrink-0">
               <Beer className="w-5 h-5" style={{ color: '#752432' }} />
             </div>
-            {!isCollapsed && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Bar Review</span>}
+            {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Bar Review</span>}
           </button>
         </div>
 
@@ -241,8 +254,8 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
             }`}
             style={{ borderRightColor: activeSection === 'profile' ? '#752432' : 'transparent' }}
           >
-            <User className={`${!isCollapsed ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
-            {!isCollapsed && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">{userName.replace(/\.$/, '')}</span>}
+            <User className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
+            {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">{userName.replace(/\.$/, '')}</span>}
           </button>
         </div>
       </nav>

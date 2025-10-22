@@ -946,7 +946,10 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                 </div>
                 
                 {/* Course List - Scrollable */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0" style={{ 
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: '#752531 transparent'
+                }}>
                   {/* Semester Header */}
                   <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-200">
                     <h3 className="font-medium text-gray-900">Available Courses</h3>

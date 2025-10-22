@@ -845,7 +845,11 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
   }
 
   return (
-    <div className="h-full overflow-y-auto" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+    <div className="h-full overflow-y-auto" style={{ 
+      backgroundColor: 'var(--background-color, #f9f5f0)',
+      scrollbarWidth: 'thin',
+      scrollbarColor: '#752531 transparent'
+    }}>
       <div className="max-w-6xl mx-auto p-6 space-y-6">
         {/* Back Button - Only show when viewing student profile */}
         {onBack && (
@@ -1300,7 +1304,10 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
           />
           
           {/* Settings Modal */}
-          <div className="relative bg-white rounded-lg shadow-xl border border-gray-200 w-full max-w-md mx-4 max-h-[80vh] overflow-y-auto">
+          <div className="relative bg-white rounded-lg shadow-xl border border-gray-200 w-full max-w-md mx-4 max-h-[80vh] overflow-y-auto" style={{ 
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#752531 transparent'
+          }}>
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">Settings</h2>
@@ -1558,7 +1565,10 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
           />
           
           {/* Change Courses Modal */}
-          <div className="relative bg-white rounded-lg shadow-xl border border-gray-200 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="relative bg-white rounded-lg shadow-xl border border-gray-200 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto" style={{ 
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#752531 transparent'
+          }}>
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">Change Courses</h2>
@@ -1631,7 +1641,11 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
 
       {/* Course Selection Page - Full Screen Overlay */}
       {showCourseSelection && (
-        <div className="fixed inset-0 z-50 overflow-y-auto" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+        <div className="fixed inset-0 z-50 overflow-y-auto" style={{ 
+          backgroundColor: 'var(--background-color, #f9f5f0)',
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#752531 transparent'
+        }}>
           <CourseSelectionPage
             onBack={() => {
               setShowCourseSelection(false);

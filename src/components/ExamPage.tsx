@@ -1356,7 +1356,10 @@ export function ExamPage({
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <div className={`${activeTab === 'upload' ? 'flex-1' : 'w-[600px] flex-shrink-0'} overflow-auto bg-[#F8F4ED]`}>
+        <div className={`${activeTab === 'upload' ? 'flex-1' : 'w-[600px] flex-shrink-0'} overflow-auto bg-[#F8F4ED]`} style={{ 
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#752531 transparent'
+        }}>
           {activeTab === 'search' && (
             <div className="h-full flex flex-col">
               {exams.length === 0 ? (

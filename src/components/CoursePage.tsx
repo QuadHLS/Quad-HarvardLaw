@@ -1559,7 +1559,10 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                     Students ({courseStudents.length})
                 </h3>
               </div>
-              <div className="flex-1 overflow-y-auto bg-white p-3 pt-0 -mt-3">
+              <div className="flex-1 overflow-y-auto bg-white p-3 pt-0 -mt-3" style={{ 
+                scrollbarWidth: 'thin',
+                scrollbarColor: '#752531 transparent'
+              }}>
                 <div className="space-y-2">
                     {courseStudents.map((student: any, index: number) => (
                       <div 
@@ -1640,7 +1643,10 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                       </div>
                     </div>
               <div className="bg-white" style={{ height: 'calc(100vh - 200px)' }}>
-                <div className="h-full overflow-y-auto">
+                <div className="h-full overflow-y-auto" style={{ 
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: '#752531 transparent'
+                }}>
                   <div className="space-y-4 px-4 py-4 pt-1" style={{ paddingBottom: '160px' }}>
                     {!postsLoading && coursePosts.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-gray-500">

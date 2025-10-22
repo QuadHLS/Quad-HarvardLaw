@@ -296,7 +296,12 @@ export function ClassSelector({
           return null;
         })()}
         {showDropdown && !isReadOnly && filteredClasses.length > 0 && (
-          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto" style={{ position: 'absolute', zIndex: 9999 }}>
+          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto" style={{ 
+            position: 'absolute', 
+            zIndex: 9999,
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#752531 transparent'
+          }}>
             {(() => {
               console.log(
                 'Rendering dropdown options for index',
@@ -432,7 +437,12 @@ export function ClassSelector({
               <div
                 data-professor-dropdown={index}
                 className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
-                style={{ position: 'absolute', zIndex: 9999 }}
+                style={{ 
+                  position: 'absolute', 
+                  zIndex: 9999,
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: '#752531 transparent'
+                }}
                 onClick={(e) => {
                   console.log(
                     'Professor dropdown container clicked:',

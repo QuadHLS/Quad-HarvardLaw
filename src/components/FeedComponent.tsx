@@ -2145,7 +2145,17 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                               size="sm"
                               onClick={() => addReply(selectedPost.id, comment.id)}
                               disabled={!replyText[`${selectedPost.id}:${comment.id}`]?.trim()}
-                              className="bg-[#752432] hover:bg-[#752432]/90 text-white"
+                              className="text-white"
+                              style={{ 
+                                backgroundColor: getPostColor(selectedPost.id),
+                                '--hover-color': `${getPostColor(selectedPost.id)}90`
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = `${getPostColor(selectedPost.id)}90`;
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = getPostColor(selectedPost.id);
+                              }}
                             >
                               Reply
                             </Button>

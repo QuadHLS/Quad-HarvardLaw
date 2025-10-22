@@ -94,8 +94,8 @@ const getCurrentTermByDate = (): 'FA' | 'WI' | 'SP' => {
   return 'FA';
 };
 
-// Truncate text to 150 words
-const truncateText = (text: string, maxWords: number = 150): { truncated: string; isTruncated: boolean } => {
+// Truncate text to 125 words
+const truncateText = (text: string, maxWords: number = 125): { truncated: string; isTruncated: boolean } => {
   if (!text || text === 'TBD') return { truncated: text, isTruncated: false };
   
   // Remove HTML tags for word counting
@@ -106,7 +106,7 @@ const truncateText = (text: string, maxWords: number = 150): { truncated: string
     return { truncated: text, isTruncated: false };
   }
   
-  // Find the position in the original HTML text that corresponds to 150 words
+  // Find the position in the original HTML text that corresponds to the word limit
   const wordsToKeep = words.slice(0, maxWords);
   const textToKeep = wordsToKeep.join(' ');
   
@@ -327,7 +327,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
   const [typePopoverOpen, setTypePopoverOpen] = useState(false);
   const [requirementsPopoverOpen, setRequirementsPopoverOpen] = useState(false);
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   // Dialog states
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -1101,84 +1101,89 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                 </div>
               </div>
 
-              {/* Action Buttons - Only show when courses are scheduled */}
-              {scheduledCourses.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleOpenSaveDialog}
-                    className="flex items-center gap-2 bg-white/10 border-white/30 text-white hover:bg-white hover:text-[#752432]"
-                  >
-                    <Save className="w-4 h-4" />
-                    Save
-                  </Button>
-                </div>
-              )}
+              {/* Action Buttons - removed duplicate Save, now shown next to Clear All */}
               </div>
             </div>
             
             {/* Summary Stats and Actions */}
-            <div className="flex items-center gap-6 ml-auto">
-              <TooltipProvider>
-                <div className="text-sm">
-                  {(() => {
-                    // For Fall/Spring semesters: show red for 1-9 credits and 16+ credits (with hover), white for 0 and 10-16 credits (no hover)
-                    // For other semesters: always show white with no hover
-                    const isFallOrSpring = selectedTerm === 'FA' || selectedTerm === 'SP';
-                    const shouldShowHover = isFallOrSpring && semesterCredits > 0 && ((semesterCredits >= 1 && semesterCredits <= 9) || semesterCredits > 16);
-                    
-                    // Determine credit color: 0 => white, 1-9 => red, 10-16 => white, 17+ => red
-                    const creditColor = (semesterCredits > 0 && semesterCredits <= 9) || semesterCredits >= 17 ? 'text-red-500' : 'text-white';
-                    
-                    if (shouldShowHover) {
-                      return (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="cursor-pointer">
-                              <span className="text-white/80">Semester Credits: </span>
-                              <span className={`font-medium ${creditColor}`}>{semesterCredits}</span>
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Min 10 – Max 16</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      );
-                    } else {
-                      return (
-                        <>
-                          <span className="text-white/80">Semester Credits: </span>
-                          <span className={`font-medium ${creditColor}`}>{semesterCredits}</span>
-                        </>
-                      );
-                    }
-                  })()}
+            <div className="flex items-center gap-3 ml-auto">
+              <div className="flex flex-col gap-0.5">
+                <div className="text-xs">
+                  <span className="text-white/80">Total Credits: </span>
+                  <span className="font-medium text-white">{totalCredits}</span>
                 </div>
-              </TooltipProvider>
-              <div className="text-sm">
-                <span className="text-white/80">Total Credits: </span>
-                <span className="font-medium text-white">{totalCredits}</span>
+                <TooltipProvider>
+                  <div className="text-xs">
+                    {(() => {
+                      // For Fall/Spring semesters: show red for 1-9 credits and 16+ credits (with hover), white for 0 and 10-16 credits (no hover)
+                      // For other semesters: always show white with no hover
+                      const isFallOrSpring = selectedTerm === 'FA' || selectedTerm === 'SP';
+                      const shouldShowHover = isFallOrSpring && semesterCredits > 0 && ((semesterCredits >= 1 && semesterCredits <= 9) || semesterCredits > 16);
+                      
+                      // Determine credit color: 0 => white, 1-9 => red, 10-16 => white, 17+ => red
+                      const creditColor = (semesterCredits > 0 && semesterCredits <= 9) || semesterCredits >= 17 ? 'text-red-500' : 'text-white';
+                      
+                      if (shouldShowHover) {
+                        return (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="cursor-pointer">
+                                <span className="text-white/80">Semester Credits: </span>
+                                <span className={`font-medium ${creditColor}`}>{semesterCredits}</span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Min 10 – Max 16</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      } else {
+                        return (
+                          <>
+                            <span className="text-white/80">Semester Credits: </span>
+                            <span className={`font-medium ${creditColor}`}>{semesterCredits}</span>
+                          </>
+                        );
+                      }
+                    })()}
+                  </div>
+                </TooltipProvider>
               </div>
               
               {scheduledCourses.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    // Only clear courses for the currently selected semester
-                    setScheduledCourses(prev => 
-                      prev.filter(course => !courseMatchesSemester(course.term, selectedTerm))
-                    );
-                  }}
-                  className="flex items-center gap-2 bg-white/10 border-white/30 text-white hover:bg-white hover:text-red-600"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Clear All
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // Only clear courses for the currently selected semester
+                      setScheduledCourses(prev => 
+                        prev.filter(course => !courseMatchesSemester(course.term, selectedTerm))
+                      );
+                    }}
+                  className="flex items-center gap-1.5 bg-white/10 border-white/30 text-white hover:bg-white hover:text-red-600"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Clear All
+                  </Button>
+                </>
               )}
+
+              {/* Save Button - always visible; disabled if no courses scheduled */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleOpenSaveDialog}
+                disabled={scheduledCourses.length === 0}
+                className={`flex items-center gap-1.5 bg-white/10 border-white/30 text-white ${
+                  scheduledCourses.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white hover:text-[#752432]'
+                }`}
+              >
+                <Save className="w-4 h-4" />
+                Save
+              </Button>
               
-              {/* Saved Schedules Button */}
+              {/* Saved Schedules Button - stays to the right */}
               <Button
                 variant="outline"
                 size="sm"
@@ -1186,7 +1191,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                   setShowSavedSchedulesDialog(true);
                   loadSavedSchedules(); // Refresh saved schedules when opening dialog
                 }}
-                className="flex items-center gap-2 bg-white/10 border-white/30 text-white hover:bg-white hover:text-[#752432]"
+                className="flex items-center gap-1.5 bg-white/10 border-white/30 text-white hover:bg-white hover:text-[#752432]"
               >
                 <FolderOpen className="w-4 h-4" />
                 Saved Schedules
@@ -1642,7 +1647,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                           
                           {/* Conflict warning if needed */}
                           {hasConflict && conflictDetails && (
-                            <div className="text-xs text-red-600 font-medium leading-tight mt-0.5">
+                            <div className="text-xs text-red-600 font-medium leading-tight mt-0.5 line-clamp-2 break-words">
                               <span className="text-red-700 font-semibold">Conflicts with:</span> {getCleanCourseName(conflictDetails.course.name, conflictDetails.course.delivery_mode)}
                             </div>
                           )}
@@ -1694,7 +1699,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                         <CardContent className="p-3 relative">
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex-1">
-                              <h3 className="font-medium text-gray-900 mb-1 text-sm">{getCleanCourseName(course.name, course.delivery_mode)}</h3>
+                              <h3 className="font-medium text-gray-900 mb-1 text-sm line-clamp-2 break-words">{getCleanCourseName(course.name, course.delivery_mode)}</h3>
                               <p className="text-xs text-gray-600 mb-1">{getLastName(course.faculty)}</p>
                               <div className="flex items-center gap-2">
                                 <Badge 
@@ -1735,7 +1740,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                               <span>{course.location}</span>
                             </div>
                             {hasConflict && conflictDetails && (
-                              <div className="text-xs text-red-600 font-medium">
+                              <div className="text-xs text-red-600 font-medium line-clamp-2 break-words">
                                 <span className="text-red-700 font-semibold">Conflicts with:</span> {getCleanCourseName(conflictDetails.course.name, conflictDetails.course.delivery_mode)}
                               </div>
                             )}
@@ -1964,7 +1969,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                                 )}
                                 
                                 <div className="relative z-10">
-                                  <div className={`text-xs font-medium mb-0.5 leading-tight ${
+                                  <div className={`text-xs font-medium mb-0.5 leading-tight line-clamp-2 break-words ${
                                     hasTimeConflict ? 'text-red-900' : 'text-white'
                                   }`}>
                                     {getCleanCourseName(course.name, course.delivery_mode)}
@@ -2083,7 +2088,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                           <div className="max-w-xs">
                             {scheduledCourses.filter(c => courseMatchesSemester(c.term, semester)).map((course, _index) => (
                               <p key={course.scheduledId} className="text-xs">
-                                {course.name}
+                                • {getCleanCourseName(course.name, course.delivery_mode)}
                               </p>
                             ))}
                           </div>
@@ -2220,7 +2225,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                       color: 'white'
                     }}
                   >
-                    {selectedCourseForDetail.credits} CR
+                    {selectedCourseForDetail.credits} {selectedCourseForDetail.credits === 1 ? 'Credit' : 'Credits'}
                   </Badge>
                 )}
               </DialogTitle>
@@ -2303,13 +2308,34 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-gray-700 block mb-1">Professor</label>
-                    <button
-                      onClick={() => handleProfessorClick(selectedCourseForDetail.faculty)}
-                      className="text-sm underline cursor-pointer bg-transparent border-none p-0 font-normal"
-                      style={{ color: getCourseColor(selectedCourseForDetail.delivery_mode) }}
-                    >
-                      {getFullFacultyName(selectedCourseForDetail.faculty)}
-                    </button>
+                    {selectedCourseForDetail.faculty.includes(';') ? (
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        {selectedCourseForDetail.faculty
+                          .split(';')
+                          .map((name) => name.trim())
+                          .filter((name) => name.length > 0)
+                          .map((name, idx, arr) => (
+                            <span key={`${name}-${idx}`} className="flex items-center">
+                              <button
+                                onClick={() => handleProfessorClick(name)}
+                                className="text-sm underline cursor-pointer bg-transparent border-none p-0 font-normal"
+                                style={{ color: getCourseColor(selectedCourseForDetail.delivery_mode) }}
+                              >
+                                {getFullFacultyName(name)}
+                              </button>
+                              {idx < arr.length - 1 && <span className="px-2 text-gray-400">|</span>}
+                            </span>
+                          ))}
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleProfessorClick(selectedCourseForDetail.faculty)}
+                        className="text-sm underline cursor-pointer bg-transparent border-none p-0 font-normal"
+                        style={{ color: getCourseColor(selectedCourseForDetail.delivery_mode) }}
+                      >
+                        {getFullFacultyName(selectedCourseForDetail.faculty)}
+                      </button>
+                    )}
                   </div>
                   
                   <div>

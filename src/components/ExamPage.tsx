@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { 
   Download,
   Bookmark,
+  BookmarkCheck,
   FileText,
   Grid,
   List,
@@ -371,6 +372,8 @@ export function ExamPage({
     } else if (activeTab === 'saved' && tab === 'search') {
       setSearchTerm(searchSearchTerm);
     }
+    // Reset document viewer to galaxy view when switching tabs
+    setPreviewExam(null);
     setActiveTab(tab);
   };
 
@@ -705,7 +708,7 @@ export function ExamPage({
     savedTagsFilter.length !== 2 ? 1 : 0 // Only count if not both Attack and Outline selected (default state)
   ].reduce((sum, count) => sum + count, 0);
 
-  const ExamListItem = ({ exam }: { exam: Outline }) => (
+  const ExamListItem = ({ exam, activeTab }: { exam: Outline, activeTab?: string }) => (
     <div 
       className={`group cursor-pointer transition-all duration-200 hover:bg-[#F5F1E8] border-l-4 ${
         previewExam?.id === exam.id ? 'bg-[#F5F1E8] shadow-sm' : 'bg-[#FFFBF8]'
@@ -732,12 +735,18 @@ export function ExamPage({
               >
                 {exam.grade}
               </Badge>
-              <span>•</span>
               <User className="w-3 h-3" />
-              <span>{exam.instructor}</span>
+              <span>{activeTab === 'saved' ? exam.instructor : exam.instructor.split(' ').pop()}</span>
+              {activeTab === 'saved' && (
+                <>
+                  <span>•</span>
+                  <Calendar className="w-3 h-3" />
+                  <span>{exam.year}</span>
+                </>
+              )}
               <span>•</span>
               <FileText className="w-3 h-3" />
-              <span>{exam.file_type?.toUpperCase?.() || exam.file_type}</span>
+              <span>{exam.file_type?.toUpperCase?.() === 'DOCX' ? 'DOC' : exam.file_type?.toUpperCase?.() || exam.file_type}</span>
               
             </div>
           </div>
@@ -746,33 +755,34 @@ export function ExamPage({
           <Button
             variant="outline"
             size="sm"
-            className="h-[14px] px-1 text-[8px] opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
+            className="h-[14px] w-[14px] p-0 opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
             onClick={(e) => {
               e.stopPropagation();
               onToggleSaveExam(exam);
             }}
           >
-            <Bookmark className="h-[8px] w-[8px] mr-1" />
-            {savedExams.some(saved => saved.id === exam.id) ? 'Unsave' : 'Save'}
+            <Bookmark 
+              className="h-[8px] w-[8px]" 
+              fill={savedExams.some(saved => saved.id === exam.id) ? "currentColor" : "none"}
+            />
           </Button>
           <Button
             variant="outline"
             size="sm"
-            className="h-[14px] px-1 text-[8px] opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
+            className="h-[14px] w-[14px] p-0 opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
             onClick={(e) => {
               e.stopPropagation();
               handleDownload(exam);
             }}
           >
-            <Download className="h-[8px] w-[8px] mr-1" />
-            Download
+            <Download className="h-[8px] w-[8px]" />
           </Button>
         </div>
       </div>
     </div>
   );
 
-  const ExamCard = ({ exam }: { exam: Outline }) => (
+  const ExamCard = ({ exam, activeTab }: { exam: Outline, activeTab?: string }) => (
     <Card 
       className={`group cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${getGradeBorderClass(exam.grade)} overflow-hidden ${
         previewExam?.id === exam.id ? 'ring-2 ring-[#752432] shadow-xl transform -translate-y-1' : ''
@@ -797,10 +807,13 @@ export function ExamPage({
             </div>
             <div className="flex items-center gap-1.5 text-xs text-gray-500">
               <User className="w-3 h-3 flex-shrink-0" />
-              <span className="truncate">{exam.instructor}</span>
-              <span>•</span>
-              <Calendar className="w-3 h-3 flex-shrink-0" />
-              <span>{exam.year}</span>
+              <span className="truncate">{activeTab === 'saved' ? exam.instructor : exam.instructor.split(' ').pop()}</span>
+              {activeTab === 'saved' && (
+                <>
+                  <Calendar className="w-3 h-3 flex-shrink-0" />
+                  <span>{exam.year}</span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -819,32 +832,35 @@ export function ExamPage({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-xs text-gray-500">
             <FileText className="w-3 h-3 flex-shrink-0" />
-            <span>{exam.file_type?.toUpperCase?.() || exam.file_type}</span>
+            <span>{exam.file_type?.toUpperCase?.() === 'DOCX' ? 'DOC' : exam.file_type?.toUpperCase?.() || exam.file_type}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
             <Button
               variant="outline"
               size="sm"
-              className="h-6 text-xs px-2 opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
+              className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleSaveExam(exam);
               }}
             >
-              <Bookmark className="h-3 w-3 mr-1" />
-              {savedExams.some(saved => saved.id === exam.id) ? 'Unsave' : 'Save'}
+              <Bookmark 
+                className="h-3 w-3" 
+                fill={savedExams.some(saved => saved.id === exam.id) ? "currentColor" : "none"}
+              />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDownload(exam);
+              }}
+            >
+              <Download className="h-3 w-3" />
             </Button>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs px-2 opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDownload(exam);
-            }}
-          >
-            <Download className="h-3 w-3 mr-1" />
-            Download
-          </Button>
         </div>
       </CardContent>
     </Card>
@@ -1252,7 +1268,7 @@ export function ExamPage({
                           title="Clear filters"
                         >
                           <X className="w-3 h-3" />
-                          <span className="text-xs">{activeSearchFilterCount}</span>
+                          <span className="text-xs">Clear</span>
                         </Button>
                       )}
                     </div>
@@ -1334,7 +1350,7 @@ export function ExamPage({
                           title="Clear saved filters"
                         >
                           <X className="w-3 h-3" />
-                          <span className="text-xs">{activeSavedFilterCount}</span>
+                          <span className="text-xs">Clear</span>
                         </Button>
                       )}
                     </div>
@@ -1383,7 +1399,9 @@ export function ExamPage({
       <div className="flex flex-1 overflow-hidden">
         <div className={`${activeTab === 'upload' ? 'flex-1' : 'w-[600px] flex-shrink-0'} overflow-auto bg-[#F8F4ED]`} style={{ 
           scrollbarWidth: 'thin',
-          scrollbarColor: '#752531 transparent'
+          scrollbarColor: '#752531 transparent',
+          minWidth: activeTab === 'upload' ? 'auto' : '600px',
+          maxWidth: activeTab === 'upload' ? 'none' : '600px'
         }}>
           {activeTab === 'search' && (
             <div className="h-full flex flex-col">
@@ -1459,13 +1477,13 @@ export function ExamPage({
                             {viewMode === 'grid' ? (
                               <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3">
                                 {sortedYearOutlines.map(exam => (
-                                  <ExamCard key={exam.id} exam={exam} />
+                                  <ExamCard key={exam.id} exam={exam} activeTab={activeTab} />
                                 ))}
                               </div>
                             ) : (
                               <div className="space-y-1 border border-border rounded-lg overflow-hidden shadow-sm" style={{ backgroundColor: '#f9f5f0' }}>
                                 {sortedYearOutlines.map(exam => (
-                                  <ExamListItem key={exam.id} exam={exam} />
+                                  <ExamListItem key={exam.id} exam={exam} activeTab={activeTab} />
                                 ))}
                               </div>
                             )}
@@ -1552,13 +1570,13 @@ export function ExamPage({
                             {viewMode === 'grid' ? (
                               <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3">
                                 {sortedCourseExams.map(exam => (
-                                  <ExamCard key={exam.id} exam={exam} />
+                                  <ExamCard key={exam.id} exam={exam} activeTab={activeTab} />
                                 ))}
                               </div>
                             ) : (
                               <div className="space-y-1 border border-border rounded-lg overflow-hidden shadow-sm" style={{ backgroundColor: '#f9f5f0' }}>
                                 {sortedCourseExams.map(exam => (
-                                  <ExamListItem key={exam.id} exam={exam} />
+                                  <ExamListItem key={exam.id} exam={exam} activeTab={activeTab} />
                                 ))}
                               </div>
                             )}

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { 
   Download,
   Bookmark,
+  BookmarkCheck,
   FileText,
   Grid,
   List,
@@ -357,6 +358,8 @@ export function OutlinePage({
     } else if (activeTab === 'saved' && tab === 'search') {
       setSearchTerm(searchSearchTerm);
     }
+    // Reset document viewer to galaxy view when switching tabs
+    setPreviewOutline(null);
     setActiveTab(tab);
   };
 
@@ -705,7 +708,7 @@ export function OutlinePage({
     savedYearFilter && savedYearFilter !== '' ? 1 : 0
   ].reduce((sum, count) => sum + count, 0);
 
-  const OutlineListItem = ({ outline }: { outline: Outline }) => (
+  const OutlineListItem = ({ outline, activeTab }: { outline: Outline, activeTab?: string }) => (
     <div 
       className={`group cursor-pointer transition-all duration-200 hover:bg-[#F5F1E8] border-l-4 ${
         previewOutline?.id === outline.id ? 'bg-[#F5F1E8] shadow-sm' : 'bg-[#FFFBF8]'
@@ -732,14 +735,18 @@ export function OutlinePage({
               >
                 {outline.grade}
               </Badge>
-              <span>•</span>
               <User className="w-3 h-3" />
-              <span>{outline.instructor}</span>
+              <span>{activeTab === 'saved' ? outline.instructor : outline.instructor.split(' ').pop()}</span>
+              {activeTab === 'saved' && (
+                <>
+                  <span>•</span>
+                  <Calendar className="w-3 h-3" />
+                  <span>{outline.year}</span>
+                </>
+              )}
               <span>•</span>
               <FileText className="w-3 h-3" />
-              <span>{outline.file_type?.toUpperCase?.() || outline.file_type}</span>
-              <span>•</span>
-              <span>{outline.pages} pages</span>
+              <span>{outline.file_type?.toUpperCase?.() === 'DOCX' ? 'DOC' : outline.file_type?.toUpperCase?.() || outline.file_type}</span>
             </div>
           </div>
         </div>
@@ -747,33 +754,34 @@ export function OutlinePage({
           <Button
             variant="outline"
             size="sm"
-            className="h-[14px] px-1 text-[8px] opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
+            className="h-[14px] w-[14px] p-0 opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
             onClick={(e) => {
               e.stopPropagation();
               onToggleSaveOutline(outline);
             }}
           >
-            <Bookmark className="h-[8px] w-[8px] mr-1" />
-            {savedOutlines.some(saved => saved.id === outline.id) ? 'Unsave' : 'Save'}
+            <Bookmark 
+              className="h-[8px] w-[8px]" 
+              fill={savedOutlines.some(saved => saved.id === outline.id) ? "currentColor" : "none"}
+            />
           </Button>
           <Button
             variant="outline"
             size="sm"
-            className="h-[14px] px-1 text-[8px] opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
+            className="h-[14px] w-[14px] p-0 opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
             onClick={(e) => {
               e.stopPropagation();
               handleDownload(outline);
             }}
           >
-            <Download className="h-[8px] w-[8px] mr-1" />
-            Download
+            <Download className="h-[8px] w-[8px]" />
           </Button>
         </div>
       </div>
     </div>
   );
 
-  const OutlineCard = ({ outline }: { outline: Outline }) => (
+  const OutlineCard = ({ outline, activeTab }: { outline: Outline, activeTab?: string }) => (
     <Card 
       className={`group cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${getGradeBorderClass(outline.grade)} overflow-hidden ${
         previewOutline?.id === outline.id ? 'ring-2 ring-[#752432] shadow-xl transform -translate-y-1' : ''
@@ -794,16 +802,16 @@ export function OutlinePage({
               <h3 className="font-semibold text-gray-900 truncate text-sm">
                 {outline.title}
               </h3>
-              <div className="text-xs text-gray-600 ml-2 flex-shrink-0">
-                <span className="font-medium">{outline.pages}</span>p
-              </div>
             </div>
             <div className="flex items-center gap-1.5 text-xs text-gray-500">
               <User className="w-3 h-3 flex-shrink-0" />
-              <span className="truncate">{outline.instructor}</span>
-              <span>•</span>
-              <Calendar className="w-3 h-3 flex-shrink-0" />
-              <span>{outline.year}</span>
+              <span className="truncate">{activeTab === 'saved' ? outline.instructor : outline.instructor.split(' ').pop()}</span>
+              {activeTab === 'saved' && (
+                <>
+                  <Calendar className="w-3 h-3 flex-shrink-0" />
+                  <span>{outline.year}</span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -822,32 +830,35 @@ export function OutlinePage({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-xs text-gray-500">
             <FileText className="w-3 h-3 flex-shrink-0" />
-            <span>{outline.file_type?.toUpperCase?.() || outline.file_type}</span>
+            <span>{outline.file_type?.toUpperCase?.() === 'DOCX' ? 'DOC' : outline.file_type?.toUpperCase?.() || outline.file_type}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
             <Button
               variant="outline"
               size="sm"
-              className="h-6 text-xs px-2 opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
+              className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleSaveOutline(outline);
               }}
             >
-              <Bookmark className="h-3 w-3 mr-1" />
-              {savedOutlines.some(saved => saved.id === outline.id) ? 'Unsave' : 'Save'}
+              <Bookmark 
+                className="h-3 w-3" 
+                fill={savedOutlines.some(saved => saved.id === outline.id) ? "currentColor" : "none"}
+              />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDownload(outline);
+              }}
+            >
+              <Download className="h-3 w-3" />
             </Button>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs px-2 opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDownload(outline);
-            }}
-          >
-            <Download className="h-3 w-3 mr-1" />
-            Download
-          </Button>
         </div>
       </CardContent>
     </Card>
@@ -1248,16 +1259,16 @@ export function OutlinePage({
                   </div>
 
                   {activeSearchFilterCount > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={clearSearchFilters}
-                      className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:border-white/50 h-7 px-2 py-0 flex items-center gap-1 transition-all active:scale-95"
-                      title="Clear filters"
-                    >
-                      <X className="w-3 h-3" />
-                      <span className="text-xs">{activeSearchFilterCount}</span>
-                    </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={clearSearchFilters}
+                          className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:border-white/50 h-7 px-2 py-0 flex items-center gap-1 transition-all active:scale-95"
+                          title="Clear filters"
+                        >
+                          <X className="w-3 h-3" />
+                          <span className="text-xs">Clear</span>
+                        </Button>
                   )}
                 </>
               )}
@@ -1328,16 +1339,16 @@ export function OutlinePage({
                   </div>
 
                   {activeSavedFilterCount > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={clearSavedFilters}
-                      className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:border-white/50 h-7 px-2 py-0 flex items-center gap-1 transition-all active:scale-95"
-                      title="Clear saved filters"
-                    >
-                      <X className="w-3 h-3" />
-                      <span className="text-xs">{activeSavedFilterCount}</span>
-                    </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={clearSavedFilters}
+                          className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:border-white/50 h-7 px-2 py-0 flex items-center gap-1 transition-all active:scale-95"
+                          title="Clear saved filters"
+                        >
+                          <X className="w-3 h-3" />
+                          <span className="text-xs">Clear</span>
+                        </Button>
                   )}
                 </>
               )}
@@ -1382,7 +1393,9 @@ export function OutlinePage({
       <div className="flex flex-1 overflow-hidden">
         <div className={`${activeTab === 'upload' ? 'flex-1' : 'w-[600px] flex-shrink-0'} overflow-auto bg-[#F8F4ED]`} style={{ 
           scrollbarWidth: 'thin',
-          scrollbarColor: '#752531 transparent'
+          scrollbarColor: '#752531 transparent',
+          minWidth: activeTab === 'upload' ? 'auto' : '600px',
+          maxWidth: activeTab === 'upload' ? 'none' : '600px'
         }}>
           {activeTab === 'search' && (
             <div className="h-full flex flex-col">
@@ -1458,13 +1471,13 @@ export function OutlinePage({
                             {viewMode === 'grid' ? (
                               <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3">
                                 {sortedYearOutlines.map(outline => (
-                                  <OutlineCard key={outline.id} outline={outline} />
+                                  <OutlineCard key={outline.id} outline={outline} activeTab={activeTab} />
                                 ))}
                               </div>
                             ) : (
                               <div className="space-y-1 border border-border rounded-lg overflow-hidden shadow-sm" style={{ backgroundColor: '#f9f5f0' }}>
                                 {sortedYearOutlines.map(outline => (
-                                  <OutlineListItem key={outline.id} outline={outline} />
+                                  <OutlineListItem key={outline.id} outline={outline} activeTab={activeTab} />
                                 ))}
                               </div>
                             )}
@@ -1551,13 +1564,13 @@ export function OutlinePage({
                             {viewMode === 'grid' ? (
                               <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3">
                                 {sortedCourseOutlines.map(outline => (
-                                  <OutlineCard key={outline.id} outline={outline} />
+                                  <OutlineCard key={outline.id} outline={outline} activeTab={activeTab} />
                                 ))}
                               </div>
                             ) : (
                               <div className="space-y-1 border border-border rounded-lg overflow-hidden shadow-sm" style={{ backgroundColor: '#f9f5f0' }}>
                                 {sortedCourseOutlines.map(outline => (
-                                  <OutlineListItem key={outline.id} outline={outline} />
+                                  <OutlineListItem key={outline.id} outline={outline} activeTab={activeTab} />
                                 ))}
                               </div>
                             )}

@@ -130,7 +130,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
       onMouseLeave={() => !isCollapsed && onToggleCollapsed()}
     >
       {/* Header */}
-      <div className={`p-4 ${!isCollapsed ? 'border-b border-gray-200' : ''}`}>
+      <div className="p-4">
         <div className={`flex items-center justify-center relative ${
           isCollapsed ? 'flex-col gap-2' : 'flex-row'
         }`}>
@@ -233,7 +233,7 @@ export function NavigationSidebar({ activeSection, onSectionChange, isCollapsed,
         <div className="flex-1" />
 
         {/* Profile bottom */}
-        <div className="border-t border-gray-200 px-2 pt-2">
+        <div className="px-2 pt-2">
           <button
             onClick={() => onSectionChange('profile')}
             className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${

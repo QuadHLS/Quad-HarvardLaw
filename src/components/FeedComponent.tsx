@@ -1979,7 +1979,17 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                         size="sm"
                         onClick={() => addComment(selectedPost.id)}
                         disabled={!newComment[selectedPost.id]?.trim()}
-                        className="bg-[#752432] hover:bg-[#752432]/90 text-white"
+                        className="text-white"
+                        style={{ 
+                          backgroundColor: getPostColor(selectedPost.id),
+                          '--hover-color': `${getPostColor(selectedPost.id)}90`
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = `${getPostColor(selectedPost.id)}90`;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = getPostColor(selectedPost.id);
+                        }}
                       >
                         Comment
                       </Button>
@@ -2157,7 +2167,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   }
 
   return (
-    <Card className="overflow-hidden" style={{ backgroundColor: '#FEFBF6' }}>
+    <Card className="overflow-hidden flex flex-col" style={{ backgroundColor: '#FEFBF6', height: '100%' }}>
       <div className="px-4 py-2 border-b border-gray-200" style={{ backgroundColor: '#F8F4ED' }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -2233,7 +2243,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           </div>
         </div>
       </div>
-      <div className="overflow-y-auto px-4 pb-4" style={{ height: 'calc(100vh - 120px)' }}>
+      <div className="overflow-y-auto px-4 pb-10 flex-1" style={{ 
+        scrollbarWidth: 'thin',
+        scrollbarColor: '#752531 transparent',
+        paddingBottom: '80px'
+      }}>
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <div className="text-gray-500">Loading posts...</div>

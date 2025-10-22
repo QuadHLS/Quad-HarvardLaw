@@ -1208,12 +1208,19 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
   }
 
   return (
-    <div className="h-full overflow-auto" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-      <div className="max-w-full mx-auto p-6">
+    <div className="h-full overflow-hidden" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+      <div className="max-w-full mx-auto p-6 pb-0">
         <div className={`flex gap-6 ${isThreadViewOpen ? 'justify-center' : ''}`}>
           {/* Left Content - Only show when not in thread view */}
           {!isThreadViewOpen && (
-            <div className="w-64 flex-shrink-0 space-y-4">
+            <div className="w-64 flex-shrink-0 space-y-4 overflow-y-auto" style={{ 
+              height: 'calc(100vh - 0px)', 
+              marginTop: '-24px', 
+              paddingTop: '24px',
+              paddingBottom: '80px',
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#752531 transparent'
+            }}>
               {/* Todo Box */}
               <div>
                 <TodoList 
@@ -1236,7 +1243,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
           )}
 
           {/* Feed Content - Always rendered */}
-          <div className={`${isThreadViewOpen ? 'w-full max-w-4xl' : 'flex-1 min-w-0'}`}>
+          <div className={`${isThreadViewOpen ? 'w-full max-w-4xl' : 'flex-1 min-w-0'} flex flex-col`} style={{ height: 'calc(100vh - 12px)' }}>
             <Feed 
               feedMode={feedMode}
               onFeedModeChange={setFeedMode}
@@ -1247,7 +1254,14 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
 
           {/* Right Sidebar - Only show when not in thread view */}
           {!isThreadViewOpen && (
-            <div className="w-68 flex-shrink-0 space-y-4">
+            <div className="w-68 flex-shrink-0 space-y-4 overflow-y-auto" style={{ 
+              height: 'calc(100vh - 0px)', 
+              marginTop: '-24px', 
+              paddingTop: '24px',
+              paddingBottom: '80px',
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#752531 transparent'
+            }}>
             {/* Calendar */}
             <Card className="overflow-hidden relative" style={{ backgroundColor: '#FEFBF6' }}>
               <div className="px-4 py-3 border-b border-gray-200" style={{ backgroundColor: '#F8F4ED' }}>

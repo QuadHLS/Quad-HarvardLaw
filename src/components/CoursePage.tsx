@@ -261,7 +261,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
             created_at: reply.created_at,
             likes_count: replyLikesCount,
             author: replyAuthor ? {
-              name: reply.is_anonymous ? `Anonymous User` : (replyAuthor as any).full_name,
+              name: reply.is_anonymous ? `Anonymous` : (replyAuthor as any).full_name,
               year: (replyAuthor as any).class_year
             } : undefined,
             isLiked: replyIsLiked
@@ -278,7 +278,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
           created_at: comment.created_at,
           likes_count: likesCount,
           author: author ? {
-            name: comment.is_anonymous ? `Anonymous User` : (author as any).full_name,
+              name: comment.is_anonymous ? `Anonymous` : (author as any).full_name,
             year: (author as any).class_year
           } : undefined,
           isLiked: isLiked,
@@ -831,7 +831,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
           likes_count: likesCount,
           comments_count: commentsCount,
           author: author ? {
-            name: post.is_anonymous ? `Anonymous User` : (author as any).full_name,
+            name: post.is_anonymous ? `Anonymous` : (author as any).full_name,
             year: (author as any).class_year,
             initials: post.is_anonymous ? 'AN' : (author as any).full_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || 'U'
           } : undefined,
@@ -1674,11 +1674,18 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                     borderColor: courseColor
                                   }}
                                 >
-                                  {post.author?.initials || 'U'}
+                                  {post.is_anonymous ? (
+                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                      <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                                      <path d="M2 2l20 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                                    </svg>
+                                  ) : (
+                                    post.author?.initials || 'U'
+                                  )}
                                 </div>
                                 <div>
                                   <div className="flex items-center gap-2">
-                                    <h4 className="font-semibold text-gray-900 text-sm">{post.author?.name || 'Anonymous'}</h4>
+                                    <h4 className="font-semibold text-gray-900 text-sm">{post.is_anonymous ? 'Anonymous' : (post.author?.name || 'Anonymous')}</h4>
                                     {!post.is_anonymous && <span className="text-xs text-gray-500">{post.author?.year || ''}</span>}
                                   </div>
                                   <div className="flex items-center gap-2">
@@ -1891,12 +1898,19 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                           borderColor: courseColor
                                         }}
                                       >
-                                        {comment.author?.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || 'U'}
+                                        {comment.is_anonymous ? (
+                                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                                            <path d="M2 2l20 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                                          </svg>
+                                        ) : (
+                                          comment.author?.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || 'U'
+                                        )}
                                       </div>
                                       <div className="flex-1">
                                         <div className="bg-gray-50 rounded-lg p-3">
                                           <div className="flex items-center gap-2 mb-1">
-                                            <h5 className="font-medium text-gray-900 text-sm">{comment.author?.name || 'Anonymous'}</h5>
+                                            <h5 className="font-medium text-gray-900 text-sm">{comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Anonymous')}</h5>
                                             {!comment.is_anonymous && <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>}
                                             <span className="text-xs text-gray-500">•</span>
                                             <span className="text-xs text-gray-500">{formatTimestamp(comment.created_at)}</span>
@@ -1947,11 +1961,18 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                                     borderColor: courseColor
                                                   }}
                                                 >
-                                                  {reply.author?.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || 'U'}
+                                                  {reply.is_anonymous ? (
+                                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                                                      <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                                                      <path d="M2 2l20 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                                                    </svg>
+                                                  ) : (
+                                                    reply.author?.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || 'U'
+                                                  )}
                                                 </div>
                                                 <div className="flex-1">
                                                   <div className="flex items-center gap-2 mb-1">
-                                                    <h6 className="font-medium text-gray-900 text-xs">{reply.author?.name || 'Anonymous'}</h6>
+                                                    <h6 className="font-medium text-gray-900 text-xs">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
                                                     {!reply.is_anonymous && <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>}
                                                     <span className="text-xs text-gray-500">•</span>
                                                     <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>

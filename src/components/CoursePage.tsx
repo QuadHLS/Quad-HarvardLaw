@@ -34,7 +34,6 @@ const MessageCircle = ({ className }: { className?: string }) => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
   </svg>
 );
-import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Textarea } from './ui/textarea';
@@ -1631,15 +1630,26 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                           </Badge>
                         )}
                         </div>
-                  <Button 
-                    size="sm"
-                    className="bg-white/20 hover:bg-white/30 text-white border-0 leading-none h-8 py-0 px-3 text-sm flex items-center"
+                  <button
                     onClick={() => setShowCreatePostDialog(true)}
-                    variant="ghost"
+                    className="uiverse new-post"
                   >
-                    <MessageSquare className="w-4 h-4 mr-2 flex-shrink-0" />
-                    <span className="leading-none">Create Post</span>
-                  </Button>
+                    <div className="wrapper">
+                      <span>Create Post</span>
+                      <div className="circle circle-1"></div>
+                      <div className="circle circle-2"></div>
+                      <div className="circle circle-3"></div>
+                      <div className="circle circle-4"></div>
+                      <div className="circle circle-5"></div>
+                      <div className="circle circle-6"></div>
+                      <div className="circle circle-7"></div>
+                      <div className="circle circle-8"></div>
+                      <div className="circle circle-9"></div>
+                      <div className="circle circle-10"></div>
+                      <div className="circle circle-11"></div>
+                      <div className="circle circle-12"></div>
+                    </div>
+                  </button>
                       </div>
                     </div>
               <div className="bg-white" style={{ height: 'calc(100vh - 200px)' }}>

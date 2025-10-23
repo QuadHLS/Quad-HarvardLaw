@@ -2185,37 +2185,47 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       <div className="px-4 py-2 border-b border-gray-200" style={{ backgroundColor: '#F8F4ED' }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="relative rounded-lg p-1 backdrop-blur-sm border border-white/20" style={{ backgroundColor: 'rgba(117, 36, 50, 0.5)' }}>
-              <div className="flex items-center">
-                <button
-                  onClick={() => onFeedModeChange?.('campus')}
-                  className={`relative px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
-                    feedMode === 'campus'
-                      ? 'text-[#752432] shadow-sm'
-                      : 'text-gray-600 hover:text-[#752432] hover:bg-gray-50'
-                  }`}
-                  style={feedMode === 'campus' ? {
-                    backgroundColor: 'white',
-                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                  } : {}}
-                >
-                  Campus
-                </button>
-                <button
-                  onClick={() => onFeedModeChange?.('my-courses')}
-                  className={`relative px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
-                    feedMode === 'my-courses'
-                      ? 'text-[#752432] shadow-sm'
-                      : 'text-gray-600 hover:text-[#752432] hover:bg-gray-50'
-                  }`}
-                  style={feedMode === 'my-courses' ? {
-                    backgroundColor: 'white',
-                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                  } : {}}
-                >
-                  My Courses
-                </button>
-              </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => onFeedModeChange?.('campus')}
+                className={`uiverse campus ${feedMode === 'campus' ? 'active' : ''}`}
+              >
+                <div className="wrapper">
+                  <span>Campus</span>
+                  <div className="circle circle-1"></div>
+                  <div className="circle circle-2"></div>
+                  <div className="circle circle-3"></div>
+                  <div className="circle circle-4"></div>
+                  <div className="circle circle-5"></div>
+                  <div className="circle circle-6"></div>
+                  <div className="circle circle-7"></div>
+                  <div className="circle circle-8"></div>
+                  <div className="circle circle-9"></div>
+                  <div className="circle circle-10"></div>
+                  <div className="circle circle-11"></div>
+                  <div className="circle circle-12"></div>
+                </div>
+              </button>
+              <button
+                onClick={() => onFeedModeChange?.('my-courses')}
+                className={`uiverse my-courses ${feedMode === 'my-courses' ? 'active' : ''}`}
+              >
+                <div className="wrapper">
+                  <span>My Courses</span>
+                  <div className="circle circle-1"></div>
+                  <div className="circle circle-2"></div>
+                  <div className="circle circle-3"></div>
+                  <div className="circle circle-4"></div>
+                  <div className="circle circle-5"></div>
+                  <div className="circle circle-6"></div>
+                  <div className="circle circle-7"></div>
+                  <div className="circle circle-8"></div>
+                  <div className="circle circle-9"></div>
+                  <div className="circle circle-10"></div>
+                  <div className="circle circle-11"></div>
+                  <div className="circle circle-12"></div>
+                </div>
+              </button>
             </div>
             {/* Real-time connection indicator */}
             <div className="relative flex items-center justify-center w-2 h-2 overflow-visible">
@@ -2251,12 +2261,25 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 setNewPostTarget(feedMode);
                 setShowCreatePostDialog(true);
               }}
-              className="px-3 py-1.5 rounded-md bg-[#752432] hover:bg-[#752432]/90 text-white flex items-center gap-2 shadow-sm font-medium text-sm"
+              className="uiverse new-post"
               aria-label="Create post"
               title="Create post"
             >
-              <Plus className="w-4 h-4" />
-              New Post
+              <div className="wrapper">
+                <span>+ New Post</span>
+                <div className="circle circle-1"></div>
+                <div className="circle circle-2"></div>
+                <div className="circle circle-3"></div>
+                <div className="circle circle-4"></div>
+                <div className="circle circle-5"></div>
+                <div className="circle circle-6"></div>
+                <div className="circle circle-7"></div>
+                <div className="circle circle-8"></div>
+                <div className="circle circle-9"></div>
+                <div className="circle circle-10"></div>
+                <div className="circle circle-11"></div>
+                <div className="circle circle-12"></div>
+              </div>
             </button>
           </div>
         </div>
@@ -2284,15 +2307,29 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 : 'No posts in your courses yet. Start a discussion!'
               }
             </p>
-            <Button
+            <button
               onClick={() => {
                 setNewPostTarget(feedMode);
                 setShowCreatePostDialog(true);
               }}
-              className="bg-[#752432] hover:bg-[#752432]/90 text-white"
+              className="uiverse new-post"
             >
-              Create First Post
-            </Button>
+              <div className="wrapper">
+                <span>Create First Post</span>
+                <div className="circle circle-1"></div>
+                <div className="circle circle-2"></div>
+                <div className="circle circle-3"></div>
+                <div className="circle circle-4"></div>
+                <div className="circle circle-5"></div>
+                <div className="circle circle-6"></div>
+                <div className="circle circle-7"></div>
+                <div className="circle circle-8"></div>
+                <div className="circle circle-9"></div>
+                <div className="circle circle-10"></div>
+                <div className="circle circle-11"></div>
+                <div className="circle circle-12"></div>
+              </div>
+            </button>
           </div>
         ) : (
         <div className="space-y-4 mt-4">

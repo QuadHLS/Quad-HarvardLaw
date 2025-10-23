@@ -380,7 +380,8 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
                 variant="ghost"
           size="sm"
                 onClick={() => setShowPomodoro(!showPomodoro)}
-                className="h-6 w-6 p-0 text-[#752432] hover:bg-[#752432]/10"
+                className="h-6 w-6 p-0 text-[#752432] hover:bg-[#752432]/10 border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200"
+                style={{ backgroundColor: '#fffcf7' }}
               >
                 <Timer className="w-3.5 h-3.5" />
               </Button>
@@ -388,9 +389,11 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
           variant="ghost"
                 size="sm"
                 onClick={() => setShowAddTodo(true)}
-                className="h-6 w-6 p-0 text-[#752432] hover:bg-[#752432]/10"
+                className="h-6 px-2 text-[#752432] hover:bg-[#752432]/10 flex items-center gap-1 border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200"
+                style={{ backgroundColor: '#fffcf7' }}
               >
                 <Plus className="w-3.5 h-3.5" />
+                <span className="text-xs font-medium">Add</span>
               </Button>
               <Button
                 variant="ghost"
@@ -1223,7 +1226,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
               <div>
                 <TodoList 
                   user={user}
-                  onPomodoroStateChange={(state) => console.log('Pomodoro state:', state)}
+                  onPomodoroStateChange={(state) => {}}
                 />
               </div>
 

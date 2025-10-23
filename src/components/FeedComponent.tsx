@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
+import { Button } from './ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Badge } from './ui/badge';
 
 // Interfaces
 interface PollOption {
@@ -73,6 +77,7 @@ interface FeedProps {
   onFeedModeChange?: (mode: 'campus' | 'my-courses') => void;
   myCourses?: Course[];
   onThreadViewChange?: (isOpen: boolean) => void;
+  onNavigateToStudentProfile?: (studentName: string) => void;
 }
 
 // Inline UI Components
@@ -149,7 +154,14 @@ const X = ({ className }: { className?: string }) => (
 );
 
 // ProfileBubble component
-const ProfileBubble = ({ userName, size = "md", borderColor = "#752432", isAnonymous = false }: { userName: string; size?: "sm" | "md" | "lg"; borderColor?: string; isAnonymous?: boolean }) => {
+const ProfileBubble = ({ userName, size = "md", borderColor = "#752432", isAnonymous = false, userId, onProfileClick }: { 
+  userName: string; 
+  size?: "sm" | "md" | "lg"; 
+  borderColor?: string; 
+  isAnonymous?: boolean;
+  userId?: string;
+  onProfileClick?: (userId: string, userName: string) => void;
+}) => {
   const sizeClasses = {
     sm: "w-6 h-6 text-xs",
     md: "w-8 h-8 text-sm", 
@@ -164,13 +176,22 @@ const ProfileBubble = ({ userName, size = "md", borderColor = "#752432", isAnony
   
   const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase();
   
+  const handleClick = () => {
+    if (!isAnonymous && userId && onProfileClick) {
+      onProfileClick(userId, userName);
+    }
+  };
+  
   return (
     <div 
-      className={`${sizeClasses[size]} rounded-full flex items-center justify-center font-semibold text-white border-2`}
+      className={`${sizeClasses[size]} rounded-full flex items-center justify-center font-semibold text-white border-2 ${
+        !isAnonymous && userId && onProfileClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''
+      }`}
       style={{ 
         backgroundColor: borderColor,
         borderColor: borderColor
       }}
+      onClick={handleClick}
     >
       {isAnonymous ? (
         <svg className={iconSizes[size]} fill="currentColor" viewBox="0 0 24 24">
@@ -382,7 +403,7 @@ const DialogDescription = ({ children }: { children: React.ReactNode }) => (
 //   </button>
 // );
 
-export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCourses = [], onThreadViewChange }: FeedProps) {
+export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCourses = [], onThreadViewChange, onNavigateToStudentProfile }: FeedProps) {
   // State management
   const [showCreatePostDialog, setShowCreatePostDialog] = useState(false);
   const [newPost, setNewPost] = useState('');
@@ -898,6 +919,13 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
     fetchUserProfile();
   }, [user]);
+
+  // Handle profile click
+  const handleProfileClick = (userId: string, userName: string) => {
+    if (onNavigateToStudentProfile) {
+      onNavigateToStudentProfile(userName);
+    }
+  };
 
   // Load posts when component mounts, feedMode changes, or user changes
   useEffect(() => {
@@ -1830,7 +1858,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           >
             <div className="p-6">
               <div className="flex items-start gap-3 mb-4">
-                <ProfileBubble userName={selectedPost.author?.name || 'Anonymous'} size="lg" borderColor={getPostColor(selectedPost.id)} isAnonymous={selectedPost.is_anonymous} />
+                <ProfileBubble 
+                  userName={selectedPost.author?.name || 'Anonymous'} 
+                  size="lg" 
+                  borderColor={getPostColor(selectedPost.id)} 
+                  isAnonymous={selectedPost.is_anonymous}
+                  userId={selectedPost.author_id}
+                  onProfileClick={handleProfileClick}
+                />
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <h4 className="font-semibold text-gray-900">{selectedPost.is_anonymous ? 'Anonymous' : (selectedPost.author?.name || 'Anonymous')}</h4>
@@ -2016,7 +2051,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
               <Card key={comment.id}>
                 <div className="p-4">
                   <div className="flex items-start gap-3">
-                    <ProfileBubble userName={comment.author?.name || 'Anonymous'} size="md" borderColor={getPostColor(selectedPost.id)} isAnonymous={comment.is_anonymous} />
+                    <ProfileBubble 
+                      userName={comment.author?.name || 'Anonymous'} 
+                      size="md" 
+                      borderColor={getPostColor(selectedPost.id)} 
+                      isAnonymous={comment.is_anonymous}
+                      userId={comment.author_id}
+                      onProfileClick={handleProfileClick}
+                    />
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <h5 className="font-medium text-gray-900 text-sm">{comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Anonymous')}</h5>
@@ -2063,7 +2105,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                         <div className="mt-3 ml-4 space-y-2">
                           {comment.replies.map((reply) => (
                             <div key={reply.id} className="flex items-start gap-2">
-                                  <ProfileBubble userName={reply.author?.name || 'Anonymous'} size="sm" borderColor={getPostColor(selectedPost.id)} isAnonymous={reply.is_anonymous} />
+                                  <ProfileBubble 
+                                    userName={reply.author?.name || 'Anonymous'} 
+                                    size="sm" 
+                                    borderColor={getPostColor(selectedPost.id)} 
+                                    isAnonymous={reply.is_anonymous}
+                                    userId={reply.author_id}
+                                    onProfileClick={handleProfileClick}
+                                  />
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
                                       <h6 className="font-medium text-gray-900 text-xs">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
@@ -2355,7 +2404,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
-                      <ProfileBubble userName={post.author?.name || 'Anonymous'} size="md" borderColor={getPostColor(post.id)} isAnonymous={post.is_anonymous} />
+                      <ProfileBubble 
+                        userName={post.author?.name || 'Anonymous'} 
+                        size="md" 
+                        borderColor={getPostColor(post.id)} 
+                        isAnonymous={post.is_anonymous}
+                        userId={post.author_id}
+                        onProfileClick={handleProfileClick}
+                      />
                       <div>
                         <div className="flex items-center gap-2">
                           <h4 className="font-semibold text-gray-900 text-sm">{post.is_anonymous ? 'Anonymous' : (post.author?.name || 'Anonymous')}</h4>
@@ -2563,7 +2619,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       <div className="space-y-4">
                         {comments[post.id]?.map((comment) => (
                         <div key={comment.id} className="flex gap-3" onClick={(e) => e.stopPropagation()}>
-                          <ProfileBubble userName={comment.author?.name || 'Anonymous'} size="md" borderColor={getPostColor(post.id)} isAnonymous={comment.is_anonymous} />
+                          <ProfileBubble 
+                            userName={comment.author?.name || 'Anonymous'} 
+                            size="md" 
+                            borderColor={getPostColor(post.id)} 
+                            isAnonymous={comment.is_anonymous}
+                            userId={comment.author_id}
+                            onProfileClick={handleProfileClick}
+                          />
                           <div className="flex-1">
                             <div className="p-3">
                               <div className="flex items-center gap-2 mb-1">
@@ -2612,7 +2675,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                               <div className="mt-3 ml-4 space-y-2">
                                 {comment.replies.map((reply) => (
                                   <div key={reply.id} className="flex items-start gap-2">
-                                    <ProfileBubble userName={reply.author?.name || 'Anonymous'} size="sm" borderColor={getPostColor(post.id)} isAnonymous={reply.is_anonymous} />
+                                    <ProfileBubble 
+                                      userName={reply.author?.name || 'Anonymous'} 
+                                      size="sm" 
+                                      borderColor={getPostColor(post.id)} 
+                                      isAnonymous={reply.is_anonymous}
+                                      userId={reply.author_id}
+                                      onProfileClick={handleProfileClick}
+                                    />
                                     <div className="flex-1">
                                       <div className="flex items-center gap-2 mb-1">
                                         <h6 className="font-medium text-gray-900 text-xs">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
@@ -2948,6 +3018,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           </div>
         </DialogContent>
       </Dialog>
+
     </Card>
   );
 }

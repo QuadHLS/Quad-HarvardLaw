@@ -749,10 +749,11 @@ function MyCourses({
 
 interface HomePageProps {
   onNavigateToCourse?: (courseName: string) => void;
+  onNavigateToStudentProfile?: (studentName: string) => void;
   user?: any;
 }
 
-export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
+export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user }: HomePageProps) {
   const [, setUserProfile] = useState<UserProfile | null>(null);
   const [userCourses, setUserCourses] = useState<UserCourse[]>([]);
   const [transformedCourses, setTransformedCourses] = useState<Course[]>([]);
@@ -1250,6 +1251,7 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
               onFeedModeChange={setFeedMode}
               myCourses={userCourses}
               onThreadViewChange={setIsThreadViewOpen}
+              onNavigateToStudentProfile={onNavigateToStudentProfile}
             />
           </div>
 

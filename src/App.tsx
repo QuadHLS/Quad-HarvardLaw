@@ -847,6 +847,7 @@ function AppContent({ user }: { user: any }) {
         ) : activeSection === 'home' ? (
           <HomePage
             onNavigateToCourse={handleNavigateToCourse}
+            onNavigateToStudentProfile={handleNavigateToStudentProfile}
             user={user}
           />
         ) : activeSection === 'course' ? (

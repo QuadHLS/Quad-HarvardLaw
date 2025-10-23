@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
 // Interfaces
@@ -131,11 +131,6 @@ const MessageCircle = ({ className }: { className?: string }) => (
 //   </svg>
 // );
 
-const Plus = ({ className }: { className?: string }) => (
-  <svg className={className} width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-  </svg>
-);
 
 const ArrowLeft = ({ className }: { className?: string }) => (
   <svg className={className} width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -416,7 +411,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   const [userProfile, setUserProfile] = useState<any>(null);
   const [likingPosts, setLikingPosts] = useState<Set<string>>(new Set());
 
-  const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
+  const [expandedComments] = useState<Record<string, boolean>>({});
   const [newComment, setNewComment] = useState<Record<string, string>>({});
   const [commentAnonymously, setCommentAnonymously] = useState<Record<string, boolean>>({});
   const [replyingTo, setReplyingTo] = useState<string | null>(null); // format: `${postId}:${commentId}`
@@ -492,8 +487,6 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   }, []);
 
   // Cache for user profiles and course data
-  const [profileCache, setProfileCache] = useState<Record<string, any>>({});
-  const [courseCache, setCourseCache] = useState<Record<string, any>>({});
 
   // Database functions
   const fetchPosts = useCallback(async (isInitialLoad: boolean = true) => {
@@ -602,19 +595,19 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         .in('post_id', postIds);
 
       // Create lookup maps for faster access
-      const authorsMap = new Map(authors?.map(a => [a.id, a]) || []);
-      const coursesMap = new Map(courses?.map(c => [c.id, c]) || []);
-      const userLikesSet = new Set(userLikes?.map(l => l.likeable_id) || []);
+      const authorsMap = new Map(authors?.map((a: any) => [a.id, a]) || []);
+      const coursesMap = new Map(courses?.map((c: any) => [c.id, c]) || []);
+      const userLikesSet = new Set(userLikes?.map((l: any) => l.likeable_id) || []);
       
       // Count likes and comments
       const likesCountMap = new Map();
       const commentsCountMap = new Map();
       
-      likesCounts?.forEach(like => {
+      likesCounts?.forEach((like: any) => {
         likesCountMap.set(like.likeable_id, (likesCountMap.get(like.likeable_id) || 0) + 1);
       });
       
-      commentsCounts?.forEach(comment => {
+      commentsCounts?.forEach((comment: any) => {
         commentsCountMap.set(comment.post_id, (commentsCountMap.get(comment.post_id) || 0) + 1);
       });
 
@@ -632,8 +625,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           .in('post_id', pollPostIds);
 
         if (polls && polls.length > 0) {
-          const pollIds = polls.map(p => p.id);
-          pollsMap = new Map(polls.map(p => [p.post_id, p]));
+          const pollIds = polls.map((p: any) => p.id);
+          pollsMap = new Map(polls.map((p: any) => [p.post_id, p]));
 
           // Batch fetch poll options
           const { data: pollOptions } = await supabase
@@ -642,7 +635,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             .in('poll_id', pollIds);
 
           pollOptionsMap = new Map();
-          pollOptions?.forEach(option => {
+          pollOptions?.forEach((option: any) => {
             if (!pollOptionsMap.has(option.poll_id)) {
               pollOptionsMap.set(option.poll_id, []);
             }
@@ -656,7 +649,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           .eq('user_id', user.id)
           .in('poll_id', pollIds);
 
-          pollVotesMap = new Map(userPollVotes?.map(v => [v.poll_id, v.option_id]) || []);
+          pollVotesMap = new Map(userPollVotes?.map((v: any) => [v.poll_id, v.option_id]) || []);
 
           // Batch fetch all poll votes for counts
           const { data: allPollVotes } = await supabase
@@ -666,12 +659,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
           // Count votes per option
           const voteCounts = new Map();
-          allPollVotes?.forEach(vote => {
+          allPollVotes?.forEach((vote: any) => {
             voteCounts.set(vote.option_id, (voteCounts.get(vote.option_id) || 0) + 1);
           });
 
           // Update poll options with vote counts
-          pollOptionsMap.forEach((options, pollId) => {
+          pollOptionsMap.forEach((options) => {
             options.forEach((option: any) => {
               option.votes = voteCounts.get(option.id) || 0;
             });
@@ -717,11 +710,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           created_at: post.created_at,
           likes_count: likesCount,
           comments_count: commentsCount,
-          author: author ? {
-            name: post.is_anonymous ? `Anonymous User` : author.full_name,
-            year: author.class_year
+          author: author && (author as any).full_name ? {
+            name: post.is_anonymous ? `Anonymous User` : (author as any).full_name,
+            year: (author as any).class_year || ''
           } : undefined,
-          course: course ? { name: course.course_name } : undefined,
+          course: course && (course as any).course_name ? { name: (course as any).course_name } : undefined,
           isLiked: isLiked,
           poll
         };
@@ -776,12 +769,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       }
 
       // Separate top-level comments and replies
-      const topLevelComments = data.filter(comment => !comment.parent_comment_id);
-      const replies = data.filter(comment => comment.parent_comment_id);
+      const topLevelComments = data.filter((comment: any) => !comment.parent_comment_id);
+      const replies = data.filter((comment: any) => comment.parent_comment_id);
 
       // Get all unique author IDs
-      const authorIds = [...new Set(data.map(comment => comment.author_id))];
-      const commentIds = data.map(comment => comment.id);
+      const authorIds = [...new Set(data.map((comment: any) => comment.author_id))];
+      const commentIds = data.map((comment: any) => comment.id);
 
       // Batch fetch all author profiles
       const { data: authors } = await supabase
@@ -805,18 +798,18 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         .in('likeable_id', commentIds);
 
       // Create lookup maps
-      const authorsMap = new Map(authors?.map(a => [a.id, a]) || []);
-      const userLikesSet = new Set(userLikes?.map(l => l.likeable_id) || []);
+      const authorsMap = new Map(authors?.map((a: any) => [a.id, a]) || []);
+      const userLikesSet = new Set(userLikes?.map((l: any) => l.likeable_id) || []);
       
       // Count likes per comment
       const likesCountMap = new Map();
-      likesCounts?.forEach(like => {
+      likesCounts?.forEach((like: any) => {
         likesCountMap.set(like.likeable_id, (likesCountMap.get(like.likeable_id) || 0) + 1);
       });
 
       // Group replies by parent comment ID
       const repliesMap = new Map();
-      replies.forEach(reply => {
+      replies.forEach((reply: any) => {
         if (!repliesMap.has(reply.parent_comment_id)) {
           repliesMap.set(reply.parent_comment_id, []);
         }
@@ -844,9 +837,9 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             is_anonymous: reply.is_anonymous,
             created_at: reply.created_at,
             likes_count: replyLikesCount,
-            author: replyAuthor ? {
-              name: reply.is_anonymous ? `Anonymous User` : replyAuthor.full_name,
-              year: replyAuthor.class_year
+            author: replyAuthor && (replyAuthor as any).full_name ? {
+              name: reply.is_anonymous ? `Anonymous User` : (replyAuthor as any).full_name,
+              year: (replyAuthor as any).class_year || ''
             } : undefined,
             isLiked: replyIsLiked
           };
@@ -861,9 +854,9 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           is_anonymous: comment.is_anonymous,
           created_at: comment.created_at,
           likes_count: likesCount,
-          author: author ? {
-            name: comment.is_anonymous ? `Anonymous User` : author.full_name,
-            year: author.class_year
+          author: author && (author as any).full_name ? {
+            name: comment.is_anonymous ? `Anonymous User` : (author as any).full_name,
+            year: (author as any).class_year || ''
           } : undefined,
           isLiked: isLiked,
           replies: commentReplies
@@ -917,7 +910,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   }, [user]);
 
   // Handle profile click
-  const handleProfileClick = (userId: string, userName: string) => {
+  const handleProfileClick = (_userId: string, userName: string) => {
     if (onNavigateToStudentProfile) {
       onNavigateToStudentProfile(userName);
     }
@@ -981,7 +974,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           schema: 'public',
           table: 'posts'
         },
-        async (payload) => {
+        async (payload: any) => {
           console.log('New post received:', payload);
           
           // Check if the new post is relevant to current feed mode
@@ -1011,12 +1004,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           schema: 'public',
           table: 'posts'
         },
-        (payload) => {
+        (payload: any) => {
           console.log('Post deleted:', payload);
           setPosts(prev => prev.filter(post => post.id !== payload.old.id));
         }
       )
-      .subscribe((status, err) => {
+      .subscribe((_status: any, err: any) => {
         console.log('Posts channel status:', status, err);
         if (err) {
           console.error('Posts channel error:', err);
@@ -1045,7 +1038,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           schema: 'public',
           table: 'likes'
         },
-        async (payload) => {
+        async (payload: any) => {
           console.log('Like added:', payload);
           
           // Check if this like is relevant to current feed mode
@@ -1063,7 +1056,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             // Only refresh if the like is relevant to current feed mode
             const isRelevantToCurrentFeed = 
               (feedMode === 'campus' && postData.is_campus_wide) ||
-              (feedMode === 'my-courses' && !postData.is_campus_wide && userCourses.includes(postData.course_id));
+              (feedMode === 'my-courses' && !postData.is_campus_wide && myCourses.some(course => course.course_id === postData.course_id));
             
             if (isRelevantToCurrentFeed) {
               console.log('Like is relevant to current feed, refreshing...');
@@ -1081,7 +1074,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           schema: 'public',
           table: 'likes'
         },
-        async (payload) => {
+        async (payload: any) => {
           console.log('Like removed:', payload);
           
           // Check if this like removal is relevant to current feed mode
@@ -1099,7 +1092,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             // Only refresh if the like removal is relevant to current feed mode
             const isRelevantToCurrentFeed = 
               (feedMode === 'campus' && postData.is_campus_wide) ||
-              (feedMode === 'my-courses' && !postData.is_campus_wide && userCourses.includes(postData.course_id));
+              (feedMode === 'my-courses' && !postData.is_campus_wide && myCourses.some(course => course.course_id === postData.course_id));
             
             if (isRelevantToCurrentFeed) {
               console.log('Like removal is relevant to current feed, refreshing...');
@@ -1110,7 +1103,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           }
         }
       )
-      .subscribe((status, err) => {
+      .subscribe((_status: any, err: any) => {
         if (err) {
           console.error('Likes channel error:', err);
         }
@@ -1126,7 +1119,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           schema: 'public',
           table: 'comments'
         },
-        async (payload) => {
+        async (payload: any) => {
           console.log('New comment received:', payload);
           // Update comment count for the post
           setPosts(prev => prev.map(post => 
@@ -1149,7 +1142,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           schema: 'public',
           table: 'comments'
         },
-        async (payload) => {
+        async (payload: any) => {
           console.log('Comment deleted:', payload);
           // Update comment count for the post
           setPosts(prev => prev.map(post => 
@@ -1165,7 +1158,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           }
         }
       )
-      .subscribe((status, err) => {
+      .subscribe((_status: any, err: any) => {
         if (err) {
           console.error('Comments channel error:', err);
         }
@@ -1181,7 +1174,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           schema: 'public',
           table: 'poll_votes'
         },
-        async (payload) => {
+        async (payload: any) => {
           console.log('Poll vote changed:', payload);
           
           // Check if this poll vote is relevant to current feed mode
@@ -1206,7 +1199,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                   // Only refresh if the poll vote is relevant to current feed mode
                   const isRelevantToCurrentFeed = 
                     (feedMode === 'campus' && postData.is_campus_wide) ||
-                    (feedMode === 'my-courses' && !postData.is_campus_wide && userCourses.includes(postData.course_id));
+                    (feedMode === 'my-courses' && !postData.is_campus_wide && myCourses.some(course => course.course_id === postData.course_id));
                   
                   if (isRelevantToCurrentFeed) {
                     console.log('Poll vote is relevant to current feed, refreshing...');
@@ -1220,7 +1213,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           }
         }
       )
-      .subscribe((status, err) => {
+      .subscribe((_status: any, err: any) => {
         if (err) {
           console.error('Poll votes channel error:', err);
         }
@@ -1259,11 +1252,6 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   // Add loading state for comments
   const [loadingComments, setLoadingComments] = useState<Set<string>>(new Set());
 
-  // Optimized comment loading with loading state - DISABLED for home page
-  const toggleCommentsExpanded = async (postId: string) => {
-    // Disabled - only show comment count, no dropdown
-    return;
-  };
 
 
   // Load comments when thread view opens
@@ -1956,12 +1944,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                     }}
                     onMouseEnter={(e) => {
                       if (!selectedPost.isLiked) {
-                        e.currentTarget.style.color = getPostColor(selectedPost.id);
+                        (e.currentTarget as HTMLElement).style.color = getPostColor(selectedPost.id);
                       }
                     }}
                     onMouseLeave={(e) => {
                       if (!selectedPost.isLiked) {
-                        e.currentTarget.style.color = '';
+                        (e.currentTarget as HTMLElement).style.color = '';
                       }
                     }}
                   >
@@ -2024,11 +2012,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                           backgroundColor: getPostColor(selectedPost.id),
                           '--hover-color': `${getPostColor(selectedPost.id)}90`
                         }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = `${getPostColor(selectedPost.id)}90`;
+                        onMouseEnter={(e: React.MouseEvent) => {
+                          (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(selectedPost.id)}90`;
                         }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = getPostColor(selectedPost.id);
+                        onMouseLeave={(e: React.MouseEvent) => {
+                          (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(selectedPost.id);
                         }}
                       >
                         Comment
@@ -2082,14 +2070,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                           style={{
                             color: comment.isLiked ? getPostColor(selectedPost.id) : undefined
                           }}
-                          onMouseEnter={(e) => {
+                          onMouseEnter={(e: React.MouseEvent) => {
                             if (!comment.isLiked) {
-                              e.currentTarget.style.color = getPostColor(selectedPost.id);
+                              (e.currentTarget as HTMLElement).style.color = getPostColor(selectedPost.id);
                             }
                           }}
-                          onMouseLeave={(e) => {
+                          onMouseLeave={(e: React.MouseEvent) => {
                             if (!comment.isLiked) {
-                              e.currentTarget.style.color = '';
+                              (e.currentTarget as HTMLElement).style.color = '';
                             }
                           }}
                           onClick={() => toggleCommentLike(selectedPost.id, comment.id)}
@@ -2141,14 +2129,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                     style={{
                                       color: reply.isLiked ? getPostColor(selectedPost.id) : undefined
                                     }}
-                                    onMouseEnter={(e) => {
+                                    onMouseEnter={(e: React.MouseEvent) => {
                                       if (!reply.isLiked) {
-                                        e.currentTarget.style.color = getPostColor(selectedPost.id);
+                                        (e.currentTarget as HTMLElement).style.color = getPostColor(selectedPost.id);
                                       }
                                     }}
-                                    onMouseLeave={(e) => {
+                                    onMouseLeave={(e: React.MouseEvent) => {
                                       if (!reply.isLiked) {
-                                        e.currentTarget.style.color = '';
+                                        (e.currentTarget as HTMLElement).style.color = '';
                                       }
                                     }}
                                     onClick={() => toggleReplyLike(selectedPost.id, comment.id, reply.id)}
@@ -2211,11 +2199,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                 backgroundColor: getPostColor(selectedPost.id),
                                 '--hover-color': `${getPostColor(selectedPost.id)}90`
                               }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = `${getPostColor(selectedPost.id)}90`;
+                              onMouseEnter={(e: React.MouseEvent) => {
+                                (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(selectedPost.id)}90`;
                               }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = getPostColor(selectedPost.id);
+                              onMouseLeave={(e: React.MouseEvent) => {
+                                (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(selectedPost.id);
                               }}
                             >
                               Reply
@@ -2533,12 +2521,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       }}
                       onMouseEnter={(e) => {
                         if (!post.isLiked) {
-                          e.currentTarget.style.color = getPostColor(post.id);
+                          (e.currentTarget as HTMLElement).style.color = getPostColor(post.id);
                         }
                       }}
                       onMouseLeave={(e) => {
                         if (!post.isLiked) {
-                          e.currentTarget.style.color = '#6B7280';
+                          (e.currentTarget as HTMLElement).style.color = '#6B7280';
                         }
                       }}
                     >
@@ -2607,11 +2595,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                               backgroundColor: getPostColor(post.id),
                               '--hover-color': `${getPostColor(post.id)}90`
                             }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = `${getPostColor(post.id)}90`;
+                            onMouseEnter={(e: React.MouseEvent) => {
+                              (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(post.id)}90`;
                             }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = getPostColor(post.id);
+                            onMouseLeave={(e: React.MouseEvent) => {
+                              (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(post.id);
                             }}
                           >
                             Comment
@@ -2664,14 +2652,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                   style={{
                                     color: comment.isLiked ? getPostColor(post.id) : undefined
                                   }}
-                                  onMouseEnter={(e) => {
+                                  onMouseEnter={(e: React.MouseEvent) => {
                                     if (!comment.isLiked) {
-                                      e.currentTarget.style.color = getPostColor(post.id);
+                                      (e.currentTarget as HTMLElement).style.color = getPostColor(post.id);
                                     }
                                   }}
-                                  onMouseLeave={(e) => {
+                                  onMouseLeave={(e: React.MouseEvent) => {
                                     if (!comment.isLiked) {
-                                      e.currentTarget.style.color = '';
+                                      (e.currentTarget as HTMLElement).style.color = '';
                                     }
                                   }}
                                   onClick={(e) => { e.stopPropagation(); toggleCommentLike(post.id, comment.id); }}
@@ -2723,14 +2711,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                           style={{
                                             color: reply.isLiked ? getPostColor(post.id) : undefined
                                           }}
-                                          onMouseEnter={(e) => {
+                                          onMouseEnter={(e: React.MouseEvent) => {
                                             if (!reply.isLiked) {
-                                              e.currentTarget.style.color = getPostColor(post.id);
+                                              (e.currentTarget as HTMLElement).style.color = getPostColor(post.id);
                                             }
                                           }}
-                                          onMouseLeave={(e) => {
+                                          onMouseLeave={(e: React.MouseEvent) => {
                                             if (!reply.isLiked) {
-                                              e.currentTarget.style.color = '';
+                                              (e.currentTarget as HTMLElement).style.color = '';
                                             }
                                           }}
                                           onClick={(e) => { e.stopPropagation(); toggleReplyLike(post.id, comment.id, reply.id); }}
@@ -2793,11 +2781,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                       backgroundColor: getPostColor(post.id),
                                       '--hover-color': `${getPostColor(post.id)}90`
                                     }}
-                                    onMouseEnter={(e) => {
-                                      e.currentTarget.style.backgroundColor = `${getPostColor(post.id)}90`;
+                                    onMouseEnter={(e: React.MouseEvent) => {
+                                      (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(post.id)}90`;
                                     }}
-                                    onMouseLeave={(e) => {
-                                      e.currentTarget.style.backgroundColor = getPostColor(post.id);
+                                    onMouseLeave={(e: React.MouseEvent) => {
+                                      (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(post.id);
                                     }}
                                   >
                                     Reply

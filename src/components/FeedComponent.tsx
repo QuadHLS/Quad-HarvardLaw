@@ -1853,10 +1853,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             onClick={() => { /* no-op click target for post area in thread view */ }}
           >
             <div className="p-6">
-              <div 
-                className={`flex items-start gap-3 mb-4 ${!selectedPost.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                onClick={() => !selectedPost.is_anonymous && handleProfileClick(selectedPost.author_id, selectedPost.author?.name || 'Anonymous')}
-              >
+              <div className="flex items-start gap-3 mb-4">
                 <ProfileBubble 
                   userName={selectedPost.author?.name || 'Anonymous'} 
                   size="lg" 
@@ -1867,7 +1864,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 />
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <h4 className="font-semibold text-gray-900">{selectedPost.is_anonymous ? 'Anonymous' : (selectedPost.author?.name || 'Anonymous')}</h4>
+                    <div 
+                      className={`${!selectedPost.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                      onClick={() => !selectedPost.is_anonymous && handleProfileClick(selectedPost.author_id, selectedPost.author?.name || 'Anonymous')}
+                    >
+                      <h4 className="font-semibold text-gray-900">{selectedPost.is_anonymous ? 'Anonymous' : (selectedPost.author?.name || 'Anonymous')}</h4>
+                    </div>
                     {!selectedPost.is_anonymous && <span className="text-sm text-gray-500">{selectedPost.author?.year || ''}</span>}
                     {/* verified badge removed */}
                   </div>

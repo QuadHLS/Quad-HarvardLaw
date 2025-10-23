@@ -754,7 +754,7 @@ export function OutlinePage({
           <Button
             variant="outline"
             size="sm"
-            className="h-[14px] w-[14px] p-0 opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
+            className="h-[14px] w-[14px] p-0 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
             onClick={(e) => {
               e.stopPropagation();
               onToggleSaveOutline(outline);
@@ -768,7 +768,7 @@ export function OutlinePage({
           <Button
             variant="outline"
             size="sm"
-            className="h-[14px] w-[14px] p-0 opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
+            className="h-[14px] w-[14px] p-0 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
             onClick={(e) => {
               e.stopPropagation();
               handleDownload(outline);
@@ -836,7 +836,7 @@ export function OutlinePage({
             <Button
               variant="outline"
               size="sm"
-              className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
+              className="h-7 w-7 p-0 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleSaveOutline(outline);
@@ -850,7 +850,7 @@ export function OutlinePage({
             <Button
               variant="outline"
               size="sm"
-              className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
+              className="h-7 w-7 p-0 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
               onClick={(e) => {
                 e.stopPropagation();
                 handleDownload(outline);

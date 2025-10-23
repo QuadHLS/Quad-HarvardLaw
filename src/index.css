@@ -6419,3 +6419,29 @@ html {
 .bg-input-background {
   background-color: #f9fafb;
 }
+
+/* Hide scrollbars for all browsers */
+.scrollbar-hide {
+  /* Firefox */
+  scrollbar-width: none;
+  /* IE and Edge */
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  /* Chrome, Safari, Opera */
+  display: none;
+}
+
+/* Hide number input spinners */
+.no-spinner {
+  -moz-appearance: textfield;
+}
+
+.no-spinner::-webkit-outer-spin-button,
+.no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* (Removed old slider helper classes; slider now styles cursor inline) */

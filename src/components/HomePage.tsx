@@ -1213,13 +1213,13 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
         <div className={`flex gap-6 ${isThreadViewOpen ? 'justify-center' : ''}`}>
           {/* Left Content - Only show when not in thread view */}
           {!isThreadViewOpen && (
-            <div className="w-64 flex-shrink-0 space-y-4 overflow-y-auto" style={{ 
+            <div className="w-64 flex-shrink-0 space-y-4 overflow-y-auto scrollbar-hide" style={{ 
               height: 'calc(100vh - 0px)', 
               marginTop: '-24px', 
               paddingTop: '24px',
               paddingBottom: '80px',
-              scrollbarWidth: 'thin',
-              scrollbarColor: '#752531 transparent'
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none'
             }}>
               {/* Todo Box */}
               <div>
@@ -1254,13 +1254,13 @@ export function HomePage({ onNavigateToCourse, user }: HomePageProps) {
 
           {/* Right Sidebar - Only show when not in thread view */}
           {!isThreadViewOpen && (
-            <div className="w-68 flex-shrink-0 space-y-4 overflow-y-auto" style={{ 
+            <div className="w-68 flex-shrink-0 space-y-4 overflow-y-auto scrollbar-hide" style={{ 
               height: 'calc(100vh - 0px)', 
               marginTop: '-24px', 
               paddingTop: '24px',
               paddingBottom: '80px',
-              scrollbarWidth: 'thin',
-              scrollbarColor: '#752531 transparent'
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none'
             }}>
             {/* Calendar */}
             <Card className="overflow-hidden relative" style={{ backgroundColor: '#FEFBF6' }}>

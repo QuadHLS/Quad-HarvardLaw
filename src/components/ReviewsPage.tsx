@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import * as React from 'react';
 import { Star, Search, Calendar, Plus, Megaphone, FileText, Laptop } from 'lucide-react';
 import { Button } from './ui/button';
@@ -28,8 +28,8 @@ interface Review {
   exam_review?: string;
   
   laptops_allowed?: boolean;
-  assessment_type?: 'Project' | 'Final Exam' | 'Both';
-  has_cold_calls?: boolean;
+  assessment_type?: 'In Class' | 'Take Home' | 'Final Paper' | 'Multiple Papers' | 'None';
+  has_cold_calls?: 'Yes' | 'No' | 'Panel';
   
   helpful_count: number;
   not_helpful_count: number;
@@ -87,8 +87,8 @@ interface ReviewFormData {
   cold_calls_review: string;
   exam_review: string;
   laptops_allowed: boolean;
-  assessment_type: 'Project' | 'Final Exam' | 'Both';
-  has_cold_calls: boolean;
+  assessment_type: 'In Class' | 'Take Home' | 'Final Paper' | 'Multiple Papers' | 'None';
+  has_cold_calls: 'Yes' | 'No' | 'Panel';
   anonymous: boolean;
 }
 
@@ -97,6 +97,10 @@ export function ReviewsPage() {
   const [selectedProfessor, setSelectedProfessor] = useState<string | null>(null);
   const [selectedCourse, setSelectedCourse] = useState('');
   const reviewSortBy = 'Most Recent';
+  
+  // Scroll position retention
+  const [scrollPositions, setScrollPositions] = useState<{[key: string]: number}>({});
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Real data state
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -126,8 +130,8 @@ export function ReviewsPage() {
     cold_calls_review: '',
     exam_review: '',
     laptops_allowed: false,
-    assessment_type: 'Final Exam',
-    has_cold_calls: false,
+    assessment_type: 'None',
+    has_cold_calls: 'No',
     anonymous: false
   });
   const [formLoading, setFormLoading] = useState(false);
@@ -215,13 +219,18 @@ export function ReviewsPage() {
         throw new Error('You must be logged in to submit a review');
       }
 
+      // Validate overall_rating before submission (0-5 scale input)
+      if (formData.overall_rating < 0 || formData.overall_rating > 5 || isNaN(formData.overall_rating)) {
+        throw new Error('Overall rating must be between 0.0 and 5.0');
+      }
+
       // Submit review - only include fields supported by the new UI
       const insertPayload: any = {
         user_id: user.id,
         professor_name: formData.professor_name,
         course_name: formData.course_name,
         year: formData.year,
-        overall_rating: formData.overall_rating, // Store 0.0-5.0 scale directly
+        overall_rating: formData.overall_rating * 2, // Convert 0-5 scale to 0-10 scale for storage
         overall_review: formData.overall_review,
         laptops_allowed: formData.laptops_allowed,
         assessment_type: formData.assessment_type,
@@ -230,6 +239,8 @@ export function ReviewsPage() {
       };
 
       // Debug: Log the payload being sent
+      console.log('Form rating (0-5):', formData.overall_rating);
+      console.log('Stored rating (0-10):', Number((formData.overall_rating * 2).toFixed(1)));
       console.log('Review payload being sent:', insertPayload);
 
       const { error } = await supabase
@@ -268,8 +279,8 @@ export function ReviewsPage() {
         cold_calls_review: '',
         exam_review: '',
         laptops_allowed: false,
-        assessment_type: 'Final Exam',
-        has_cold_calls: false,
+        assessment_type: 'None',
+        has_cold_calls: 'No',
         anonymous: false
       });
       setShowReviewForm(false);
@@ -444,6 +455,24 @@ export function ReviewsPage() {
     }
   };
 
+  // Restore scroll position helper
+  const restoreScrollPosition = (key: string) => {
+    const savedPosition = scrollPositions[key];
+    if (scrollContainerRef.current && savedPosition !== undefined) {
+      scrollContainerRef.current.scrollTop = savedPosition;
+    }
+  };
+
+  // Restore scroll position when returning to all professors view
+  useEffect(() => {
+    if (!selectedProfessor && scrollPositions['allProfessors'] !== undefined) {
+      // Use requestAnimationFrame to ensure DOM is updated
+      requestAnimationFrame(() => {
+        restoreScrollPosition('allProfessors');
+      });
+    }
+  }, [selectedProfessor, scrollPositions]);
+
   // Get reviews for selected professor/course
   const getReviewsForProfessorCourse = (professorName: string, courseName: string, sortBy: string) => {
     const filteredReviews = reviews.filter(review => 
@@ -481,6 +510,11 @@ export function ReviewsPage() {
 
   // Map a 0-10 overall rating to a 0-5 star scale (preserving decimals)
   const mapTenScaleToFive = (tenScale: number) => Math.max(0, Math.min(10, tenScale)) / 2;
+
+  // Format rating to hide .0 decimals
+  const formatRating = (rating: number) => {
+    return rating % 1 === 0 ? rating.toString() : rating.toFixed(1);
+  };
 
   // Group reviews by year (desc)
   const groupReviewsByYear = (courseReviews: Review[]) => {
@@ -563,7 +597,7 @@ export function ReviewsPage() {
   }
 
   return (
-    <div className="h-full overflow-auto" style={{ 
+    <div ref={scrollContainerRef} className="h-full overflow-auto" style={{ 
       backgroundColor: 'var(--background-color, #f9f5f0)',
       scrollbarWidth: 'thin',
       scrollbarColor: '#752531 transparent'
@@ -572,11 +606,11 @@ export function ReviewsPage() {
       <div className="border-b border-gray-200 pt-6 pb-6 px-6" style={{ backgroundColor: selectedProfessor && selectedCourse ? getSelectedHeaderColor() : '#752531' }}>
         <div className="max-w-full mx-auto">
           {selectedProfessor && selectedCourse ? (
-            <div className="flex items-start w-full">
+            <div className="flex items-center w-full">
               <div className="flex-1">
                 <div className="flex items-center gap-4 mb-3">
                   <h1 className="text-3xl font-semibold text-white">
-                    Professor {selectedProfessor}
+                    {selectedProfessor}
                   </h1>
                   <div className="inline-flex px-2 py-1 bg-white/20 backdrop-blur-sm rounded-full border border-white/30">
                     <span className="text-white text-sm font-medium">{selectedCourse}</span>
@@ -603,7 +637,7 @@ export function ReviewsPage() {
                         ))}
                       </div>
                       <span className="text-white font-medium text-lg">
-                        {(tenScaleAvg / 2).toFixed(1)}
+                        {formatRating(tenScaleAvg / 2)}
                       </span>
                       <div className="flex items-center gap-1 text-white/80">
                         <span className="text-sm">
@@ -626,10 +660,11 @@ export function ReviewsPage() {
                           course_name: selectedCourse || ''
                         }));
                       }}
-                      className="bg-white text-[#752432] hover:bg-white/90 hover:shadow-lg hover:scale-105 transition-all duration-200 ease-in-out rounded-xl font-medium shadow-md"
+                      className="bg-white hover:bg-white/90 hover:shadow-lg hover:scale-105 transition-all duration-200 ease-in-out rounded-xl font-medium shadow-md"
                       style={{
                         transform: 'scale(1)',
-                        transition: 'all 0.2s ease-in-out'
+                        transition: 'all 0.2s ease-in-out',
+                        color: getSelectedHeaderColor()
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.transform = 'scale(1.05)';
@@ -658,22 +693,22 @@ export function ReviewsPage() {
                 <Dialog open={showReviewForm} onOpenChange={setShowReviewForm}>
                   <DialogTrigger asChild>
                     <Button 
-                      className="bg-[#752432] hover:shadow-lg hover:scale-105 transition-all duration-200 ease-in-out rounded-xl font-medium shadow-md"
+                      className="bg-white hover:shadow-lg hover:scale-105 transition-all duration-200 ease-in-out rounded-xl font-medium shadow-md"
                       style={{
                         transform: 'scale(1)',
                         transition: 'all 0.2s ease-in-out',
-                        color: 'white'
+                        color: '#752432'
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.transform = 'scale(1.05)';
-                        e.currentTarget.style.backgroundColor = 'white';
-                        e.currentTarget.style.color = 'black';
+                        e.currentTarget.style.backgroundColor = '#752432';
+                        e.currentTarget.style.color = 'white';
                         e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.transform = 'scale(1)';
-                        e.currentTarget.style.backgroundColor = '#752432';
-                        e.currentTarget.style.color = 'white';
+                        e.currentTarget.style.backgroundColor = 'white';
+                        e.currentTarget.style.color = '#752432';
                         e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
                       }}
                     >
@@ -734,10 +769,7 @@ export function ReviewsPage() {
       <div className="max-w-full mx-auto p-6">
         <div className="h-full flex flex-col">
 
-        <div className="flex-1 overflow-y-auto pt-6" style={{ 
-          scrollbarWidth: 'thin',
-          scrollbarColor: '#752531 transparent'
-        }}>
+        <div className="flex-1 pt-6">
           <div className="min-w-0">
             {filteredProfessors.length === 0 ? (
               <div className="text-center py-12">
@@ -829,7 +861,7 @@ export function ReviewsPage() {
                                               ))}
                                             </div>
                                             <span className="text-sm font-medium text-gray-600">
-                                              {five.toFixed(1)}/5
+                                              {formatRating(five)}/5
                                             </span>
                                           </div>
                                           {/* Grade removed from card display */}
@@ -869,7 +901,9 @@ export function ReviewsPage() {
               <div className="space-y-6">
                 <Button 
                   variant="outline" 
-                  onClick={() => setSelectedProfessor(null)}
+                  onClick={() => {
+                    setSelectedProfessor(null);
+                  }}
                   className="mb-4"
                 >
                   ← Back to All Professors
@@ -885,7 +919,7 @@ export function ReviewsPage() {
                         <div className="flex items-start justify-between mb-6">
                           <div className="flex-1">
                             <h2 className="text-xl font-medium text-gray-900 mb-2">
-                              {prof.firstName} {prof.lastName}
+                              {prof.lastName}, {prof.firstName}
                             </h2>
                             <div className="flex items-center space-x-4 mb-4">
                               <div className="flex items-center">
@@ -908,10 +942,10 @@ export function ReviewsPage() {
                                     ));
                                   })()}
                                 </div>
-                                <span className="font-medium text-gray-600">{(prof.overallRating / 2).toFixed(1)}/5</span>
+                                <span className="font-medium text-gray-600">{formatRating(prof.overallRating / 2)}/5</span>
                               </div>
                               <span className="text-gray-600">•</span>
-                              <span className="text-gray-600">{prof.totalReviews} total reviews</span>
+                              <span className="text-gray-600">{prof.totalReviews} total review{prof.totalReviews !== 1 ? 's' : ''}</span>
                             </div>
                           </div>
                         </div>
@@ -923,7 +957,17 @@ export function ReviewsPage() {
                           <Card 
                             key={courseInfo.name}
                             className="p-4 cursor-pointer hover:bg-gray-50 transition-colors border"
-                            onClick={() => setSelectedCourse(courseInfo.name)}
+                            onClick={() => {
+                              // Save scroll position immediately before state change
+                              if (scrollContainerRef.current) {
+                                const scrollTop = scrollContainerRef.current.scrollTop;
+                                setScrollPositions(prev => ({
+                                  ...prev,
+                                  allProfessors: scrollTop
+                                }));
+                              }
+                              setSelectedCourse(courseInfo.name);
+                            }}
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex-1">
@@ -987,7 +1031,7 @@ export function ReviewsPage() {
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
                                   <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                                    {prof.firstName} {prof.lastName}
+                                    {prof.lastName}, {prof.firstName}
                                   </h3>
                                   
                                   {/* Rating and review count */}
@@ -1006,10 +1050,10 @@ export function ReviewsPage() {
                                         />
                                       ))}
                                       </div>
-                                    <span className="font-medium text-gray-600">{(prof.overallRating / 2).toFixed(1)}/5</span>
+                                    <span className="font-medium text-gray-600">{formatRating(prof.overallRating / 2)}/5</span>
                                     </div>
                                     <span className="text-gray-600">•</span>
-                                    <span className="text-gray-600">{prof.totalReviews} reviews</span>
+                                    <span className="text-gray-600">{prof.totalReviews} review{prof.totalReviews !== 1 ? 's' : ''}</span>
                                   </div>
                                   
                                   {/* Courses - more prominent and clickable */}
@@ -1022,6 +1066,14 @@ export function ReviewsPage() {
                                             key={courseInfo.name}
                                             onClick={(e) => {
                                               e.stopPropagation();
+                                              // Save scroll position immediately before state change
+                                              if (scrollContainerRef.current) {
+                                                const scrollTop = scrollContainerRef.current.scrollTop;
+                                                setScrollPositions(prev => ({
+                                                  ...prev,
+                                                  allProfessors: scrollTop
+                                                }));
+                                              }
                                               setSelectedProfessor(prof.fullName);
                                               setSelectedCourse(courseInfo.name);
                                             }}
@@ -1070,6 +1122,7 @@ export function ReviewsPage() {
         courses={courses}
         professorCourses={professorCourses}
         handleSubmitReview={handleSubmitReview}
+        getButtonColor={getSelectedHeaderColor}
       />
     </div>
     </div>

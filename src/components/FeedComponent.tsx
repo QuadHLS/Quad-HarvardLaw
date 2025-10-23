@@ -1815,9 +1815,9 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     // Color consistency is now maintained by using post ID instead of index
 
     return (
-      <div className="w-full h-full overflow-y-auto" style={{ 
-        scrollbarWidth: 'thin',
-        scrollbarColor: '#752531 transparent'
+      <div className="w-full h-full overflow-y-auto scrollbar-hide" style={{ 
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none'
       }}>
         <div className="p-6" style={{ paddingBottom: '80px' }}>
           <div className="mb-4">
@@ -2269,9 +2269,9 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           </div>
         </div>
       </div>
-      <div className="overflow-y-auto px-4 pb-10 flex-1" style={{ 
-        scrollbarWidth: 'thin',
-        scrollbarColor: '#752531 transparent',
+      <div className="overflow-y-auto px-4 pb-10 flex-1 scrollbar-hide" style={{ 
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none',
         paddingBottom: '80px'
       }}>
         {loading ? (

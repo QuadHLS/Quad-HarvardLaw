@@ -2158,6 +2158,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                 </div>
                               </div>
                             </div>
+                          </div>
                           ))}
                         </div>
                       )}

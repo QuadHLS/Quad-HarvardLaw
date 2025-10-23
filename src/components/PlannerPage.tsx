@@ -1064,7 +1064,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
   return (
     <div className="h-screen flex flex-col" style={{ backgroundColor: '#FAF5EF' }}>
       {/* Header */}
-      <div className="border-b border-gray-200 shadow-sm" style={{ backgroundColor: '#752432' }}>
+      <div className="shadow-sm" style={{ backgroundColor: '#752432' }}>
         <div className="p-4">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             {/* Title and controls - responsive layout */}
@@ -1092,6 +1092,65 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Action Buttons - moved between semester selector and credits */}
+              <div className="flex items-center gap-2">
+                {scheduledCourses.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // Only clear courses for the currently selected semester
+                      setScheduledCourses(prev => 
+                        prev.filter(course => !courseMatchesSemester(course.term, selectedTerm))
+                      );
+                    }}
+                    className="flex items-center gap-1.5 bg-white border-white text-[#752432] hover:bg-gray-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Clear All
+                  </Button>
+                )}
+
+                {/* Save Button - always visible; disabled if no courses scheduled */}
+                <div className="relative">
+                  {/* Multiple pulsing white circle effects - behind button */}
+                  {scheduledCourses.length > 0 && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                      <div className="planner-pulse planner-pulse-1"></div>
+                      <div className="planner-pulse planner-pulse-2"></div>
+                      <div className="planner-pulse planner-pulse-3"></div>
+                      <div className="planner-pulse planner-pulse-4"></div>
+                    </div>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleOpenSaveDialog}
+                    disabled={scheduledCourses.length === 0}
+                    className={`relative z-10 flex items-center gap-1.5 bg-white border-white text-[#752432] hover:bg-gray-50 ${
+                      scheduledCourses.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    <Save className="w-4 h-4" />
+                    Save
+                  </Button>
+                </div>
+                
+                {/* Saved Schedules Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShowSavedSchedulesDialog(true);
+                    loadSavedSchedules(); // Refresh saved schedules when opening dialog
+                  }}
+                  className="flex items-center gap-1.5 bg-white border-white text-[#752432] hover:bg-gray-50"
+                >
+                  <FolderOpen className="w-4 h-4" />
+                  Saved Schedules
+                </Button>
               </div>
 
               {/* Credits summary next to term selector */}
@@ -1138,59 +1197,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                 </TooltipProvider>
               </div>
 
-              {/* Action Buttons - removed duplicate Save, now shown next to Clear All */}
               </div>
-            </div>
-            
-            {/* Summary Stats and Actions */}
-            <div className="flex items-center gap-3 ml-auto">
-              
-              {scheduledCourses.length > 0 && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      // Only clear courses for the currently selected semester
-                      setScheduledCourses(prev => 
-                        prev.filter(course => !courseMatchesSemester(course.term, selectedTerm))
-                      );
-                    }}
-                    className="glow-hover-only flex items-center gap-1.5 bg-white/10 border-white/30 text-white"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Clear All
-                  </Button>
-                </>
-              )}
-
-              {/* Save Button - always visible; disabled if no courses scheduled */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleOpenSaveDialog}
-                disabled={scheduledCourses.length === 0}
-                className={`glow-on-hover flex items-center gap-1.5 bg-white/10 border-white/30 text-white ${
-                  scheduledCourses.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-              >
-                <Save className="w-4 h-4" />
-                Save
-              </Button>
-              
-              {/* Saved Schedules Button - stays to the right */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setShowSavedSchedulesDialog(true);
-                  loadSavedSchedules(); // Refresh saved schedules when opening dialog
-                }}
-                className="glow-hover-only flex items-center gap-1.5 bg-white/10 border-white/30 text-white"
-              >
-                <FolderOpen className="w-4 h-4" />
-                Saved Schedules
-              </Button>
             </div>
           </div>
         </div>
@@ -1203,7 +1210,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
           {/* Search and Filters */}
           <div className="p-4 border-b border-gray-200 flex-shrink-0 relative" style={{ backgroundColor: '#752432' }}>
             <div className="space-y-3">
-              <div className="relative">
+              <div className="relative border-t border-white/20 pt-3">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
                   placeholder="Search courses or professors…"

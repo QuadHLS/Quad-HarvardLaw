@@ -987,7 +987,14 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                 {/* LRW Selection - Only for 1L. Show at the top after semester selection. */}
                 {classYear === '1L' && selectedCourses.length >= 7 && (
                   <div className="px-4 pb-3" style={{ backgroundColor: '#752432' }}>
-                    <div className="relative overflow-hidden rounded-lg glow-outline" style={{ minHeight: '80px' }}>
+                    <div className="relative" style={{ minHeight: '80px' }}>
+                      {/* Multiple pulsing white circle effects - behind content */}
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                        <div className="onboarding-pulse onboarding-pulse-1"></div>
+                        <div className="onboarding-pulse onboarding-pulse-2"></div>
+                        <div className="onboarding-pulse onboarding-pulse-3"></div>
+                        <div className="onboarding-pulse onboarding-pulse-4"></div>
+                      </div>
                       <div className={`relative p-2 rounded-lg h-[80px] ${lrwSection ? 'bg-blue-50' : 'bg-red-50'}`} style={{ zIndex: 10, margin: '2px' }}>
                         {(() => {
                           // Build LRW options for the selected section from available course data

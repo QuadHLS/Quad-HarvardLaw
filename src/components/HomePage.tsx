@@ -373,7 +373,6 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
         <div className="px-4 py-2 border-b border-gray-200" style={{ backgroundColor: '#F8F4ED' }}>
           <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-              <CheckSquare className="w-4 h-4 text-[#752432]" />
               <h3 className="font-semibold text-gray-900">To Do</h3>
         </div>
             <div className="flex items-center gap-1">
@@ -652,7 +651,6 @@ function MyCourses({
     <Card className="overflow-hidden" style={{ backgroundColor: '#FEFBF6' }}>
       <div className="px-4 py-2 border-b border-gray-200" style={{ backgroundColor: '#F8F4ED' }}>
         <div className="flex items-center gap-2">
-          <Book className="w-4 h-4 text-[#752432]" />
           {onSemesterChange && selectedSemester && (
             <div className="flex gap-1">
               {['Fall', 'Winter', 'Spring'].map((term) => {

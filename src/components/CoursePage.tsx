@@ -186,7 +186,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
         .from('comments')
         .select('*')
         .eq('post_id', postId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: true });
 
       if (error) {
         console.error('Error fetching comments:', error);
@@ -1708,10 +1708,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
 
                           {/* Poll Component */}
                           {post.poll && (
-                            <div 
-                              className="mb-4 p-4 rounded-lg"
-                              style={{ backgroundColor: '#F3F4F6' }}
-                            >
+                            <div className="mb-4 p-4 rounded-lg">
                               <h4 className="font-medium text-gray-900 mb-3">{post.poll.question}</h4>
                               <div className="space-y-2">
                                 {post.poll.options.map((option) => {
@@ -1742,8 +1739,11 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                     >
                                       {hasVoted && (
                                         <div 
-                                          className="absolute inset-0 bg-gray-100 transition-all duration-300"
-                                          style={{ width: `${percentage}%` }}
+                                          className="absolute inset-0 transition-all duration-300"
+                                          style={{ 
+                                            width: `${percentage}%`,
+                                            backgroundColor: `${courseColor}33`
+                                          }}
                                         />
                                       )}
                                       <div className="relative flex items-center justify-between">
@@ -1771,7 +1771,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                   togglePostLike(post.id);
                                 }}
                                 disabled={likingPosts.has(post.id)}
-                                className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${likingPosts.has(post.id) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                className={`flex items-center gap-1.5 text-xs font-medium transition-colors px-3 py-2 rounded-md ${likingPosts.has(post.id) ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 style={{
                                   color: post.isLiked ? courseColor : '#6B7280'
                                 }}
@@ -1908,7 +1908,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                         )}
                                       </div>
                                       <div className="flex-1">
-                                        <div className="bg-gray-50 rounded-lg p-3">
+                                        <div className="p-3">
                                           <div className="flex items-center gap-2 mb-1">
                                             <h5 className="font-medium text-gray-900 text-sm">{comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Anonymous')}</h5>
                                             {!comment.is_anonymous && <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>}
@@ -1919,7 +1919,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                           {/* comment actions */}
                                           <div className="mt-2 flex items-center gap-3">
                                             <button 
-                                              className={`flex items-center gap-1 text-xs font-medium transition-colors ${
+                                              className={`flex items-center gap-1 text-xs font-medium transition-colors px-2 py-1 rounded-md ${
                                                 comment.isLiked ? '' : 'text-gray-600'
                                               }`}
                                               style={{
@@ -1980,7 +1980,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                                   <p className="text-gray-800 text-xs mb-2">{reply.content}</p>
                                                   <div className="flex items-center gap-3">
                                                     <button 
-                                                      className={`flex items-center gap-1 text-xs font-medium transition-colors ${
+                                                      className={`flex items-center gap-1 text-xs font-medium transition-colors px-2 py-1 rounded-md ${
                                                         reply.isLiked ? '' : 'text-gray-600'
                                                       }`}
                                                       style={{
@@ -2104,7 +2104,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
 
                 <div className="space-y-4">
             {/* Post Type Selection */}
-            <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
+            <div className="flex gap-2 p-1 rounded-lg">
               <button
                 onClick={() => setNewPostType('text')}
                 className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -2204,7 +2204,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
             )}
 
             {/* Anonymous Posting Option */}
-            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2 p-3 rounded-lg">
               <div className="relative">
                 <input
                   type="checkbox"

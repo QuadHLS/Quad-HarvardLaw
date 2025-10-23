@@ -743,7 +743,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         .from('comments')
         .select('*')
         .eq('post_id', postId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: true });
 
       if (error) {
         console.error('Error fetching comments:', error);
@@ -1235,25 +1235,10 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   // Add loading state for comments
   const [loadingComments, setLoadingComments] = useState<Set<string>>(new Set());
 
-  // Optimized comment loading with loading state
+  // Optimized comment loading with loading state - DISABLED for home page
   const toggleCommentsExpanded = async (postId: string) => {
-    const isCurrentlyExpanded = expandedComments[postId];
-    
-    setExpandedComments(prev => ({
-      ...prev,
-      [postId]: !prev[postId]
-    }));
-    
-    // If we're expanding comments and they haven't been fetched yet, fetch them
-    if (!isCurrentlyExpanded && !comments[postId]) {
-      setLoadingComments(prev => new Set(prev).add(postId));
-      await fetchComments(postId);
-      setLoadingComments(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(postId);
-        return newSet;
-      });
-    }
+    // Disabled - only show comment count, no dropdown
+    return;
   };
 
 
@@ -1871,7 +1856,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
               
               {/* Poll in thread view */}
               {selectedPost.poll && (
-                <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                <div className="mb-4 p-4">
                   <h4 className="font-medium text-gray-900 mb-3">{selectedPost.poll.question}</h4>
                   <div className="space-y-2">
                     {selectedPost.poll.options.map((option) => {
@@ -1899,8 +1884,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                         >
                           {hasVoted && (
                           <div 
-                            className="absolute inset-0 bg-gray-100 transition-all duration-300"
-                            style={{ width: `${percentage}%` }}
+                            className="absolute inset-0 transition-all duration-300"
+                            style={{ 
+                              width: `${percentage}%`,
+                              backgroundColor: `${getPostColor(selectedPost.id)}33`
+                            }}
                           />
                           )}
                           <div className="relative flex items-center justify-between">
@@ -1924,7 +1912,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 <div className="flex items-center gap-4">
                   <button
                     onClick={() => handleLike(selectedPost.id)}
-                    className={`flex items-center gap-2 text-sm font-medium transition-colors ${
+                    className={`flex items-center gap-2 text-sm font-medium transition-colors px-3 py-2 rounded-md ${
                       selectedPost.isLiked ? '' : 'text-gray-600'
                     }`}
                     style={{
@@ -2025,7 +2013,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           ) : (
             <div className="space-y-4">
               {comments[selectedPost.id]?.map((comment) => (
-              <Card key={comment.id} style={{ backgroundColor: '#FEFBF6' }}>
+              <Card key={comment.id}>
                 <div className="p-4">
                   <div className="flex items-start gap-3">
                     <ProfileBubble userName={comment.author?.name || 'Anonymous'} size="md" borderColor={getPostColor(selectedPost.id)} isAnonymous={comment.is_anonymous} />
@@ -2040,7 +2028,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       <p className="text-gray-800 text-sm mb-2">{comment.content}</p>
                       <div className="flex items-center gap-3">
                         <button 
-                          className={`flex items-center gap-1 text-xs font-medium transition-colors ${
+                          className={`flex items-center gap-1 text-xs font-medium transition-colors px-2 py-1 rounded-md ${
                             comment.isLiked ? '' : 'text-gray-600'
                           }`}
                           style={{
@@ -2087,7 +2075,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                 <p className="text-gray-800 text-xs mb-2">{reply.content.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')}</p>
                                 <div className="flex items-center gap-3">
                                   <button 
-                                    className={`flex items-center gap-1 text-xs font-medium transition-colors ${
+                                    className={`flex items-center gap-1 text-xs font-medium transition-colors px-2 py-1 rounded-md ${
                                       reply.isLiked ? '' : 'text-gray-600'
                                     }`}
                                     style={{
@@ -2196,9 +2184,39 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     <Card className="overflow-hidden flex flex-col" style={{ backgroundColor: '#FEFBF6', height: '100%' }}>
       <div className="px-4 py-2 border-b border-gray-200" style={{ backgroundColor: '#F8F4ED' }}>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <MessageCircle className="w-4 h-4 text-[#752432]" />
-            <h3 className="font-semibold text-gray-900">Feed</h3>
+          <div className="flex items-center gap-3">
+            <div className="relative rounded-lg p-1 backdrop-blur-sm border border-white/20" style={{ backgroundColor: 'rgba(117, 36, 50, 0.5)' }}>
+              <div className="flex items-center">
+                <button
+                  onClick={() => onFeedModeChange?.('campus')}
+                  className={`relative px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                    feedMode === 'campus'
+                      ? 'text-[#752432] shadow-sm'
+                      : 'text-gray-600 hover:text-[#752432] hover:bg-gray-50'
+                  }`}
+                  style={feedMode === 'campus' ? {
+                    backgroundColor: 'white',
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                  } : {}}
+                >
+                  Campus
+                </button>
+                <button
+                  onClick={() => onFeedModeChange?.('my-courses')}
+                  className={`relative px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                    feedMode === 'my-courses'
+                      ? 'text-[#752432] shadow-sm'
+                      : 'text-gray-600 hover:text-[#752432] hover:bg-gray-50'
+                  }`}
+                  style={feedMode === 'my-courses' ? {
+                    backgroundColor: 'white',
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                  } : {}}
+                >
+                  My Courses
+                </button>
+              </div>
+            </div>
             {/* Real-time connection indicator */}
             <div className="relative flex items-center justify-center w-2 h-2 overflow-visible">
               {realtimeStatus === 'connected' && (
@@ -2226,45 +2244,19 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
               />
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => onFeedModeChange?.('campus')}
-              className={`font-medium transition-all duration-200 ${feedMode === 'campus' ? 'text-sm text-[#752432]' : 'text-xs text-gray-500'}`}
-            >
-              Campus
-            </button>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => onFeedModeChange?.('campus')}
-                className={`rounded-full transition-all duration-200 ${
-                  feedMode === 'campus' 
-                    ? 'w-3 h-3 bg-[#752432]' 
-                    : 'w-2 h-2 bg-gray-400'
-                }`}
-              />
-              <button
-                onClick={() => onFeedModeChange?.('my-courses')}
-                className={`rounded-full transition-all duration-200 ${
-                  feedMode === 'my-courses' 
-                    ? 'w-3 h-3 bg-[#752432]' 
-                    : 'w-2 h-2 bg-gray-400'
-                }`}
-              />
-            </div>
-            <button
-              onClick={() => onFeedModeChange?.('my-courses')}
-              className={`font-medium transition-all duration-200 ${feedMode === 'my-courses' ? 'text-sm text-[#752432]' : 'text-xs text-gray-500'}`}
-            >
-              My Courses
-            </button>
+          <div className="flex items-center gap-2">
             {/* Add Post button in header */}
             <button
-              onClick={() => setShowCreatePostDialog(true)}
-              className="w-8 h-8 rounded-md bg-[#752432] hover:bg-[#752432]/90 text-white flex items-center justify-center shadow-sm"
+              onClick={() => {
+                setNewPostTarget(feedMode);
+                setShowCreatePostDialog(true);
+              }}
+              className="px-3 py-1.5 rounded-md bg-[#752432] hover:bg-[#752432]/90 text-white flex items-center gap-2 shadow-sm font-medium text-sm"
               aria-label="Create post"
               title="Create post"
             >
               <Plus className="w-4 h-4" />
+              New Post
             </button>
           </div>
         </div>
@@ -2293,7 +2285,10 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
               }
             </p>
             <Button
-              onClick={() => setShowCreatePostDialog(true)}
+              onClick={() => {
+                setNewPostTarget(feedMode);
+                setShowCreatePostDialog(true);
+              }}
               className="bg-[#752432] hover:bg-[#752432]/90 text-white"
             >
               Create First Post
@@ -2361,10 +2356,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 </div>
                 {/* Poll Component */}
                 {post.poll && (
-                  <div 
-                    className="mb-4 p-4 rounded-lg"
-                    style={{ backgroundColor: '#F3F4F6' }}
-                  >
+                  <div className="mb-4 p-4 rounded-lg">
                     <h4 className="font-medium text-gray-900 mb-3">{post.poll.question}</h4>
                     <div className="space-y-2">
                       {post.poll.options.map((option) => {
@@ -2395,8 +2387,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                           >
                             {hasVoted && (
                               <div 
-                                className="absolute inset-0 bg-gray-100 transition-all duration-300"
-                                style={{ width: `${percentage}%` }}
+                                className="absolute inset-0 transition-all duration-300"
+                                style={{ 
+                                  width: `${percentage}%`,
+                                  backgroundColor: `${getPostColor(post.id)}33`
+                                }}
                               />
                             )}
                             <div className="relative flex items-center justify-between">
@@ -2425,7 +2420,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                         handleLike(post.id);
                       }}
                       disabled={likingPosts.has(post.id)}
-                      className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${likingPosts.has(post.id) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      className={`flex items-center gap-1.5 text-xs font-medium transition-colors px-3 py-2 rounded-md hover:bg-gray-100 ${likingPosts.has(post.id) ? 'opacity-50 cursor-not-allowed' : ''}`}
                       style={{
                         color: post.isLiked ? getPostColor(post.id) : '#6B7280'
                       }}
@@ -2443,16 +2438,10 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       <Heart className={`w-4 h-4 ${post.isLiked ? 'fill-current' : ''}`} />
                       {post.likes_count}
                     </button>
-                    <button 
-                      className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-blue-500 transition-colors"
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        await toggleCommentsExpanded(post.id);
-                      }}
-                    >
+                    <span className="flex items-center gap-1.5 text-xs font-medium text-gray-600">
                       <MessageCircle className="w-4 h-4" />
                       {post.comments_count}
-                    </button>
+                    </span>
                   </div>
                 </div>
 
@@ -2539,7 +2528,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                         <div key={comment.id} className="flex gap-3" onClick={(e) => e.stopPropagation()}>
                           <ProfileBubble userName={comment.author?.name || 'Anonymous'} size="md" borderColor={getPostColor(post.id)} isAnonymous={comment.is_anonymous} />
                           <div className="flex-1">
-                            <div className="bg-gray-50 rounded-lg p-3">
+                            <div className="p-3">
                               <div className="flex items-center gap-2 mb-1">
                                 <h5 className="font-medium text-gray-900 text-sm">{comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Anonymous')}</h5>
                                 {!comment.is_anonymous && <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>}

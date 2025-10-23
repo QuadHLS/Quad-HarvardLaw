@@ -2049,10 +2049,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
               {comments[selectedPost.id]?.map((comment) => (
               <Card key={comment.id}>
                 <div className="p-4">
-                  <div 
-                    className={`flex items-start gap-3 ${!comment.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                    onClick={() => !comment.is_anonymous && handleProfileClick(comment.author_id, comment.author?.name || 'Anonymous')}
-                  >
+                  <div className="flex items-start gap-3">
                     <ProfileBubble 
                       userName={comment.author?.name || 'Anonymous'} 
                       size="md" 
@@ -2063,7 +2060,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                     />
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <h5 className="font-medium text-gray-900 text-sm">{comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Anonymous')}</h5>
+                        <div 
+                          className={`${!comment.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                          onClick={() => !comment.is_anonymous && handleProfileClick(comment.author_id, comment.author?.name || 'Anonymous')}
+                        >
+                          <h5 className="font-medium text-gray-900 text-sm">{comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Anonymous')}</h5>
+                        </div>
                         {!comment.is_anonymous && <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>}
                         <span className="text-xs text-gray-500">•</span>
                         {/* verified badge removed */}
@@ -2106,11 +2108,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       {comment.replies && comment.replies.length > 0 && (
                         <div className="mt-3 ml-4 space-y-2">
                           {comment.replies.map((reply) => (
-                            <div 
-                              key={reply.id} 
-                              className={`flex items-start gap-2 ${!reply.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                              onClick={() => !reply.is_anonymous && handleProfileClick(reply.author_id, reply.author?.name || 'Anonymous')}
-                            >
+                            <div key={reply.id} className="flex items-start gap-2">
                                   <ProfileBubble 
                                     userName={reply.author?.name || 'Anonymous'} 
                                     size="sm" 
@@ -2121,7 +2119,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                   />
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
-                                  <h6 className="font-medium text-gray-900 text-xs">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
+                                  <div 
+                                    className={`${!reply.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                                    onClick={() => !reply.is_anonymous && handleProfileClick(reply.author_id, reply.author?.name || 'Anonymous')}
+                                  >
+                                    <h6 className="font-medium text-gray-900 text-xs">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
+                                  </div>
                                   {!reply.is_anonymous && <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>}
                                   {/* verified badge removed */}
                                   <span className="text-xs text-gray-500">•</span>

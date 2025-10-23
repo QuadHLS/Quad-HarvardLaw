@@ -861,9 +861,10 @@ function AppContent({ user }: { user: any }) {
           <ProfilePage
             studentName={selectedStudent}
             onBack={handleBackFromStudentProfile}
+            fromBarReview={previousSection === 'barreview'}
           />
         ) : activeSection === 'barreview' ? (
-          <BarReviewPage />
+          <BarReviewPage onNavigateToStudentProfile={handleNavigateToStudentProfile} />
         ) : activeSection === 'profile' ? (
           <ProfilePage />
         ) : (

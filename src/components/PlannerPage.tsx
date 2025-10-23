@@ -6,7 +6,6 @@ import { Badge } from './ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { Card, CardContent } from './ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { toast } from 'sonner';
@@ -346,12 +345,6 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
   // State for real course data
   const [courses, setCourses] = useState<PlannerCourse[]>([]);
 
-  // Clear all search terms when filters are reset
-  const clearAllSearchTerms = () => {
-    setAreaSearchTerm('');
-    setTypeSearchTerm('');
-    setRequirementsSearchTerm('');
-  };
 
   // Function to load saved schedules from database
   const loadSavedSchedules = async () => {

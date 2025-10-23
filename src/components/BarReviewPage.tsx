@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { MapPin, Clock, Calendar, Users, ExternalLink, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { MapPin, Clock, Calendar, Users, ExternalLink } from 'lucide-react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -13,7 +12,6 @@ interface BarReviewEvent {
   venue_phone?: string;
   description?: string;
   map_embed_url?: string;
-  special_offers?: string[];
   event_date: string;
   start_time: string;
   end_time?: string;
@@ -22,18 +20,19 @@ interface BarReviewEvent {
   updated_at?: string;
 }
 
-interface BarReviewPageProps {}
+interface BarReviewPageProps {
+  onNavigateToStudentProfile?: (studentName: string) => void;
+}
 
-export function BarReviewPage({}: BarReviewPageProps) {
+export function BarReviewPage({ onNavigateToStudentProfile }: BarReviewPageProps) {
   const { user } = useAuth();
   const [isRSVPed, setIsRSVPed] = useState(false);
   const [rsvpCount, setRsvpCount] = useState(47);
-  const [showAttendeeList, setShowAttendeeList] = useState(false);
   const [currentEvent, setCurrentEvent] = useState<BarReviewEvent | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rsvpLoading, setRsvpLoading] = useState(false);
-  const [attendees, setAttendees] = useState<string[]>([]);
+  const [attendees, setAttendees] = useState<{name: string, id: string}[]>([]);
 
   // Fetch bar review events from Supabase
   useEffect(() => {
@@ -125,12 +124,12 @@ export function BarReviewPage({}: BarReviewPageProps) {
     fetchBarReviewEvents();
   }, [user]);
 
-  // Fetch attendees when attendee list is opened
+  // Fetch attendees when component loads
   useEffect(() => {
-    if (showAttendeeList && currentEvent) {
+    if (currentEvent) {
       fetchAttendees();
     }
-  }, [showAttendeeList, currentEvent]);
+  }, [currentEvent]);
 
   // Fetch RSVP count from bar_count table
   const fetchRsvpCount = async () => {
@@ -181,18 +180,24 @@ export function BarReviewPage({}: BarReviewPageProps) {
           return;
         }
 
-        // Extract names and filter out null/empty names
-        const names = profilesData
-          ?.map(profile => profile.full_name)
-          .filter(name => name && name.trim() !== '') || [];
+        // Extract names and IDs, filter out null/empty names
+        const attendeeData = profilesData
+          ?.map(profile => ({
+            name: profile.full_name,
+            id: profile.id
+          }))
+          .filter(attendee => attendee.name && attendee.name.trim() !== '') || [];
         
         // If we have fewer names than RSVPs, show a message
-        if (names.length < rsvpData.length) {
-          const missingCount = rsvpData.length - names.length;
-          names.push(`${missingCount} user${missingCount > 1 ? 's' : ''} (name not available)`);
+        if (attendeeData.length < rsvpData.length) {
+          const missingCount = rsvpData.length - attendeeData.length;
+          attendeeData.push({
+            name: `${missingCount} user${missingCount > 1 ? 's' : ''} (name not available)`,
+            id: 'unknown'
+          });
         }
         
-        setAttendees(names);
+        setAttendees(attendeeData);
       } else {
         setAttendees([]);
       }
@@ -208,13 +213,7 @@ export function BarReviewPage({}: BarReviewPageProps) {
     address: "2847 University Avenue, Madison, WI 53705",
     phone: "(608) 555-0123",
     description: "Join us for our weekly law school bar review! Great drinks, food, and company to unwind after a long week of classes.",
-    mapEmbedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2914.123456789!2d-89.4012345!3d43.0731234!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNDPCsDA0JzIzLjIiTiA4OcKwMjQnMDQuNCJX!5e0!3m2!1sen!2sus!4v1234567890123!5m2!1sen!2sus",
-    specialOffers: [
-      "$3 Miller High Life bottles",
-      "$5 Well drinks", 
-      "$2 off appetizers",
-      "Happy hour 8-10pm"
-    ]
+    mapEmbedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2914.123456789!2d-89.4012345!3d43.0731234!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNDPCsDA0JzIzLjIiTiA4OcKwMjQnMDQuNCJX!5e0!3m2!1sen!2sus!4v1234567890123!5m2!1sen!2sus"
   };
 
   // Use current event data or fallback to mock data
@@ -223,8 +222,7 @@ export function BarReviewPage({}: BarReviewPageProps) {
     address: currentEvent.venue_address,
     phone: currentEvent.venue_phone || "",
     description: currentEvent.description || "Join us for our weekly law school bar review! Great drinks, food, and company to unwind after a long week of classes.",
-    mapEmbedUrl: currentEvent.map_embed_url || fallbackVenue.mapEmbedUrl,
-    specialOffers: Array.isArray(currentEvent.special_offers) ? currentEvent.special_offers : fallbackVenue.specialOffers
+    mapEmbedUrl: currentEvent.map_embed_url || fallbackVenue.mapEmbedUrl
   } : fallbackVenue;
 
 
@@ -307,6 +305,20 @@ export function BarReviewPage({}: BarReviewPageProps) {
     } finally {
       setRsvpLoading(false);
     }
+  };
+
+  const handleGetDirections = () => {
+    if (!currentEvent || !currentEvent.venue_address) {
+      alert('Venue address not available');
+      return;
+    }
+
+    // Create a Google Maps URL with the venue address
+    const encodedAddress = encodeURIComponent(currentEvent.venue_address);
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+    
+    // Open in new tab
+    window.open(mapsUrl, '_blank');
   };
 
   const getEventDate = () => {
@@ -396,50 +408,46 @@ export function BarReviewPage({}: BarReviewPageProps) {
       scrollbarColor: '#752531 transparent'
     }}>
       <div className="max-w-6xl mx-auto p-6">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-medium text-gray-900 mb-2">Bar Review</h1>
-          <p className="text-gray-600">Weekly Thursday night social for law students</p>
-        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Event Card */}
           <div className="lg:col-span-2">
             <Card className="overflow-hidden">
               {/* Event Header */}
-              <div className="bg-[#752432] text-white p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-medium">This Week's Bar Review</h2>
-                  <div className="flex items-center gap-2 text-white/90">
-                    <Users className="w-4 h-4" />
-                    <span className="text-sm">{rsvpCount} attending</span>
+              <div className="text-white p-8" style={{ backgroundColor: '#0080bd' }}>
+                <div className="flex items-center justify-between h-full">
+                  <div className="flex flex-col">
+                    <h2 className="text-2xl font-medium mb-3">Bar Review</h2>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Calendar className="w-4 h-4" />
+                      <span>{getEventDate()}</span>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    <span>{getEventDate()}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    <span>
-                      {currentEvent && currentEvent.start_time 
-                        ? new Date(`2000-01-01T${currentEvent.start_time}`).toLocaleTimeString('en-US', { 
-                            hour: 'numeric', 
-                            minute: '2-digit',
-                            hour12: true 
-                          }) + ' - Late'
-                        : '8:00 PM - Late'
-                      }
-                    </span>
+                  <div className="flex flex-col items-end gap-3 text-white/90">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4" />
+                      <span className="text-sm">{rsvpCount} attending</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Clock className="w-4 h-4" />
+                      <span>
+                        {currentEvent && currentEvent.start_time 
+                          ? new Date(`2000-01-01T${currentEvent.start_time}`).toLocaleTimeString('en-US', { 
+                              hour: 'numeric', 
+                              minute: '2-digit',
+                              hour12: true 
+                            }) + ' - Late'
+                          : '8:00 PM - Late'
+                        }
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Venue Details */}
-              <div className="p-6">
-                <div className="mb-6">
+              <div className="px-4 pt-1 pb-4">
+                <div className="mb-4">
                   <h3 className="text-lg font-medium text-gray-900 mb-2">{currentVenue.name}</h3>
                   <div className="flex items-start gap-2 text-gray-600 mb-3">
                     <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
@@ -451,65 +459,25 @@ export function BarReviewPage({}: BarReviewPageProps) {
                   <p className="text-gray-700 text-sm leading-relaxed">{currentVenue.description}</p>
                 </div>
 
-                {/* Special Offers */}
-                <div className="mb-6">
-                  <h4 className="font-medium text-gray-900 mb-3">Tonight's Specials</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {currentVenue.specialOffers && currentVenue.specialOffers.length > 0 ? (
-                      currentVenue.specialOffers.map((offer, index) => (
-                        <div key={index} className="flex items-center gap-2 text-sm text-gray-700">
-                          <div className="w-1.5 h-1.5 bg-[#752432] rounded-full"></div>
-                          <span>{offer}</span>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-sm text-gray-500">No specials available</div>
-                    )}
-                  </div>
+                {/* Action Button */}
+                <div className="flex justify-start mt-6">
+                  <Button 
+                    variant="outline" 
+                    className="border-gray-300 text-gray-700 hover:bg-gray-50 rounded-md font-medium shadow-sm hover:shadow px-8"
+                    onClick={handleGetDirections}
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Get Directions
+                  </Button>
                 </div>
 
-                {/* RSVP Button */}
-                <div className="flex items-center gap-4">
-                  <Button
-                    onClick={handleRSVP}
-                    disabled={rsvpLoading || !user}
-                    className={`${
-                      isRSVPed 
-                        ? 'bg-green-600 hover:bg-green-700' 
-                        : 'bg-[#752432] hover:bg-[#752432]/90'
-                    }`}
-                  >
-                    {rsvpLoading ? (
-                      'Processing...'
-                    ) : isRSVPed ? (
-                      <>
-                        <Check className="w-4 h-4 mr-2" />
-                        You're Going!
-                      </>
-                    ) : (
-                      "Join Event"
-                    )}
-                  </Button>
-                  
-                  <Button variant="outline" asChild>
-                    <a
-                      href={`https://maps.google.com/?q=${encodeURIComponent(currentVenue.address)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      Get Directions
-                    </a>
-                  </Button>
-                </div>
               </div>
             </Card>
 
             {/* Map */}
             <Card className="mt-6 overflow-hidden">
               <div className="p-4 border-b">
-                <h3 className="font-medium text-gray-900">Location</h3>
+                <h3 className="font-medium text-gray-900">Map</h3>
               </div>
               <div className="relative h-96 style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}">
                 {currentVenue.mapEmbedUrl ? (
@@ -546,90 +514,71 @@ export function BarReviewPage({}: BarReviewPageProps) {
             {/* RSVP Summary */}
             <Card className="p-6">
               <h3 className="font-medium text-gray-900 mb-4">Who's Going</h3>
+              
+              {/* Large centered number */}
               <div className="text-center mb-4">
-                <div className="text-3xl font-medium text-[#752432]">{rsvpCount}</div>
+                <div className="text-4xl font-bold text-red-600">{rsvpCount}</div>
                 <div className="text-sm text-gray-600">people attending</div>
               </div>
 
-              {/* Attendee List Dropdown */}
-              <Collapsible 
-                open={showAttendeeList} 
-                onOpenChange={(open) => {
-                  setShowAttendeeList(open);
-                  if (open) {
-                    // Refresh attendees when dropdown opens
-                    fetchAttendees();
-                  }
-                }}
-              >
-                <CollapsibleTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="w-full justify-between text-sm text-gray-600 hover:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} mb-3"
-                  >
-                    <span>See who's going</span>
-                    {showAttendeeList ? (
-                      <ChevronUp className="w-4 h-4" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4" />
-                    )}
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-0">
-                  <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-md mb-4" style={{ 
-                    backgroundColor: 'var(--background-color, #f9f5f0)',
-                    scrollbarWidth: 'thin',
-                    scrollbarColor: '#752531 transparent'
-                  }}>
-                    <div className="grid grid-cols-1 gap-0.5 p-2">
-                      {attendees.length > 0 ? (
-                        attendees.map((name, index) => (
-                          <div 
-                            key={index} 
-                            className="text-xs text-gray-700 py-1 px-2 hover:style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} rounded transition-colors"
-                          >
-                            {name}
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-xs text-gray-500 py-2 text-center">
-                          No attendees yet
+              {/* Always visible attendee list */}
+              <div className="text-center mb-4">
+                <div className="text-sm text-gray-600 mb-2">See who's going</div>
+                <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-md" style={{ 
+                  backgroundColor: 'var(--background-color, #f9f5f0)',
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: '#752531 transparent'
+                }}>
+                  <div className="grid grid-cols-1 gap-2 p-3">
+                    {attendees.length > 0 ? (
+                      attendees.map((attendee, index) => (
+                        <div 
+                          key={index} 
+                          className="text-xs text-gray-700 py-1 px-2 bg-white border border-gray-200 rounded-md hover:bg-gray-50 hover:border-gray-300 cursor-pointer transition-colors shadow-sm"
+                          onClick={() => {
+                            // Navigate to user profile using the same pattern as CoursePage
+                            if (attendee.id !== 'unknown' && onNavigateToStudentProfile) {
+                              onNavigateToStudentProfile(attendee.name);
+                            }
+                          }}
+                        >
+                          {attendee.name}
                         </div>
-                      )}
-                    </div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-gray-500 py-4 text-center">
+                        No attendees yet
+                      </div>
+                    )}
                   </div>
-                </CollapsibleContent>
-              </Collapsible>
-              
-              {!isRSVPed && (
-                <div className="text-center">
-                  <p className="text-sm text-gray-600 mb-3">Will you be joining us?</p>
-                  <Button 
-                    onClick={handleRSVP}
-                    disabled={rsvpLoading || !user}
-                    size="sm" 
-                    className="bg-[#752432] hover:bg-[#752432]/90 w-full"
-                  >
-                    {rsvpLoading ? 'Processing...' : 'Count Me In!'}
-                  </Button>
                 </div>
-              )}
+              </div>
+              
+              {/* Centered call to action */}
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-3">Will you be joining us?</p>
+                <Button 
+                  onClick={handleRSVP}
+                  disabled={rsvpLoading || !user}
+                  size="sm" 
+                  className="text-white w-full font-medium"
+                  style={{ backgroundColor: '#3da44b' }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#2d7a3d';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#3da44b';
+                  }}
+                >
+                  {rsvpLoading ? 'Processing...' : (isRSVPed ? "You're Going!" : 'Count Me In!')}
+                </Button>
+              </div>
             </Card>
 
             {/* Weekly Schedule */}
 
 
 
-            {/* Contact Info */}
-            <Card className="p-6">
-              <h3 className="font-medium text-gray-900 mb-4">Questions?</h3>
-              <div className="text-sm text-gray-700 space-y-2">
-                <p>Contact the Bar Review Committee:</p>
-                <p className="text-[#752432]">barreview@lawschool.edu</p>
-                <p>Or find us on social media @LawSchoolBarReview</p>
-              </div>
-            </Card>
           </div>
         </div>
       </div>

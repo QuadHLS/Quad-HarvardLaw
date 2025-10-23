@@ -1864,7 +1864,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 />
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <h4 className="font-semibold text-gray-900">{selectedPost.is_anonymous ? 'Anonymous' : (selectedPost.author?.name || 'Anonymous')}</h4>
+                    <div 
+                      className={`${!selectedPost.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                      onClick={() => !selectedPost.is_anonymous && handleProfileClick(selectedPost.author_id, selectedPost.author?.name || 'Anonymous')}
+                    >
+                      <h4 className="font-semibold text-gray-900">{selectedPost.is_anonymous ? 'Anonymous' : (selectedPost.author?.name || 'Anonymous')}</h4>
+                    </div>
                     {!selectedPost.is_anonymous && <span className="text-sm text-gray-500">{selectedPost.author?.year || ''}</span>}
                     {/* verified badge removed */}
                   </div>
@@ -2057,7 +2062,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                     />
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <h5 className="font-medium text-gray-900 text-sm">{comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Anonymous')}</h5>
+                        <div 
+                          className={`${!comment.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                          onClick={() => !comment.is_anonymous && handleProfileClick(comment.author_id, comment.author?.name || 'Anonymous')}
+                        >
+                          <h5 className="font-medium text-gray-900 text-sm">{comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Anonymous')}</h5>
+                        </div>
                         {!comment.is_anonymous && <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>}
                         <span className="text-xs text-gray-500">•</span>
                         {/* verified badge removed */}
@@ -2111,8 +2121,13 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                   />
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
-                                      <h6 className="font-medium text-gray-900 text-xs">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
-                                      {!reply.is_anonymous && <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>}
+                                  <div 
+                                    className={`${!reply.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                                    onClick={() => !reply.is_anonymous && handleProfileClick(reply.author_id, reply.author?.name || 'Anonymous')}
+                                  >
+                                    <h6 className="font-medium text-gray-900 text-xs">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
+                                  </div>
+                                  {!reply.is_anonymous && <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>}
                                   {/* verified badge removed */}
                                   <span className="text-xs text-gray-500">•</span>
                                   <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>
@@ -2410,7 +2425,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       />
                       <div>
                         <div className="flex items-center gap-2">
-                          <h4 className="font-semibold text-gray-900 text-sm">{post.is_anonymous ? 'Anonymous' : (post.author?.name || 'Anonymous')}</h4>
+                          <div 
+                            className={`${!post.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                            onClick={() => !post.is_anonymous && handleProfileClick(post.author_id, post.author?.name || 'Anonymous')}
+                          >
+                            <h4 className="font-semibold text-gray-900 text-sm">{post.is_anonymous ? 'Anonymous' : (post.author?.name || 'Anonymous')}</h4>
+                          </div>
                           {!post.is_anonymous && <span className="text-xs text-gray-500">{post.author?.year || ''}</span>}
                           {/* verified badge removed */}
                         </div>
@@ -2626,7 +2646,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                           <div className="flex-1">
                             <div className="p-3">
                               <div className="flex items-center gap-2 mb-1">
-                                <h5 className="font-medium text-gray-900 text-sm">{comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Anonymous')}</h5>
+                                <div 
+                                  className={`${!comment.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                                  onClick={() => !comment.is_anonymous && handleProfileClick(comment.author_id, comment.author?.name || 'Anonymous')}
+                                >
+                                  <h5 className="font-medium text-gray-900 text-sm">{comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Anonymous')}</h5>
+                                </div>
                                 {!comment.is_anonymous && <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>}
                                 {/* verified badge removed */}
                                 <span className="text-xs text-gray-500">•</span>
@@ -2681,7 +2706,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                     />
                                     <div className="flex-1">
                                       <div className="flex items-center gap-2 mb-1">
-                                        <h6 className="font-medium text-gray-900 text-xs">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
+                                        <div 
+                                          className={`${!reply.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                                          onClick={() => !reply.is_anonymous && handleProfileClick(reply.author_id, reply.author?.name || 'Anonymous')}
+                                        >
+                                          <h6 className="font-medium text-gray-900 text-xs">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
+                                        </div>
                                         {!reply.is_anonymous && <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>}
                                         <span className="text-xs text-gray-500">•</span>
                                         <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>

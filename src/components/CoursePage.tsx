@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Users, MessageSquare, GraduationCap, Clock, MapPin, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { Button } from './ui/button';
 
 // Heart component (matching FeedComponent)
 const Heart = ({ className, fill }: { className?: string; fill?: boolean }) => (

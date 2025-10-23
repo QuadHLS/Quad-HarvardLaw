@@ -1853,7 +1853,10 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             onClick={() => { /* no-op click target for post area in thread view */ }}
           >
             <div className="p-6">
-              <div className="flex items-start gap-3 mb-4">
+              <div 
+                className={`flex items-start gap-3 mb-4 ${!selectedPost.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                onClick={() => !selectedPost.is_anonymous && handleProfileClick(selectedPost.author_id, selectedPost.author?.name || 'Anonymous')}
+              >
                 <ProfileBubble 
                   userName={selectedPost.author?.name || 'Anonymous'} 
                   size="lg" 
@@ -1864,12 +1867,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 />
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <div 
-                      className={`${!selectedPost.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                      onClick={() => !selectedPost.is_anonymous && handleProfileClick(selectedPost.author_id, selectedPost.author?.name || 'Anonymous')}
-                    >
-                      <h4 className="font-semibold text-gray-900">{selectedPost.is_anonymous ? 'Anonymous' : (selectedPost.author?.name || 'Anonymous')}</h4>
-                    </div>
+                    <h4 className="font-semibold text-gray-900">{selectedPost.is_anonymous ? 'Anonymous' : (selectedPost.author?.name || 'Anonymous')}</h4>
                     {!selectedPost.is_anonymous && <span className="text-sm text-gray-500">{selectedPost.author?.year || ''}</span>}
                     {/* verified badge removed */}
                   </div>
@@ -2051,7 +2049,10 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
               {comments[selectedPost.id]?.map((comment) => (
               <Card key={comment.id}>
                 <div className="p-4">
-                  <div className="flex items-start gap-3">
+                  <div 
+                    className={`flex items-start gap-3 ${!comment.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                    onClick={() => !comment.is_anonymous && handleProfileClick(comment.author_id, comment.author?.name || 'Anonymous')}
+                  >
                     <ProfileBubble 
                       userName={comment.author?.name || 'Anonymous'} 
                       size="md" 
@@ -2062,12 +2063,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                     />
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <div 
-                          className={`${!comment.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                          onClick={() => !comment.is_anonymous && handleProfileClick(comment.author_id, comment.author?.name || 'Anonymous')}
-                        >
-                          <h5 className="font-medium text-gray-900 text-sm">{comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Anonymous')}</h5>
-                        </div>
+                        <h5 className="font-medium text-gray-900 text-sm">{comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Anonymous')}</h5>
                         {!comment.is_anonymous && <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>}
                         <span className="text-xs text-gray-500">•</span>
                         {/* verified badge removed */}
@@ -2105,33 +2101,34 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                         </button>
                         {/* timestamp shown inline with name */}
                       </div>
+                    </div>
+                  </div>
                       
                       {/* Replies */}
                       {comment.replies && comment.replies.length > 0 && (
                         <div className="mt-3 ml-4 space-y-2">
                           {comment.replies.map((reply) => (
                             <div key={reply.id} className="flex items-start gap-2">
-                                  <ProfileBubble 
-                                    userName={reply.author?.name || 'Anonymous'} 
-                                    size="sm" 
-                                    borderColor={getPostColor(selectedPost.id)} 
-                                    isAnonymous={reply.is_anonymous}
-                                    userId={reply.author_id}
-                                    onProfileClick={handleProfileClick}
-                                  />
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <div 
-                                    className={`${!reply.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                                    onClick={() => !reply.is_anonymous && handleProfileClick(reply.author_id, reply.author?.name || 'Anonymous')}
-                                  >
+                              <div 
+                                className={`flex items-start gap-2 ${!reply.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                                onClick={() => !reply.is_anonymous && handleProfileClick(reply.author_id, reply.author?.name || 'Anonymous')}
+                              >
+                                <ProfileBubble 
+                                  userName={reply.author?.name || 'Anonymous'} 
+                                  size="sm" 
+                                  borderColor={getPostColor(selectedPost.id)} 
+                                  isAnonymous={reply.is_anonymous}
+                                  userId={reply.author_id}
+                                  onProfileClick={handleProfileClick}
+                                />
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
                                     <h6 className="font-medium text-gray-900 text-xs">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
+                                    {!reply.is_anonymous && <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>}
+                                    {/* verified badge removed */}
+                                    <span className="text-xs text-gray-500">•</span>
+                                    <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>
                                   </div>
-                                  {!reply.is_anonymous && <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>}
-                                  {/* verified badge removed */}
-                                  <span className="text-xs text-gray-500">•</span>
-                                  <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>
-                                </div>
                                 <p className="text-gray-800 text-xs mb-2">{reply.content.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')}</p>
                                 <div className="flex items-center gap-3">
                                   <button 
@@ -2160,6 +2157,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                 </div>
                               </div>
                             </div>
+                          </div>
                           ))}
                         </div>
                       )}
@@ -2414,7 +2412,10 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 {/* Post Header */}
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3">
+                    <div 
+                      className={`flex items-center gap-3 ${!post.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                      onClick={() => !post.is_anonymous && handleProfileClick(post.author_id, post.author?.name || 'Anonymous')}
+                    >
                       <ProfileBubble 
                         userName={post.author?.name || 'Anonymous'} 
                         size="md" 
@@ -2425,12 +2426,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       />
                       <div>
                         <div className="flex items-center gap-2">
-                          <div 
-                            className={`${!post.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                            onClick={() => !post.is_anonymous && handleProfileClick(post.author_id, post.author?.name || 'Anonymous')}
-                          >
-                            <h4 className="font-semibold text-gray-900 text-sm">{post.is_anonymous ? 'Anonymous' : (post.author?.name || 'Anonymous')}</h4>
-                          </div>
+                          <h4 className="font-semibold text-gray-900 text-sm">{post.is_anonymous ? 'Anonymous' : (post.author?.name || 'Anonymous')}</h4>
                           {!post.is_anonymous && <span className="text-xs text-gray-500">{post.author?.year || ''}</span>}
                           {/* verified badge removed */}
                         </div>
@@ -2635,28 +2631,27 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       <div className="space-y-4">
                         {comments[post.id]?.map((comment) => (
                         <div key={comment.id} className="flex gap-3" onClick={(e) => e.stopPropagation()}>
-                          <ProfileBubble 
-                            userName={comment.author?.name || 'Anonymous'} 
-                            size="md" 
-                            borderColor={getPostColor(post.id)} 
-                            isAnonymous={comment.is_anonymous}
-                            userId={comment.author_id}
-                            onProfileClick={handleProfileClick}
-                          />
-                          <div className="flex-1">
-                            <div className="p-3">
-                              <div className="flex items-center gap-2 mb-1">
-                                <div 
-                                  className={`${!comment.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                                  onClick={() => !comment.is_anonymous && handleProfileClick(comment.author_id, comment.author?.name || 'Anonymous')}
-                                >
+                          <div 
+                            className={`flex items-start gap-3 ${!comment.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                            onClick={() => !comment.is_anonymous && handleProfileClick(comment.author_id, comment.author?.name || 'Anonymous')}
+                          >
+                            <ProfileBubble 
+                              userName={comment.author?.name || 'Anonymous'} 
+                              size="md" 
+                              borderColor={getPostColor(post.id)} 
+                              isAnonymous={comment.is_anonymous}
+                              userId={comment.author_id}
+                              onProfileClick={handleProfileClick}
+                            />
+                            <div className="flex-1">
+                              <div className="p-3">
+                                <div className="flex items-center gap-2 mb-1">
                                   <h5 className="font-medium text-gray-900 text-sm">{comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Anonymous')}</h5>
+                                  {!comment.is_anonymous && <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>}
+                                  {/* verified badge removed */}
+                                  <span className="text-xs text-gray-500">•</span>
+                                  <span className="text-xs text-gray-500">{formatTimestamp(comment.created_at)}</span>
                                 </div>
-                                {!comment.is_anonymous && <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>}
-                                {/* verified badge removed */}
-                                <span className="text-xs text-gray-500">•</span>
-                                <span className="text-xs text-gray-500">{formatTimestamp(comment.created_at)}</span>
-                              </div>
                               <p className="text-gray-800 text-sm">{comment.content}</p>
                               {/* comment actions */}
                               <div className="mt-2 flex items-center gap-3">
@@ -2690,32 +2685,32 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                 </button>
                               </div>
                             </div>
+                          </div>
                             
                             {/* Replies Display */}
                             {comment.replies && comment.replies.length > 0 && (
                               <div className="mt-3 ml-4 space-y-2">
                                 {comment.replies.map((reply) => (
                                   <div key={reply.id} className="flex items-start gap-2">
-                                    <ProfileBubble 
-                                      userName={reply.author?.name || 'Anonymous'} 
-                                      size="sm" 
-                                      borderColor={getPostColor(post.id)} 
-                                      isAnonymous={reply.is_anonymous}
-                                      userId={reply.author_id}
-                                      onProfileClick={handleProfileClick}
-                                    />
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <div 
-                                          className={`${!reply.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                                          onClick={() => !reply.is_anonymous && handleProfileClick(reply.author_id, reply.author?.name || 'Anonymous')}
-                                        >
+                                    <div 
+                                      className={`flex items-start gap-2 ${!reply.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                                      onClick={() => !reply.is_anonymous && handleProfileClick(reply.author_id, reply.author?.name || 'Anonymous')}
+                                    >
+                                      <ProfileBubble 
+                                        userName={reply.author?.name || 'Anonymous'} 
+                                        size="sm" 
+                                        borderColor={getPostColor(post.id)} 
+                                        isAnonymous={reply.is_anonymous}
+                                        userId={reply.author_id}
+                                        onProfileClick={handleProfileClick}
+                                      />
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
                                           <h6 className="font-medium text-gray-900 text-xs">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
+                                          {!reply.is_anonymous && <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>}
+                                          <span className="text-xs text-gray-500">•</span>
+                                          <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>
                                         </div>
-                                        {!reply.is_anonymous && <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>}
-                                        <span className="text-xs text-gray-500">•</span>
-                                        <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>
-                                      </div>
                                       <p className="text-gray-800 text-xs mb-2">{reply.content}</p>
                                       <div className="flex items-center gap-3">
                                         <button 
@@ -2743,6 +2738,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                       </div>
                                     </div>
                                   </div>
+                                </div>
                                 ))}
                               </div>
                             )}

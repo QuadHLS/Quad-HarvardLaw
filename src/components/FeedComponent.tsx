@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Button } from './ui/button';
 
 // Interfaces
 interface PollOption {
@@ -2102,35 +2101,32 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                         </button>
                         {/* timestamp shown inline with name */}
                       </div>
-                    </div>
-                  </div>
-                </div>
                       
                       {/* Replies */}
                       {comment.replies && comment.replies.length > 0 && (
                         <div className="mt-3 ml-4 space-y-2">
                           {comment.replies.map((reply) => (
-                            <div key={reply.id} className="flex items-start gap-2">
-                              <div 
-                                className={`flex items-start gap-2 ${!reply.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                                onClick={() => !reply.is_anonymous && handleProfileClick(reply.author_id, reply.author?.name || 'Anonymous')}
-                              >
-                                <ProfileBubble 
-                                  userName={reply.author?.name || 'Anonymous'} 
-                                  size="sm" 
-                                  borderColor={getPostColor(selectedPost.id)} 
-                                  isAnonymous={reply.is_anonymous}
-                                  userId={reply.author_id}
-                                  onProfileClick={handleProfileClick}
-                                />
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <h6 className="font-medium text-gray-900 text-xs">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
-                                    {!reply.is_anonymous && <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>}
-                                    {/* verified badge removed */}
-                                    <span className="text-xs text-gray-500">•</span>
-                                    <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>
-                                  </div>
+                            <div 
+                              key={reply.id} 
+                              className={`flex items-start gap-2 ${!reply.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                              onClick={() => !reply.is_anonymous && handleProfileClick(reply.author_id, reply.author?.name || 'Anonymous')}
+                            >
+                                  <ProfileBubble 
+                                    userName={reply.author?.name || 'Anonymous'} 
+                                    size="sm" 
+                                    borderColor={getPostColor(selectedPost.id)} 
+                                    isAnonymous={reply.is_anonymous}
+                                    userId={reply.author_id}
+                                    onProfileClick={handleProfileClick}
+                                  />
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h6 className="font-medium text-gray-900 text-xs">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
+                                  {!reply.is_anonymous && <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>}
+                                  {/* verified badge removed */}
+                                  <span className="text-xs text-gray-500">•</span>
+                                  <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>
+                                </div>
                                 <p className="text-gray-800 text-xs mb-2">{reply.content.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')}</p>
                                 <div className="flex items-center gap-3">
                                   <button 
@@ -2159,7 +2155,6 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                 </div>
                               </div>
                             </div>
-                          </div>
                           ))}
                         </div>
                       )}
@@ -2693,26 +2688,26 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                             {comment.replies && comment.replies.length > 0 && (
                               <div className="mt-3 ml-4 space-y-2">
                                 {comment.replies.map((reply) => (
-                                  <div key={reply.id} className="flex items-start gap-2">
-                                    <div 
-                                      className={`flex items-start gap-2 ${!reply.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                                      onClick={() => !reply.is_anonymous && handleProfileClick(reply.author_id, reply.author?.name || 'Anonymous')}
-                                    >
-                                      <ProfileBubble 
-                                        userName={reply.author?.name || 'Anonymous'} 
-                                        size="sm" 
-                                        borderColor={getPostColor(post.id)} 
-                                        isAnonymous={reply.is_anonymous}
-                                        userId={reply.author_id}
-                                        onProfileClick={handleProfileClick}
-                                      />
-                                      <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-1">
-                                          <h6 className="font-medium text-gray-900 text-xs">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
-                                          {!reply.is_anonymous && <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>}
-                                          <span className="text-xs text-gray-500">•</span>
-                                          <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>
-                                        </div>
+                                  <div 
+                                    key={reply.id} 
+                                    className={`flex items-start gap-2 ${!reply.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                                    onClick={() => !reply.is_anonymous && handleProfileClick(reply.author_id, reply.author?.name || 'Anonymous')}
+                                  >
+                                    <ProfileBubble 
+                                      userName={reply.author?.name || 'Anonymous'} 
+                                      size="sm" 
+                                      borderColor={getPostColor(post.id)} 
+                                      isAnonymous={reply.is_anonymous}
+                                      userId={reply.author_id}
+                                      onProfileClick={handleProfileClick}
+                                    />
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <h6 className="font-medium text-gray-900 text-xs">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
+                                        {!reply.is_anonymous && <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>}
+                                        <span className="text-xs text-gray-500">•</span>
+                                        <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>
+                                      </div>
                                       <p className="text-gray-800 text-xs mb-2">{reply.content}</p>
                                       <div className="flex items-center gap-3">
                                         <button 
@@ -2740,7 +2735,6 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                       </div>
                                     </div>
                                   </div>
-                                </div>
                                 ))}
                               </div>
                             )}

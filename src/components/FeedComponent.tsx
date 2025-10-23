@@ -2693,11 +2693,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                             {comment.replies && comment.replies.length > 0 && (
                               <div className="mt-3 ml-4 space-y-2">
                                 {comment.replies.map((reply) => (
-                                  <div 
-                                    key={reply.id} 
-                                    className={`flex items-start gap-2 ${!reply.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                                    onClick={() => !reply.is_anonymous && handleProfileClick(reply.author_id, reply.author?.name || 'Anonymous')}
-                                  >
+                                  <div key={reply.id} className="flex items-start gap-2">
                                     <ProfileBubble 
                                       userName={reply.author?.name || 'Anonymous'} 
                                       size="sm" 
@@ -2708,7 +2704,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                     />
                                     <div className="flex-1">
                                       <div className="flex items-center gap-2 mb-1">
-                                        <h6 className="font-medium text-gray-900 text-xs">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
+                                        <div 
+                                          className={`${!reply.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                                          onClick={() => !reply.is_anonymous && handleProfileClick(reply.author_id, reply.author?.name || 'Anonymous')}
+                                        >
+                                          <h6 className="font-medium text-gray-900 text-xs">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
+                                        </div>
                                         {!reply.is_anonymous && <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>}
                                         <span className="text-xs text-gray-500">•</span>
                                         <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>

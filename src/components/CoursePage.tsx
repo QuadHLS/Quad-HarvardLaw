@@ -1230,18 +1230,31 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
 
   // Toggle like for a post (matches HomePage feed logic exactly)
   const togglePostLike = async (postId: string) => {
+    console.log('togglePostLike called for post:', postId);
     // Prevent multiple simultaneous like operations on the same post (matches HomePage feed logic)
-    if (likingPosts.has(postId)) return;
+    if (likingPosts.has(postId)) {
+      console.log('Post already being liked, skipping');
+      return;
+    }
     
     try {
+      console.log('Starting like toggle for post:', postId);
       setLikingPosts(prev => new Set(prev).add(postId));
       
       // Get current user (matches HomePage feed logic exactly)
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.log('No user found');
+        return;
+      }
 
       const post = coursePosts.find(p => p.id === postId);
-      if (!post) return;
+      if (!post) {
+        console.log('Post not found:', postId);
+        return;
+      }
+      
+      console.log('Found post:', post.title, 'isLiked:', post.isLiked);
 
       // Double-check the current like state from database (matches HomePage feed logic exactly)
       const { data: currentLike } = await supabase
@@ -1253,9 +1266,11 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
         .maybeSingle();
 
       const isCurrentlyLiked = !!currentLike;
+      console.log('Current like state from DB:', isCurrentlyLiked);
 
       if (isCurrentlyLiked) {
         // Unlike the post
+        console.log('Unliking post...');
         const { error } = await supabase
           .from('likes')
           .delete()
@@ -1267,8 +1282,10 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
           console.error('Error unliking post:', error);
           return;
         }
+        console.log('Successfully unliked post');
       } else {
         // Like the post
+        console.log('Liking post...');
         const { error } = await supabase
           .from('likes')
           .insert({
@@ -1281,9 +1298,11 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
           console.error('Error liking post:', error);
           return;
         }
+        console.log('Successfully liked post');
       }
 
       // Update local state immediately for better UX (matches HomePage feed logic exactly)
+      console.log('Updating local state, new like state:', !isCurrentlyLiked);
       setCoursePosts(prevPosts => 
         prevPosts.map(p => 
           p.id === postId 

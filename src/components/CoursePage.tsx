@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Users, MessageSquare, GraduationCap, Clock, MapPin, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Button } from './ui/button';
 
 // Heart component (matching FeedComponent)
 const Heart = ({ className, fill }: { className?: string; fill?: boolean }) => (
@@ -39,6 +38,7 @@ import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Textarea } from './ui/textarea';
 import { Input } from './ui/input';
+import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 
 interface CoursePageOverviewProps {
@@ -1677,10 +1677,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                           {/* Post Header */}
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex-1">
-                              <div 
-                                className={`flex items-center gap-3 ${!post.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                                onClick={() => !post.is_anonymous && onNavigateToStudentProfile?.(post.author?.name || 'Anonymous')}
-                              >
+                              <div className="flex items-center gap-3">
                                 <div 
                                   className="w-8 h-8 rounded-full flex items-center justify-center font-semibold text-white border-2"
                                   style={{ 
@@ -1906,31 +1903,27 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                   {comments[post.id]?.map((comment) => (
                                     <div key={comment.id} className="flex gap-3" onClick={(e) => e.stopPropagation()}>
                                       <div 
-                                        className={`flex items-start gap-3 ${!comment.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                                        onClick={() => !comment.is_anonymous && onNavigateToStudentProfile?.(comment.author?.name || 'Anonymous')}
+                                        className="w-8 h-8 rounded-full flex items-center justify-center font-semibold text-white border-2"
+                                        style={{ 
+                                          backgroundColor: courseColor,
+                                          borderColor: courseColor
+                                        }}
                                       >
-                                        <div 
-                                          className="w-8 h-8 rounded-full flex items-center justify-center font-semibold text-white border-2"
-                                          style={{ 
-                                            backgroundColor: courseColor,
-                                            borderColor: courseColor
-                                          }}
-                                        >
-                                          {comment.is_anonymous ? (
-                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                              <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-                                              <path d="M2 2l20 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                                            </svg>
-                                          ) : (
-                                            comment.author?.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || 'U'
-                                          )}
-                                        </div>
-                                        <div className="flex-1">
-                                          <div className="p-3">
-                                            <div className="flex items-center gap-2 mb-1">
-                                              <h5 className="font-medium text-gray-900 text-sm">{comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Anonymous')}</h5>
-                                              {!comment.is_anonymous && <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>}
-                                              <span className="text-xs text-gray-500">•</span>
+                                        {comment.is_anonymous ? (
+                                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                                            <path d="M2 2l20 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                                          </svg>
+                                        ) : (
+                                          comment.author?.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || 'U'
+                                        )}
+                                      </div>
+                                      <div className="flex-1">
+                                        <div className="p-3">
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <h5 className="font-medium text-gray-900 text-sm">{comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Anonymous')}</h5>
+                                            {!comment.is_anonymous && <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>}
+                                            <span className="text-xs text-gray-500">•</span>
                                             <span className="text-xs text-gray-500">{formatTimestamp(comment.created_at)}</span>
                                           </div>
                                           <p className="text-gray-800 text-sm">{comment.content}</p>
@@ -1966,17 +1959,12 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                             </button>
                                           </div>
                                         </div>
-                                      </div>
                                         
                                         {/* Replies Display */}
                                         {comment.replies && comment.replies.length > 0 && (
                                           <div className="mt-3 ml-4 space-y-2">
                                             {comment.replies.map((reply: any) => (
-                                              <div 
-                                                key={reply.id} 
-                                                className={`flex items-start gap-2 ${!reply.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                                                onClick={() => !reply.is_anonymous && onNavigateToStudentProfile?.(reply.author?.name || 'Anonymous')}
-                                              >
+                                              <div key={reply.id} className="flex items-start gap-2">
                                                 <div 
                                                   className="w-6 h-6 rounded-full flex items-center justify-center font-semibold text-white border-2 text-xs"
                                                   style={{ 

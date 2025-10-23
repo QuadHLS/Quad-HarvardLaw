@@ -1913,33 +1913,35 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                   {comments[post.id]?.map((comment) => (
                                     <div key={comment.id} className="flex gap-3" onClick={(e) => e.stopPropagation()}>
                                       <div 
-                                        className={`flex items-start gap-3 ${!comment.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                                        className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-white border-2 ${!comment.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                                        style={{ 
+                                          backgroundColor: courseColor,
+                                          borderColor: courseColor
+                                        }}
                                         onClick={() => !comment.is_anonymous && handleProfileClick(comment.author_id, comment.author?.name || 'Anonymous')}
                                       >
-                                        <div 
-                                          className="w-8 h-8 rounded-full flex items-center justify-center font-semibold text-white border-2"
-                                          style={{ 
-                                            backgroundColor: courseColor,
-                                            borderColor: courseColor
-                                          }}
-                                        >
-                                          {comment.is_anonymous ? (
-                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                              <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-                                              <path d="M2 2l20 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                                            </svg>
-                                          ) : (
-                                            comment.author?.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || 'U'
-                                          )}
-                                        </div>
-                                        <div className="flex-1">
-                                          <div className="p-3">
-                                            <div className="flex items-center gap-2 mb-1">
+                                        {comment.is_anonymous ? (
+                                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                                            <path d="M2 2l20 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                                          </svg>
+                                        ) : (
+                                          comment.author?.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || 'U'
+                                        )}
+                                      </div>
+                                      <div className="flex-1">
+                                        <div className="p-3">
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <div 
+                                              className={`${!comment.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                                              onClick={() => !comment.is_anonymous && handleProfileClick(comment.author_id, comment.author?.name || 'Anonymous')}
+                                            >
                                               <h5 className="font-medium text-gray-900 text-sm">{comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Anonymous')}</h5>
-                                              {!comment.is_anonymous && <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>}
-                                              <span className="text-xs text-gray-500">•</span>
-                                              <span className="text-xs text-gray-500">{formatTimestamp(comment.created_at)}</span>
                                             </div>
+                                            {!comment.is_anonymous && <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>}
+                                            <span className="text-xs text-gray-500">•</span>
+                                            <span className="text-xs text-gray-500">{formatTimestamp(comment.created_at)}</span>
+                                          </div>
                                           <p className="text-gray-800 text-sm">{comment.content}</p>
                                           {/* comment actions */}
                                           <div className="mt-2 flex items-center gap-3">
@@ -1973,23 +1975,19 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                             </button>
                                           </div>
                                         </div>
-                                      </div>
                                         
                                         {/* Replies Display */}
                                         {comment.replies && comment.replies.length > 0 && (
                                           <div className="mt-3 ml-4 space-y-2">
                                             {comment.replies.map((reply: any) => (
-                                              <div 
-                                                key={reply.id} 
-                                                className={`flex items-start gap-2 ${!reply.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                                                onClick={() => !reply.is_anonymous && handleProfileClick(reply.author_id, reply.author?.name || 'Anonymous')}
-                                              >
+                                              <div key={reply.id} className="flex items-start gap-2">
                                                 <div 
-                                                  className="w-6 h-6 rounded-full flex items-center justify-center font-semibold text-white border-2 text-xs"
+                                                  className={`w-6 h-6 rounded-full flex items-center justify-center font-semibold text-white border-2 text-xs ${!reply.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
                                                   style={{ 
                                                     backgroundColor: courseColor,
                                                     borderColor: courseColor
                                                   }}
+                                                  onClick={() => !reply.is_anonymous && handleProfileClick(reply.author_id, reply.author?.name || 'Anonymous')}
                                                 >
                                                   {reply.is_anonymous ? (
                                                     <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
@@ -2002,7 +2000,12 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                                 </div>
                                                 <div className="flex-1">
                                                   <div className="flex items-center gap-2 mb-1">
-                                                    <h6 className="font-medium text-gray-900 text-xs">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
+                                                    <div 
+                                                      className={`${!reply.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                                                      onClick={() => !reply.is_anonymous && handleProfileClick(reply.author_id, reply.author?.name || 'Anonymous')}
+                                                    >
+                                                      <h6 className="font-medium text-gray-900 text-xs">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
+                                                    </div>
                                                     {!reply.is_anonymous && <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>}
                                                     <span className="text-xs text-gray-500">•</span>
                                                     <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>

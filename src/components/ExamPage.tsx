@@ -190,25 +190,25 @@ export function ExamPage({
   };
 
   // Upload functions
-  const formatExamDisplayName = (course: string, instructor: string, year: string, grade: string): string => {
-    // Get last 2 digits of year
-    const lastTwoDigits = year.slice(-2);
-    
-    // Get first 2 letters of every word in course name
-    const courseInitials = course
-      .split(' ')
-      .map(word => word.substring(0, 2).toUpperCase())
-      .join('');
-    
-    // Get instructor initials (first letter of each word)
-    const instructorInitials = instructor
-      .split(' ')
-      .map(name => name.charAt(0).toUpperCase())
-      .join('');
-    
-    const randomNumber = Math.floor(Math.random() * 900) + 100;
-    
-    return `[${lastTwoDigits}] ${courseInitials} ${instructorInitials} (${grade}) #${randomNumber}`;
+  const getRandomFileName = async (): Promise<string> => {
+    try {
+      const { data, error } = await supabase
+        .from('file_names')
+        .select('name')
+        .order('random()')
+        .limit(1)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching random file name:', error);
+        return 'Default Title';
+      }
+      
+      return data?.name || 'Default Title';
+    } catch (error) {
+      console.error('Error in getRandomFileName:', error);
+      return 'Default Title';
+    }
   };
 
   const ensureFolderStructure = async (course: string, instructor: string, year: string, grade: string) => {
@@ -493,8 +493,8 @@ export function ExamPage({
         return;
       }
 
-      // Generate the formatted display name
-      const formattedName = formatExamDisplayName(uploadForm.course, uploadForm.professor, uploadForm.year, uploadForm.grade);
+      // Get random file name from database
+      const formattedName = await getRandomFileName();
       
       // Get file size and page count
       const fileSize = uploadFile.size;

@@ -1009,7 +1009,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           setPosts(prev => prev.filter(post => post.id !== payload.old.id));
         }
       )
-      .subscribe((_status: any, err: any) => {
+      .subscribe((status: any, err: any) => {
         console.log('Posts channel status:', status, err);
         if (err) {
           console.error('Posts channel error:', err);
@@ -1038,32 +1038,23 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           schema: 'public',
           table: 'likes'
         },
-        async (payload: any) => {
+        (payload: any) => {
           console.log('Like added:', payload);
+          // Only refresh if this like is from another user (not the current user)
+          const payloadUserId = payload.new?.user_id;
+          console.log('Current user ID:', user?.id, 'Payload user ID:', payloadUserId);
           
-          // Check if this like is relevant to current feed mode
-          const like = payload.new;
-          if (!like) return;
+          // If we can't determine the user ID from the payload, skip the refresh to be safe
+          if (!payloadUserId) {
+            console.log('Skipping refresh because payload user ID is undefined');
+            return;
+          }
           
-          // Get the post that was liked
-          const { data: postData } = await supabase
-            .from('posts')
-            .select('course_id, is_campus_wide')
-            .eq('id', like.post_id)
-            .single();
-          
-          if (postData) {
-            // Only refresh if the like is relevant to current feed mode
-            const isRelevantToCurrentFeed = 
-              (feedMode === 'campus' && postData.is_campus_wide) ||
-              (feedMode === 'my-courses' && !postData.is_campus_wide && myCourses.some(course => course.course_id === postData.course_id));
-            
-            if (isRelevantToCurrentFeed) {
-              console.log('Like is relevant to current feed, refreshing...');
-              debouncedFetchPosts();
-            } else {
-              console.log('Like is not relevant to current feed, skipping refresh');
-            }
+          if (user && payloadUserId !== user.id) {
+            console.log('Refreshing posts because like is from another user');
+            debouncedFetchPosts();
+          } else {
+            console.log('Skipping refresh because like is from current user');
           }
         }
       )
@@ -1074,32 +1065,23 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           schema: 'public',
           table: 'likes'
         },
-        async (payload: any) => {
+        (payload: any) => {
           console.log('Like removed:', payload);
+          // Only refresh if this unlike is from another user (not the current user)
+          const payloadUserId = payload.old?.user_id;
+          console.log('Current user ID:', user?.id, 'Payload user ID:', payloadUserId);
           
-          // Check if this like removal is relevant to current feed mode
-          const like = payload.old;
-          if (!like) return;
+          // If we can't determine the user ID from the payload, skip the refresh to be safe
+          if (!payloadUserId) {
+            console.log('Skipping refresh because payload user ID is undefined');
+            return;
+          }
           
-          // Get the post that was unliked
-          const { data: postData } = await supabase
-            .from('posts')
-            .select('course_id, is_campus_wide')
-            .eq('id', like.post_id)
-            .single();
-          
-          if (postData) {
-            // Only refresh if the like removal is relevant to current feed mode
-            const isRelevantToCurrentFeed = 
-              (feedMode === 'campus' && postData.is_campus_wide) ||
-              (feedMode === 'my-courses' && !postData.is_campus_wide && myCourses.some(course => course.course_id === postData.course_id));
-            
-            if (isRelevantToCurrentFeed) {
-              console.log('Like removal is relevant to current feed, refreshing...');
-              debouncedFetchPosts();
-            } else {
-              console.log('Like removal is not relevant to current feed, skipping refresh');
-            }
+          if (user && payloadUserId !== user.id) {
+            console.log('Refreshing posts because like removal is from another user');
+            debouncedFetchPosts();
+          } else {
+            console.log('Skipping refresh because like removal is from current user');
           }
         }
       )
@@ -1174,42 +1156,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           schema: 'public',
           table: 'poll_votes'
         },
-        async (payload: any) => {
+        (payload: any) => {
           console.log('Poll vote changed:', payload);
-          
-          // Check if this poll vote is relevant to current feed mode
-          if (payload.new || payload.old) {
-            const pollId = payload.new?.poll_id || payload.old?.poll_id;
-            if (pollId) {
-              // Get the post that contains this poll
-              const { data: pollData } = await supabase
-                .from('polls')
-                .select('post_id')
-                .eq('id', pollId)
-                .single();
-              
-              if (pollData) {
-                const { data: postData } = await supabase
-                  .from('posts')
-                  .select('course_id, is_campus_wide')
-                  .eq('id', pollData.post_id)
-                  .single();
-                
-                if (postData) {
-                  // Only refresh if the poll vote is relevant to current feed mode
-                  const isRelevantToCurrentFeed = 
-                    (feedMode === 'campus' && postData.is_campus_wide) ||
-                    (feedMode === 'my-courses' && !postData.is_campus_wide && myCourses.some(course => course.course_id === postData.course_id));
-                  
-                  if (isRelevantToCurrentFeed) {
-                    console.log('Poll vote is relevant to current feed, refreshing...');
-                    debouncedFetchPosts();
-                  } else {
-                    console.log('Poll vote is not relevant to current feed, skipping refresh');
-                  }
-                }
-              }
-            }
+          // Only refresh if this poll vote is from another user (not the current user)
+          const payloadUserId = payload.new?.user_id || payload.old?.user_id;
+          if (user && payloadUserId && payloadUserId !== user.id) {
+            debouncedFetchPosts();
           }
         }
       )

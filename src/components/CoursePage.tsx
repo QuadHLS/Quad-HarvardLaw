@@ -593,11 +593,14 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
     }
     
     const timeout = setTimeout(async () => {
-      await fetchCoursePosts(false); // Background refresh, don't show loading screen
+      // Only fetch posts if we have a valid course UUID
+      if (userCourse?.course_id) {
+        await fetchCoursePosts(false); // Background refresh, don't show loading screen
+      }
     }, 150); // 150ms debounce
     
     fetchPostsTimeoutRef.current = timeout;
-  }, []);
+  }, [userCourse?.course_id]);
 
   // Fetch user's course data from profiles table
   useEffect(() => {
@@ -975,8 +978,10 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
           },
           async (payload: any) => {
             console.log('Like added:', payload);
-            // Refresh posts to get updated like counts (debounced)
-            debouncedFetchPosts();
+            // Only refresh if we have a valid course UUID and this like is for a post in our course
+            if (userCourse?.course_id) {
+              debouncedFetchPosts();
+            }
           }
         )
         .on(
@@ -988,8 +993,10 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
           },
           async (payload: any) => {
             console.log('Like removed:', payload);
-            // Refresh posts to get updated like counts (debounced)
-            debouncedFetchPosts();
+            // Only refresh if we have a valid course UUID
+            if (userCourse?.course_id) {
+              debouncedFetchPosts();
+            }
           }
         )
         .subscribe((_status: any, err: any) => {
@@ -1071,8 +1078,10 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
           },
           async (payload: any) => {
             console.log('Poll vote added:', payload);
-            // Refresh posts to get updated poll results (debounced)
-            debouncedFetchPosts();
+            // Only refresh if we have a valid course UUID
+            if (userCourse?.course_id) {
+              debouncedFetchPosts();
+            }
           }
         )
         .on(
@@ -1084,8 +1093,10 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
           },
           async (payload: any) => {
             console.log('Poll vote removed:', payload);
-            // Refresh posts to get updated poll results (debounced)
-            debouncedFetchPosts();
+            // Only refresh if we have a valid course UUID
+            if (userCourse?.course_id) {
+              debouncedFetchPosts();
+            }
           }
         )
         .subscribe((_status: any, err: any) => {

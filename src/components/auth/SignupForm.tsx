@@ -64,7 +64,11 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
         }
       );
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+      
       const validation = await response.json();
+      console.log('Validation response:', validation);
 
       if (!validation.valid) {
         setError(
@@ -74,6 +78,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
         return;
       }
     } catch (err) {
+      console.error('Validation error:', err);
       setError('Unable to validate email address. Please try again.');
       setLoading(false);
       return;

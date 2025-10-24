@@ -693,7 +693,7 @@ function MyCourses({
         {myCoursesData.map((course) => (
           <div 
             key={course.id}
-            className="p-3 rounded-lg border border-gray-200 hover:border-[#752432] cursor-pointer transition-all duration-200 hover:shadow-sm"
+            className="p-3 rounded-lg border border-gray-200 hover:border-[#752432] cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-110"
             style={{ backgroundColor: '#FEFBF6' }}
             onClick={() => onNavigateToCourse?.(course.name)}
           >

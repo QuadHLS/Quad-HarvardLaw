@@ -71,12 +71,15 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
       console.log('Validation response:', validation);
 
       if (!validation.valid) {
+        console.log('Edge function validation failed:', validation);
         setError(
           validation.error || 'Please use your Harvard Law School email address'
         );
         setLoading(false);
         return;
       }
+      
+      console.log('Edge function validation passed, proceeding to Supabase signup');
     } catch (err) {
       console.error('Validation error:', err);
       setError('Unable to validate email address. Please try again.');
@@ -84,7 +87,9 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
       return;
     }
 
+    console.log('Calling signUp with:', { email, password: '***' });
     const { error } = await signUp(email, password);
+    console.log('SignUp result:', { error });
 
     if (error) {
       setError(error.message);

@@ -28,7 +28,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const { signUp, signInWithGoogle } = useAuth();
+  const { signInWithGoogle } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,14 +44,16 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
     }
 
     // Validate password strength
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long');
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long');
       setLoading(false);
       return;
     }
 
-    // Validate Harvard email before signup
+    // Create user account using edge function
     try {
+      console.log('Calling edge function to create user:', { email, password: '***' });
+      
       const response = await fetch(
         'https://ujsnnvdbujguiejhxuds.supabase.co/functions/v1/validate-harvard-email',
         {
@@ -60,41 +62,31 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ email, password }),
         }
       );
 
       console.log('Response status:', response.status);
       console.log('Response headers:', response.headers);
       
-      const validation = await response.json();
-      console.log('Validation response:', validation);
+      const result = await response.json();
+      console.log('Edge function result:', result);
 
-      if (!validation.valid) {
-        console.log('Edge function validation failed:', validation);
-        setError(
-          validation.error || 'Please use your Harvard Law School email address'
-        );
+      if (!result.success) {
+        console.log('Edge function failed:', result);
+        setError(result.error || 'Failed to create account. Please try again.');
         setLoading(false);
         return;
       }
       
-      console.log('Edge function validation passed, proceeding to Supabase signup');
+      console.log('User created successfully:', result.user);
+      setSuccess(true);
+      
     } catch (err) {
-      console.error('Validation error:', err);
-      setError('Unable to validate email address. Please try again.');
+      console.error('Account creation error:', err);
+      setError('Unable to create account. Please try again.');
       setLoading(false);
       return;
-    }
-
-    console.log('Calling signUp with:', { email, password: '***' });
-    const { error } = await signUp(email, password);
-    console.log('SignUp result:', { error });
-
-    if (error) {
-      setError(error.message);
-    } else {
-      setSuccess(true);
     }
 
     setLoading(false);

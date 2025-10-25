@@ -1066,52 +1066,37 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
       {/* Header */}
       <div className="shadow-sm" style={{ backgroundColor: '#752432' }}>
         <div className="p-4">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            {/* Title and controls - responsive layout */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+            {/* Left side - Title */}
+            <div className="flex-shrink-0">
               <h1 className="text-2xl font-semibold text-white whitespace-nowrap">Course Planner</h1>
-            <div className="flex items-center gap-4">
-              {/* Term Selector */}
-              <div className="relative bg-white/10 rounded-lg p-1 backdrop-blur-sm border border-white/20">
-                <div className="flex items-center">
-                    {(['FA', 'WI', 'SP'] as const).map((term) => (
-                    <button
-                      key={term}
-                      onClick={() => setSelectedTerm(term)}
-                      className={`relative px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-                        selectedTerm === term
-                          ? 'text-[#752432] shadow-sm'
-                          : 'text-white/80 hover:text-white hover:bg-white/10'
-                      }`}
-                      style={selectedTerm === term ? {
-                        backgroundColor: 'white',
-                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                      } : {}}
-                    >
-                        {term === 'FA' ? 'Fall' : term === 'WI' ? 'Winter' : 'Spring'}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            </div>
 
-              {/* Action Buttons - moved between semester selector and credits */}
-              <div className="flex items-center gap-2">
-                {scheduledCourses.length > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      // Only clear courses for the currently selected semester
-                      setScheduledCourses(prev => 
-                        prev.filter(course => !courseMatchesSemester(course.term, selectedTerm))
-                      );
-                    }}
-                    className="flex items-center gap-1.5 bg-white border-white text-[#752432] hover:bg-gray-50"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Clear All
-                  </Button>
-                )}
+            {/* Center - Controls and buttons */}
+            <div className="flex-1 flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="flex items-center gap-4">
+                {/* Term Selector */}
+                <div className="relative bg-white/10 rounded-lg p-1 backdrop-blur-sm border border-white/20">
+                  <div className="flex items-center">
+                      {(['FA', 'WI', 'SP'] as const).map((term) => (
+                      <button
+                        key={term}
+                        onClick={() => setSelectedTerm(term)}
+                        className={`relative px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                          selectedTerm === term
+                            ? 'text-[#752432] shadow-sm'
+                            : 'text-white/80 hover:text-white hover:bg-white/10'
+                        }`}
+                        style={selectedTerm === term ? {
+                          backgroundColor: 'white',
+                          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                        } : {}}
+                      >
+                          {term === 'FA' ? 'Fall' : term === 'WI' ? 'Winter' : 'Spring'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
                 {/* Save Button - always visible; disabled if no courses scheduled */}
                 <div className="relative">
@@ -1137,28 +1122,14 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                     Save
                   </Button>
                 </div>
-                
-                {/* Saved Schedules Button */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setShowSavedSchedulesDialog(true);
-                    loadSavedSchedules(); // Refresh saved schedules when opening dialog
-                  }}
-                  className="flex items-center gap-1.5 bg-white border-white text-[#752432] hover:bg-gray-50"
-                >
-                  <FolderOpen className="w-4 h-4" />
-                  Saved Schedules
-                </Button>
-              </div>
 
-              {/* Credits summary next to term selector */}
-              <div className="flex flex-col gap-0.5">
-                <div className="text-xs">
-                  <span className="text-white/80">Total Credits: </span>
-                  <span className="font-medium text-white">{totalCredits}</span>
-                </div>
+              </div>
+            </div>
+
+            {/* Right side - Credits, Clear All and Saved Schedules Buttons */}
+            <div className="flex-shrink-0 flex items-center gap-6">
+              {/* Credits summary - 2 columns */}
+              <div className="flex gap-4">
                 <TooltipProvider>
                   <div className="text-xs">
                     {(() => {
@@ -1195,9 +1166,41 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                     })()}
                   </div>
                 </TooltipProvider>
+                <div className="text-xs">
+                  <span className="text-white/80">Total Credits: </span>
+                  <span className="font-medium text-white">{totalCredits}</span>
+                </div>
               </div>
 
-              </div>
+              {scheduledCourses.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    // Only clear courses for the currently selected semester
+                    setScheduledCourses(prev => 
+                      prev.filter(course => !courseMatchesSemester(course.term, selectedTerm))
+                    );
+                  }}
+                  className="flex items-center gap-1.5 bg-white border-white text-[#752432] hover:bg-gray-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Clear All
+                </Button>
+              )}
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowSavedSchedulesDialog(true);
+                  loadSavedSchedules(); // Refresh saved schedules when opening dialog
+                }}
+                className="flex items-center gap-1.5 bg-white border-white text-[#752432] hover:bg-gray-50"
+              >
+                <FolderOpen className="w-4 h-4" />
+                Saved Schedules
+              </Button>
             </div>
           </div>
         </div>
@@ -1211,17 +1214,18 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
           <div className="p-4 border-b border-gray-200 flex-shrink-0 relative" style={{ backgroundColor: '#752432' }}>
             <div className="space-y-3">
               <div className="relative border-t border-white/20 pt-3">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Search className="absolute left-3 w-4 h-4 text-gray-400" style={{ top: 'calc(50% + 6px)', transform: 'translateY(-50%)' }} />
                 <Input
                   placeholder="Search courses or professors…"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className={`pl-10 bg-white border-gray-300 focus:border-white focus:ring-white ${searchTerm ? 'pr-10' : 'pr-3'}`}
+                  className={`pl-10 bg-white border-gray-300 focus:border-white focus:ring-white h-10 ${searchTerm ? 'pr-10' : 'pr-3'}`}
                 />
                 {searchTerm && (
                   <button
                     onClick={() => setSearchTerm('')}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors z-10"
+                    className="absolute right-2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors z-10"
+                    style={{ top: 'calc(50% + 6px)', transform: 'translateY(-50%)' }}
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -1586,7 +1590,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                         onMouseLeave={(e) => {
                           e.currentTarget.style.transform = 'scale(1)';
                         }}
-                        onClick={() => addCourseToSchedule(course)}
+                        onClick={() => showCourseDetail(course)}
                       >
                         <div className="px-3 py-1.5 relative">
                           {/* First line: Course Name (bold) on left, Credits on right */}

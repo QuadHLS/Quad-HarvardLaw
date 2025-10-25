@@ -139,7 +139,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
     return (
       <Card className="w-full" style={{ backgroundColor: '#ffffff', border: 'none', boxShadow: '0 0 22px rgba(0, 0, 0, 0.12)', borderRadius: '1rem' }}>
         <CardHeader className="text-center pb-2 px-4 pt-4">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-4">
+          <div className="flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-4 mx-auto">
             <CheckCircle className="h-8 w-8 text-green-600" />
           </div>
           <CardTitle className="text-2xl">Check your email</CardTitle>

@@ -81,8 +81,12 @@ function AppContent({ user }: { user: any }) {
     };
   }, [user]);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
-  const [showResetPassword, setShowResetPassword] = useState(false);
-  const [showAuthCallback, setShowAuthCallback] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(() => {
+    return window.location.pathname === '/reset-password';
+  });
+  const [showAuthCallback, setShowAuthCallback] = useState(() => {
+    return window.location.pathname === '/auth/callback';
+  });
 
   // Check if we're on special auth pages
   useEffect(() => {
@@ -760,7 +764,7 @@ function AppContent({ user }: { user: any }) {
     );
   }
 
-  // Show auth callback page if user is on auth callback route
+  // Show auth callback page if user is on auth callback route (check this first)
   if (showAuthCallback) {
     console.log('Rendering AuthCallback');
     return <AuthCallback />;
@@ -772,8 +776,8 @@ function AppContent({ user }: { user: any }) {
     return <ResetPasswordPage />;
   }
 
-  // Show login page if user is not authenticated (unless we're on reset password page)
-  if (!user && !showResetPassword) {
+  // Show login page if user is not authenticated (unless we're on special auth pages)
+  if (!user && !showResetPassword && !showAuthCallback) {
     return <AuthPage />;
   }
 

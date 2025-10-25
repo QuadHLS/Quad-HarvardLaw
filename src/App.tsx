@@ -87,16 +87,6 @@ function AppContent({ user }: { user: any }) {
     const checkResetPassword = () => {
       console.log('Checking reset password URL:', window.location.pathname);
       if (window.location.pathname === '/reset-password') {
-        // Check if this is a page reload (no PASSWORD_RECOVERY event)
-        // If user reloads the page, redirect them back to sign-in
-        const isPageReload = !sessionStorage.getItem('passwordRecoveryInProgress');
-        if (isPageReload) {
-          console.log('Page reload detected on reset password page, redirecting to sign-in');
-          window.history.pushState({}, '', '/');
-          window.dispatchEvent(new PopStateEvent('popstate'));
-          return;
-        }
-        
         console.log('Setting showResetPassword to true');
         setShowResetPassword(true);
       } else {

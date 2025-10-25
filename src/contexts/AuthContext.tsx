@@ -51,9 +51,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (event === 'PASSWORD_RECOVERY') {
         console.log('PASSWORD_RECOVERY event detected, redirecting to reset password page');
         
-        // Set flag to indicate password recovery is in progress
-        sessionStorage.setItem('passwordRecoveryInProgress', 'true');
-        
         window.history.pushState({}, '', '/reset-password');
         window.dispatchEvent(new PopStateEvent('popstate'));
         

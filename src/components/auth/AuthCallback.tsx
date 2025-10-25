@@ -15,11 +15,6 @@ export const AuthCallback: React.FC = () => {
       const errorParam = urlParams.get('error');
       const errorDescription = urlParams.get('error_description');
       
-      console.log('AuthCallback: Full URL:', window.location.href);
-      console.log('AuthCallback: URL params:', Object.fromEntries(urlParams.entries()));
-      console.log('AuthCallback: Error param:', errorParam);
-      console.log('AuthCallback: Error description:', errorDescription);
-      
       if (errorParam) {
         console.log('AuthCallback: OAuth error detected:', errorParam, errorDescription);
         let errorMessage = 'OAuth authentication failed.';

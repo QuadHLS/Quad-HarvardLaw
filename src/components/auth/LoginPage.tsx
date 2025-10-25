@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -22,13 +22,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(initialError || '');
+  const [error, setError] = useState('');
   const { signIn, signInWithGoogle } = useAuth();
 
-  // Debug logging
-  console.log('LoginPage: initialError:', initialError);
-  console.log('LoginPage: error state:', error);
-  console.log('LoginPage: will show error:', !!error);
+  // Handle initialError prop
+  useEffect(() => {
+    if (initialError) {
+      setError(initialError);
+    }
+  }, [initialError]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

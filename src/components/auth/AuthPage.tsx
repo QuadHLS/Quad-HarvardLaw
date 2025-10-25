@@ -14,12 +14,7 @@ export const AuthPage: React.FC = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const errorParam = urlParams.get('error');
     
-    console.log('AuthPage: Full URL:', window.location.href);
-    console.log('AuthPage: URL params:', Object.fromEntries(urlParams.entries()));
-    console.log('AuthPage: Error param:', errorParam);
-    
     if (errorParam) {
-      console.log('AuthPage: Setting error:', decodeURIComponent(errorParam));
       setUrlError(decodeURIComponent(errorParam));
       // Clean up the URL by removing the error parameter
       const newUrl = window.location.pathname;
@@ -63,12 +58,6 @@ export const AuthPage: React.FC = () => {
             onForgotPassword={handleForgotPassword}
             initialError={urlError}
           />
-        )}
-        {/* Debug: Show urlError value */}
-        {urlError && (
-          <div style={{ position: 'fixed', top: '10px', right: '10px', background: 'red', color: 'white', padding: '10px', zIndex: 9999 }}>
-            DEBUG: urlError = "{urlError}"
-          </div>
         )}
         {authMode === 'signup' && (
           <SignupForm onSwitchToLogin={handleSwitchToLogin} />

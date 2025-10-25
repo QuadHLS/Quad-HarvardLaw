@@ -74,7 +74,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // TODO: Can be optimized later to only validate OAuth sign-ins
         console.log('Validating email for all sign-ins');
         
-        // Validate email with edge function
+        // Validate email with edge function (OAuth validation - email only)
         try {
           const response = await fetch(
             'https://ujsnnvdbujguiejhxuds.supabase.co/functions/v1/validate-harvard-email',
@@ -84,7 +84,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${session.access_token}`,
               },
-              body: JSON.stringify({ email: session.user.email }),
+              body: JSON.stringify({ 
+                email: session.user.email,
+                oauth_validation: true  // Flag to indicate this is OAuth validation
+              }),
             }
           );
 

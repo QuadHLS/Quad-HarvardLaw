@@ -254,9 +254,12 @@ function AppContent({ user }: { user: any }) {
   // Wrapper components for dynamic routes
   const CoursePageWrapper = () => {
     const { courseName } = useParams<{ courseName: string }>();
+    const decodedCourseName = courseName ? decodeURIComponent(courseName) : '';
+    console.log('CoursePageWrapper - courseName param:', courseName);
+    console.log('CoursePageWrapper - decoded course name:', decodedCourseName);
     return (
       <CoursePage
-        courseName={courseName || ''}
+        courseName={decodedCourseName}
         onBack={handleBackFromCourse}
         onNavigateToOutlines={handleNavigateToOutlines}
         onNavigateToOutlinesPage={handleNavigateToOutlinesPage}
@@ -267,9 +270,10 @@ function AppContent({ user }: { user: any }) {
 
   const StudentProfileWrapper = () => {
     const { studentName } = useParams<{ studentName: string }>();
+    const decodedStudentName = studentName ? decodeURIComponent(studentName) : '';
     return (
       <ProfilePage
-        studentName={studentName || ''}
+        studentName={decodedStudentName}
         onBack={handleBackFromStudentProfile}
         fromBarReview={previousSection === 'barreview'}
       />
@@ -489,7 +493,8 @@ function AppContent({ user }: { user: any }) {
   };
 
   const handleNavigateToCourse = (courseName: string) => {
-    navigate(`/course/${courseName}`);
+    const encodedCourseName = encodeURIComponent(courseName);
+    navigate(`/course/${encodedCourseName}`);
   };
 
   const handleBackFromCourse = () => {
@@ -514,7 +519,8 @@ function AppContent({ user }: { user: any }) {
 
   const handleNavigateToStudentProfile = (studentName: string) => {
     setPreviousSection(activeSection); // Remember where we came from
-    navigate(`/student-profile/${studentName}`);
+    const encodedStudentName = encodeURIComponent(studentName);
+    navigate(`/student-profile/${encodedStudentName}`);
   };
 
   const handleBackFromStudentProfile = () => {

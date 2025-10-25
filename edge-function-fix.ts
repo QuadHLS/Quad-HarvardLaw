@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
 
   try {
     const { email, password } = await req.json();
-
+    
     // Check if email is provided
     if (!email) {
       return new Response(JSON.stringify({
@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
         status: 400
       });
     }
-
+    
     // Check if password is provided
     if (!password) {
       return new Response(JSON.stringify({
@@ -41,10 +41,9 @@ Deno.serve(async (req) => {
         status: 400
       });
     }
-
-    // DEBUG: Log the email details
+    
     console.log('Email received:', JSON.stringify(email));
-
+    
     // Check if email is allowed
     const emailLower = email.toLowerCase().trim();
     const allowedDomains = [
@@ -56,11 +55,11 @@ Deno.serve(async (req) => {
       '@jd28.law.harvard.edu'
     ];
     const specialException = 'justin031607@gmail.com';
-
+    
     // Check if email ends with allowed domain OR is the special exception
     const isAllowedDomain = allowedDomains.some((domain) => emailLower.endsWith(domain));
     const isSpecialException = emailLower === specialException;
-
+    
     if (!isAllowedDomain && !isSpecialException) {
       console.log('Email validation failed - not in allowed domains or special exception');
       return new Response(JSON.stringify({
@@ -71,7 +70,7 @@ Deno.serve(async (req) => {
         status: 400
       });
     }
-
+    
     // Password strength validation
     if (password.length < 8) {
       return new Response(JSON.stringify({
@@ -82,9 +81,9 @@ Deno.serve(async (req) => {
         status: 400
       });
     }
-
+    
     console.log('Email validation passed, creating user with Admin API');
-
+    
     // Create Supabase admin client
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -96,18 +95,18 @@ Deno.serve(async (req) => {
         }
       }
     );
-
-    // Create user with email_confirm: true (auto-confirm) and password
+    
+    // Create user with email_confirm: false (requires confirmation, sends Supabase's default email)
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email: emailLower,
       password: password,
-      email_confirm: true, // Auto-confirm so user can sign in immediately
+      email_confirm: false, // This will send Supabase's default confirmation email
       user_metadata: {
         signup_source: 'edge_function',
         signup_timestamp: new Date().toISOString()
       }
     });
-
+    
     if (error) {
       console.error('Admin API error:', error);
       return new Response(JSON.stringify({
@@ -118,10 +117,10 @@ Deno.serve(async (req) => {
         status: 500
       });
     }
-
+    
     console.log('User created successfully:', data.user?.id);
-    console.log('Account created and confirmed - user can sign in immediately');
-
+    console.log('Confirmation email sent successfully');
+    
     return new Response(JSON.stringify({
       success: true,
       user: {
@@ -132,7 +131,7 @@ Deno.serve(async (req) => {
     }), {
       headers: corsHeaders
     });
-
+    
   } catch (error) {
     console.error('Function error:', error);
     return new Response(JSON.stringify({

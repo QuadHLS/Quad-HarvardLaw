@@ -12,7 +12,6 @@ import {
   CheckCircle,
   Mail,
   UserPlus,
-  ArrowRight,
 } from 'lucide-react';
 
 interface SignupFormProps {
@@ -66,9 +65,6 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
         }
       );
 
-      console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
-      
       const result = await response.json();
       console.log('Edge function result:', result);
 
@@ -121,7 +117,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
           </div>
           <CardTitle className="text-2xl">Check your email</CardTitle>
           <CardDescription className="text-sm" style={{ marginTop: '0.5rem' }}>
-            We've sent you a confirmation link to verify your account.
+            We've sent you a confirmation link to complete your account setup.
           </CardDescription>
         </CardHeader>
         <CardContent className="px-4 pb-4">

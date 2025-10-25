@@ -64,6 +64,12 @@ export const AuthPage: React.FC = () => {
             initialError={urlError}
           />
         )}
+        {/* Debug: Show urlError value */}
+        {urlError && (
+          <div style={{ position: 'fixed', top: '10px', right: '10px', background: 'red', color: 'white', padding: '10px', zIndex: 9999 }}>
+            DEBUG: urlError = "{urlError}"
+          </div>
+        )}
         {authMode === 'signup' && (
           <SignupForm onSwitchToLogin={handleSwitchToLogin} />
         )}

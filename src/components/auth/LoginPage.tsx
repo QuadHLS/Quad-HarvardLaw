@@ -25,6 +25,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   const [error, setError] = useState(initialError || '');
   const { signIn, signInWithGoogle } = useAuth();
 
+  // Debug logging
+  console.log('LoginPage: initialError:', initialError);
+  console.log('LoginPage: error state:', error);
+  console.log('LoginPage: will show error:', !!error);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);

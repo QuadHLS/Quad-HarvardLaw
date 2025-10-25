@@ -7,11 +7,34 @@ type AuthMode = 'login' | 'signup' | 'forgot-password'
 
 export const AuthPage: React.FC = () => {
   const [authMode, setAuthMode] = useState<AuthMode>('login')
+  const [urlError, setUrlError] = useState<string | null>(null)
 
-  const handleSwitchToSignup = () => setAuthMode('signup')
-  const handleSwitchToLogin = () => setAuthMode('login')
+  // Check for error in URL parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const errorParam = urlParams.get('error');
+    
+    if (errorParam) {
+      setUrlError(decodeURIComponent(errorParam));
+      // Clean up the URL by removing the error parameter
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, []);
+
+  const handleSwitchToSignup = () => {
+    setAuthMode('signup')
+    setUrlError(null) // Clear error when switching modes
+  }
+  const handleSwitchToLogin = () => {
+    setAuthMode('login')
+    setUrlError(null) // Clear error when switching modes
+  }
   const handleForgotPassword = () => setAuthMode('forgot-password')
-  const handleBackToLogin = () => setAuthMode('login')
+  const handleBackToLogin = () => {
+    setAuthMode('login')
+    setUrlError(null) // Clear error when switching modes
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center relative px-4" style={{ backgroundColor: 'var(--background-color, #f9f5f0)', minHeight: '100vh' }}>
@@ -33,6 +56,7 @@ export const AuthPage: React.FC = () => {
           <LoginPage
             onSwitchToSignup={handleSwitchToSignup}
             onForgotPassword={handleForgotPassword}
+            initialError={urlError}
           />
         )}
         {authMode === 'signup' && (

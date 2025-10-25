@@ -10,17 +10,19 @@ import { Loader2, Eye, EyeOff } from 'lucide-react';
 interface LoginPageProps {
   onSwitchToSignup: () => void;
   onForgotPassword: () => void;
+  initialError?: string | null;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({
   onSwitchToSignup,
   onForgotPassword,
+  initialError,
 }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(initialError || '');
   const { signIn, signInWithGoogle } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {

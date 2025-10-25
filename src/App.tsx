@@ -760,7 +760,7 @@ function AppContent({ user }: { user: any }) {
     );
   }
 
-  // Show auth callback page if user is on auth callback route (check this first)
+  // Show auth callback page if user is on auth callback route
   if (showAuthCallback) {
     console.log('Rendering AuthCallback');
     return <AuthCallback />;

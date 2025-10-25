@@ -757,8 +757,9 @@ function AppContent({ user }: { user: any }) {
   }
 
 
-  // Show onboarding flow if user hasn't completed onboarding (unless we're on reset password page)
-  if (!hasCompletedOnboarding && !showResetPassword) {
+  // Show onboarding flow if user hasn't completed onboarding (unless we're on reset password page or in password recovery)
+  const isPasswordRecovery = sessionStorage.getItem('isPasswordRecovery') === 'true';
+  if (!hasCompletedOnboarding && !showResetPassword && !isPasswordRecovery) {
     return (
       <OnboardingFlow onComplete={async () => {
         // Mark classes_filled as true in the database

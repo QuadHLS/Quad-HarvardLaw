@@ -5,6 +5,7 @@ import { Label } from '../ui/label';
 import { Alert, AlertDescription } from '../ui/alert';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 import {
   Loader2,
   Eye,
@@ -49,9 +50,9 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
       return;
     }
 
-    // Create user account using edge function
+    // First validate email with edge function
     try {
-      console.log('Calling edge function to create user:', { email, password: '***' });
+      console.log('Validating email with edge function:', { email });
       
       const response = await fetch(
         'https://ujsnnvdbujguiejhxuds.supabase.co/functions/v1/validate-harvard-email',
@@ -61,21 +62,47 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email }),
         }
       );
 
       const result = await response.json();
-      console.log('Edge function result:', result);
+      console.log('Email validation result:', result);
 
       if (!result.success) {
-        console.log('Edge function failed:', result);
-        setError(result.error || 'Failed to create account. Please try again.');
+        console.log('Email validation failed:', result);
+        setError(result.error || 'Please use your Harvard Law School email address.');
         setLoading(false);
         return;
       }
       
-      console.log('User created successfully:', result.user);
+      console.log('Email validation passed, creating account with Supabase auth');
+      
+    } catch (err) {
+      console.error('Email validation error:', err);
+      setError('Unable to validate email. Please try again.');
+      setLoading(false);
+      return;
+    }
+
+    // Now create account using Supabase auth (which will send confirmation email and save password)
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.toLowerCase().trim(),
+        password: password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
+
+      if (error) {
+        console.error('Supabase signup error:', error);
+        setError(error.message);
+        setLoading(false);
+        return;
+      }
+
+      console.log('Account created successfully:', data.user);
       setSuccess(true);
       
     } catch (err) {

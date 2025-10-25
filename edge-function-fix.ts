@@ -1,5 +1,4 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,7 +17,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { email, password } = await req.json();
+    const { email } = await req.json();
     
     // Check if email is provided
     if (!email) {
@@ -31,18 +30,7 @@ Deno.serve(async (req) => {
       });
     }
     
-    // Check if password is provided
-    if (!password) {
-      return new Response(JSON.stringify({
-        error: 'Password is required',
-        success: false
-      }), {
-        headers: corsHeaders,
-        status: 400
-      });
-    }
-    
-    console.log('Email received:', JSON.stringify(email));
+    console.log('Email validation request for:', email);
     
     // Check if email is allowed
     const emailLower = email.toLowerCase().trim();
@@ -71,63 +59,11 @@ Deno.serve(async (req) => {
       });
     }
     
-    // Password strength validation
-    if (password.length < 8) {
-      return new Response(JSON.stringify({
-        error: 'Password must be at least 8 characters',
-        success: false
-      }), {
-        headers: corsHeaders,
-        status: 400
-      });
-    }
-    
-    console.log('Email validation passed, creating user with Admin API');
-    
-    // Create Supabase admin client
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
-    
-    // Create user with email_confirm: false (requires confirmation, sends Supabase's default email)
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
-      email: emailLower,
-      password: password,
-      email_confirm: false, // This will send Supabase's default confirmation email
-      user_metadata: {
-        signup_source: 'edge_function',
-        signup_timestamp: new Date().toISOString()
-      }
-    });
-    
-    if (error) {
-      console.error('Admin API error:', error);
-      return new Response(JSON.stringify({
-        error: 'Failed to create account. Please try again.',
-        success: false
-      }), {
-        headers: corsHeaders,
-        status: 500
-      });
-    }
-    
-    console.log('User created successfully:', data.user?.id);
-    console.log('Confirmation email sent successfully');
+    console.log('Email validation passed for:', emailLower);
     
     return new Response(JSON.stringify({
       success: true,
-      user: {
-        id: data.user?.id,
-        email: data.user?.email
-      },
-      message: 'Account created successfully. Please check your email to verify your account.'
+      message: 'Email is valid for Harvard Law School'
     }), {
       headers: corsHeaders
     });
@@ -135,7 +71,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Function error:', error);
     return new Response(JSON.stringify({
-      error: error.message || 'An error occurred during account creation',
+      error: error.message || 'An error occurred during email validation',
       success: false
     }), {
       headers: corsHeaders,

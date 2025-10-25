@@ -64,9 +64,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
   return (
     <Card className="w-full" style={{ backgroundColor: '#ffffff', border: 'none', boxShadow: '0 0 22px rgba(0, 0, 0, 0.06)' }}>
-          <CardHeader className="text-center pb-2 px-3 sm:px-4 pt-3 sm:pt-4">
+          <CardHeader className="text-center pb-1 px-3 sm:px-4 pt-3 sm:pt-4">
             <CardTitle className="text-xl sm:text-2xl">Sign in</CardTitle>
-            <CardDescription className="text-xs sm:text-sm" style={{ marginTop: '0.5rem' }}>
+            <CardDescription className="text-sm sm:text-base" style={{ marginTop: '0.25rem' }}>
               Enter your email and password to sign in
             </CardDescription>
           </CardHeader>

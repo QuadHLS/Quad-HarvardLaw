@@ -165,7 +165,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
       <CardHeader className="text-center pb-2 px-4 pt-4">
         <CardTitle className="text-2xl">Create Account</CardTitle>
         <CardDescription className="text-sm" style={{ marginTop: '0.5rem' }}>
-          Join the Quad Database community
+          Join the Quad
         </CardDescription>
       </CardHeader>
 

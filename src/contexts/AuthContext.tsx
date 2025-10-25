@@ -50,6 +50,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Handle password recovery - redirect to reset password page and prevent auto sign-in
       if (event === 'PASSWORD_RECOVERY') {
         console.log('PASSWORD_RECOVERY event detected, redirecting to reset password page');
+        
+        // Set flag to indicate password recovery is in progress
+        sessionStorage.setItem('passwordRecoveryInProgress', 'true');
+        
         window.history.pushState({}, '', '/reset-password');
         window.dispatchEvent(new PopStateEvent('popstate'));
         

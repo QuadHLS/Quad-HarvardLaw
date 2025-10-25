@@ -36,6 +36,10 @@ export function ResetPasswordPage() {
 
       // Password updated successfully
       setSuccess(true);
+      
+      // Clear the password recovery flag
+      sessionStorage.removeItem('passwordRecoveryInProgress');
+      
       setTimeout(() => {
         // Navigate back to home page
         window.history.pushState({}, '', '/');

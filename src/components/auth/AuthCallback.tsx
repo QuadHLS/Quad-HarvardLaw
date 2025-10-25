@@ -8,8 +8,10 @@ export const AuthCallback: React.FC = () => {
 
   useEffect(() => {
     const handleAuthCallback = async () => {
+      console.log('AuthCallback: Starting OAuth validation');
       try {
         const { data, error } = await supabase.auth.getSession();
+        console.log('AuthCallback: Session data:', { session: !!data.session, error });
 
         if (error) {
           setError(error.message);
@@ -19,9 +21,11 @@ export const AuthCallback: React.FC = () => {
         if (data.session) {
           // Check if email is from Harvard
           const userEmail = data.session.user.email;
+          console.log('AuthCallback: User email:', userEmail);
 
           if (userEmail) {
             // Validate Harvard email
+            console.log('AuthCallback: Calling edge function for validation');
             const response = await fetch(
               'https://ujsnnvdbujguiejhxuds.supabase.co/functions/v1/validate-harvard-email',
               {
@@ -35,6 +39,7 @@ export const AuthCallback: React.FC = () => {
             );
 
             const validation = await response.json();
+            console.log('AuthCallback: Validation result:', validation);
 
             if (!validation.valid) {
               // Sign out the non-Harvard user

@@ -45,7 +45,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event: string, session: any) => {
-      console.log('Auth state change:', event, session?.user?.email);
+      console.log('Auth state change:', event, session?.user?.email, 'Session:', !!session);
       
       // Handle password recovery - redirect to reset password page
       if (event === 'PASSWORD_RECOVERY') {

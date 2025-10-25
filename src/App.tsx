@@ -94,7 +94,7 @@ function AppContent({ user }: { user: any }) {
         setShowResetPassword(true);
         setShowAuthCallback(false);
       } else if (window.location.pathname === '/auth/callback') {
-        console.log('Setting showAuthCallback to true');
+        console.log('Setting showAuthCallback to true - OAuth callback detected');
         setShowAuthCallback(true);
         setShowResetPassword(false);
       } else {

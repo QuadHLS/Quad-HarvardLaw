@@ -85,7 +85,9 @@ function AppContent({ user }: { user: any }) {
   // Check if we're on the reset password page
   useEffect(() => {
     const checkResetPassword = () => {
+      console.log('Checking reset password URL:', window.location.pathname);
       if (window.location.pathname === '/reset-password') {
+        console.log('Setting showResetPassword to true');
         setShowResetPassword(true);
       } else {
         setShowResetPassword(false);
@@ -782,6 +784,7 @@ function AppContent({ user }: { user: any }) {
 
   // Show reset password page if user is on reset password route
   if (showResetPassword) {
+    console.log('Rendering ResetPasswordPage');
     return <ResetPasswordPage />;
   }
 

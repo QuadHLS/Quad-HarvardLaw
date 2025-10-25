@@ -47,17 +47,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } = supabase.auth.onAuthStateChange((event: string, session: any) => {
       console.log('Auth state change:', event, session?.user?.email);
       
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
-      
-      // Handle password recovery - redirect to reset password page
+      // Handle password recovery - redirect to reset password page and prevent auto sign-in
       if (event === 'PASSWORD_RECOVERY') {
         console.log('PASSWORD_RECOVERY event detected, redirecting to reset password page');
         window.history.pushState({}, '', '/reset-password');
         window.dispatchEvent(new PopStateEvent('popstate'));
+        
+        // Don't update session/user state during password recovery to prevent auto sign-in
+        setLoading(false);
         return
       }
+      
+      // For all other events, update session and user normally
+      setSession(session)
+      setUser(session?.user ?? null)
+      setLoading(false)
       
       // Set flag for fresh login to trigger onboarding
       if (event === 'SIGNED_IN' && session?.user) {

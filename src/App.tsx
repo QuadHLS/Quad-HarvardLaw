@@ -751,14 +751,14 @@ function AppContent({ user }: { user: any }) {
     );
   }
 
-  // Show login page if user is not authenticated
-  if (!user) {
+  // Show login page if user is not authenticated (unless we're on reset password page)
+  if (!user && !showResetPassword) {
     return <AuthPage />;
   }
 
 
-  // Show onboarding flow if user hasn't completed onboarding
-  if (!hasCompletedOnboarding) {
+  // Show onboarding flow if user hasn't completed onboarding (unless we're on reset password page)
+  if (!hasCompletedOnboarding && !showResetPassword) {
     return (
       <OnboardingFlow onComplete={async () => {
         // Mark classes_filled as true in the database

@@ -74,7 +74,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           <CardContent className="px-3 sm:px-4 pb-3 sm:pb-4">
             {/* Error Alert */}
             {error && (
-              <Alert className="mb-4 bg-destructive/10 border-destructive/20 text-destructive">
+              <Alert variant="destructive" className="mb-4">
                 <AlertDescription className="text-sm">{error}</AlertDescription>
               </Alert>
             )}

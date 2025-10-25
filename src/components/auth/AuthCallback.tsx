@@ -9,11 +9,42 @@ export const AuthCallback: React.FC = () => {
   useEffect(() => {
     const handleAuthCallback = async () => {
       console.log('AuthCallback: Processing OAuth callback');
+      
+      // Check for OAuth errors in URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const errorParam = urlParams.get('error');
+      const errorDescription = urlParams.get('error_description');
+      
+      if (errorParam) {
+        console.log('AuthCallback: OAuth error detected:', errorParam, errorDescription);
+        let errorMessage = 'OAuth authentication failed.';
+        
+        // Provide specific error messages based on OAuth error codes
+        switch (errorParam) {
+          case 'access_denied':
+            errorMessage = 'Google login was cancelled or denied. Please try again.';
+            break;
+          case 'server_error':
+            errorMessage = 'Server error during Google login. Please try again.';
+            break;
+          case 'temporarily_unavailable':
+            errorMessage = 'Google login is temporarily unavailable. Please try again later.';
+            break;
+          default:
+            errorMessage = errorDescription || 'Google login failed. Please try again.';
+        }
+        
+        setError(errorMessage);
+        setLoading(false);
+        return;
+      }
+      
       try {
         const { data, error } = await supabase.auth.getSession();
         console.log('AuthCallback: Session data:', { session: !!data.session, error });
 
         if (error) {
+          console.log('AuthCallback: Session error:', error);
           setError(error.message);
           return;
         }
@@ -54,7 +85,7 @@ export const AuthCallback: React.FC = () => {
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center max-w-md mx-auto px-4">
           <div className="text-red-500 mb-4">
             <svg
               className="h-12 w-12 mx-auto"
@@ -73,16 +104,27 @@ export const AuthCallback: React.FC = () => {
           <h2 className="text-xl font-semibold text-gray-900 mb-2">
             Sign in failed
           </h2>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <button
-            onClick={() => {
-              window.history.pushState({}, '', '/');
-              window.dispatchEvent(new PopStateEvent('popstate'));
-            }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            Try again
-          </button>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <div className="space-y-3">
+            <button
+              onClick={() => {
+                window.history.pushState({}, '', '/');
+                window.dispatchEvent(new PopStateEvent('popstate'));
+              }}
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              Try again
+            </button>
+            <button
+              onClick={() => {
+                window.history.pushState({}, '', '/auth');
+                window.dispatchEvent(new PopStateEvent('popstate'));
+              }}
+              className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+            >
+              Back to login
+            </button>
+          </div>
         </div>
       </div>
     );

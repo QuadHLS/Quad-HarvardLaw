@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { Loader2 } from 'lucide-react';
 
 export const AuthCallback: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   useEffect(() => {
     const handleAuthCallback = async () => {
@@ -42,16 +40,21 @@ export const AuthCallback: React.FC = () => {
               // Sign out the non-Harvard user
               await supabase.auth.signOut();
               setError('Please use your Harvard Law School email address');
-              setTimeout(() => navigate('/auth'), 3000);
+              setTimeout(() => {
+                window.history.pushState({}, '', '/');
+                window.dispatchEvent(new PopStateEvent('popstate'));
+              }, 3000);
               return;
             }
           }
 
           // User is authenticated and validated, redirect to main app
-          navigate('/');
+          window.history.pushState({}, '', '/');
+          window.dispatchEvent(new PopStateEvent('popstate'));
         } else {
           // No session, redirect to login
-          navigate('/auth');
+          window.history.pushState({}, '', '/');
+          window.dispatchEvent(new PopStateEvent('popstate'));
         }
       } catch (err) {
         setError('An unexpected error occurred');
@@ -61,7 +64,7 @@ export const AuthCallback: React.FC = () => {
     };
 
     handleAuthCallback();
-  }, [navigate]);
+  }, []);
 
   if (loading) {
     return (

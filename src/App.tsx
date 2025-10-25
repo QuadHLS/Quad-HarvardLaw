@@ -14,6 +14,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/auth/AuthPage';
 import { OnboardingFlow } from './components/onboarding/OnboardingFlow';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { AuthCallback } from './components/auth/AuthCallback';
 import { supabase } from './lib/supabase';
 import type { Outline } from './types';
 
@@ -81,23 +82,31 @@ function AppContent({ user }: { user: any }) {
   }, [user]);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
+  const [showAuthCallback, setShowAuthCallback] = useState(false);
 
-  // Check if we're on the reset password page
+  // Check if we're on special auth pages
   useEffect(() => {
-    const checkResetPassword = () => {
-      console.log('Checking reset password URL:', window.location.pathname);
+    const checkSpecialPages = () => {
+      console.log('Checking URL:', window.location.pathname);
+      
       if (window.location.pathname === '/reset-password') {
         console.log('Setting showResetPassword to true');
         setShowResetPassword(true);
+        setShowAuthCallback(false);
+      } else if (window.location.pathname === '/auth/callback') {
+        console.log('Setting showAuthCallback to true');
+        setShowAuthCallback(true);
+        setShowResetPassword(false);
       } else {
         setShowResetPassword(false);
+        setShowAuthCallback(false);
       }
     };
 
-    checkResetPassword();
-    window.addEventListener('popstate', checkResetPassword);
+    checkSpecialPages();
+    window.addEventListener('popstate', checkSpecialPages);
     
-    return () => window.removeEventListener('popstate', checkResetPassword);
+    return () => window.removeEventListener('popstate', checkSpecialPages);
   }, []);
   
   // Outlines state
@@ -781,6 +790,12 @@ function AppContent({ user }: { user: any }) {
         setHasCompletedOnboarding(true);
       }} />
     );
+  }
+
+  // Show auth callback page if user is on auth callback route
+  if (showAuthCallback) {
+    console.log('Rendering AuthCallback');
+    return <AuthCallback />;
   }
 
   // Show reset password page if user is on reset password route

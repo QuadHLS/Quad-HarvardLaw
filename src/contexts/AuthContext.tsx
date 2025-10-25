@@ -44,7 +44,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
+    } = supabase.auth.onAuthStateChange((event: string, session: any) => {
       console.log('Auth state change:', event, session?.user?.email, 'Session:', !!session);
       
       // Handle password recovery - redirect to reset password page
@@ -58,62 +58,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         window.dispatchEvent(new PopStateEvent('popstate'));
       }
       
-      // Handle SIGNED_IN event with email validation for OAuth
+      // Handle SIGNED_IN event
       if (event === 'SIGNED_IN' && session?.user) {
-        console.log('SIGNED_IN event detected, validating email:', session.user.email);
-        console.log('User app_metadata:', session.user.app_metadata);
-        console.log('DEPLOYMENT CHECK: Auth validation code is active');
-        
-        // Check if this is an OAuth sign-in (has provider metadata)
-        const isOAuthSignIn = session.user.app_metadata?.provider === 'google' || 
-                             session.user.app_metadata?.provider === 'microsoft';
-        
-        console.log('Is OAuth sign-in:', isOAuthSignIn);
-        
-        // For now, validate ALL sign-ins to ensure email validation works
-        // TODO: Can be optimized later to only validate OAuth sign-ins
-        console.log('Validating email for all sign-ins');
-        
-        // Validate email with edge function (OAuth validation - email only)
-        try {
-          const response = await fetch(
-            'https://ujsnnvdbujguiejhxuds.supabase.co/functions/v1/validate-harvard-email',
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${session.access_token}`,
-              },
-              body: JSON.stringify({ 
-                email: session.user.email,
-                oauth_validation: true  // Flag to indicate this is OAuth validation
-              }),
-            }
-          );
-
-          const validation = await response.json();
-          console.log('Email validation result:', validation);
-
-          if (!validation.valid) {
-            console.log('Invalid email detected, signing out user');
-            // Sign out the non-Harvard user
-            await supabase.auth.signOut();
-            setSession(null);
-            setUser(null);
-            setLoading(false);
-            return;
-          }
-        } catch (error) {
-          console.error('Error validating email:', error);
-          // On error, sign out to be safe
-          await supabase.auth.signOut();
-          setSession(null);
-          setUser(null);
-          setLoading(false);
-          return;
-        }
-        
-        // Email is valid (or not OAuth), proceed normally
+        console.log('SIGNED_IN event detected, user:', session.user.email);
         setSession(session);
         setUser(session.user);
         setLoading(false);

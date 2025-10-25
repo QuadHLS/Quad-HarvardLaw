@@ -8,7 +8,7 @@ export const AuthCallback: React.FC = () => {
 
   useEffect(() => {
     const handleAuthCallback = async () => {
-      console.log('AuthCallback: Starting OAuth validation');
+      console.log('AuthCallback: Processing OAuth callback');
       try {
         const { data, error } = await supabase.auth.getSession();
         console.log('AuthCallback: Session data:', { session: !!data.session, error });
@@ -19,49 +19,18 @@ export const AuthCallback: React.FC = () => {
         }
 
         if (data.session) {
-          // Check if email is from Harvard
-          const userEmail = data.session.user.email;
-          console.log('AuthCallback: User email:', userEmail);
-
-          if (userEmail) {
-            // Validate Harvard email
-            console.log('AuthCallback: Calling edge function for validation');
-            const response = await fetch(
-              'https://ujsnnvdbujguiejhxuds.supabase.co/functions/v1/validate-harvard-email',
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  Authorization: `Bearer ${data.session.access_token}`,
-                },
-                body: JSON.stringify({ email: userEmail }),
-              }
-            );
-
-            const validation = await response.json();
-            console.log('AuthCallback: Validation result:', validation);
-
-            if (!validation.valid) {
-              // Sign out the non-Harvard user
-              await supabase.auth.signOut();
-              setError('Please use your Harvard Law School email address');
-              setTimeout(() => {
-                window.history.pushState({}, '', '/');
-                window.dispatchEvent(new PopStateEvent('popstate'));
-              }, 3000);
-              return;
-            }
-          }
-
-          // User is authenticated and validated, redirect to main app
+          // User is authenticated (validation handled by server-side hook), redirect to main app
+          console.log('AuthCallback: User authenticated, redirecting to app');
           window.history.pushState({}, '', '/');
           window.dispatchEvent(new PopStateEvent('popstate'));
         } else {
           // No session, redirect to login
+          console.log('AuthCallback: No session, redirecting to login');
           window.history.pushState({}, '', '/');
           window.dispatchEvent(new PopStateEvent('popstate'));
         }
       } catch (err) {
+        console.error('AuthCallback: Error processing callback:', err);
         setError('An unexpected error occurred');
       } finally {
         setLoading(false);
@@ -106,7 +75,10 @@ export const AuthCallback: React.FC = () => {
           </h2>
           <p className="text-gray-600 mb-4">{error}</p>
           <button
-            onClick={() => navigate('/auth')}
+            onClick={() => {
+              window.history.pushState({}, '', '/');
+              window.dispatchEvent(new PopStateEvent('popstate'));
+            }}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
             Try again

@@ -62,6 +62,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (event === 'SIGNED_IN' && session?.user) {
         console.log('SIGNED_IN event detected, validating email:', session.user.email);
         console.log('User app_metadata:', session.user.app_metadata);
+        console.log('DEPLOYMENT CHECK: Auth validation code is active');
         
         // Check if this is an OAuth sign-in (has provider metadata)
         const isOAuthSignIn = session.user.app_metadata?.provider === 'google' || 

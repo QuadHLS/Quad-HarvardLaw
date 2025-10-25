@@ -67,8 +67,8 @@ export function ResetPasswordPage() {
           </div>
         </div>
         
-        {/* Success message - centered */}
-        <div className="w-full max-w-md flex-1 flex flex-col justify-center">
+        {/* Success message - moved up */}
+        <div className="w-full max-w-md flex-1 flex flex-col justify-start" style={{ marginTop: '2rem' }}>
           <Card className="w-full" style={{ backgroundColor: '#ffffff', border: 'none', boxShadow: '0 0 22px rgba(0, 0, 0, 0.12)', borderRadius: '1rem' }}>
             <CardHeader className="text-center pb-2 px-4 pt-4">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-4">

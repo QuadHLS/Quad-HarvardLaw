@@ -760,11 +760,22 @@ function AppContent({ user }: { user: any }) {
     );
   }
 
+  // Show auth callback page if user is on auth callback route (check this first)
+  if (showAuthCallback) {
+    console.log('Rendering AuthCallback');
+    return <AuthCallback />;
+  }
+
+  // Show reset password page if user is on reset password route
+  if (showResetPassword) {
+    console.log('Rendering ResetPasswordPage');
+    return <ResetPasswordPage />;
+  }
+
   // Show login page if user is not authenticated (unless we're on reset password page)
   if (!user && !showResetPassword) {
     return <AuthPage />;
   }
-
 
   // Show onboarding flow if user hasn't completed onboarding (unless we're on reset password page or in password recovery)
   const isPasswordRecovery = sessionStorage.getItem('isPasswordRecovery') === 'true';
@@ -790,18 +801,6 @@ function AppContent({ user }: { user: any }) {
         setHasCompletedOnboarding(true);
       }} />
     );
-  }
-
-  // Show auth callback page if user is on auth callback route
-  if (showAuthCallback) {
-    console.log('Rendering AuthCallback');
-    return <AuthCallback />;
-  }
-
-  // Show reset password page if user is on reset password route
-  if (showResetPassword) {
-    console.log('Rendering ResetPasswordPage');
-    return <ResetPasswordPage />;
   }
 
   return (

@@ -10,7 +10,6 @@ import { ReviewForm } from './ReviewForm';
 
 interface Review {
   id: string;
-  user_id: string;
   professor_name: string;
   course_name: string;
   semester: string;
@@ -226,7 +225,6 @@ export function ReviewsPage() {
 
       // Submit review - only include fields supported by the new UI
       const insertPayload: any = {
-        user_id: user.id,
         professor_name: formData.professor_name,
         course_name: formData.course_name,
         year: formData.year,

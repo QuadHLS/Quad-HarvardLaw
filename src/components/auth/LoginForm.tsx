@@ -40,10 +40,18 @@ export const LoginForm: React.FC<LoginFormProps> = ({
     setLoading(true);
     setError('');
 
-    const { error } = await signInWithGoogle();
+    try {
+      const { error } = await signInWithGoogle();
 
-    if (error) {
-      setError(error.message);
+      if (error) {
+        console.error('Google sign-in error:', error);
+        setError(error.message);
+        setLoading(false);
+      }
+      // Note: If successful, user will be redirected, so we don't need to set loading to false
+    } catch (err) {
+      console.error('Google sign-in exception:', err);
+      setError('An unexpected error occurred during Google login. Please try again.');
       setLoading(false);
     }
   };

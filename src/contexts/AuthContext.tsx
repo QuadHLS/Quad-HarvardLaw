@@ -96,23 +96,63 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }
 
   const signInWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      })
+      
+      if (error) {
+        console.error('Google OAuth error:', error);
+        // Provide more specific error messages
+        if (error.message.includes('access_denied')) {
+          return { error: { ...error, message: 'Google login was cancelled or denied. Please try again.' } };
+        } else if (error.message.includes('popup_closed')) {
+          return { error: { ...error, message: 'Google login popup was closed. Please try again.' } };
+        } else if (error.message.includes('network')) {
+          return { error: { ...error, message: 'Network error during Google login. Please check your connection and try again.' } };
+        } else {
+          return { error: { ...error, message: 'Google login failed. Please try again or use email/password.' } };
+        }
       }
-    })
-    return { error }
+      
+      return { error: null }
+    } catch (err) {
+      console.error('Google OAuth exception:', err);
+      return { error: { message: 'An unexpected error occurred during Google login. Please try again.' } }
+    }
   }
 
   const signInWithMicrosoft = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'microsoft',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'microsoft',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      })
+      
+      if (error) {
+        console.error('Microsoft OAuth error:', error);
+        // Provide more specific error messages
+        if (error.message.includes('access_denied')) {
+          return { error: { ...error, message: 'Microsoft login was cancelled or denied. Please try again.' } };
+        } else if (error.message.includes('popup_closed')) {
+          return { error: { ...error, message: 'Microsoft login popup was closed. Please try again.' } };
+        } else if (error.message.includes('network')) {
+          return { error: { ...error, message: 'Network error during Microsoft login. Please check your connection and try again.' } };
+        } else {
+          return { error: { ...error, message: 'Microsoft login failed. Please try again or use email/password.' } };
+        }
       }
-    })
-    return { error }
+      
+      return { error: null }
+    } catch (err) {
+      console.error('Microsoft OAuth exception:', err);
+      return { error: { message: 'An unexpected error occurred during Microsoft login. Please try again.' } }
+    }
   }
 
   const signOut = async () => {

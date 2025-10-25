@@ -61,49 +61,52 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Handle SIGNED_IN event with email validation for OAuth
       if (event === 'SIGNED_IN' && session?.user) {
         console.log('SIGNED_IN event detected, validating email:', session.user.email);
+        console.log('User app_metadata:', session.user.app_metadata);
         
         // Check if this is an OAuth sign-in (has provider metadata)
         const isOAuthSignIn = session.user.app_metadata?.provider === 'google' || 
                              session.user.app_metadata?.provider === 'microsoft';
         
-        if (isOAuthSignIn) {
-          console.log('OAuth sign-in detected, validating email with edge function');
-          
-          // Validate email with edge function
-          try {
-            const response = await fetch(
-              'https://ujsnnvdbujguiejhxuds.supabase.co/functions/v1/validate-harvard-email',
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  Authorization: `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify({ email: session.user.email }),
-              }
-            );
-
-            const validation = await response.json();
-            console.log('OAuth email validation result:', validation);
-
-            if (!validation.valid) {
-              console.log('Invalid email detected, signing out user');
-              // Sign out the non-Harvard user
-              await supabase.auth.signOut();
-              setSession(null);
-              setUser(null);
-              setLoading(false);
-              return;
+        console.log('Is OAuth sign-in:', isOAuthSignIn);
+        
+        // For now, validate ALL sign-ins to ensure email validation works
+        // TODO: Can be optimized later to only validate OAuth sign-ins
+        console.log('Validating email for all sign-ins');
+        
+        // Validate email with edge function
+        try {
+          const response = await fetch(
+            'https://ujsnnvdbujguiejhxuds.supabase.co/functions/v1/validate-harvard-email',
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({ email: session.user.email }),
             }
-          } catch (error) {
-            console.error('Error validating OAuth email:', error);
-            // On error, sign out to be safe
+          );
+
+          const validation = await response.json();
+          console.log('Email validation result:', validation);
+
+          if (!validation.valid) {
+            console.log('Invalid email detected, signing out user');
+            // Sign out the non-Harvard user
             await supabase.auth.signOut();
             setSession(null);
             setUser(null);
             setLoading(false);
             return;
           }
+        } catch (error) {
+          console.error('Error validating email:', error);
+          // On error, sign out to be safe
+          await supabase.auth.signOut();
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          return;
         }
         
         // Email is valid (or not OAuth), proceed normally

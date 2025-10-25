@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-unused-expressions */
 import React, { useEffect, useState, useRef } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { NavigationSidebar } from './components/NavigationSidebar';
 import { OutlinePage } from './components/OutlinePage';
 import { ExamPage } from './components/ExamPage';
@@ -120,7 +120,6 @@ function AppContent({ user }: { user: any }) {
   const [outlines, setOutlines] = useState<Outline[]>([]);
 
   const [selectedOutline, setSelectedOutline] = useState<Outline | null>(null);
-  const [selectedCourse, setSelectedCourse] = useState('');
   const [selectedInstructor, setSelectedInstructor] = useState('');
   const [selectedGrade, setSelectedGrade] = useState<string | undefined>(
     undefined
@@ -231,7 +230,6 @@ function AppContent({ user }: { user: any }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [selectedCourseForSearch, setSelectedCourseForSearch] =
     useState<string>('');
-  const [selectedStudent, setSelectedStudent] = useState<string>('');
   const [previousSection, setPreviousSection] = useState<string>('home');
 
   // Get current section from URL path
@@ -252,6 +250,31 @@ function AppContent({ user }: { user: any }) {
   const activeSection = getCurrentSection();
 
   const [sortBy] = useState('Highest Rated');
+
+  // Wrapper components for dynamic routes
+  const CoursePageWrapper = () => {
+    const { courseName } = useParams<{ courseName: string }>();
+    return (
+      <CoursePage
+        courseName={courseName || ''}
+        onBack={handleBackFromCourse}
+        onNavigateToOutlines={handleNavigateToOutlines}
+        onNavigateToOutlinesPage={handleNavigateToOutlinesPage}
+        onNavigateToStudentProfile={handleNavigateToStudentProfile}
+      />
+    );
+  };
+
+  const StudentProfileWrapper = () => {
+    const { studentName } = useParams<{ studentName: string }>();
+    return (
+      <ProfilePage
+        studentName={studentName || ''}
+        onBack={handleBackFromStudentProfile}
+        fromBarReview={previousSection === 'barreview'}
+      />
+    );
+  };
 
 
   // Fetch outlines from Supabase with pagination (only after login)
@@ -466,12 +489,10 @@ function AppContent({ user }: { user: any }) {
   };
 
   const handleNavigateToCourse = (courseName: string) => {
-    setSelectedCourse(courseName);
     navigate(`/course/${courseName}`);
   };
 
   const handleBackFromCourse = () => {
-    setSelectedCourse('');
     navigate('/');
   };
 
@@ -493,12 +514,10 @@ function AppContent({ user }: { user: any }) {
 
   const handleNavigateToStudentProfile = (studentName: string) => {
     setPreviousSection(activeSection); // Remember where we came from
-    setSelectedStudent(studentName);
     navigate(`/student-profile/${studentName}`);
   };
 
   const handleBackFromStudentProfile = () => {
-    setSelectedStudent('');
     navigate(previousSection === 'home' ? '/' : `/${previousSection}`);
   };
 
@@ -928,22 +947,8 @@ function AppContent({ user }: { user: any }) {
           <Route path="/planner" element={<PlannerPage />} />
           <Route path="/barreview" element={<BarReviewPage onNavigateToStudentProfile={handleNavigateToStudentProfile} />} />
           <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/course/:courseName" element={
-            <CoursePage
-              courseName={selectedCourse}
-              onBack={handleBackFromCourse}
-              onNavigateToOutlines={handleNavigateToOutlines}
-              onNavigateToOutlinesPage={handleNavigateToOutlinesPage}
-              onNavigateToStudentProfile={handleNavigateToStudentProfile}
-            />
-          } />
-          <Route path="/student-profile/:studentName" element={
-            <ProfilePage
-              studentName={selectedStudent}
-              onBack={handleBackFromStudentProfile}
-              fromBarReview={previousSection === 'barreview'}
-            />
-          } />
+          <Route path="/course/:courseName" element={<CoursePageWrapper />} />
+          <Route path="/student-profile/:studentName" element={<StudentProfileWrapper />} />
           <Route path="*" element={
             <div className="flex items-center justify-center h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
               <div className="text-center p-8">

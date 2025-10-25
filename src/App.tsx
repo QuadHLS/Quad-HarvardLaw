@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-unused-expressions */
 import React, { useEffect, useState, useRef } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { NavigationSidebar } from './components/NavigationSidebar';
 import { OutlinePage } from './components/OutlinePage';
 import { ExamPage } from './components/ExamPage';
@@ -21,6 +22,8 @@ import type { Outline } from './types';
 
 function AppContent({ user }: { user: any }) {
   const [authLoading, setAuthLoading] = useState(true);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     let isMounted = true;
@@ -225,12 +228,28 @@ function AppContent({ user }: { user: any }) {
   }, [user?.id]);
 
   
-  const [activeSection, setActiveSection] = useState('home');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [selectedCourseForSearch, setSelectedCourseForSearch] =
     useState<string>('');
   const [selectedStudent, setSelectedStudent] = useState<string>('');
   const [previousSection, setPreviousSection] = useState<string>('home');
+
+  // Get current section from URL path
+  const getCurrentSection = () => {
+    const path = location.pathname;
+    if (path === '/' || path === '/home') return 'home';
+    if (path.startsWith('/outlines')) return 'outlines';
+    if (path.startsWith('/exams')) return 'exams';
+    if (path.startsWith('/reviews')) return 'reviews';
+    if (path.startsWith('/planner')) return 'planner';
+    if (path.startsWith('/barreview')) return 'barreview';
+    if (path.startsWith('/profile')) return 'profile';
+    if (path.startsWith('/course')) return 'course';
+    if (path.startsWith('/student-profile')) return 'student-profile';
+    return 'home';
+  };
+
+  const activeSection = getCurrentSection();
 
   const [sortBy] = useState('Highest Rated');
 
@@ -440,20 +459,20 @@ function AppContent({ user }: { user: any }) {
       setSelectedInstructor(outline.instructor);
       setSelectedOutline(outline);
 
-      // Switch to outlines section
-      setActiveSection('outlines');
+      // Navigate to outlines section
+      navigate('/outlines');
       setActiveTab('search');
     }
   };
 
   const handleNavigateToCourse = (courseName: string) => {
     setSelectedCourse(courseName);
-    setActiveSection('course');
+    navigate(`/course/${courseName}`);
   };
 
   const handleBackFromCourse = () => {
     setSelectedCourse('');
-    setActiveSection('home');
+    navigate('/');
   };
 
   const handleNavigateToOutlinesPage = (courseName: string) => {
@@ -468,19 +487,19 @@ function AppContent({ user }: { user: any }) {
       setSelectedInstructor(courseInstructors[0]);
     }
     setSelectedOutline(null);
-    setActiveSection('outlines');
+    navigate('/outlines');
     setActiveTab('search');
   };
 
   const handleNavigateToStudentProfile = (studentName: string) => {
     setPreviousSection(activeSection); // Remember where we came from
     setSelectedStudent(studentName);
-    setActiveSection('student-profile');
+    navigate(`/student-profile/${studentName}`);
   };
 
   const handleBackFromStudentProfile = () => {
     setSelectedStudent('');
-    setActiveSection(previousSection); // Go back to where we came from
+    navigate(previousSection === 'home' ? '/' : `/${previousSection}`);
   };
 
 
@@ -727,7 +746,12 @@ function AppContent({ user }: { user: any }) {
 
 
   const handleSectionChange = (section: string) => {
-    setActiveSection(section);
+    // Navigate to the appropriate route
+    if (section === 'home') {
+      navigate('/');
+    } else {
+      navigate(`/${section}`);
+    }
   };
 
   const handleToggleSidebar = () => {
@@ -811,8 +835,6 @@ function AppContent({ user }: { user: any }) {
     <div className="h-screen flex min-w-0" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
       {/* Navigation Sidebar */}
       <NavigationSidebar
-        activeSection={activeSection}
-        onSectionChange={handleSectionChange}
         isCollapsed={sidebarCollapsed}
         onToggleCollapsed={handleToggleSidebar}
       />
@@ -825,120 +847,132 @@ function AppContent({ user }: { user: any }) {
 
       {/* Main Content */}
       <div className={`flex-1 overflow-hidden ${sidebarCollapsed ? 'ml-16' : 'ml-40'}`} style={{ transition: 'margin-left 300ms ease' }}>
-        {activeSection === 'outlines' ? (
-          <OutlinePage
-          outlines={sortedOutlines}
-          allOutlines={outlines}
-            courses={[...new Set(outlines.map(o => o.course))].sort()}
-            instructors={[...new Map(outlines.map(o => [o.instructor, { id: o.instructor, name: o.instructor, courses: Array.from(new Set(outlines.filter(x => x.instructor === o.instructor).map(x => x.course))) }])).values()] as any}
-            searchTerm={''}
-            setSearchTerm={() => {}}
-          selectedCourse={selectedCourseForSearch}
-          setSelectedCourse={setSelectedCourseForSearch}
-          selectedInstructor={selectedInstructor}
-          setSelectedInstructor={setSelectedInstructor}
-          selectedGrade={selectedGrade}
-          setSelectedGrade={setSelectedGrade}
-          selectedYear={selectedYear}
-          setSelectedYear={setSelectedYear}
-            selectedTags={selectedTags}
-            setSelectedTags={setSelectedTags}
-            myCourses={[]}
-            selectedOutline={selectedOutline}
-            onSelectOutline={setSelectedOutline}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          savedOutlines={savedOutlines}
-          onRemoveSavedOutline={handleRemoveSavedOutline}
-          onToggleSaveOutline={handleToggleSaveOutline}
-            hiddenOutlines={[]}
-            onHideOutline={() => {}}
-            onUnhideAllOutlines={() => {}}
-          />
-        ) : activeSection === 'exams' ? (
-          <ExamPage
-            exams={filteredExams}
-            allExams={exams}
-            courses={examCourses}
-            instructors={examInstructors}
-            searchTerm={examSearchTerm}
-            setSearchTerm={() => {}}
-          selectedCourse={selectedCourseForExams}
-          setSelectedCourse={setSelectedCourseForExams}
-          selectedInstructor={selectedInstructorForExams}
-          setSelectedInstructor={setSelectedInstructorForExams}
-          selectedGrade={selectedGradeForExams}
-          setSelectedGrade={setSelectedGradeForExams}
-          selectedYear={selectedYearForExams}
-          setSelectedYear={setSelectedYearForExams}
-            selectedTags={selectedTagsForExams}
-            setSelectedTags={setSelectedTagsForExams}
-            myCourses={examMyCourses}
-            selectedExam={selectedExam}
-            onSelectExam={setSelectedExam}
-          activeTab={activeExamTab}
-          setActiveTab={setActiveExamTab}
-            savedExams={savedExams}
-            onRemoveSavedExam={handleRemoveSavedExam}
-            onToggleSaveExam={handleToggleSaveExam}
-            hiddenExams={[]}
-            onHideExam={() => {}}
-            onUnhideAllExams={() => {}}
-          />
-        ) : activeSection === 'reviews' ? (
-          <ReviewsPage />
-        ) : activeSection === 'planner' ? (
-          <PlannerPage />
-        ) : activeSection === 'home' ? (
-          <HomePage
-            onNavigateToCourse={handleNavigateToCourse}
-            onNavigateToStudentProfile={handleNavigateToStudentProfile}
-            user={user}
-          />
-        ) : activeSection === 'course' ? (
-          <CoursePage
-            courseName={selectedCourse}
-            onBack={handleBackFromCourse}
-            onNavigateToOutlines={handleNavigateToOutlines}
-            onNavigateToOutlinesPage={handleNavigateToOutlinesPage}
-            onNavigateToStudentProfile={handleNavigateToStudentProfile}
-          />
-        ) : activeSection === 'student-profile' ? (
-          <ProfilePage
-            studentName={selectedStudent}
-            onBack={handleBackFromStudentProfile}
-            fromBarReview={previousSection === 'barreview'}
-          />
-        ) : activeSection === 'barreview' ? (
-          <BarReviewPage onNavigateToStudentProfile={handleNavigateToStudentProfile} />
-        ) : activeSection === 'profile' ? (
-          <ProfilePage />
-        ) : (
-          <div className="flex items-center justify-center h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-            <div className="text-center p-8">
-              <div className="w-24 h-24 bg-gray-300 rounded-full mx-auto mb-4 flex items-center justify-center">
-                <span className="text-2xl text-gray-600">📄</span>
+        <Routes>
+          <Route path="/" element={
+            <HomePage
+              onNavigateToCourse={handleNavigateToCourse}
+              onNavigateToStudentProfile={handleNavigateToStudentProfile}
+              user={user}
+            />
+          } />
+          <Route path="/home" element={
+            <HomePage
+              onNavigateToCourse={handleNavigateToCourse}
+              onNavigateToStudentProfile={handleNavigateToStudentProfile}
+              user={user}
+            />
+          } />
+          <Route path="/outlines" element={
+            <OutlinePage
+              outlines={sortedOutlines}
+              allOutlines={outlines}
+              courses={[...new Set(outlines.map(o => o.course))].sort()}
+              instructors={[...new Map(outlines.map(o => [o.instructor, { id: o.instructor, name: o.instructor, courses: Array.from(new Set(outlines.filter(x => x.instructor === o.instructor).map(x => x.course))) }])).values()] as any}
+              searchTerm={''}
+              setSearchTerm={() => {}}
+              selectedCourse={selectedCourseForSearch}
+              setSelectedCourse={setSelectedCourseForSearch}
+              selectedInstructor={selectedInstructor}
+              setSelectedInstructor={setSelectedInstructor}
+              selectedGrade={selectedGrade}
+              setSelectedGrade={setSelectedGrade}
+              selectedYear={selectedYear}
+              setSelectedYear={setSelectedYear}
+              selectedTags={selectedTags}
+              setSelectedTags={setSelectedTags}
+              myCourses={[]}
+              selectedOutline={selectedOutline}
+              onSelectOutline={setSelectedOutline}
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              savedOutlines={savedOutlines}
+              onRemoveSavedOutline={handleRemoveSavedOutline}
+              onToggleSaveOutline={handleToggleSaveOutline}
+              hiddenOutlines={[]}
+              onHideOutline={() => {}}
+              onUnhideAllOutlines={() => {}}
+            />
+          } />
+          <Route path="/exams" element={
+            <ExamPage
+              exams={filteredExams}
+              allExams={exams}
+              courses={examCourses}
+              instructors={examInstructors}
+              searchTerm={examSearchTerm}
+              setSearchTerm={() => {}}
+              selectedCourse={selectedCourseForExams}
+              setSelectedCourse={setSelectedCourseForExams}
+              selectedInstructor={selectedInstructorForExams}
+              setSelectedInstructor={setSelectedInstructorForExams}
+              selectedGrade={selectedGradeForExams}
+              setSelectedGrade={setSelectedGradeForExams}
+              selectedYear={selectedYearForExams}
+              setSelectedYear={setSelectedYearForExams}
+              selectedTags={selectedTagsForExams}
+              setSelectedTags={setSelectedTagsForExams}
+              myCourses={examMyCourses}
+              selectedExam={selectedExam}
+              onSelectExam={setSelectedExam}
+              activeTab={activeExamTab}
+              setActiveTab={setActiveExamTab}
+              savedExams={savedExams}
+              onRemoveSavedExam={handleRemoveSavedExam}
+              onToggleSaveExam={handleToggleSaveExam}
+              hiddenExams={[]}
+              onHideExam={() => {}}
+              onUnhideAllExams={() => {}}
+            />
+          } />
+          <Route path="/reviews" element={<ReviewsPage />} />
+          <Route path="/planner" element={<PlannerPage />} />
+          <Route path="/barreview" element={<BarReviewPage onNavigateToStudentProfile={handleNavigateToStudentProfile} />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/course/:courseName" element={
+            <CoursePage
+              courseName={selectedCourse}
+              onBack={handleBackFromCourse}
+              onNavigateToOutlines={handleNavigateToOutlines}
+              onNavigateToOutlinesPage={handleNavigateToOutlinesPage}
+              onNavigateToStudentProfile={handleNavigateToStudentProfile}
+            />
+          } />
+          <Route path="/student-profile/:studentName" element={
+            <ProfilePage
+              studentName={selectedStudent}
+              onBack={handleBackFromStudentProfile}
+              fromBarReview={previousSection === 'barreview'}
+            />
+          } />
+          <Route path="*" element={
+            <div className="flex items-center justify-center h-full" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+              <div className="text-center p-8">
+                <div className="w-24 h-24 bg-gray-300 rounded-full mx-auto mb-4 flex items-center justify-center">
+                  <span className="text-2xl text-gray-600">📄</span>
+                </div>
+                <h2 className="text-2xl font-medium text-gray-700 mb-4">
+                  Page Not Found
+                </h2>
+                <p className="text-gray-600 max-w-md">
+                  The page you're looking for doesn't exist.
+                </p>
               </div>
-              <h2 className="text-2xl font-medium text-gray-700 mb-4">
-                Coming Soon
-              </h2>
-              <p className="text-gray-600 max-w-md">
-                This section is currently under development.
-              </p>
             </div>
-          </div>
-        )}
+          } />
+        </Routes>
       </div>
     </div>
   );
 }
 
-// Main App Component with AuthProvider
+// Main App Component with AuthProvider and Router
 export default function App() {
   return (
-    <AuthProvider>
-      <AppWithAuth />
-    </AuthProvider>
+    <Router>
+      <AuthProvider>
+        <AppWithAuth />
+      </AuthProvider>
+    </Router>
   );
 }
 

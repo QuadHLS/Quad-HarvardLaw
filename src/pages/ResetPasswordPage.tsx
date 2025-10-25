@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 
 export function ResetPasswordPage() {
   const [password, setPassword] = useState('');
@@ -69,18 +69,20 @@ export function ResetPasswordPage() {
         
         {/* Success message - centered */}
         <div className="w-full max-w-md flex-1 flex flex-col justify-center">
-          <Card className="w-full">
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-                  <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">Password Updated!</h2>
-                <p className="text-gray-600 mb-4">Your password has been successfully updated.</p>
-                <p className="text-sm text-gray-500">Redirecting to dashboard...</p>
+          <Card className="w-full" style={{ backgroundColor: '#ffffff', border: 'none', boxShadow: '0 0 22px rgba(0, 0, 0, 0.12)', borderRadius: '1rem' }}>
+            <CardHeader className="text-center pb-2 px-4 pt-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-4">
+                <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
               </div>
+              <CardTitle className="text-2xl">Password Updated!</CardTitle>
+              <CardDescription className="text-sm" style={{ marginTop: '0.5rem' }}>
+                Your password has been successfully updated.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <p className="text-sm text-gray-500 text-center">Redirecting to dashboard...</p>
             </CardContent>
           </Card>
         </div>
@@ -104,15 +106,26 @@ export function ResetPasswordPage() {
       
       {/* Reset password form - prioritized for space */}
       <div className="w-full max-w-md flex-1 flex flex-col justify-start" style={{ marginTop: '1.5rem', minHeight: 'clamp(400px, 50vh, 600px)' }}>
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center">Set New Password</CardTitle>
-            <p className="text-center text-gray-600">Enter your new password below</p>
+        <Card className="w-full" style={{ backgroundColor: '#ffffff', border: 'none', boxShadow: '0 0 22px rgba(0, 0, 0, 0.12)', borderRadius: '1rem' }}>
+          <CardHeader className="text-center pb-2 px-4 pt-4">
+            <CardTitle className="text-2xl">Set New Password</CardTitle>
+            <CardDescription className="text-sm" style={{ marginTop: '0.5rem' }}>
+              Enter your new password below
+            </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4">
+            {/* Error Alert */}
+            {error && (
+              <div className="mb-4 bg-red-50 border border-red-200 rounded-md p-3">
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            )}
+            
+            {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              {/* New Password Field */}
+              <div className="space-y-2">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                   New Password
                 </label>
                 <Input
@@ -127,8 +140,9 @@ export function ResetPasswordPage() {
                 />
               </div>
               
-              <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+              {/* Confirm Password Field */}
+              <div className="space-y-2">
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
                   Confirm Password
                 </label>
                 <Input
@@ -143,16 +157,12 @@ export function ResetPasswordPage() {
                 />
               </div>
 
-              {error && (
-                <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                  <p className="text-sm text-red-600">{error}</p>
-                </div>
-              )}
-
+              {/* Submit Button */}
               <Button
                 type="submit"
                 disabled={loading}
                 className="w-full"
+                style={{ backgroundColor: '#00962c', color: 'white' }}
               >
                 {loading ? 'Updating Password...' : 'Update Password'}
               </Button>

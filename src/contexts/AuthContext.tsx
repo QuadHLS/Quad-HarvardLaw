@@ -49,6 +49,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(session?.user ?? null)
       setLoading(false)
       
+      // Handle password recovery - redirect to reset password page
+      if (event === 'PASSWORD_RECOVERY') {
+        window.history.pushState({}, '', '/reset-password');
+        window.dispatchEvent(new PopStateEvent('popstate'));
+        return
+      }
+      
       // Set flag for fresh login to trigger onboarding
       if (event === 'SIGNED_IN' && session?.user) {
         sessionStorage.setItem('isFreshLogin', 'true')

@@ -13,6 +13,7 @@ import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/auth/AuthPage';
 import { OnboardingFlow } from './components/onboarding/OnboardingFlow';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { supabase } from './lib/supabase';
 import type { Outline } from './types';
 
@@ -79,6 +80,23 @@ function AppContent({ user }: { user: any }) {
     };
   }, [user]);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+
+  // Check if we're on the reset password page
+  useEffect(() => {
+    const checkResetPassword = () => {
+      if (window.location.pathname === '/reset-password') {
+        setShowResetPassword(true);
+      } else {
+        setShowResetPassword(false);
+      }
+    };
+
+    checkResetPassword();
+    window.addEventListener('popstate', checkResetPassword);
+    
+    return () => window.removeEventListener('popstate', checkResetPassword);
+  }, []);
   
   // Outlines state
   const [outlines, setOutlines] = useState<Outline[]>([]);
@@ -760,6 +778,11 @@ function AppContent({ user }: { user: any }) {
         setHasCompletedOnboarding(true);
       }} />
     );
+  }
+
+  // Show reset password page if user is on reset password route
+  if (showResetPassword) {
+    return <ResetPasswordPage />;
   }
 
   return (

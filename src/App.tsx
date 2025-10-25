@@ -231,6 +231,7 @@ function AppContent({ user }: { user: any }) {
   const [selectedCourseForSearch, setSelectedCourseForSearch] =
     useState<string>('');
   const [previousSection, setPreviousSection] = useState<string>('home');
+  const [previousUrl, setPreviousUrl] = useState<string>('/');
 
   // Get current section from URL path
   const getCurrentSection = () => {
@@ -519,12 +520,15 @@ function AppContent({ user }: { user: any }) {
 
   const handleNavigateToStudentProfile = (studentName: string) => {
     setPreviousSection(activeSection); // Remember where we came from
+    setPreviousUrl(location.pathname); // Remember the full URL we came from
+    console.log('Navigating to student profile, storing previous URL:', location.pathname);
     const encodedStudentName = encodeURIComponent(studentName);
     navigate(`/student-profile/${encodedStudentName}`);
   };
 
   const handleBackFromStudentProfile = () => {
-    navigate(previousSection === 'home' ? '/' : `/${previousSection}`);
+    console.log('Going back to previous URL:', previousUrl);
+    navigate(previousUrl);
   };
 
 

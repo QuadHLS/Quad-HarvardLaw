@@ -58,14 +58,64 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         window.dispatchEvent(new PopStateEvent('popstate'));
       }
       
-      // Update session and user for all events (including PASSWORD_RECOVERY)
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
-      
-      // Set flag for fresh login to trigger onboarding
+      // Handle SIGNED_IN event with email validation for OAuth
       if (event === 'SIGNED_IN' && session?.user) {
-        sessionStorage.setItem('isFreshLogin', 'true')
+        console.log('SIGNED_IN event detected, validating email:', session.user.email);
+        
+        // Check if this is an OAuth sign-in (has provider metadata)
+        const isOAuthSignIn = session.user.app_metadata?.provider === 'google' || 
+                             session.user.app_metadata?.provider === 'microsoft';
+        
+        if (isOAuthSignIn) {
+          console.log('OAuth sign-in detected, validating email with edge function');
+          
+          // Validate email with edge function
+          try {
+            const response = await fetch(
+              'https://ujsnnvdbujguiejhxuds.supabase.co/functions/v1/validate-harvard-email',
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({ email: session.user.email }),
+              }
+            );
+
+            const validation = await response.json();
+            console.log('OAuth email validation result:', validation);
+
+            if (!validation.valid) {
+              console.log('Invalid email detected, signing out user');
+              // Sign out the non-Harvard user
+              await supabase.auth.signOut();
+              setSession(null);
+              setUser(null);
+              setLoading(false);
+              return;
+            }
+          } catch (error) {
+            console.error('Error validating OAuth email:', error);
+            // On error, sign out to be safe
+            await supabase.auth.signOut();
+            setSession(null);
+            setUser(null);
+            setLoading(false);
+            return;
+          }
+        }
+        
+        // Email is valid (or not OAuth), proceed normally
+        setSession(session);
+        setUser(session.user);
+        setLoading(false);
+        sessionStorage.setItem('isFreshLogin', 'true');
+      } else {
+        // For all other events, update session and user normally
+        setSession(session)
+        setUser(session?.user ?? null)
+        setLoading(false)
       }
     })
 

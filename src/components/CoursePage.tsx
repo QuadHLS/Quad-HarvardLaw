@@ -1427,26 +1427,41 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
         return;
       }
 
-      // Get students enrolled in this course using the course UUID directly
-      const { data: students, error: studentsError } = await supabase
+      // First, get user IDs from course_enrollments
+      const { data: enrollments, error: enrollmentsError } = await supabase
         .from('course_enrollments')
-        .select(`
-          profiles!inner (
-            full_name,
-            class_year
-          )
-        `)
+        .select('user_id')
         .eq('course_id', userCourse.course_id);
 
-      if (studentsError) {
-        console.error('Error fetching students:', studentsError);
+      if (enrollmentsError) {
+        console.error('Error fetching course enrollments:', enrollmentsError);
+        return;
+      }
+
+      if (!enrollments || enrollments.length === 0) {
+        console.log('No students found for this course');
+        setStudents([]);
+        return;
+      }
+
+      // Extract user IDs
+      const userIds = enrollments.map(enrollment => enrollment.user_id);
+
+      // Then, get profile information for these users
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('full_name, class_year')
+        .in('id', userIds);
+
+      if (profilesError) {
+        console.error('Error fetching student profiles:', profilesError);
         return;
       }
 
       // Transform the data
-      const studentList = students?.map((enrollment: any) => ({
-        name: enrollment.profiles.full_name || 'Unknown',
-        year: enrollment.profiles.class_year || ''
+      const studentList = profiles?.map((profile: any) => ({
+        name: profile.full_name || 'Unknown',
+        year: profile.class_year || ''
       })) || [];
 
       setCourseStudents(studentList);

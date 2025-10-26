@@ -58,9 +58,67 @@ const timeSlots = [
 
 const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
-export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
+interface OnboardingPageProps {
+  onComplete: () => void;
+  initialPage?: number;
+  // Basic info form
+  name: string;
+  setName: (name: string) => void;
+  phone: string;
+  setPhone: (phone: string) => void;
+  classYear: '1L' | '2L' | '3L' | 'LLM' | '';
+  setClassYear: (classYear: '1L' | '2L' | '3L' | 'LLM' | '') => void;
+  section: string;
+  setSection: (section: string) => void;
+  lrwSection: 'A' | 'B' | '';
+  setLrwSection: (lrwSection: 'A' | 'B' | '') => void;
+  loading: boolean;
+  setLoading: (loading: boolean) => void;
+  
+  // Course selection
+  selectedCourses: CourseData[];
+  setSelectedCourses: (courses: CourseData[] | ((prev: CourseData[]) => CourseData[])) => void;
+  currentSemester: 'Fall 2025' | 'Winter 2026' | 'Spring 2026';
+  setCurrentSemester: (semester: 'Fall 2025' | 'Winter 2026' | 'Spring 2026') => void;
+  allCourseData: any[];
+  setAllCourseData: (data: any[]) => void;
+  coursesLoading: boolean;
+  setCoursesLoading: (loading: boolean) => void;
+  
+  // Course search
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  availableCourses: any[];
+  setAvailableCourses: (courses: any[]) => void;
+  showMaxCourseWarning: boolean;
+  setShowMaxCourseWarning: (show: boolean) => void;
+}
+
+export function OnboardingPage(props: OnboardingPageProps) {
+  const { 
+    onComplete, 
+    initialPage = 1,
+    name, setName,
+    phone, setPhone,
+    classYear, setClassYear,
+    section, setSection,
+    lrwSection, setLrwSection,
+    loading, setLoading,
+    selectedCourses, setSelectedCourses,
+    currentSemester, setCurrentSemester,
+    allCourseData, setAllCourseData,
+    coursesLoading, setCoursesLoading,
+    searchQuery, setSearchQuery,
+    availableCourses, setAvailableCourses,
+    showMaxCourseWarning, setShowMaxCourseWarning,
+  } = props;
   const { user, signOut } = useAuth();
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(initialPage);
+  
+  // Update currentPage when initialPage changes (for back navigation)
+  useEffect(() => {
+    setCurrentPage(initialPage);
+  }, [initialPage]);
   
   // Add keyframes for the rotating border animation
   useEffect(() => {
@@ -77,24 +135,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
     };
   }, []);
   
-  // Basic info form
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [classYear, setClassYear] = useState<ClassYear | ''>('');
-  const [section, setSection] = useState('');
-  const [lrwSection, setLrwSection] = useState<'A' | 'B' | ''>('');
-  const [loading, setLoading] = useState(false);
-
-  // Course selection
-  const [selectedCourses, setSelectedCourses] = useState<CourseData[]>([]);
-  const [currentSemester, setCurrentSemester] = useState<'Fall 2025' | 'Winter 2026' | 'Spring 2026'>('Fall 2025');
-  const [allCourseData, setAllCourseData] = useState<any[]>([]);
-  const [coursesLoading, setCoursesLoading] = useState(false);
-  
-  // Course search
-  const [searchQuery, setSearchQuery] = useState('');
-  const [availableCourses, setAvailableCourses] = useState<any[]>([]);
-  const [showMaxCourseWarning, setShowMaxCourseWarning] = useState(false);
+  // All state is now managed by OnboardingFlow and passed as props
   
   // View mode removed; always list view
 
@@ -407,7 +448,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       course_uuid: course.id
     };
     
-    setSelectedCourses(prev => [...prev, newCourse]);
+    setSelectedCourses((prev: CourseData[]) => [...prev, newCourse]);
     
     // Clear the search bar and focus it for immediate typing
     setSearchQuery('');
@@ -636,7 +677,16 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
           `Legislation and Regulation ${sectionNumber}`
         ];
 
-        const newSelectedCourses: CourseData[] = [];
+        // Remove ALL existing 1L required courses (the 7 core courses) but keep LRW and other courses
+        const existingCourses = selectedCourses.filter(course => {
+          const courseName = course.courseName.toLowerCase();
+          const isCore1L = ['civil procedure', 'contracts', 'criminal law', 'torts', 'constitutional law', 'property', 'legislation and regulation'].some(name => 
+            courseName.includes(name)
+          );
+          return !isCore1L; // Keep everything except the 7 core 1L courses
+        });
+
+        const newSelectedCourses: CourseData[] = [...existingCourses];
 
         for (let i = 0; i < 7; i++) {
           const courseName = requiredCourses[i];
@@ -692,65 +742,70 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         ];
         
         // Remove any existing LRW courses first
-        const filteredCourses = selectedCourses.filter(course =>
-          !/First Year Legal Research and Writing|Legal Research and Writing|^LRW\b/.test(course.courseName)
-        );
+        setSelectedCourses(prevCourses => {
+          const filteredCourses = prevCourses.filter(course =>
+            !/First Year Legal Research and Writing|Legal Research and Writing|^LRW\b/.test(course.courseName)
+          );
+          
+          // Find both Fall and Spring LRW entries for the chosen section
+          const matchingCourses = allCourseData.filter((course) => {
+            const name = String(course?.course_name || '').trim();
+            if (!name) return false;
+            
+            // Try exact matches first
+            const exactMatches = [
+              `First Year Legal Research and Writing ${section}${lrwSection}`,
+              `First Year Legal Research and Writing ${section} ${lrwSection}`,
+              `Legal Research and Writing ${section}${lrwSection}`,
+              `Legal Research and Writing ${section} ${lrwSection}`,
+              `LRW ${section}${lrwSection}`,
+              `LRW ${section} ${lrwSection}`
+            ];
+            
+            if (exactMatches.includes(name)) {
+              return true;
+            }
+            
+            // Fallback: match base + section and A/B suffix with optional space
+            const matches = lrwBases.some((base) => {
+              const pattern = new RegExp(`^${base}\\s+${section}\\s*${lrwSection}$`, 'i');
+              return pattern.test(name);
+            });
+            
+            return matches;
+          });
 
-        // Find both Fall and Spring LRW entries for the chosen section (same name, different semesters)
-        const matchingCourses = allCourseData.filter((course) => {
-          const name = String(course?.course_name || '').trim();
-          if (!name) return false;
-          
-          // Try exact matches first
-          const exactMatches = [
-            `First Year Legal Research and Writing ${section}${lrwSection}`,
-            `First Year Legal Research and Writing ${section} ${lrwSection}`,
-            `Legal Research and Writing ${section}${lrwSection}`,
-            `Legal Research and Writing ${section} ${lrwSection}`,
-            `LRW ${section}${lrwSection}`,
-            `LRW ${section} ${lrwSection}`
-          ];
-          
-          if (exactMatches.includes(name)) {
-            return true;
+          if (matchingCourses.length > 0) {
+            const newLrwCourses: CourseData[] = matchingCourses.map((course: any) => ({
+              id: `${course.course_name}-${course.semester}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              courseName: course.course_name,
+              professor: course.instructor,
+              credits: course.credits,
+              semester: course.semester as 'Spring' | 'Fall' | 'Winter',
+              days: course.days ? course.days.split(';').map((d: string) => normalizeDay(d)) : [],
+              time: course.times ? normalizeTimeRange(course.times.split('|').map((t: string) => t.trim())[0]) : 'TBD',
+              location: course.location || undefined,
+              course_uuid: course.id
+            }));
+
+            // Sort by semester priority: Fall first, then Spring
+            const sortBySemesterPriority = (a: CourseData, b: CourseData) => {
+              const priority = (s: string) => {
+                if (/Fall/i.test(s) || /FA$/i.test(s)) return 0;
+                if (/Spring/i.test(s) || /SP$/i.test(s)) return 1;
+                return 2;
+              };
+              return priority(a.semester) - priority(b.semester);
+            };
+            newLrwCourses.sort(sortBySemesterPriority);
+
+            return [...filteredCourses, ...newLrwCourses];
           }
           
-          // Fallback: match base + section and A/B suffix with optional space
-          const matches = lrwBases.some((base) => {
-            const pattern = new RegExp(`^${base}\\s+${section}\\s*${lrwSection}$`, 'i');
-            return pattern.test(name);
-          });
-          
-          return matches;
+          return filteredCourses;
         });
-
-
-        if (matchingCourses.length > 0) {
-          const newLrwCourses: CourseData[] = matchingCourses.map((course: any) => ({
-            id: `${course.course_name}-${course.semester}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            courseName: course.course_name,
-            professor: course.instructor,
-            credits: course.credits,
-            semester: course.semester as 'Spring' | 'Fall' | 'Winter',
-            days: course.days ? course.days.split(';').map((d: string) => normalizeDay(d)) : [],
-            time: course.times ? normalizeTimeRange(course.times.split('|').map((t: string) => t.trim())[0]) : 'TBD',
-            location: course.location || undefined,
-            course_uuid: course.id
-          }));
-
-          // Sort by semester priority: Fall first, then Spring
-          const sortBySemesterPriority = (a: CourseData, b: CourseData) => {
-            const priority = (s: string) => {
-              if (/Fall/i.test(s) || /FA$/i.test(s)) return 0;
-              if (/Spring/i.test(s) || /SP$/i.test(s)) return 1;
-              return 2;
-            };
-            return priority(a.semester) - priority(b.semester);
-          };
-          newLrwCourses.sort(sortBySemesterPriority);
-
-          setSelectedCourses([...filteredCourses, ...newLrwCourses]);
-        }
+        
+        return; // Exit early since we're handling everything in setSelectedCourses
       }
     };
 
@@ -900,13 +955,14 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
             {/* Progress Indicator */}
             <div className="mt-8 text-center">
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full border shadow-sm">
-                <span className="text-sm text-gray-600">Step 1 of 2 - Basic Information</span>
+                <span className="text-sm text-gray-600">Step 1 of 3 - Basic Information</span>
                 <div 
                   className="w-2 h-2 rounded-full" 
                   style={{ 
                     backgroundColor: isStep1Valid() ? '#752531' : '#d1d5db' 
                   }}
                 ></div>
+                <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
                 <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
                           </div>
                     </div>
@@ -1348,7 +1404,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
                                               <button
                                                 onClick={(e) => {
                                                   e.stopPropagation();
-                                                  setSelectedCourses(prev => prev.filter(selected => selected.id !== course.id));
+                                                  setSelectedCourses((prev: CourseData[]) => prev.filter((selected: CourseData) => selected.id !== course.id));
                                                 }}
                                                 className="absolute top-0 right-0 w-5 h-5 rounded-md bg-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                                                 style={{ zIndex: 100 + courseIndex }} // Higher z-index for buttons
@@ -1399,9 +1455,10 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
             {/* Progress Indicator - Center */}
             <div className="flex-1 flex justify-center">
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full border shadow-sm">
-                <span className="text-sm text-gray-600">Step 2 of 2 - Course Selection</span>
+                <span className="text-sm text-gray-600">Step 2 of 3 - Course Selection</span>
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#752531' }}></div>
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#752531' }}></div>
+                <div className="w-2 h-2 rounded-full bg-gray-300"></div>
               </div>
             </div>
 
@@ -1438,52 +1495,8 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
             </button>
             <Button
               disabled={!areRequirementsMet()}
-              onClick={async () => {
-                // Save selected courses to profiles table
-                if (user && selectedCourses.length > 0) {
-                  try {
-                    // Transform selectedCourses to the required format
-                    const classesData = selectedCourses.map(course => {
-                      // Use the actual semester value directly from the course
-                      const semesterCode = course.semester;
-                      
-                      console.log('Course semester:', {
-                        courseName: course.courseName,
-                        semester: course.semester
-                      });
-                      
-
-                      return {
-                        class: course.courseName,
-                        schedule: {
-                          days: course.days.join(' • '),
-                          times: course.time,
-                          credits: course.credits,
-                          location: course.location || 'Location TBD',
-                          semester: semesterCode,
-                          instructor: course.professor,
-                          course_name: course.courseName
-                        },
-                        professor: course.professor,
-                        course_id: (course as any).course_uuid || null
-                      };
-                    });
-
-                    const { error } = await supabase
-                      .from('profiles')
-                      .update({ classes: classesData })
-                      .eq('id', user.id);
-
-                    if (error) {
-                      console.error('Error saving classes:', error);
-                    } else {
-                      console.log('Classes saved successfully:', classesData);
-                    }
-                  } catch (error) {
-                    console.error('Error saving classes:', error);
-                  }
-                }
-                
+              onClick={() => {
+                // Don't save to database here - will be saved after page 3
                 onComplete();
               }}
               className={`text-white px-8 py-2 disabled:opacity-50 ${areRequirementsMet() ? 'hover:bg-green-700' : ''}`}

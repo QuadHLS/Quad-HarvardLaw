@@ -1,11 +1,101 @@
-import React from 'react';
+import { useState } from 'react';
 import { OnboardingPage } from './OnboardingPage';
+import { OnboardingStepThree } from './OnboardingStepThree';
+
+interface CourseData {
+  id: string;
+  courseName: string;
+  professor: string;
+  credits: number;
+  semester: 'Spring' | 'Fall' | 'Winter' | 'Spring 2026' | 'Fall 2025' | 'Winter 2026';
+  days: string[];
+  time: string;
+  location?: string;
+  original_course_id?: number;
+  course_uuid?: string;
+}
 
 export function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
-  // Skip account creation step - go directly to class selection
-  const handleAcademicComplete = () => {
+  const [currentStep, setCurrentStep] = useState<'page1' | 'page2' | 'profile'>('page1');
+  
+  // Lift all state from OnboardingPage to preserve across navigation
+  // Basic info form
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [classYear, setClassYear] = useState<'1L' | '2L' | '3L' | 'LLM' | ''>('');
+  const [section, setSection] = useState('');
+  const [lrwSection, setLrwSection] = useState<'A' | 'B' | ''>('');
+  const [loading, setLoading] = useState(false);
+
+  // Course selection
+  const [selectedCourses, setSelectedCourses] = useState<CourseData[]>([]);
+  const [currentSemester, setCurrentSemester] = useState<'Fall 2025' | 'Winter 2026' | 'Spring 2026'>('Fall 2025');
+  const [allCourseData, setAllCourseData] = useState<any[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+  
+  // Course search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [availableCourses, setAvailableCourses] = useState<any[]>([]);
+  const [showMaxCourseWarning, setShowMaxCourseWarning] = useState(false);
+
+  // When page 1 completes, go to page 2
+  const handlePage1Complete = () => {
+    setCurrentStep('page2');
+  };
+
+  // When page 2 completes, go to profile step
+  const handlePage2Complete = () => {
+    setCurrentStep('profile');
+  };
+
+  // When profile step is done, complete the entire onboarding
+  const handleProfileComplete = () => {
     onComplete();
   };
 
-  return <OnboardingPage onComplete={handleAcademicComplete} />;
+  // Go back to course selection (page 2)
+  const handleBackToCourseSelection = () => {
+    setCurrentStep('page2');
+  };
+
+  // Show profile step
+  if (currentStep === 'profile') {
+    return <OnboardingStepThree 
+      onDone={handleProfileComplete} 
+      onBack={handleBackToCourseSelection}
+      selectedCourses={selectedCourses}
+      userInfo={{ name, phone, classYear, section }}
+    />;
+  }
+
+  // Show the onboarding page with appropriate props
+  const getOnboardingProps = () => {
+    const baseProps = {
+      // Basic info form
+      name, setName,
+      phone, setPhone,
+      classYear, setClassYear,
+      section, setSection,
+      lrwSection, setLrwSection,
+      loading, setLoading,
+      
+      // Course selection
+      selectedCourses, setSelectedCourses,
+      currentSemester, setCurrentSemester,
+      allCourseData, setAllCourseData,
+      coursesLoading, setCoursesLoading,
+      
+      // Course search
+      searchQuery, setSearchQuery,
+      availableCourses, setAvailableCourses,
+      showMaxCourseWarning, setShowMaxCourseWarning,
+    };
+    
+    if (currentStep === 'page2') {
+      return { ...baseProps, onComplete: handlePage2Complete, initialPage: 2 };
+    }
+    return { ...baseProps, onComplete: handlePage1Complete, initialPage: 1 };
+  };
+
+  return <OnboardingPage {...getOnboardingProps()} />;
 }

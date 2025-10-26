@@ -46,17 +46,137 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo 
   const [instagram, setInstagram] = useState('');
   const [linkedIn, setLinkedIn] = useState('');
   const [profileImage, setProfileImage] = useState<string>('');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarWarning, setAvatarWarning] = useState<string>('');
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfileImage(reader.result as string);
+  // Avatar compression function (targets 500KB, maintains original ratio)
+  const compressAvatarImage = (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      // Add timeout to prevent hanging
+      const timeout = setTimeout(() => {
+        reject(new Error('Avatar compression timeout - image too large or complex'));
+      }, 30000); // 30 second timeout
+      
+      img.onload = () => {
+        try {
+          // Calculate new dimensions (max 400px on the longest side, maintain original ratio)
+          const maxSize = 400;
+          let { width, height } = img;
+          
+          // Maintain original aspect ratio
+          if (width > height) {
+            if (width > maxSize) {
+              height = (height * maxSize) / width;
+              width = maxSize;
+            }
+          } else {
+            if (height > maxSize) {
+              width = (width * maxSize) / height;
+              height = maxSize;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          // Draw and compress (maintains original aspect ratio)
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Compress to target size (500KB for avatars)
+          const targetSize = 500 * 1024; // 500KB in bytes
+          let quality = 0.8;
+          
+          const compressToTargetSize = (currentQuality: number): void => {
+            canvas.toBlob((blob) => {
+              if (blob) {
+                if (blob.size <= targetSize || currentQuality <= 0.1) {
+                  // If size is acceptable or quality is too low, use this result
+                  clearTimeout(timeout);
+                  const compressedFile = new File([blob], file.name, {
+                    type: 'image/jpeg',
+                    lastModified: Date.now(),
+                  });
+                  resolve(compressedFile);
+                } else {
+                  // Reduce quality and try again
+                  compressToTargetSize(currentQuality - 0.1);
+                }
+              } else {
+                clearTimeout(timeout);
+                resolve(file);
+              }
+            }, 'image/jpeg', currentQuality);
+          };
+          
+          compressToTargetSize(quality);
+        } catch (error) {
+          clearTimeout(timeout);
+          reject(error);
+        }
       };
-      reader.readAsDataURL(file);
+      
+      img.onerror = () => {
+        clearTimeout(timeout);
+        reject(new Error('Failed to load avatar image'));
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setAvatarWarning('Invalid format. Please try a different image.');
+      return;
+    }
+
+    // Validate file size (max 8MB before compression)
+    if (file.size > 8 * 1024 * 1024) {
+      setAvatarWarning('Image is too big. Please try a smaller file.');
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      // Compress avatar image
+      const compressedFile = await compressAvatarImage(file);
+      
+      // Store the compressed file for later upload
+      setAvatarFile(compressedFile);
+      
+      // Create a local preview URL
+      const previewUrl = URL.createObjectURL(compressedFile);
+      setProfileImage(previewUrl);
+      
+      // Clear any previous warnings
+      setAvatarWarning('');
+      
+      console.log('Avatar file prepared for upload:', {
+        fileName: compressedFile.name,
+        fileSize: compressedFile.size,
+        fileType: compressedFile.type
+      });
+    } catch (error) {
+      console.error('Error processing avatar:', error);
+      if (error instanceof Error && error.message && error.message.includes('timeout')) {
+        setAvatarWarning('Image is too big. Please try a smaller file.');
+      } else {
+        setAvatarWarning('Invalid format. Please try a different image.');
+      }
+    } finally {
+      setUploadingAvatar(false);
     }
   };
+
 
   const removeClub = (club: string) => {
     setClubsActivities(clubsActivities.filter(c => c !== club));
@@ -64,7 +184,7 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo 
 
   // Get initials for avatar
   const getInitials = () => {
-    return 'JD'; // Placeholder initials
+    return userInfo.name ? userInfo.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'JD';
   };
 
   return (
@@ -90,43 +210,99 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo 
 
         {/* Profile Form */}
         <Card className="shadow-lg flex-1 w-full mx-auto" style={{ maxWidth: '800px' }}>
-          <CardHeader className="pb-6 border-b">
-            <CardTitle className="text-2xl text-center text-gray-900">
-              Profile Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6 flex-1">
+                 <CardHeader className="pb-6 border-b flex items-center justify-center">
+                   <CardTitle className="text-2xl text-center text-gray-900">
+                     {userInfo.name}
+                   </CardTitle>
+                 </CardHeader>
+          <CardContent className="pt-6 flex-1 mt-4">
             <div className="space-y-6">
               {/* Profile Picture */}
               <div className="flex flex-col items-center">
-                <Label className="text-center mb-3">Profile Picture</Label>
-                <div className="relative">
-                  {profileImage ? (
-                    <img
-                      src={profileImage}
-                      alt="Profile"
-                      className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
-                    />
-                  ) : (
-                    <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 text-2xl font-medium shadow-lg">
-                      {getInitials()}
-                    </div>
-                  )}
-                  <label
-                    htmlFor="profile-upload"
-                    className="absolute bottom-0 right-0 bg-white rounded-full p-2 shadow-lg cursor-pointer hover:bg-gray-50 border border-gray-200"
-                  >
-                    <Upload className="w-4 h-4 text-gray-600" />
-                  </label>
-                  <input
-                    id="profile-upload"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                  />
+                <div>
+                  <div className="-mt-12 flex items-center justify-center">
+                    {profileImage ? (
+                      <img
+                        src={profileImage}
+                        alt="Profile"
+                        className="h-auto object-contain rounded-full border-4 border-white shadow-lg"
+                        style={{ maxWidth: '96px', maxHeight: '96px' }}
+                      />
+                    ) : (
+                      <div className="w-24 h-24 text-2xl font-medium bg-gray-100 text-gray-700 flex items-center justify-center rounded-full border-4 border-white shadow-lg">
+                        {getInitials()}
+                      </div>
+                    )}
+                  </div>
+                         <div className="flex flex-col gap-2 mt-4 w-fit mx-auto">
+                           <input
+                             type="file"
+                             accept="image/*"
+                             onChange={handleAvatarUpload}
+                             className="hidden"
+                             id="avatar-upload"
+                             disabled={uploadingAvatar}
+                           />
+                           <Button 
+                             size="sm" 
+                             variant="outline"
+                             className="text-xs px-3 py-1 h-7 w-auto"
+                             disabled={uploadingAvatar}
+                             onClick={() => document.getElementById('avatar-upload')?.click()}
+                           >
+                             {uploadingAvatar ? (
+                               <div className="flex items-center gap-1">
+                                 <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600"></div>
+                                 <span>Uploading...</span>
+                               </div>
+                             ) : (
+                               <div className="flex items-center gap-1">
+                                 <Upload className="w-3 h-3" />
+                                 <span>{profileImage ? 'Change Avatar' : 'Add Avatar'}</span>
+                               </div>
+                             )}
+                           </Button>
+                           {profileImage && (
+                             <Button 
+                               size="sm" 
+                               variant="outline"
+                               className="text-xs px-3 py-1 h-7 w-auto text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                               onClick={() => {
+                                 setProfileImage('');
+                                 setAvatarFile(null);
+                                 setAvatarWarning('');
+                                 // Reset the file input
+                                 const fileInput = document.getElementById('avatar-upload') as HTMLInputElement;
+                                 if (fileInput) {
+                                   fileInput.value = '';
+                                 }
+                               }}
+                             >
+                               <div className="flex items-center gap-1">
+                                 <X className="w-3 h-3" />
+                                 <span>Delete Avatar</span>
+                               </div>
+                             </Button>
+                           )}
+                         </div>
+                         {avatarWarning && (
+                           <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                             <div className="flex items-center">
+                               <div className="ml-3">
+                                 <p className="text-sm text-yellow-800">{avatarWarning}</p>
+                               </div>
+                               <div className="ml-auto pl-3 flex items-center">
+                                 <button
+                                   onClick={() => setAvatarWarning('')}
+                                   className="inline-flex items-center justify-center text-yellow-400 hover:text-yellow-600"
+                                 >
+                                   <X className="h-4 w-4" />
+                                 </button>
+                               </div>
+                             </div>
+                           </div>
+                         )}
                 </div>
-                <p className="text-sm text-gray-500 mt-2">Click to upload a photo</p>
               </div>
 
               {/* Bio */}
@@ -306,53 +482,89 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo 
           </div>
 
           {/* Finish Button */}
-          <Button
-            onClick={async () => {
-              // Save all courses and profile data to database
-              if (user && selectedCourses.length > 0) {
-                try {
-                  const classesData = selectedCourses.map(course => ({
-                    class: course.courseName,
-                    schedule: {
-                      days: course.days.join(' • '),
-                      times: course.time,
-                      credits: course.credits,
-                      location: course.location || 'Location TBD',
-                      semester: course.semester,
-                      instructor: course.professor,
-                      course_name: course.courseName
-                    },
-                    professor: course.professor,
-                    course_id: (course as any).course_uuid || null
-                  }));
+                 <Button
+                   onClick={async () => {
+                     // Save all courses and profile data to database
+                     if (user && selectedCourses.length > 0) {
+                       try {
+                         let avatarUrl = null;
+                         
+                         // Upload avatar to bucket if one was selected
+                         if (avatarFile) {
+                           const fileExt = avatarFile.name.split('.').pop();
+                           const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+                           
+                           console.log('Uploading avatar to bucket:', fileName);
+                           
+                           const { error: uploadError } = await supabase.storage
+                             .from('Avatar')
+                             .upload(fileName, avatarFile);
 
-                  const { error } = await supabase
-                    .from('profiles')
-                    .update({ 
-                      classes: classesData,
-                      full_name: userInfo.name,
-                      phone: userInfo.phone,
-                      class_year: userInfo.classYear,
-                      section: userInfo.section
-                    })
-                    .eq('id', user.id);
+                           if (uploadError) {
+                             console.error('Error uploading avatar:', uploadError);
+                             alert('Error uploading avatar. Please try again.');
+                             return;
+                           }
 
-                  if (error) {
-                    console.error('Error saving profile:', error);
-                    alert('Error saving your profile. Please try again.');
-                    return;
-                  }
-                  
-                  console.log('Profile and courses saved successfully');
-                } catch (error) {
-                  console.error('Error saving profile:', error);
-                  alert('Error saving your profile. Please try again.');
-                  return;
-                }
-              }
-              
-              onDone();
-            }}
+                           // Get public URL
+                           const { data: urlData } = supabase.storage
+                             .from('Avatar')
+                             .getPublicUrl(fileName);
+
+                           avatarUrl = urlData.publicUrl;
+                           console.log('Avatar uploaded successfully:', avatarUrl);
+                         }
+
+                         const classesData = selectedCourses.map(course => ({
+                           class: course.courseName,
+                           schedule: {
+                             days: course.days.join(' • '),
+                             times: course.time,
+                             credits: course.credits,
+                             location: course.location || 'Location TBD',
+                             semester: course.semester,
+                             instructor: course.professor,
+                             course_name: course.courseName
+                           },
+                           professor: course.professor,
+                           course_id: (course as any).course_uuid || null
+                         }));
+
+                         const { error } = await supabase
+                           .from('profiles')
+                           .update({ 
+                             classes: classesData,
+                             full_name: userInfo.name,
+                             phone: userInfo.phone,
+                             class_year: userInfo.classYear,
+                             section: userInfo.section,
+                             avatar_url: avatarUrl,
+                             bio: bio,
+                             age: age ? parseInt(age) : null,
+                             hometown: hometown,
+                             summer_city: postGradCity,
+                             summer_firm: postGradEmployer,
+                             instagram: instagram,
+                             linkedin: linkedIn
+                           })
+                           .eq('id', user.id);
+
+                         if (error) {
+                           console.error('Error saving profile:', error);
+                           alert('Error saving your profile. Please try again.');
+                           return;
+                         }
+                         
+                         console.log('Profile and courses saved successfully');
+                       } catch (error) {
+                         console.error('Error saving profile:', error);
+                         alert('Error saving your profile. Please try again.');
+                         return;
+                       }
+                     }
+                     
+                     onDone();
+                   }}
             className="bg-green-600 hover:bg-green-700 text-white px-8 py-2"
           >
             Done!

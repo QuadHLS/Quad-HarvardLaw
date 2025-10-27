@@ -1215,6 +1215,59 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
 
   return (
     <div className="h-full overflow-y-auto" style={{ backgroundColor: '#FAF5EF' }}>
+      <style>{`
+        .golden-quad-logo {
+          position: relative;
+          overflow: hidden;
+          background: #ffd700;
+          border-radius: 0.5rem;
+          padding: 0.5rem;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          transition: 0.5s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        
+        .golden-quad-logo img {
+          position: relative;
+          z-index: 2;
+        }
+        
+        .golden-quad-logo::before {
+          content: "";
+          position: absolute;
+          height: 200%;
+          width: 8px;
+          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+          animation: shimmer 2s infinite linear;
+          animation-delay: 0.3s;
+          z-index: 1;
+          left: 0;
+          top: 0;
+        }
+        
+        .golden-quad-logo::after {
+          content: "";
+          position: absolute;
+          height: 200%;
+          width: 6px;
+          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+          animation: shimmer 2s infinite linear;
+          z-index: 1;
+          left: 0;
+          top: 0;
+        }
+        
+        @keyframes shimmer {
+          0% {
+            transform: translateX(-100%) translateY(-100%) skewX(45deg);
+          }
+          100% {
+            transform: translateX(100%) translateY(100%) skewX(45deg);
+          }
+        }
+      `}</style>
       <div className="max-w-6xl mx-auto p-4 pb-8 space-y-6">
         {/* Back Button - Only show when viewing student profile */}
         {onBack && (
@@ -1310,6 +1363,16 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                     <Badge className="border-0 text-white" style={{ backgroundColor: '#752432' }}>
                       {profileData.year}
                     </Badge>
+                    {/* Gold Quad Logo Button for Special Users */}
+                    {profileData.email && ['justin031607@gmail.com', 'jabbey@jd26.law.harvard.edu', 'lnassif@jd26.law.harvard.edu'].includes(profileData.email.toLowerCase()) && (
+                      <div className="golden-quad-logo">
+                        <img 
+                          src="/QUAD.svg" 
+                          alt="Quad Logo" 
+                          className="w-6 h-6"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 

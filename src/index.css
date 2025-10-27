@@ -6819,8 +6819,8 @@ html {
   display: -ms-flexbox;
   display: flex;
   font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  font-size: 14px;
-  line-height: 18px;
+  font-size: 16px;
+  line-height: 22px;
   position: relative;
   -webkit-user-select: none;
   -moz-user-select: none;
@@ -6837,18 +6837,18 @@ html {
 .checkbox-wrapper-35 .switch + label::before {
   background-color: #04913A;
   border-radius: 500px;
-  height: 18px;
+  height: 22px;
   margin-right: 10px;
   -webkit-transition: background-color 0.125s ease-out;
   transition: background-color 0.125s ease-out;
-  width: 30px;
+  width: 38px;
 }
 
 .checkbox-wrapper-35 .switch + label::after {
   background-color: #fff;
-  border-radius: 16px;
+  border-radius: 20px;
   box-shadow: 0 3px 1px 0 rgba(37, 34, 71, 0.05), 0 2px 2px 0 rgba(37, 34, 71, 0.1), 0 3px 3px 0 rgba(37, 34, 71, 0.05);
-  height: 16px;
+  height: 20px;
   left: 1px;
   position: absolute;
   top: 1px;
@@ -6856,7 +6856,7 @@ html {
   transition: -webkit-transform 0.125s ease-out;
   transition: transform 0.125s ease-out;
   transition: transform 0.125s ease-out, -webkit-transform 0.125s ease-out;
-  width: 16px;
+  width: 20px;
 }
 
 .checkbox-wrapper-35 .switch + label .switch-x-text {
@@ -6865,17 +6865,17 @@ html {
   transform: none !important;
   width: auto !important;
   height: auto !important;
-  font-size: 14px !important;
+  font-size: 16px !important;
   font-weight: normal !important;
 }
 
 .checkbox-wrapper-35 .switch + label .switch-x-toggletext {
   display: block;
   font-weight: bold;
-  height: 18px;
+  height: 22px;
   overflow: hidden;
   position: relative;
-  width: 100px;
+  width: 120px;
 }
 
 .checkbox-wrapper-35 .switch + label .switch-x-unchecked,
@@ -6911,8 +6911,8 @@ html {
 }
 
 .checkbox-wrapper-35 .switch:checked + label::after {
-  -webkit-transform: translate3d(13px, 0, 0);
-  transform: translate3d(13px, 0, 0);
+  -webkit-transform: translate3d(17px, 0, 0);
+  transform: translate3d(17px, 0, 0);
 }
 
 .checkbox-wrapper-35 .switch:checked + label .switch-x-unchecked {

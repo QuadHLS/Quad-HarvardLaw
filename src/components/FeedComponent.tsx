@@ -2235,25 +2235,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 setNewPostTarget(feedMode);
                 setShowCreatePostDialog(true);
               }}
-              className="uiverse new-post"
+              className="px-3 py-1.5 text-sm font-medium rounded transition-colors bg-[#752432] text-white hover:bg-[#752432]/90"
               aria-label="Create post"
               title="Create post"
             >
-              <div className="wrapper">
-                <span>+ New Post</span>
-                <div className="circle circle-1"></div>
-                <div className="circle circle-2"></div>
-                <div className="circle circle-3"></div>
-                <div className="circle circle-4"></div>
-                <div className="circle circle-5"></div>
-                <div className="circle circle-6"></div>
-                <div className="circle circle-7"></div>
-                <div className="circle circle-8"></div>
-                <div className="circle circle-9"></div>
-                <div className="circle circle-10"></div>
-                <div className="circle circle-11"></div>
-                <div className="circle circle-12"></div>
-              </div>
+              + New Post
             </button>
           </div>
         </div>
@@ -2286,23 +2272,9 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 setNewPostTarget(feedMode);
                 setShowCreatePostDialog(true);
               }}
-              className="uiverse new-post"
+              className="px-3 py-1.5 text-sm font-medium rounded transition-colors bg-[#752432] text-white hover:bg-[#752432]/90"
             >
-              <div className="wrapper">
-                <span>Create First Post</span>
-                <div className="circle circle-1"></div>
-                <div className="circle circle-2"></div>
-                <div className="circle circle-3"></div>
-                <div className="circle circle-4"></div>
-                <div className="circle circle-5"></div>
-                <div className="circle circle-6"></div>
-                <div className="circle circle-7"></div>
-                <div className="circle circle-8"></div>
-                <div className="circle circle-9"></div>
-                <div className="circle circle-10"></div>
-                <div className="circle circle-11"></div>
-                <div className="circle circle-12"></div>
-              </div>
+              Create First Post
             </button>
           </div>
         ) : (
@@ -2898,7 +2870,9 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 className="w-4 h-4 text-[#752432] bg-gray-100 border-gray-300 rounded focus:ring-[#752432] focus:ring-2"
               />
               <label htmlFor="anonymous-post" className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                <span className="text-lg">🎭</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                </svg>
                 Post anonymously
               </label>
             </div>

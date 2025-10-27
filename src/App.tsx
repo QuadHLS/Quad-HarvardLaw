@@ -9,7 +9,7 @@ import { PlannerPage } from './components/PlannerPage';
 import { HomePage } from './components/HomePage';
 import { CoursePage } from './components/CoursePage';
 import { BarReviewPage } from './components/BarReviewPage';
-import { ProfilePage } from './components/ProfilePage';
+import { ProfilePage } from './components/NewProfilePage';
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/auth/AuthPage';
@@ -38,14 +38,13 @@ function AppContent({ user }: { user: any }) {
 
         if (!currentUser) {
           if (isMounted) {
-            setIsVerified(false);
             setAuthLoading(false);
             setHasCompletedOnboarding(false);
           }
           return;
         }
 
-        const { data: profile, error } = await supabase
+        const { error } = await supabase
           .from('profiles')
           .select('classes_filled')
           .eq('id', currentUser.id)
@@ -138,14 +137,11 @@ function AppContent({ user }: { user: any }) {
   // Note: These variables are kept for future exam UI implementation
   // @ts-ignore - Suppressing unused variable warnings for future exam UI
   const [exams, setExams] = useState<Outline[]>([]);
-  const [examsLoading, setExamsLoading] = useState(true);
   const [selectedExam, setSelectedExam] = useState<Outline | null>(null);
   const [selectedCourseForExams, setSelectedCourseForExams] = useState('');
   const [selectedInstructorForExams, setSelectedInstructorForExams] = useState('');
   const [selectedGradeForExams, setSelectedGradeForExams] = useState<string | undefined>(undefined);
   const [selectedYearForExams, setSelectedYearForExams] = useState<string | undefined>(undefined);
-  const [showExams, setShowExams] = useState(true);
-  const [showExamAttacks, setShowExamAttacks] = useState(true);
   const [activeExamTab, setActiveExamTab] = useState<'search' | 'saved' | 'upload'>('search');
   const [savedExams, setSavedExams] = useState<Outline[]>([]);
   const [selectedTagsForExams, setSelectedTagsForExams] = useState<string[]>(['Attack', 'Outline']);
@@ -379,7 +375,6 @@ function AppContent({ user }: { user: any }) {
       }
 
       try {
-        setExamsLoading(true);
         const allExams: Outline[] = [];
         const batchSize = 1000;
         let from = 0;
@@ -419,8 +414,6 @@ function AppContent({ user }: { user: any }) {
         fetchedExamsOnceRef.current = true;
       } catch (error) {
         console.error('Error fetching exams:', error);
-      } finally {
-        setExamsLoading(false);
       }
     };
 
@@ -774,14 +767,6 @@ function AppContent({ user }: { user: any }) {
 
 
 
-  const handleSectionChange = (section: string) => {
-    // Navigate to the appropriate route
-    if (section === 'home') {
-      navigate('/');
-    } else {
-      navigate(`/${section}`);
-    }
-  };
 
   const handleToggleSidebar = () => {
     setSidebarCollapsed((prev) => !prev);

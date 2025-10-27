@@ -6842,6 +6842,9 @@ html {
   -webkit-transition: background-color 0.125s ease-out;
   transition: background-color 0.125s ease-out;
   width: 38px;
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .checkbox-wrapper-35 .switch + label::after {
@@ -6851,11 +6854,10 @@ html {
   height: 20px;
   left: 1px;
   position: absolute;
-  top: 1px;
+  top: 50%;
+  transform: translateY(-50%);
   -webkit-transition: -webkit-transform 0.125s ease-out;
-  transition: -webkit-transform 0.125s ease-out;
-  transition: transform 0.125s ease-out;
-  transition: transform 0.125s ease-out, -webkit-transform 0.125s ease-out;
+  transition: -webkit-transform 0.125s ease-out, transform 0.125s ease-out;
   width: 20px;
 }
 
@@ -6911,8 +6913,8 @@ html {
 }
 
 .checkbox-wrapper-35 .switch:checked + label::after {
-  -webkit-transform: translate3d(17px, 0, 0);
-  transform: translate3d(17px, 0, 0);
+  -webkit-transform: translate3d(17px, -50%, 0);
+  transform: translate3d(17px, -50%, 0);
 }
 
 .checkbox-wrapper-35 .switch:checked + label .switch-x-unchecked {

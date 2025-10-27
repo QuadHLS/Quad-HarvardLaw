@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { ExpandableText } from './ui/expandable-text';
 
 // Interfaces
 interface PollOption {
@@ -1828,7 +1829,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 </span>
               )}
               
-              <p className="text-gray-800 leading-relaxed mb-4">{selectedPost.content.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')}</p>
+              <div className="mb-4">
+                <ExpandableText 
+                  text={selectedPost.content.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')}
+                  maxLines={10}
+                  className="text-gray-800 leading-relaxed whitespace-pre-wrap"
+                  buttonColor={getPostColor(selectedPost.id)}
+                />
+              </div>
               
               {/* Poll in thread view */}
               {selectedPost.poll && (
@@ -1905,11 +1913,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       }
                     }}
                   >
-                    <Heart className={`w-4 h-4 ${selectedPost.isLiked ? 'fill-current' : ''}`} />
+                    <Heart className={`w-5 h-5 ${selectedPost.isLiked ? 'fill-current' : ''}`} />
                     {selectedPost.likes_count}
                   </button>
                   <span className="flex items-center gap-2 text-sm text-gray-600">
-                    <MessageCircle className="w-4 h-4" />
+                    <MessageCircle className="w-5 h-5" />
                     {selectedPost.comments_count} comments
                   </span>
                 </div>
@@ -1989,9 +1997,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           ) : (
             <div className="space-y-4">
               {comments[selectedPost.id]?.map((comment) => (
-              <Card key={comment.id}>
-                <div className="p-4">
-                  <div className="flex items-start gap-3">
+              <div key={comment.id} className="mb-4 ml-8">
+                <div className="flex items-start gap-3">
                     <ProfileBubble 
                       userName={comment.author?.name || 'Anonymous'} 
                       size="md" 
@@ -2013,7 +2020,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                         {/* verified badge removed */}
                         <span className="text-xs text-gray-500">{formatTimestamp(comment.created_at)}</span>
                       </div>
-                      <p className="text-gray-800 text-sm mb-2">{comment.content}</p>
+                      <ExpandableText 
+                        text={comment.content}
+                        maxLines={10}
+                        className="text-gray-800 text-sm mb-2 whitespace-pre-wrap"
+                        buttonColor={getPostColor(selectedPost.id)}
+                      />
                       <div className="flex items-center gap-3">
                         <button 
                           className={`flex items-center gap-1 text-xs font-medium transition-colors px-2 py-1 rounded-md ${
@@ -2034,7 +2046,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                           }}
                           onClick={() => toggleCommentLike(selectedPost.id, comment.id)}
                         >
-                          <Heart className={`w-3 h-3 ${comment.isLiked ? 'fill-current' : ''}`} />
+                          <Heart className={`w-4 h-4 ${comment.isLiked ? 'fill-current' : ''}`} />
                           {comment.likes_count}
                         </button>
                         <button 
@@ -2072,7 +2084,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                   <span className="text-xs text-gray-500">•</span>
                                   <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>
                                 </div>
-                                <p className="text-gray-800 text-xs mb-2">{reply.content.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')}</p>
+                                <ExpandableText 
+                                  text={reply.content.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')}
+                                  maxLines={10}
+                                  className="text-gray-800 text-xs mb-2 whitespace-pre-wrap"
+                                  buttonColor={getPostColor(selectedPost.id)}
+                                />
                                 <div className="flex items-center gap-3">
                                   <button 
                                     className={`flex items-center gap-1 text-xs font-medium transition-colors px-2 py-1 rounded-md ${
@@ -2093,7 +2110,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                     }}
                                     onClick={() => toggleReplyLike(selectedPost.id, comment.id, reply.id)}
                                   >
-                                    <Heart className={`w-3 h-3 ${reply.isLiked ? 'fill-current' : ''}`} />
+                                    <Heart className={`w-4 h-4 ${reply.isLiked ? 'fill-current' : ''}`} />
                                     {reply.likes_count}
                                   </button>
                                   {/* timestamp shown inline with name */}
@@ -2166,8 +2183,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                     </div>
                   </div>
                 </div>
-              </Card>
-            ))}
+              ))}
             </div>
           )}
         </div>
@@ -2345,7 +2361,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
                 {/* Post Content */}
                 <div className="mb-3">
-                  <p className="text-gray-800 leading-relaxed text-sm">{post.content.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')}</p>
+                  <ExpandableText 
+                    text={post.content.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')}
+                    maxLines={10}
+                    className="text-gray-800 leading-relaxed text-sm whitespace-pre-wrap"
+                    buttonColor={getPostColor(post.id)}
+                  />
                 </div>
                 {/* Poll Component */}
                 {post.poll && (
@@ -2428,11 +2449,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                         }
                       }}
                     >
-                      <Heart className={`w-4 h-4 ${post.isLiked ? 'fill-current' : ''}`} />
+                      <Heart className={`w-5 h-5 ${post.isLiked ? 'fill-current' : ''}`} />
                       {post.likes_count}
                     </button>
                     <span className="flex items-center gap-1.5 text-xs font-medium text-gray-600">
-                      <MessageCircle className="w-4 h-4" />
+                      <MessageCircle className="w-5 h-5" />
                       {post.comments_count}
                     </span>
                   </div>
@@ -2540,7 +2561,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                   <span className="text-xs text-gray-500">•</span>
                                   <span className="text-xs text-gray-500">{formatTimestamp(comment.created_at)}</span>
                                 </div>
-                              <p className="text-gray-800 text-sm">{comment.content}</p>
+                              <ExpandableText 
+                                text={comment.content}
+                                maxLines={10}
+                                className="text-gray-800 text-sm whitespace-pre-wrap"
+                                buttonColor={getPostColor(post.id)}
+                              />
                               {/* comment actions */}
                               <div className="mt-2 flex items-center gap-3">
                                 <button 
@@ -2562,7 +2588,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                   }}
                                   onClick={(e) => { e.stopPropagation(); toggleCommentLike(post.id, comment.id); }}
                                 >
-                                  <Heart className={`w-3 h-3 ${comment.isLiked ? 'fill-current' : ''}`} />
+                                  <Heart className={`w-4 h-4 ${comment.isLiked ? 'fill-current' : ''}`} />
                                   {comment.likes_count}
                                 </button>
                                 <button 
@@ -2621,7 +2647,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                           }}
                                           onClick={(e) => { e.stopPropagation(); toggleReplyLike(post.id, comment.id, reply.id); }}
                                         >
-                                          <Heart className={`w-3 h-3 ${reply.isLiked ? 'fill-current' : ''}`} />
+                                          <Heart className={`w-4 h-4 ${reply.isLiked ? 'fill-current' : ''}`} />
                                           {reply.likes_count}
                                         </button>
                                       </div>

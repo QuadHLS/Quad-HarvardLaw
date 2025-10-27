@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Users, MessageSquare, GraduationCap, Clock, MapPin, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { ExpandableText } from './ui/expandable-text';
 
 // Heart component (matching FeedComponent)
 const Heart = ({ className, fill }: { className?: string; fill?: boolean }) => (
@@ -1712,7 +1713,12 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
 
                           {/* Post Content */}
                           <div className="mb-3">
-                            <p className="text-gray-800 leading-relaxed text-sm">{post.content}</p>
+                            <ExpandableText 
+                              text={post.content}
+                              maxLines={10}
+                              className="text-gray-800 leading-relaxed text-sm whitespace-pre-wrap"
+                              buttonColor={courseColor}
+                            />
                           </div>
 
                           {/* Poll Component */}
@@ -1795,7 +1801,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                   }
                                 }}
                               >
-                                <Heart className={`w-4 h-4 ${post.isLiked ? 'fill-current' : ''}`} />
+                                <Heart className={`w-5 h-5 ${post.isLiked ? 'fill-current' : ''}`} />
                                 {post.likes_count}
                               </button>
                               <button 
@@ -1805,7 +1811,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                   await toggleCommentsExpanded(post.id);
                                 }}
                               >
-                                <MessageCircle className="w-4 h-4" />
+                                <MessageCircle className="w-5 h-5" />
                                 {post.comments_count}
                               </button>
                             </div>
@@ -1929,7 +1935,12 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                             <span className="text-xs text-gray-500">•</span>
                                             <span className="text-xs text-gray-500">{formatTimestamp(comment.created_at)}</span>
                                           </div>
-                                          <p className="text-gray-800 text-sm">{comment.content}</p>
+                                          <ExpandableText 
+                                            text={comment.content}
+                                            maxLines={10}
+                                            className="text-gray-800 text-sm whitespace-pre-wrap"
+                                            buttonColor={courseColor}
+                                          />
                                           {/* comment actions */}
                                           <div className="mt-2 flex items-center gap-3">
                                             <button 
@@ -1951,7 +1962,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                               }}
                                               onClick={(e) => { e.stopPropagation(); toggleCommentLike(post.id, comment.id); }}
                                             >
-                                              <Heart className={`w-3 h-3 ${comment.isLiked ? 'fill-current' : ''}`} />
+                                              <Heart className={`w-5 h-5 ${comment.isLiked ? 'fill-current' : ''}`} />
                                               {comment.likes_count}
                                             </button>
                                             <button 
@@ -2018,7 +2029,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                                       }}
                                                       onClick={(e) => { e.stopPropagation(); toggleReplyLike(post.id, comment.id, reply.id); }}
                                                     >
-                                                      <Heart className={`w-3 h-3 ${reply.isLiked ? 'fill-current' : ''}`} />
+                                                      <Heart className={`w-5 h-5 ${reply.isLiked ? 'fill-current' : ''}`} />
                                                       {reply.likes_count}
                                                     </button>
                                                   </div>

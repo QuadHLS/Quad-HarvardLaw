@@ -2185,47 +2185,21 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       <div className="px-4 py-2 border-b border-gray-200" style={{ backgroundColor: '#F8F4ED' }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => onFeedModeChange?.('campus')}
-                className={`uiverse campus ${feedMode === 'campus' ? 'active' : ''}`}
-              >
-                <div className="wrapper">
-                  <span>Campus</span>
-                  <div className="circle circle-1"></div>
-                  <div className="circle circle-2"></div>
-                  <div className="circle circle-3"></div>
-                  <div className="circle circle-4"></div>
-                  <div className="circle circle-5"></div>
-                  <div className="circle circle-6"></div>
-                  <div className="circle circle-7"></div>
-                  <div className="circle circle-8"></div>
-                  <div className="circle circle-9"></div>
-                  <div className="circle circle-10"></div>
-                  <div className="circle circle-11"></div>
-                  <div className="circle circle-12"></div>
-                </div>
-              </button>
-              <button
-                onClick={() => onFeedModeChange?.('my-courses')}
-                className={`uiverse my-courses ${feedMode === 'my-courses' ? 'active' : ''}`}
-              >
-                <div className="wrapper">
-                  <span>My Courses</span>
-                  <div className="circle circle-1"></div>
-                  <div className="circle circle-2"></div>
-                  <div className="circle circle-3"></div>
-                  <div className="circle circle-4"></div>
-                  <div className="circle circle-5"></div>
-                  <div className="circle circle-6"></div>
-                  <div className="circle circle-7"></div>
-                  <div className="circle circle-8"></div>
-                  <div className="circle circle-9"></div>
-                  <div className="circle circle-10"></div>
-                  <div className="circle circle-11"></div>
-                  <div className="circle circle-12"></div>
-                </div>
-              </button>
+            <div className="checkbox-wrapper-35">
+              <input 
+                type="checkbox" 
+                id="feed-mode-toggle" 
+                className="switch"
+                checked={feedMode === 'my-courses'}
+                onChange={(e) => onFeedModeChange?.(e.target.checked ? 'my-courses' : 'campus')}
+              />
+              <label htmlFor="feed-mode-toggle">
+                <span className="switch-x-text">This is </span>
+                <span className="switch-x-toggletext">
+                  <span className="switch-x-unchecked"><span className="switch-x-hiddenlabel">Unchecked: </span>Campus</span>
+                  <span className="switch-x-checked"><span className="switch-x-hiddenlabel">Checked: </span>My Courses</span>
+                </span>
+              </label>
             </div>
             {/* Real-time connection indicator */}
             <div className="relative flex items-center justify-center w-2 h-2 overflow-visible">
@@ -2775,43 +2749,28 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           <div className="space-y-4">
             {/* Post Target Selection */}
             <div className="space-y-3">
-              <div className="flex items-center justify-center gap-3">
-                <button
-                  onClick={() => {
-                    setNewPostTarget('campus');
-                    setSelectedCourseForPost('');
-                  }}
-                  className={`font-medium transition-all duration-200 ${newPostTarget === 'campus' ? 'text-sm text-[#752432]' : 'text-xs text-gray-500'}`}
-                >
-                  Campus
-                </button>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setNewPostTarget('campus');
-                      setSelectedCourseForPost('');
+              <div className="flex items-center justify-center">
+                <div className="checkbox-wrapper-35">
+                  <input 
+                    type="checkbox" 
+                    id="post-target-toggle" 
+                    className="switch"
+                    checked={newPostTarget === 'my-courses'}
+                    onChange={(e) => {
+                      setNewPostTarget(e.target.checked ? 'my-courses' : 'campus');
+                      if (!e.target.checked) {
+                        setSelectedCourseForPost('');
+                      }
                     }}
-                    className={`rounded-full transition-all duration-200 ${
-                      newPostTarget === 'campus' 
-                        ? 'w-3 h-3 bg-[#752432]' 
-                        : 'w-2 h-2 bg-gray-400'
-                    }`}
                   />
-                  <button
-                    onClick={() => setNewPostTarget('my-courses')}
-                    className={`rounded-full transition-all duration-200 ${
-                      newPostTarget === 'my-courses' 
-                        ? 'w-3 h-3 bg-[#752432]' 
-                        : 'w-2 h-2 bg-gray-400'
-                    }`}
-                  />
+                  <label htmlFor="post-target-toggle">
+                    <span className="switch-x-text">This is </span>
+                    <span className="switch-x-toggletext">
+                      <span className="switch-x-unchecked"><span className="switch-x-hiddenlabel">Unchecked: </span>Campus</span>
+                      <span className="switch-x-checked"><span className="switch-x-hiddenlabel">Checked: </span>My Courses</span>
+                    </span>
+                  </label>
                 </div>
-                <button
-                  onClick={() => setNewPostTarget('my-courses')}
-                  className={`font-medium transition-all duration-200 ${newPostTarget === 'my-courses' ? 'text-sm text-[#752432]' : 'text-xs text-gray-500'}`}
-                >
-                  My Courses
-                </button>
               </div>
               
               {/* Course Selection for My Courses */}

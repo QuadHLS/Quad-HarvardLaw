@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MapPin, Edit, Save, X, MessageSquare, Trophy, BookOpen, Clock, Upload, Heart, ArrowLeft, ChevronLeft, ChevronRight, Plus, Eye } from 'lucide-react';
+import { MapPin, Edit, Save, X, Trophy, BookOpen, Clock, Upload, ArrowLeft, ChevronLeft, ChevronRight, Plus, Eye } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -498,6 +498,39 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
   const getCourseColor = (_courseName: string, courseIndex: number = 0): string => {
     const colors = ['#04913A', '#0080BD', '#FFBB06', '#F22F21']; // green, blue, yellow, red
     return colors[courseIndex % 4];
+  };
+  
+  // Parse time string to minutes for sorting (e.g., "9:00 AM" -> 540)
+  const parseTimeToMinutes = (timeStr: string): number => {
+    if (!timeStr || timeStr === 'TBD') return 9999; // Put TBD at the end
+    
+    try {
+      // Extract start time from "9:00 AM - 10:00 AM" or just "9:00 AM"
+      const startTimePart = timeStr.split('-')[0].trim();
+      const timeMatch = startTimePart.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+      
+      if (!timeMatch) return 9999;
+      
+      let hours = parseInt(timeMatch[1]);
+      const minutes = parseInt(timeMatch[2]);
+      const ampm = timeMatch[3].toUpperCase();
+      
+      if (ampm === 'PM' && hours !== 12) hours += 12;
+      if (ampm === 'AM' && hours === 12) hours = 0;
+      
+      return hours * 60 + minutes;
+    } catch {
+      return 9999;
+    }
+  };
+  
+  // Sort classes by start time
+  const sortClassesByTime = (classes: any[]): any[] => {
+    return [...classes].sort((a, b) => {
+      const timeA = parseTimeToMinutes(a.time);
+      const timeB = parseTimeToMinutes(b.time);
+      return timeA - timeB;
+    });
   };
   
   // Get current week's days starting from Monday
@@ -1284,25 +1317,6 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                 <div className="flex flex-wrap gap-2 justify-center sm:justify-end">
                   {!isEditing ? (
                     <>
-                      {/* Show Message and Match buttons only for other students */}
-                      {studentName && studentName !== 'Justin Abbey' && (
-                        <>
-                          <Button 
-                            className="gap-2 text-white hover:opacity-90" 
-                            style={{ backgroundColor: '#752432' }}
-                          >
-                            <MessageSquare className="w-4 h-4" />
-                            Message
-                          </Button>
-                          <Button 
-                            className="gap-2 text-white hover:opacity-90" 
-                            style={{ backgroundColor: '#752432' }}
-                          >
-                            <Heart className="w-4 h-4" />
-                            Match
-                          </Button>
-                        </>
-                      )}
                       {/* Show Edit button only for main user */}
                       {(!studentName || studentName === 'Justin Abbey') && (
                         <Button onClick={handleEdit} variant="outline" className="gap-2">
@@ -1542,6 +1556,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                 <div className="space-y-2">
                   {profileData.clubMemberships.map((club, index) => (
                     <div key={index} className="flex items-center gap-2 text-sm text-gray-700 py-1.5 px-2 rounded-lg hover:bg-gray-50 transition-colors">
+                      <span className="text-gray-400">•</span>
                       <span>{club}</span>
                     </div>
                   ))}
@@ -1635,7 +1650,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
               <div>
                 <div className="space-y-3">
                   {weekSchedule[selectedDayIndex] && weekSchedule[selectedDayIndex].length > 0 ? (
-                    weekSchedule[selectedDayIndex].map((classItem, classIndex) => (
+                    sortClassesByTime(weekSchedule[selectedDayIndex]).map((classItem, classIndex) => (
                       <div
                         key={classIndex}
                         className="pl-6 border-l-4 py-2 bg-gray-50 rounded-r-lg"
@@ -1706,20 +1721,28 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                 {profileData.photo_urls && profileData.photo_urls.length > 0 ? (
                   profileData.photo_urls.map((photoUrl, index) => (
                     <div key={index} className="relative aspect-square rounded-xl overflow-hidden group">
-                      <img 
-                        src={photoUrl} 
-                        alt={`Photo ${index + 1}`}
-                        className="w-full h-full object-cover hover:shadow-md transition-shadow"
-                      />
-                      {(!studentName || studentName === 'Justin Abbey') && (
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          className="absolute top-2 right-2 w-6 h-6 p-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      {(!studentName || studentName === 'Justin Abbey') ? (
+                        <div
                           onClick={() => handleDeletePhoto(photoUrl)}
+                          className="cursor-pointer relative"
                         >
-                          <X className="w-3 h-3" />
-                        </Button>
+                          <img 
+                            src={photoUrl} 
+                            alt={`Photo ${index + 1}`}
+                            className="w-full h-full object-cover hover:shadow-md transition-shadow"
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="bg-red-500 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-lg">
+                              <X className="w-5 h-5" />
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <img 
+                          src={photoUrl} 
+                          alt={`Photo ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
                       )}
                     </div>
                   ))

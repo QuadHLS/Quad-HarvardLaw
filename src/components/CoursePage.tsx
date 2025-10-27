@@ -581,7 +581,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
   };
 
   // Handle profile click
-  const handleProfileClick = (userId: string, userName: string) => {
+  const handleProfileClick = (_userId: string, userName: string) => {
     if (onNavigateToStudentProfile) {
       onNavigateToStudentProfile(userName);
     }
@@ -1375,44 +1375,6 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
 
   // Mock course data based on courseName
   const [courseStudents, setCourseStudents] = useState<Array<{ name: string; year: string; }>>([]);
-
-  const getCourseData = (name: string) => {
-    const courseMap: { [key: string]: any } = {
-      'Contract Law': {
-        instructor: 'Prof. Chen',
-        semester: 'Fall 2025',
-        schedule: 'M,W,F 9:00-10:00 AM',
-        location: 'Austin Hall 101'
-      },
-      'Torts': {
-        instructor: 'Prof. Johnson',
-        semester: 'Fall 2025', 
-        schedule: 'Tu,Th 10:30-12:00 PM',
-        location: 'Langdell Library North'
-      },
-      'Property Law': {
-        instructor: 'Prof. Chen',
-        semester: 'Fall 2025',
-        schedule: 'M,W,F 11:30-12:30 PM',
-        location: 'Austin Hall 200'
-      },
-      'Civil Procedure': {
-        instructor: 'Prof. Martinez',
-        semester: 'Fall 2025',
-        schedule: 'Tu,Th 2:00-3:30 PM',
-        location: 'Hauser Hall 104'
-      }
-    };
-
-    return courseMap[name] || {
-      instructor: 'Prof. Smith',
-      semester: 'Fall 2025',
-      schedule: 'TBD',
-      location: 'TBD'
-    };
-  };
-
-  const courseData = getCourseData(courseName);
   
   // Get the actual course name for color matching
   const actualCourseName = userCourse?.class || courseName;
@@ -1440,12 +1402,12 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
 
       if (!enrollments || enrollments.length === 0) {
         console.log('No students found for this course');
-        setStudents([]);
+        setCourseStudents([]);
         return;
       }
 
       // Extract user IDs
-      const userIds = enrollments.map(enrollment => enrollment.user_id);
+      const userIds = enrollments.map((enrollment: any) => enrollment.user_id);
 
       // Then, get profile information for these users
       const { data: profiles, error: profilesError } = await supabase
@@ -1909,8 +1871,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                       disabled={!newComment[post.id]?.trim()}
                                       className="text-white"
                                       style={{ 
-                                        backgroundColor: courseColor,
-                                        '--hover-color': `${courseColor}90`
+                                        backgroundColor: courseColor
                                       }}
                                       onMouseEnter={(e) => {
                                         e.currentTarget.style.backgroundColor = `${courseColor}90`;
@@ -2114,8 +2075,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                                 disabled={!replyText[`${post.id}:${comment.id}`]?.trim()}
                                                 className="text-white"
                                                 style={{ 
-                                                  backgroundColor: courseColor,
-                                                  '--hover-color': `${courseColor}90`
+                                                  backgroundColor: courseColor
                                                 }}
                                                 onMouseEnter={(e) => {
                                                   e.currentTarget.style.backgroundColor = `${courseColor}90`;
@@ -2316,8 +2276,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                   onClick={handleCreateCoursePost}
                   className="text-white"
                   style={{ 
-                    backgroundColor: courseColor,
-                    '--hover-color': `${courseColor}90`
+                    backgroundColor: courseColor
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = `${courseColor}90`;

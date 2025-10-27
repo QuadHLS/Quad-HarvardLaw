@@ -368,7 +368,7 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo 
         <div className="text-center mb-8" style={{ marginTop: '40px' }}>
           <div className="inline-flex items-center justify-center mb-4">
             <img 
-              src="/Quad SVG.svg" 
+              src="/QUAD.svg" 
               alt="Quad Logo" 
               className="w-auto object-contain"
               style={{ height: '80px' }}

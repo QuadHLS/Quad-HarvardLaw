@@ -792,7 +792,7 @@ function AppContent({ user }: { user: any }) {
       <div className="fixed inset-0 flex items-center justify-center z-50 fade-in-overlay" style={{ backgroundColor: '#faf3ef' }}>
         <div className="text-center">
           <img
-            src="/Quad SVG.svg"
+            src="/QUAD.svg"
             alt="Quad Logo"
             className="w-24 h-24 mx-auto"
           />

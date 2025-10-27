@@ -59,7 +59,7 @@ export function ResetPasswordPage() {
         <div className="flex-shrink-0" style={{ marginTop: 'clamp(20px, 4vh, 60px)', paddingBottom: 'clamp(10px, 2vh, 20px)' }}>
           <div className="flex justify-center">
             <img 
-              src="/Quad SVG.svg" 
+              src="/QUAD.svg" 
               alt="Quad Logo" 
               className="w-auto object-contain"
               style={{ height: 'clamp(120px, 18vh, 200px)' }}
@@ -96,7 +96,7 @@ export function ResetPasswordPage() {
       <div className="flex-shrink-0" style={{ marginTop: 'clamp(20px, 4vh, 60px)', paddingBottom: 'clamp(10px, 2vh, 20px)' }}>
         <div className="flex justify-center">
           <img 
-            src="/Quad SVG.svg" 
+            src="/QUAD.svg" 
             alt="Quad Logo" 
             className="w-auto object-contain"
             style={{ height: 'clamp(120px, 18vh, 200px)' }}

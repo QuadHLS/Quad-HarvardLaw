@@ -418,7 +418,7 @@ export function CourseSelectionStep({ onNext, onBack, basicInfo }: CourseSelecti
           <div className="mb-1">
             <div className="flex justify-center">
               <img 
-                src="/Quad SVG.svg" 
+                src="/QUAD.svg" 
                 alt="Quad Logo" 
                 className="w-auto object-contain"
                 style={{ height: '60px', marginTop: '10px' }}

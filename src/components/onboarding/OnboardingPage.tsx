@@ -833,7 +833,7 @@ export function OnboardingPage(props: OnboardingPageProps) {
           <div className="mb-4">
             <div className="flex justify-center">
               <img 
-                src="/Quad SVG.svg" 
+                src="/QUAD.svg" 
                 alt="Quad Logo" 
                 className="w-auto object-contain"
                 style={{ height: '80px', transform: 'scale(1.2)', transformOrigin: 'center', willChange: 'transform' }}

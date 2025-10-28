@@ -1875,23 +1875,45 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                           return matches;
                         });
                         
-                        // Create time slot groups
-                        const timeSlotGroups = new Map();
+                        // Create conflict groups - group courses that have overlapping times
+                        const conflictGroups: ScheduledCourse[][] = [];
+                        const processedCourses = new Set<string>();
+                        
                         coursesInDay.forEach(course => {
+                          if (processedCourses.has(course.scheduledId)) return;
+                          
                           const times = parseTimeString(course.times);
                           if (!times) return; // Skip TBD courses
                           
-                          const startTime = times.start;
-                          const endTime = times.end;
-                          const key = `${startTime}-${endTime}`;
+                          const courseStartMinutes = timeToMinutes(times.start);
+                          const courseEndMinutes = timeToMinutes(times.end);
                           
-                          if (!timeSlotGroups.has(key)) {
-                            timeSlotGroups.set(key, []);
-                          }
-                          timeSlotGroups.get(key).push(course);
+                          // Find all courses that conflict with this one
+                          const conflictingCourses = [course];
+                          processedCourses.add(course.scheduledId);
+                          
+                          coursesInDay.forEach(otherCourse => {
+                            if (processedCourses.has(otherCourse.scheduledId)) return;
+                            
+                            const otherTimes = parseTimeString(otherCourse.times);
+                            if (!otherTimes) return;
+                            
+                            const otherStartMinutes = timeToMinutes(otherTimes.start);
+                            const otherEndMinutes = timeToMinutes(otherTimes.end);
+                            
+                            // Check if times overlap
+                            const hasOverlap = (courseStartMinutes < otherEndMinutes && courseEndMinutes > otherStartMinutes);
+                            
+                            if (hasOverlap) {
+                              conflictingCourses.push(otherCourse);
+                              processedCourses.add(otherCourse.scheduledId);
+                            }
+                          });
+                          
+                          conflictGroups.push(conflictingCourses);
                         });
                         
-                        return Array.from(timeSlotGroups.entries()).map(([_timeKey, courses]) => {
+                        return conflictGroups.map((courses) => {
                           const firstCourse = courses[0];
                           const times = parseTimeString(firstCourse.times);
                           if (!times) return null; // Skip TBD courses
@@ -1905,6 +1927,13 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                             const isConflicted = courses.length > 1;
                             const courseWidth = isConflicted ? `calc(${100 / courses.length}% - 1px)` : '100%';
                             const leftOffset = isConflicted ? `calc(${(100 / courses.length) * index}% + ${index}px)` : '0px';
+                            
+                            // Calculate position and height for this specific course
+                            const courseTimes = parseTimeString(course.times);
+                            if (!courseTimes) return null;
+                            
+                            const courseHeight = getCourseHeight(courseTimes.start, courseTimes.end);
+                            const courseTop = getCourseTopPosition(courseTimes.start);
                             
                             // Check if this course has conflicts with other scheduled courses
                             const hasTimeConflict = scheduledCourses.some(scheduled => {
@@ -1952,8 +1981,8 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                                   hasTimeConflict ? 'border-red-500' : 'border-white/20'
                                 }`}
                                 style={{ 
-                                  top: `${top}px`,
-                                  height: `${height}px`,
+                                  top: `${courseTop}px`,
+                                  height: `${courseHeight}px`,
                                   left: leftOffset,
                                   width: courseWidth,
                                   backgroundColor: hasTimeConflict ? '#FEE2E2' : `${courseColor}CC`, // Red background for conflicts, normal color otherwise

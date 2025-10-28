@@ -180,13 +180,14 @@ export function BarReviewPage({ onNavigateToStudentProfile }: BarReviewPageProps
           return;
         }
 
-        // Extract names and IDs, filter out null/empty names
+        // Extract names and IDs, filter out null/empty names, and sort alphabetically
         const attendeeData = profilesData
           ?.map(profile => ({
             name: profile.full_name,
             id: profile.id
           }))
-          .filter(attendee => attendee.name && attendee.name.trim() !== '') || [];
+          .filter(attendee => attendee.name && attendee.name.trim() !== '')
+          .sort((a, b) => a.name.localeCompare(b.name)) || [];
         
         // If we have fewer names than RSVPs, show a message
         if (attendeeData.length < rsvpData.length) {
@@ -518,14 +519,12 @@ export function BarReviewPage({ onNavigateToStudentProfile }: BarReviewPageProps
               {/* Large centered number */}
               <div className="text-center mb-4">
                 <div className="text-4xl font-bold text-red-600">{rsvpCount}</div>
-                <div className="text-sm text-gray-600">people attending</div>
+                <div className="text-sm text-gray-600">{rsvpCount === 1 ? 'person attending' : 'people attending'}</div>
               </div>
 
               {/* Always visible attendee list */}
               <div className="text-center mb-4">
-                <div className="text-sm text-gray-600 mb-2">See who's going</div>
-                <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-md" style={{ 
-                  backgroundColor: 'var(--background-color, #f9f5f0)',
+                <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-md bg-white" style={{ 
                   scrollbarWidth: 'thin',
                   scrollbarColor: '#752531 transparent'
                 }}>
@@ -534,7 +533,7 @@ export function BarReviewPage({ onNavigateToStudentProfile }: BarReviewPageProps
                       attendees.map((attendee, index) => (
                         <div 
                           key={index} 
-                          className="text-xs text-gray-700 py-1 px-2 bg-white border border-gray-200 rounded-md hover:bg-gray-50 hover:border-gray-300 cursor-pointer transition-colors shadow-sm"
+                          className="text-xs text-gray-700 py-1 px-2 bg-[#f9f5f0] border border-gray-200 rounded-md hover:bg-[#f0ebe5] hover:border-gray-300 cursor-pointer transition-colors shadow-sm"
                           onClick={() => {
                             // Navigate to user profile using the same pattern as CoursePage
                             if (attendee.id !== 'unknown' && onNavigateToStudentProfile) {
@@ -556,7 +555,6 @@ export function BarReviewPage({ onNavigateToStudentProfile }: BarReviewPageProps
               
               {/* Centered call to action */}
               <div className="text-center">
-                <p className="text-sm text-gray-600 mb-3">Will you be joining us?</p>
                 <Button 
                   onClick={handleRSVP}
                   disabled={rsvpLoading || !user}

@@ -2062,9 +2062,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 </div>
               </div>
               
-              <h1 className="text-2xl font-bold text-gray-900 mb-4">
-                {selectedPost.title}
-              </h1>
+              {editingPost !== selectedPost.id && (
+                <h1 className="text-2xl font-bold text-gray-900 mb-4">
+                  {selectedPost.title}
+                </h1>
+              )}
               
               {selectedPost.course && (
                 <span 
@@ -2083,6 +2085,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                     value={editPostTitle}
                     onChange={(e) => setEditPostTitle(e.target.value)}
                     onClick={(e) => e.stopPropagation()}
+                    maxLength={100}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xl font-bold"
                     placeholder="Post title..."
                   />
@@ -2091,6 +2094,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       value={editPostContent}
                       onChange={(e) => setEditPostContent(e.target.value)}
                       onClick={(e) => e.stopPropagation()}
+                      maxLength={1000}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-24 resize-none"
                       placeholder="Post content..."
                     />
@@ -2906,6 +2910,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                         value={editPostTitle}
                         onChange={(e) => setEditPostTitle(e.target.value)}
                         onClick={(e) => e.stopPropagation()}
+                        maxLength={100}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Post title..."
                       />
@@ -2914,6 +2919,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                           value={editPostContent}
                           onChange={(e) => setEditPostContent(e.target.value)}
                           onClick={(e) => e.stopPropagation()}
+                          maxLength={1000}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-24 resize-none"
                           placeholder="Post content..."
                         />
@@ -3628,10 +3634,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 value={newPostTitle}
                 onChange={(e) => setNewPostTitle(e.target.value)}
                 placeholder="An interesting title"
+                maxLength={100}
                 className="border-gray-300 focus:border-[#752432] focus:ring-[#752432] text-lg font-medium"
               />
               <div className="text-xs text-gray-500 mt-1">
-                {newPostTitle.length}/300
+                {newPostTitle.length}/100
               </div>
             </div>
 
@@ -3642,12 +3649,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                   value={newPost}
                   onChange={(e) => setNewPost(e.target.value)}
                   placeholder="What are your thoughts?"
-                  maxLength={500}
+                  maxLength={1000}
                   className="border-gray-300 focus:border-[#752432] focus:ring-[#752432] min-h-[120px] resize-none"
                   rows={5}
                 />
                 <div className="text-xs text-gray-500 mt-1">
-                  {newPost.length}/500
+                  {newPost.length}/1000
                 </div>
               </div>
             )}
@@ -3656,32 +3663,34 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             {newPostType === 'poll' && (
               <div className="space-y-3">
                 <h4 className="font-medium text-gray-900">Poll options</h4>
-                {pollOptions.map((option, index) => (
-                  <div key={index} className="space-y-1">
-                    <div className="flex gap-2">
-                      <Input
-                        value={option}
-                        onChange={(e) => updatePollOption(index, e.target.value)}
-                        placeholder={`Option ${index + 1}`}
-                        maxLength={300}
-                        className="flex-1"
-                      />
-                      {pollOptions.length > 2 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removePollOption(index)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      )}
+                <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3 bg-gray-50">
+                  {pollOptions.map((option, index) => (
+                    <div key={index} className="space-y-1 mb-3 last:mb-0">
+                      <div className="flex gap-2">
+                        <Input
+                          value={option}
+                          onChange={(e) => updatePollOption(index, e.target.value)}
+                          placeholder={`Option ${index + 1}`}
+                          maxLength={100}
+                          className="flex-1"
+                        />
+                        {pollOptions.length > 2 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removePollOption(index)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-500 ml-1">
+                        {option.length}/100
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-500 ml-1">
-                      {option.length}/300
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
                 {pollOptions.length < 10 && (
                   <Button
                     variant="outline"
@@ -3705,9 +3714,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 className="w-4 h-4 text-[#752432] bg-gray-100 border-gray-300 rounded focus:ring-[#752432] focus:ring-2"
               />
               <label htmlFor="anonymous-post" className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-                </svg>
+                <span className="text-lg">👁️</span>
                 Post anonymously
               </label>
             </div>

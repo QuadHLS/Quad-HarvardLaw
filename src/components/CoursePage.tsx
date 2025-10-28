@@ -39,7 +39,31 @@ const MessageCircle = ({ className }: { className?: string }) => (
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Textarea } from './ui/textarea';
-import { Input } from './ui/input';
+// Custom Input component to match FeedComponent styling
+const Input = ({ 
+  value, 
+  onChange, 
+  placeholder, 
+  className = "", 
+  type = "text",
+  ...props 
+}: { 
+  value: string; 
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; 
+  placeholder?: string; 
+  className?: string; 
+  type?: string;
+  [key: string]: any;
+}) => (
+  <input
+    type={type}
+    value={value}
+    onChange={onChange}
+    placeholder={placeholder}
+    className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#752432] focus:border-[#752432] ${className}`}
+    {...props}
+  />
+);
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 
@@ -1967,6 +1991,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                   value={editPostTitle}
                                   onChange={(e) => setEditPostTitle(e.target.value)}
                                   onClick={(e) => e.stopPropagation()}
+                                  maxLength={100}
                                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                   placeholder="Post title..."
                                 />
@@ -1975,6 +2000,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                     value={editPostContent}
                                     onChange={(e) => setEditPostContent(e.target.value)}
                                     onClick={(e) => e.stopPropagation()}
+                                    maxLength={1000}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-24 resize-none"
                                     placeholder="Post content..."
                                   />
@@ -2690,11 +2716,12 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                 value={newPostTitle}
                 onChange={(e) => setNewPostTitle(e.target.value)}
                 placeholder="An interesting title"
+                maxLength={100}
                 className="border-gray-300 focus:border-[#752432] focus:ring-[#752432] text-lg font-medium"
               />
               <div className="text-xs text-gray-500 mt-1">
-                {newPostTitle.length}/300
-                    </div>
+                {newPostTitle.length}/100
+              </div>
                   </div>
                   
             {/* Text Content - Only show for text posts */}
@@ -2704,13 +2731,13 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                   value={newPostContent}
                   onChange={(e) => setNewPostContent(e.target.value)}
                   placeholder="What are your thoughts?"
-                  maxLength={500}
+                  maxLength={1000}
                   className="border-gray-300 focus:border-[#752432] focus:ring-[#752432] min-h-[120px] resize-none"
                   rows={5}
                 />
                 <div className="text-xs text-gray-500 mt-1">
-                  {newPostContent.length}/500
-                      </div>
+                  {newPostContent.length}/1000
+                </div>
                     </div>
             )}
 
@@ -2718,35 +2745,37 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
             {newPostType === 'poll' && (
               <div className="space-y-3">
                 <h4 className="font-medium text-gray-900">Poll options</h4>
-                {pollOptions.map((option, index) => (
-                  <div key={index} className="space-y-1">
-                    <div className="flex gap-2">
-                      <Input
-                        value={option}
-                        onChange={(e) => updatePollOption(index, e.target.value)}
-                        placeholder={`Option ${index + 1}`}
-                        maxLength={300}
-                        className="flex-1"
-                      />
-                      {pollOptions.length > 2 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            const newOptions = pollOptions.filter((_, i) => i !== index);
-                            setPollOptions(newOptions);
-                          }}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      )}
-                  </div>
-                    <div className="text-xs text-gray-500 ml-1">
-                      {option.length}/300
+                <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3 bg-gray-50">
+                  {pollOptions.map((option, index) => (
+                    <div key={index} className="space-y-1 mb-3 last:mb-0">
+                      <div className="flex gap-2">
+                        <Input
+                          value={option}
+                          onChange={(e) => updatePollOption(index, e.target.value)}
+                          placeholder={`Option ${index + 1}`}
+                          maxLength={100}
+                          className="flex-1"
+                        />
+                        {pollOptions.length > 2 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const newOptions = pollOptions.filter((_, i) => i !== index);
+                              setPollOptions(newOptions);
+                            }}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-500 ml-1">
+                        {option.length}/100
+                      </div>
+                    </div>
+                  ))}
                 </div>
-      </div>
-                ))}
                 {pollOptions.length < 10 && (
                   <Button
                     variant="outline"
@@ -2786,7 +2815,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                 </div>
               </div>
               <label htmlFor="anonymous-post" className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                <span className="text-lg">🎭</span>
+                <span className="text-lg">👁️</span>
                 Post anonymously
               </label>
             </div>

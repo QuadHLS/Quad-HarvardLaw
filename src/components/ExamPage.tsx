@@ -123,8 +123,11 @@ export function ExamPage({
   const displaySelectedInstructor = selectedInstructor || '';
 
   useEffect(() => {
-    setPreviewExam(selectedExam);
-  }, [selectedExam]);
+    // Only update preview if the selected exam is different from current preview
+    if (selectedExam?.id !== previewExam?.id) {
+      setPreviewExam(selectedExam);
+    }
+  }, [selectedExam, previewExam]);
 
   // Reset grade and year when course or professor changes
   useEffect(() => {

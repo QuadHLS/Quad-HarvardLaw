@@ -122,8 +122,11 @@ export function OutlinePage({
   const displaySelectedInstructor = selectedInstructor || '';
 
   useEffect(() => {
-    setPreviewOutline(selectedOutline);
-  }, [selectedOutline]);
+    // Only update preview if the selected outline is different from current preview
+    if (selectedOutline?.id !== previewOutline?.id) {
+      setPreviewOutline(selectedOutline);
+    }
+  }, [selectedOutline, previewOutline]);
 
   // Reset grade and year when course or professor changes
   useEffect(() => {

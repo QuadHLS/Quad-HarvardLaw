@@ -148,8 +148,8 @@ const formatCourseDescription = (text: string): string => {
   // Add line breaks around "Exam Type:" regardless of the specific value shown
   // Add line break before only if there's non-whitespace before it
   formatted = formatted.replace(/([^\s])\s*<strong>Exam Type:<\/strong>/gi, '$1<br/><br/><strong>Exam Type:</strong>');
-  // Add line break after recognized Exam Type tokens (supports combinations and optional commas)
-  formatted = formatted.replace(/(<strong>Exam Type:<\/strong>\s*(?:(?:No\s+Exam|One-?Day|Take\s*Home|In\s*Class)(?:\s+|\s*,\s*)?)+)/gi, '$1<br/><br/>' );
+  // Add line break after recognized Exam Type tokens (supports any order/combination)
+  formatted = formatted.replace(/(<strong>Exam Type:<\/strong>\s*(?:(?:No\s+Exam|One-?Day|Take-?Home|Any\s+Day|In\s+Class)(?:\s+|\s*,\s*|\s+and\s+)*)+)/gi, '$1<br/><br/>' );
   
   return formatted;
 };

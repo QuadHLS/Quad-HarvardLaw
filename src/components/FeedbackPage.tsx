@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Send } from 'lucide-react';
+import { Send, Linkedin } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
@@ -94,6 +94,32 @@ export function FeedbackPage() {
             <p className="text-gray-600 text-sm">
               We value your feedback! Let us know about bugs, feature requests, or general suggestions to help us make Quad better.
             </p>
+            
+            {/* LinkedIn Contact Section */}
+            <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Prefer to connect directly?</h3>
+              <p className="text-xs text-gray-600 mb-3">
+                You can also reach out directly on LinkedIn for more personal feedback or questions.
+              </p>
+              <a
+                href="https://www.linkedin.com/in/justin-li-1454b0381"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-[#0077B5] text-sm font-medium rounded-md border border-[#0077B5] transition-colors"
+                style={{
+                  '--hover-bg': '#2967b220'
+                } as React.CSSProperties}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#2967b220';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'white';
+                }}
+              >
+                <img src="/LI-In-Bug.png" alt="LinkedIn" className="h-6 w-auto" />
+                Connect on LinkedIn
+              </a>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">

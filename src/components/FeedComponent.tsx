@@ -2721,7 +2721,6 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 onChange={(e) => onFeedModeChange?.(e.target.checked ? 'my-courses' : 'campus')}
               />
               <label htmlFor="feed-mode-toggle">
-                <span className="switch-x-text">This is </span>
                 <span className="switch-x-toggletext">
                   <span className="switch-x-unchecked"><span className="switch-x-hiddenlabel">Unchecked: </span>Campus</span>
                   <span className="switch-x-checked"><span className="switch-x-hiddenlabel">Checked: </span>My Courses</span>
@@ -3553,7 +3552,6 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                     }}
                   />
                   <label htmlFor="post-target-toggle">
-                    <span className="switch-x-text">This is </span>
                     <span className="switch-x-toggletext">
                       <span className="switch-x-unchecked"><span className="switch-x-hiddenlabel">Unchecked: </span>Campus</span>
                       <span className="switch-x-checked"><span className="switch-x-hiddenlabel">Checked: </span>My Courses</span>

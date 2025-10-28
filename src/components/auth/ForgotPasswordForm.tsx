@@ -46,6 +46,11 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onBackTo
           <CardDescription className="text-sm" style={{ marginTop: '0.5rem' }}>
             We've sent you a password reset link to <span className="font-medium">{email}</span>
           </CardDescription>
+          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <p className="text-xs text-blue-700">
+              <strong>Don't see the email?</strong> Please check your spam or junk folder. The reset link may take a few minutes to arrive.
+            </p>
+          </div>
         </CardHeader>
         <CardContent className="px-4 pb-4">
           <Button

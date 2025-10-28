@@ -152,23 +152,66 @@ export const getResourcePopularity = async (limit: number = 10) => {
 };
 
 /**
- * Get user engagement data
+ * Check if user has exceeded monthly file size limit
+ * Limit: 0.187 GB = 196,083,712 bytes (using binary calculation)
  */
-export const getUserEngagement = async (limit: number = 10) => {
+export const checkUserMonthlyLimit = async (userId: string, additionalFileSize: number = 0): Promise<{
+  allowed: boolean;
+  currentUsage: number;
+  limit: number;
+  remaining: number;
+  message?: string;
+}> => {
+  const MONTHLY_LIMIT_BYTES = 0.187 * 1024 * 1024 * 1024; // 196,083,712 bytes
+  
   try {
     const { data, error } = await supabase
       .from('user_engagement')
-      .select('*')
-      .limit(limit);
+      .select('total_file_size_bytes')
+      .eq('user_id', userId)
+      .single();
 
-    if (error) {
-      console.error('Error fetching user engagement:', error);
-      return [];
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      console.error('Error checking user monthly limit:', error);
+      return {
+        allowed: true, // Allow access on error
+        currentUsage: 0,
+        limit: MONTHLY_LIMIT_BYTES,
+        remaining: MONTHLY_LIMIT_BYTES,
+        message: 'Unable to check usage limit'
+      };
     }
 
-    return data || [];
+    // If user doesn't exist in view, they haven't used any data this month
+    const currentUsage = data?.total_file_size_bytes || 0;
+    const projectedUsage = currentUsage + additionalFileSize;
+    
+    if (projectedUsage > MONTHLY_LIMIT_BYTES) {
+      const remaining = Math.max(0, MONTHLY_LIMIT_BYTES - currentUsage);
+      return {
+        allowed: false,
+        currentUsage,
+        limit: MONTHLY_LIMIT_BYTES,
+        remaining,
+        message: `Monthly limit exceeded. You have ${Math.round(remaining / (1024 * 1024))} MB remaining.`
+      };
+    }
+
+    return {
+      allowed: true,
+      currentUsage,
+      limit: MONTHLY_LIMIT_BYTES,
+      remaining: MONTHLY_LIMIT_BYTES - projectedUsage
+    };
+
   } catch (error) {
-    console.error('Failed to fetch user engagement:', error);
-    return [];
+    console.error('Failed to check user monthly limit:', error);
+    return {
+      allowed: true, // Allow access on error
+      currentUsage: 0,
+      limit: MONTHLY_LIMIT_BYTES,
+      remaining: MONTHLY_LIMIT_BYTES,
+      message: 'Unable to check usage limit'
+    };
   }
 };

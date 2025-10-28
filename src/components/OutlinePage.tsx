@@ -122,11 +122,8 @@ export function OutlinePage({
   const displaySelectedInstructor = selectedInstructor || '';
 
   useEffect(() => {
-    // Only update preview if the selected outline is different from current preview
-    if (selectedOutline?.id !== previewOutline?.id) {
-      setPreviewOutline(selectedOutline);
-    }
-  }, [selectedOutline, previewOutline]);
+    setPreviewOutline(selectedOutline);
+  }, [selectedOutline]);
 
   // Reset grade and year when course or professor changes
   useEffect(() => {
@@ -765,7 +762,6 @@ export function OutlinePage({
             className="h-[14px] w-[14px] p-0 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
             onClick={(e) => {
               e.stopPropagation();
-              e.preventDefault();
               onToggleSaveOutline(outline);
             }}
           >
@@ -848,7 +844,6 @@ export function OutlinePage({
               className="h-7 w-7 p-0 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
               onClick={(e) => {
                 e.stopPropagation();
-                e.preventDefault();
                 onToggleSaveOutline(outline);
               }}
             >

@@ -123,11 +123,8 @@ export function ExamPage({
   const displaySelectedInstructor = selectedInstructor || '';
 
   useEffect(() => {
-    // Only update preview if the selected exam is different from current preview
-    if (selectedExam?.id !== previewExam?.id) {
-      setPreviewExam(selectedExam);
-    }
-  }, [selectedExam, previewExam]);
+    setPreviewExam(selectedExam);
+  }, [selectedExam]);
 
   // Reset grade and year when course or professor changes
   useEffect(() => {
@@ -773,7 +770,6 @@ export function ExamPage({
             className="h-[14px] w-[14px] p-0 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
             onClick={(e) => {
               e.stopPropagation();
-              e.preventDefault();
               onToggleSaveExam(exam);
             }}
           >
@@ -857,7 +853,6 @@ export function ExamPage({
               className="h-7 w-7 p-0 transition-all border-[#752432] text-[#752432] hover:bg-[#752432] hover:text-white hover:shadow-sm active:scale-95"
               onClick={(e) => {
                 e.stopPropagation();
-                e.preventDefault();
                 onToggleSaveExam(exam);
               }}
             >

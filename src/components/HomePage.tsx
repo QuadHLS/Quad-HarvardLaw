@@ -1212,22 +1212,26 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
   return (
     <div className="h-full overflow-hidden" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
       <div className="max-w-full mx-auto p-6 pb-0">
-        <div className={`flex gap-6 ${isThreadViewOpen ? 'justify-center' : ''}`}>
+        <div className={`flex gap-6 ${isThreadViewOpen ? 'justify-center' : ''} min-w-0`} style={{ 
+          minWidth: 'calc(400px + 272px + 24px)', // Feed min + Right sidebar + gap
+          overflowX: 'auto'
+        }}>
           {/* Left Content - Only show when not in thread view */}
           {!isThreadViewOpen && (
-            <div className="w-64 flex-shrink-0 space-y-4 overflow-y-auto scrollbar-hide" style={{ 
+            <div className="w-64 flex-shrink-0 space-y-4 overflow-y-auto scrollbar-hide hidden md:block" style={{ 
               height: 'calc(100vh - 0px)', 
               marginTop: '-24px', 
               paddingTop: '24px',
               paddingBottom: '80px',
               scrollbarWidth: 'none',
-              msOverflowStyle: 'none'
+              msOverflowStyle: 'none',
+              minWidth: '256px' // w-64 = 256px, prevents shrinking below this
             }}>
               {/* Todo Box */}
               <div>
                 <TodoList 
                   user={user}
-                  onPomodoroStateChange={(state) => {}}
+                  onPomodoroStateChange={() => {}}
                 />
               </div>
 
@@ -1245,7 +1249,7 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
           )}
 
           {/* Feed Content - Always rendered */}
-          <div className={`${isThreadViewOpen ? 'w-full max-w-4xl' : 'flex-1 min-w-0'} flex flex-col`} style={{ height: 'calc(100vh - 12px)' }}>
+          <div className={`${isThreadViewOpen ? 'w-full max-w-4xl' : 'flex-1 min-w-0'} flex flex-col`} style={{ height: 'calc(100vh - 12px)', minWidth: '400px' }}>
             <Feed 
               feedMode={feedMode}
               onFeedModeChange={setFeedMode}
@@ -1257,13 +1261,15 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
 
           {/* Right Sidebar - Only show when not in thread view */}
           {!isThreadViewOpen && (
-            <div className="w-68 flex-shrink-0 space-y-4 overflow-y-auto scrollbar-hide" style={{ 
+            <div className="w-68 flex-shrink-0 space-y-4 overflow-y-auto scrollbar-hide hidden md:block" style={{ 
               height: 'calc(100vh - 0px)', 
               marginTop: '-24px', 
               paddingTop: '24px',
               paddingBottom: '80px',
               scrollbarWidth: 'none',
-              msOverflowStyle: 'none'
+              msOverflowStyle: 'none',
+              minWidth: '272px', // w-68 = 272px, prevents shrinking below this
+              flexShrink: 0 // Ensure it doesn't shrink when feed hits minimum
             }}>
             {/* Calendar */}
             <Card className="overflow-hidden relative" style={{ backgroundColor: '#FEFBF6' }}>

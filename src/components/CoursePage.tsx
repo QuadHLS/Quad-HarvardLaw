@@ -3,6 +3,7 @@ import { Users, MessageSquare, GraduationCap, Clock, MapPin, X } from 'lucide-re
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { ExpandableText } from './ui/expandable-text';
+import { ConfirmationPopup } from './ui/confirmation-popup';
 
 // Heart component (matching FeedComponent)
 const Heart = ({ className, fill }: { className?: string; fill?: boolean }) => (
@@ -65,6 +66,26 @@ interface UserCourse {
   };
 }
 
+interface CourseComment {
+  id: string;
+  post_id: string;
+  parent_comment_id?: string;
+  author_id: string;
+  content: string;
+  is_anonymous: boolean;
+  created_at: string;
+  edited_at?: string;
+  is_edited?: boolean;
+  likes_count: number;
+  // UI computed fields
+  author?: {
+    name: string;
+    year: string;
+  };
+  isLiked?: boolean;
+  replies?: CourseComment[];
+}
+
 interface CoursePost {
   id: string;
   title: string;
@@ -74,6 +95,8 @@ interface CoursePost {
   post_type: 'text' | 'poll';
   is_anonymous: boolean;
   created_at: string;
+  edited_at?: string;
+  is_edited?: boolean;
   likes_count: number;
   comments_count: number;
   author?: {
@@ -144,12 +167,34 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
   
   // State for inline comments (matching FeedComponent)
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
-  const [comments, setComments] = useState<Record<string, any[]>>({});
+  const [comments, setComments] = useState<Record<string, CourseComment[]>>({});
   const [newComment, setNewComment] = useState<Record<string, string>>({});
   const [loadingComments, setLoadingComments] = useState<Set<string>>(new Set());
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState<Record<string, string>>({});
   const [replyAnonymously, setReplyAnonymously] = useState<Record<string, boolean>>({});
+  
+  // Edit state management
+  const [editingPost, setEditingPost] = useState<string | null>(null);
+  const [editingComment, setEditingComment] = useState<string | null>(null);
+  const [editPostTitle, setEditPostTitle] = useState('');
+  const [editPostContent, setEditPostContent] = useState('');
+  const [editCommentContent, setEditCommentContent] = useState('');
+  
+  // Confirmation popup state
+  const [confirmationPopup, setConfirmationPopup] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    position: { top: number; left: number };
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    position: { top: 0, left: 0 }
+  });
   
   // Update poll option
   const updatePollOption = (index: number, value: string) => {
@@ -260,6 +305,8 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
             content: reply.content,
             is_anonymous: reply.is_anonymous,
             created_at: reply.created_at,
+            edited_at: reply.edited_at,
+            is_edited: reply.is_edited,
             likes_count: replyLikesCount,
             author: replyAuthor ? {
               name: reply.is_anonymous ? `Anonymous` : (replyAuthor as any).full_name,
@@ -277,6 +324,8 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
           content: comment.content,
           is_anonymous: comment.is_anonymous,
           created_at: comment.created_at,
+          edited_at: comment.edited_at,
+          is_edited: comment.is_edited,
           likes_count: likesCount,
           author: author ? {
               name: comment.is_anonymous ? `Anonymous` : (author as any).full_name,
@@ -581,6 +630,188 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
     }
   };
 
+  // Edit and delete functions
+  const handleEditPost = async (postId: string) => {
+    try {
+      const post = coursePosts.find(p => p.id === postId);
+      if (!post) return;
+      
+      // For poll posts, only allow title editing
+      const updateData: any = {
+        title: editPostTitle,
+        edited_at: new Date().toISOString(),
+        is_edited: true
+      };
+      
+      // Only update content for non-poll posts
+      if (post.post_type !== 'poll') {
+        updateData.content = editPostContent;
+      }
+      
+      const { error } = await supabase
+        .from('posts')
+        .update(updateData)
+        .eq('id', postId)
+        .eq('author_id', user?.id);
+
+      if (error) throw error;
+      
+      setEditingPost(null);
+      await fetchCoursePosts(); // Refresh posts
+    } catch (error) {
+      console.error('Error editing post:', error);
+    }
+  };
+
+  const handleDeletePost = async (postId: string, event?: React.MouseEvent<HTMLButtonElement>) => {
+    const position = event ? { top: event.clientY, left: event.clientX } : { top: 0, left: 0 };
+    
+    setConfirmationPopup({
+      isOpen: true,
+      title: 'Delete Post',
+      message: 'Are you sure you want to delete this post? This action cannot be undone.',
+      position,
+      onConfirm: async () => {
+        try {
+          // First, delete all likes for this post
+          const { error: likesError } = await supabase
+            .from('likes')
+            .delete()
+            .eq('likeable_type', 'post')
+            .eq('likeable_id', postId);
+
+          if (likesError) {
+            console.error('CoursePage error deleting post likes:', likesError);
+            throw likesError;
+          }
+
+          // Then delete the post (this will cascade to comments, polls, etc.)
+          const { error } = await supabase
+            .from('posts')
+            .delete()
+            .eq('id', postId)
+            .eq('author_id', user?.id);
+
+          if (error) throw error;
+          
+          await fetchCoursePosts(); // Refresh posts
+          setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
+        } catch (error) {
+          console.error('CoursePage error deleting post:', error);
+          setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
+  };
+
+  const handleEditComment = async (commentId: string) => {
+    try {
+      const { error } = await supabase
+        .from('comments')
+        .update({ 
+          content: editCommentContent,
+          edited_at: new Date().toISOString(),
+          is_edited: true
+        })
+        .eq('id', commentId)
+        .eq('author_id', user?.id);
+
+      if (error) throw error;
+      
+      setEditingComment(null);
+      // Refresh comments for the specific post
+      const postId = Object.keys(comments).find(key => 
+        comments[key].some(c => c.id === commentId)
+      );
+      if (postId) await fetchComments(postId);
+    } catch (error) {
+      console.error('Error editing comment:', error);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string, event?: React.MouseEvent<HTMLButtonElement>) => {
+    console.log('CoursePage handleDeleteComment called with:', { commentId, userId: user?.id });
+    const position = event ? { top: event.clientY, left: event.clientX } : { top: 0, left: 0 };
+    
+    setConfirmationPopup({
+      isOpen: true,
+      title: 'Delete Comment',
+      message: 'Are you sure you want to delete this comment? This action cannot be undone.',
+      position,
+      onConfirm: async () => {
+        try {
+          console.log('CoursePage attempting to delete comment:', commentId);
+          
+          // First, delete all likes for this comment and its replies
+          const { error: likesError } = await supabase
+            .from('likes')
+            .delete()
+            .eq('likeable_type', 'comment')
+            .eq('likeable_id', commentId);
+
+          if (likesError) {
+            console.error('CoursePage error deleting comment likes:', likesError);
+            throw likesError;
+          }
+
+          // Delete likes for all replies to this comment
+          const { error: replyLikesError } = await supabase
+            .from('likes')
+            .delete()
+            .eq('likeable_type', 'comment')
+            .in('likeable_id', 
+              supabase
+                .from('comments')
+                .select('id')
+                .eq('parent_comment_id', commentId)
+            );
+
+          if (replyLikesError) {
+            console.error('CoursePage error deleting reply likes:', replyLikesError);
+            throw replyLikesError;
+          }
+          
+          // First, delete all replies to this comment (if it's a parent comment)
+          const { error: repliesError } = await supabase
+            .from('comments')
+            .delete()
+            .eq('parent_comment_id', commentId);
+
+          if (repliesError) {
+            console.error('CoursePage error deleting replies:', repliesError);
+            throw repliesError;
+          }
+          
+          // Then delete the comment itself
+          const { error } = await supabase
+            .from('comments')
+            .delete()
+            .eq('id', commentId)
+            .eq('author_id', user?.id);
+
+          if (error) {
+            console.error('CoursePage delete error:', error);
+            throw error;
+          }
+          
+          console.log('CoursePage comment deleted successfully, refreshing comments...');
+          // Refresh comments
+          const postId = Object.keys(comments).find(key => 
+            comments[key].some(c => c.id === commentId)
+          );
+          if (postId) {
+            console.log('CoursePage refreshing comments for post:', postId);
+            await fetchComments(postId);
+          }
+          setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
+        } catch (error) {
+          console.error('CoursePage error deleting comment:', error);
+          setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
+  };
+
   // Handle profile click
   const handleProfileClick = (_userId: string, userName: string) => {
     if (onNavigateToStudentProfile) {
@@ -839,6 +1070,8 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
           post_type: post.post_type,
           is_anonymous: post.is_anonymous,
           created_at: post.created_at,
+          edited_at: post.edited_at,
+          is_edited: post.is_edited,
           likes_count: likesCount,
           comments_count: commentsCount,
           author: author ? {
@@ -1629,23 +1862,11 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                         </div>
                   <button
                     onClick={() => setShowCreatePostDialog(true)}
-                    className="uiverse new-post"
+                    className="px-3 py-1.5 text-sm font-medium rounded transition-colors bg-[#752432] text-white hover:bg-[#752432]/90"
+                    aria-label="Create post"
+                    title="Create post"
                   >
-                    <div className="wrapper">
-                      <span>Create Post</span>
-                      <div className="circle circle-1"></div>
-                      <div className="circle circle-2"></div>
-                      <div className="circle circle-3"></div>
-                      <div className="circle circle-4"></div>
-                      <div className="circle circle-5"></div>
-                      <div className="circle circle-6"></div>
-                      <div className="circle circle-7"></div>
-                      <div className="circle circle-8"></div>
-                      <div className="circle circle-9"></div>
-                      <div className="circle circle-10"></div>
-                      <div className="circle circle-11"></div>
-                      <div className="circle circle-12"></div>
-                    </div>
+                    + New Post
                   </button>
                       </div>
                     </div>
@@ -1673,10 +1894,13 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                           {/* Post Header */}
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex-1">
-                              <div 
-                                className={`flex items-center gap-3 ${!post.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                                onClick={() => !post.is_anonymous && handleProfileClick(post.author_id, post.author?.name || 'Anonymous')}
-                              >
+                                <div 
+                                  className={`flex items-center gap-3 ${!post.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    !post.is_anonymous && handleProfileClick(post.author_id, post.author?.name || 'Anonymous');
+                                  }}
+                                >
                                 <div 
                                   className="w-8 h-8 rounded-full flex items-center justify-center font-semibold text-white border-2"
                                   style={{ 
@@ -1700,6 +1924,9 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <span className="text-xs text-gray-500">{formatTimestamp(post.created_at)}</span>
+                                    {post.is_edited && (
+                                      <span className="text-xs text-gray-400 italic">(edited)</span>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -1707,18 +1934,82 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                           </div>
 
                           {/* Post Title */}
-                          <div className="mb-3">
-                            <h2 className="text-lg font-semibold text-gray-900 leading-tight">{post.title}</h2>
-                          </div>
+                          {editingPost !== post.id && (
+                            <div className="mb-3">
+                              <h2 className="text-lg font-semibold text-gray-900 leading-tight">{post.title}</h2>
+                            </div>
+                          )}
 
                           {/* Post Content */}
                           <div className="mb-3">
-                            <ExpandableText 
-                              text={post.content}
-                              maxLines={10}
-                              className="text-gray-800 leading-relaxed text-sm whitespace-pre-wrap"
-                              buttonColor={courseColor}
-                            />
+                            {editingPost === post.id ? (
+                              <div className="space-y-3">
+                                <input
+                                  type="text"
+                                  value={editPostTitle}
+                                  onChange={(e) => setEditPostTitle(e.target.value)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="Post title..."
+                                />
+                                {post.post_type !== 'poll' && (
+                                  <textarea
+                                    value={editPostContent}
+                                    onChange={(e) => setEditPostContent(e.target.value)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-24 resize-none"
+                                    placeholder="Post content..."
+                                  />
+                                )}
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditPost(post.id);
+                                    }}
+                                    className="px-2 py-1 text-white rounded-md transition-colors text-xs"
+                                    style={{ 
+                                      backgroundColor: courseColor,
+                                      '--hover-color': `${courseColor}90`
+                                    }}
+                                    onMouseEnter={(e: React.MouseEvent) => {
+                                      (e.currentTarget as HTMLElement).style.backgroundColor = `${courseColor}90`;
+                                    }}
+                                    onMouseLeave={(e: React.MouseEvent) => {
+                                      (e.currentTarget as HTMLElement).style.backgroundColor = courseColor;
+                                    }}
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingPost(null);
+                                    }}
+                                    className="px-2 py-1 text-white rounded-md transition-colors text-xs"
+                                    style={{ 
+                                      backgroundColor: courseColor,
+                                      '--hover-color': `${courseColor}90`
+                                    }}
+                                    onMouseEnter={(e: React.MouseEvent) => {
+                                      (e.currentTarget as HTMLElement).style.backgroundColor = `${courseColor}90`;
+                                    }}
+                                    onMouseLeave={(e: React.MouseEvent) => {
+                                      (e.currentTarget as HTMLElement).style.backgroundColor = courseColor;
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <ExpandableText 
+                                text={post.content}
+                                maxLines={10}
+                                className="text-gray-800 leading-relaxed text-sm whitespace-pre-wrap"
+                                buttonColor={courseColor}
+                              />
+                            )}
                           </div>
 
                           {/* Poll Component */}
@@ -1814,6 +2105,46 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                 <MessageCircle className="w-5 h-5" />
                                 {post.comments_count}
                               </button>
+                              
+                              {/* Edit/Delete buttons for post author */}
+                              {post.author_id === user?.id && (
+                                <div className="flex items-center gap-2">
+                                  {post.post_type !== 'poll' && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (editingPost === post.id) {
+                                          // If already editing, cancel edit mode
+                                          setEditingPost(null);
+                                        } else {
+                                          // Start edit mode
+                                          setEditingPost(post.id);
+                                          setEditPostTitle(post.title);
+                                          setEditPostContent(post.content || '');
+                                        }
+                                      }}
+                                      className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-blue-600 transition-colors px-2 py-1 rounded"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                      </svg>
+                                      Edit
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeletePost(post.id, e);
+                                    }}
+                                    className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-red-600 transition-colors px-2 py-1 rounded"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </div>
 
@@ -1925,22 +2256,80 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                       <div className="flex-1">
                                         <div className="p-3">
                                           <div className="flex items-center gap-2 mb-1">
-                                            <div 
-                                              className={`${!comment.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                                              onClick={() => !comment.is_anonymous && handleProfileClick(comment.author_id, comment.author?.name || 'Anonymous')}
-                                            >
+                                              <div 
+                                                className={`${!comment.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  !comment.is_anonymous && handleProfileClick(comment.author_id, comment.author?.name || 'Anonymous');
+                                                }}
+                                              >
                                               <h5 className="font-medium text-gray-900 text-sm">{comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Anonymous')}</h5>
                                             </div>
                                             {!comment.is_anonymous && <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>}
                                             <span className="text-xs text-gray-500">•</span>
                                             <span className="text-xs text-gray-500">{formatTimestamp(comment.created_at)}</span>
+                                            {comment.is_edited && (
+                                              <span className="text-xs text-gray-400 italic">(edited)</span>
+                                            )}
                                           </div>
-                                          <ExpandableText 
-                                            text={comment.content}
-                                            maxLines={10}
-                                            className="text-gray-800 text-sm whitespace-pre-wrap"
-                                            buttonColor={courseColor}
-                                          />
+                                          {editingComment === comment.id ? (
+                                            <div className="space-y-2">
+                                              <textarea
+                                                value={editCommentContent}
+                                                onChange={(e) => setEditCommentContent(e.target.value)}
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-20 resize-none text-sm"
+                                                placeholder="Comment content..."
+                                              />
+                                              <div className="flex gap-2">
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleEditComment(comment.id);
+                                                  }}
+                                                  className="px-2 py-1 text-white rounded-md transition-colors text-xs"
+                                                  style={{ 
+                                                    backgroundColor: courseColor,
+                                                    '--hover-color': `${courseColor}90`
+                                                  }}
+                                                  onMouseEnter={(e: React.MouseEvent) => {
+                                                    (e.currentTarget as HTMLElement).style.backgroundColor = `${courseColor}90`;
+                                                  }}
+                                                  onMouseLeave={(e: React.MouseEvent) => {
+                                                    (e.currentTarget as HTMLElement).style.backgroundColor = courseColor;
+                                                  }}
+                                                >
+                                                  Save
+                                                </button>
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setEditingComment(null);
+                                                  }}
+                                                  className="px-2 py-1 text-white rounded-md transition-colors text-xs"
+                                                  style={{ 
+                                                    backgroundColor: courseColor,
+                                                    '--hover-color': `${courseColor}90`
+                                                  }}
+                                                  onMouseEnter={(e: React.MouseEvent) => {
+                                                    (e.currentTarget as HTMLElement).style.backgroundColor = `${courseColor}90`;
+                                                  }}
+                                                  onMouseLeave={(e: React.MouseEvent) => {
+                                                    (e.currentTarget as HTMLElement).style.backgroundColor = courseColor;
+                                                  }}
+                                                >
+                                                  Cancel
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <ExpandableText 
+                                              text={comment.content}
+                                              maxLines={10}
+                                              className="text-gray-800 text-sm whitespace-pre-wrap"
+                                              buttonColor={courseColor}
+                                            />
+                                          )}
                                           {/* comment actions */}
                                           <div className="mt-2 flex items-center gap-3">
                                             <button 
@@ -1971,6 +2360,37 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                             >
                                               Reply
                                             </button>
+                                            
+                                            {/* Edit/Delete buttons for comment author */}
+                                            {comment.author_id === user?.id && (
+                                              <>
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (editingComment === comment.id) {
+                                                      // If already editing, cancel edit mode
+                                                      setEditingComment(null);
+                                                    } else {
+                                                      // Start edit mode
+                                                      setEditingComment(comment.id);
+                                                      setEditCommentContent(comment.content);
+                                                    }
+                                                  }}
+                                                  className="text-xs font-medium text-gray-600 hover:text-blue-500 transition-colors"
+                                                >
+                                                  Edit
+                                                </button>
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteComment(comment.id, e);
+                                                  }}
+                                                  className="text-xs font-medium text-gray-600 hover:text-red-500 transition-colors"
+                                                >
+                                                  Delete
+                                                </button>
+                                              </>
+                                            )}
                                           </div>
                                         </div>
                                         
@@ -1998,17 +2418,75 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                                 </div>
                                                 <div className="flex-1">
                                                   <div className="flex items-center gap-2 mb-1">
-                                                    <div 
-                                                      className={`${!reply.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                                                      onClick={() => !reply.is_anonymous && handleProfileClick(reply.author_id, reply.author?.name || 'Anonymous')}
-                                                    >
+                                                      <div 
+                                                        className={`${!reply.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          !reply.is_anonymous && handleProfileClick(reply.author_id, reply.author?.name || 'Anonymous');
+                                                        }}
+                                                      >
                                                       <h6 className="font-medium text-gray-900 text-xs">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
                                                     </div>
                                                     {!reply.is_anonymous && <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>}
                                                     <span className="text-xs text-gray-500">•</span>
                                                     <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>
+                                                    {reply.is_edited && (
+                                                      <span className="text-xs text-gray-400 italic">(edited)</span>
+                                                    )}
                                                   </div>
-                                                  <p className="text-gray-800 text-xs mb-2">{reply.content}</p>
+                                                  {editingComment === reply.id ? (
+                                                    <div className="space-y-2">
+                                                      <textarea
+                                                        value={editCommentContent}
+                                                        onChange={(e) => setEditCommentContent(e.target.value)}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-16 resize-none text-xs"
+                                                        placeholder="Reply content..."
+                                                      />
+                                                      <div className="flex gap-2">
+                                                        <button
+                                                          onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleEditComment(reply.id);
+                                                          }}
+                                                          className="px-2 py-1 text-white rounded-md transition-colors text-xs"
+                                                          style={{ 
+                                                            backgroundColor: courseColor,
+                                                            '--hover-color': `${courseColor}90`
+                                                          }}
+                                                          onMouseEnter={(e: React.MouseEvent) => {
+                                                            (e.currentTarget as HTMLElement).style.backgroundColor = `${courseColor}90`;
+                                                          }}
+                                                          onMouseLeave={(e: React.MouseEvent) => {
+                                                            (e.currentTarget as HTMLElement).style.backgroundColor = courseColor;
+                                                          }}
+                                                        >
+                                                          Save
+                                                        </button>
+                                                        <button
+                                                          onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setEditingComment(null);
+                                                          }}
+                                                          className="px-2 py-1 text-white rounded-md transition-colors text-xs"
+                                                          style={{ 
+                                                            backgroundColor: courseColor,
+                                                            '--hover-color': `${courseColor}90`
+                                                          }}
+                                                          onMouseEnter={(e: React.MouseEvent) => {
+                                                            (e.currentTarget as HTMLElement).style.backgroundColor = `${courseColor}90`;
+                                                          }}
+                                                          onMouseLeave={(e: React.MouseEvent) => {
+                                                            (e.currentTarget as HTMLElement).style.backgroundColor = courseColor;
+                                                          }}
+                                                        >
+                                                          Cancel
+                                                        </button>
+                                                      </div>
+                                                    </div>
+                                                  ) : (
+                                                    <p className="text-gray-800 text-xs mb-2">{reply.content}</p>
+                                                  )}
                                                   <div className="flex items-center gap-3">
                                                     <button 
                                                       className={`flex items-center gap-1 text-xs font-medium transition-colors px-2 py-1 rounded-md ${
@@ -2032,6 +2510,37 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                                       <Heart className={`w-5 h-5 ${reply.isLiked ? 'fill-current' : ''}`} />
                                                       {reply.likes_count}
                                                     </button>
+                                                    
+                                                    {/* Edit/Delete buttons for reply author */}
+                                                    {reply.author_id === user?.id && (
+                                                      <>
+                                                        <button
+                                                          onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (editingComment === reply.id) {
+                                                              // If already editing, cancel edit mode
+                                                              setEditingComment(null);
+                                                            } else {
+                                                              // Start edit mode
+                                                              setEditingComment(reply.id);
+                                                              setEditCommentContent(reply.content);
+                                                            }
+                                                          }}
+                                                          className="text-xs font-medium text-gray-600 hover:text-blue-500 transition-colors"
+                                                        >
+                                                          Edit
+                                                        </button>
+                                                        <button
+                                                          onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleDeleteComment(reply.id, e);
+                                                          }}
+                                                          className="text-xs font-medium text-gray-600 hover:text-red-500 transition-colors"
+                                                        >
+                                                          Delete
+                                                        </button>
+                                                      </>
+                                                    )}
                                                   </div>
                                                 </div>
                                               </div>
@@ -2308,6 +2817,18 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Confirmation Popup */}
+      <ConfirmationPopup
+        isOpen={confirmationPopup.isOpen}
+        title={confirmationPopup.title}
+        message={confirmationPopup.message}
+        confirmText="Delete"
+        cancelText="Cancel"
+        position={confirmationPopup.position}
+        onConfirm={confirmationPopup.onConfirm}
+        onCancel={() => setConfirmationPopup(prev => ({ ...prev, isOpen: false }))}
+      />
 
     </div>
   );

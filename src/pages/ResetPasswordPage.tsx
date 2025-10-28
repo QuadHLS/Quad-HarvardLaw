@@ -33,17 +33,19 @@ export function ResetPasswordPage() {
         const accessToken = urlParams.get('access_token') || hashParams.get('access_token');
         const refreshToken = urlParams.get('refresh_token') || hashParams.get('refresh_token');
         const type = urlParams.get('type') || hashParams.get('type');
+        const token = urlParams.get('token') || hashParams.get('token');
         
         console.log('ResetPasswordPage: URL parameters:', { 
           hasUrlParams: !!hasUrlParams,
           hasAccessToken: !!accessToken,
           hasRefreshToken: !!refreshToken,
+          hasToken: !!token,
           type: type
         });
         
         // If we have tokens in the URL, set the session explicitly
         if (accessToken && refreshToken && type === 'recovery') {
-          console.log('ResetPasswordPage: Setting session from URL tokens');
+          console.log('ResetPasswordPage: Setting session from URL tokens (standard format)');
           const { data, error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken
@@ -57,6 +59,33 @@ export function ResetPasswordPage() {
           }
           
           console.log('ResetPasswordPage: Session set successfully from tokens');
+        } else if (token) {
+          console.log('ResetPasswordPage: Single token detected, attempting to process');
+          // For single token format, we need to use verifyOtp to exchange the token for a session
+          try {
+            console.log('ResetPasswordPage: Verifying OTP token:', token);
+            const { data, error } = await supabase.auth.verifyOtp({
+              token_hash: token,
+              type: 'recovery'
+            });
+            
+            if (error) {
+              console.error('ResetPasswordPage: Error verifying OTP token:', error);
+              setError('Invalid or expired password reset link. Please request a new one.');
+              setCheckingSession(false);
+              return;
+            }
+            
+            console.log('ResetPasswordPage: OTP token verified successfully');
+            // The session should now be established
+          } catch (err) {
+            console.error('ResetPasswordPage: Exception verifying OTP token:', err);
+            setError('Failed to process password reset link. Please try again.');
+            setCheckingSession(false);
+            return;
+          }
+          
+          await new Promise(resolve => setTimeout(resolve, 500));
         } else if (hasUrlParams) {
           console.log('ResetPasswordPage: URL parameters detected, waiting for Supabase to process them');
           // Wait longer if there are URL parameters to process

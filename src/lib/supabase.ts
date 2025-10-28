@@ -17,7 +17,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
       signInWithOAuth: () => Promise.resolve({ error: null }),
       signOut: () => Promise.resolve({ error: null }),
       resetPasswordForEmail: () => Promise.resolve({ error: null }),
-      updateUser: () => Promise.resolve({ error: null })
+      updateUser: () => Promise.resolve({ error: null }),
+      verifyOtp: () => Promise.resolve({ data: { session: null }, error: null })
     },
     from: () => ({
       select: () => ({ order: () => Promise.resolve({ data: [], error: null }) })

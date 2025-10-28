@@ -366,12 +366,12 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo 
       <div className="w-full flex-1 flex flex-col">
         {/* Header */}
         <div className="text-center mb-8" style={{ marginTop: '40px' }}>
-          <div className="inline-flex items-center justify-center mb-4">
+          <div className="inline-flex items-center justify-center mb-8">
             <img 
               src="/QUAD.svg" 
               alt="Quad Logo" 
               className="w-auto object-contain"
-              style={{ height: '80px' }}
+              style={{ height: '100px' }}
             />
           </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">

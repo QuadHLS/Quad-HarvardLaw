@@ -1541,9 +1541,9 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                 
                 <button
                   onClick={() => setShowFilters(!showFilters)}
-                  className="p-2 text-white hover:bg-white/10 rounded-full transition-colors"
+                  className="px-3 py-1.5 text-sm text-white hover:bg-white/10 rounded-md transition-colors border border-white/20 hover:border-white/40"
                 >
-                  {showFilters ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                  {showFilters ? 'Collapse Filters' : 'Expand Filters'}
                 </button>
               </div>
             </div>

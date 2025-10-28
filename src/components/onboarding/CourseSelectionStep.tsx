@@ -421,7 +421,7 @@ export function CourseSelectionStep({ onNext, onBack, basicInfo }: CourseSelecti
                 src="/QUAD.svg" 
                 alt="Quad Logo" 
                 className="w-auto object-contain"
-                style={{ height: '60px', marginTop: '10px' }}
+                style={{ height: '100px', marginTop: '10px' }}
               />
             </div>
           </div>

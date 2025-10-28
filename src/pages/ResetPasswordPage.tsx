@@ -34,12 +34,14 @@ export function ResetPasswordPage() {
         const refreshToken = urlParams.get('refresh_token') || hashParams.get('refresh_token');
         const type = urlParams.get('type') || hashParams.get('type');
         const token = urlParams.get('token') || hashParams.get('token');
+        const tokenHash = urlParams.get('token_hash') || hashParams.get('token_hash');
         
         console.log('ResetPasswordPage: URL parameters:', { 
           hasUrlParams: !!hasUrlParams,
           hasAccessToken: !!accessToken,
           hasRefreshToken: !!refreshToken,
           hasToken: !!token,
+          hasTokenHash: !!tokenHash,
           type: type
         });
         
@@ -59,6 +61,33 @@ export function ResetPasswordPage() {
           }
           
           console.log('ResetPasswordPage: Session set successfully from tokens');
+        } else if (tokenHash && type) {
+          console.log('ResetPasswordPage: Token hash detected, attempting to verify OTP');
+          // For token_hash format (from ConfirmationURL), use verifyOtp
+          try {
+            console.log('ResetPasswordPage: Verifying OTP with token hash:', tokenHash, 'type:', type);
+            const { data, error } = await supabase.auth.verifyOtp({
+              token_hash: tokenHash,
+              type: type
+            });
+            
+            if (error) {
+              console.error('ResetPasswordPage: Error verifying OTP with token hash:', error);
+              setError('Invalid or expired password reset link. Please request a new one.');
+              setCheckingSession(false);
+              return;
+            }
+            
+            console.log('ResetPasswordPage: OTP verified successfully with token hash');
+            // The session should now be established
+          } catch (err) {
+            console.error('ResetPasswordPage: Exception verifying OTP with token hash:', err);
+            setError('Failed to process password reset link. Please try again.');
+            setCheckingSession(false);
+            return;
+          }
+          
+          await new Promise(resolve => setTimeout(resolve, 500));
         } else if (token) {
           console.log('ResetPasswordPage: Single token detected, attempting to process');
           // For single token format, we need to use verifyOtp to exchange the token for a session

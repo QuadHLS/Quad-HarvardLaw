@@ -35,12 +35,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }: { data: { session: any } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
+    // Get initial session - with a delay to allow URL parameter processing
+    const initializeAuth = async () => {
+      try {
+        // Wait a moment for Supabase to process any URL parameters (like password reset tokens)
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('AuthContext: Initial session check:', { 
+          hasSession: !!session, 
+          error: error?.message,
+          userEmail: session?.user?.email 
+        });
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+      } catch (err) {
+        console.error('AuthContext: Error getting initial session:', err);
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
 
     // Listen for auth changes
     const {

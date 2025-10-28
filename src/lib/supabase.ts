@@ -10,6 +10,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   supabase = {
     auth: {
       getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+      setSession: () => Promise.resolve({ data: { session: null }, error: null }),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
       signUp: () => Promise.resolve({ error: null }),
       signInWithPassword: () => Promise.resolve({ error: null }),

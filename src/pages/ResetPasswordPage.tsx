@@ -19,7 +19,60 @@ export function ResetPasswordPage() {
   useEffect(() => {
     const checkSession = async () => {
       try {
+        // First, let Supabase process any URL parameters (tokens, etc.)
+        // This is important for password reset links that contain tokens in the URL
+        console.log('ResetPasswordPage: Checking for URL parameters and processing session');
+        console.log('ResetPasswordPage: Current URL:', window.location.href);
+        
+        // Check if there are URL parameters that might contain tokens
+        const urlParams = new URLSearchParams(window.location.search);
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const hasUrlParams = urlParams.toString() || hashParams.toString();
+        
+        // Extract tokens from URL parameters
+        const accessToken = urlParams.get('access_token') || hashParams.get('access_token');
+        const refreshToken = urlParams.get('refresh_token') || hashParams.get('refresh_token');
+        const type = urlParams.get('type') || hashParams.get('type');
+        
+        console.log('ResetPasswordPage: URL parameters:', { 
+          hasUrlParams: !!hasUrlParams,
+          hasAccessToken: !!accessToken,
+          hasRefreshToken: !!refreshToken,
+          type: type
+        });
+        
+        // If we have tokens in the URL, set the session explicitly
+        if (accessToken && refreshToken && type === 'recovery') {
+          console.log('ResetPasswordPage: Setting session from URL tokens');
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          });
+          
+          if (error) {
+            console.error('ResetPasswordPage: Error setting session from tokens:', error);
+            setError('Failed to process password reset link. Please try again.');
+            setCheckingSession(false);
+            return;
+          }
+          
+          console.log('ResetPasswordPage: Session set successfully from tokens');
+        } else if (hasUrlParams) {
+          console.log('ResetPasswordPage: URL parameters detected, waiting for Supabase to process them');
+          // Wait longer if there are URL parameters to process
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } else {
+          // Wait a shorter time if no URL parameters
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
         const { data: { session }, error } = await supabase.auth.getSession();
+        
+        console.log('ResetPasswordPage: Session check result:', { 
+          hasSession: !!session, 
+          error: error?.message,
+          userEmail: session?.user?.email 
+        });
         
         if (error) {
           console.error('Session check error:', error);
@@ -35,6 +88,7 @@ export function ResetPasswordPage() {
         }
 
         // Session is valid
+        console.log('ResetPasswordPage: Valid session found, enabling form');
         setSessionValid(true);
         setCheckingSession(false);
       } catch (err) {

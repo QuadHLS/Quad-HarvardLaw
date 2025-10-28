@@ -12,6 +12,7 @@ interface AuthContextType {
   signInWithMicrosoft: () => Promise<{ error: AuthError | null }>
   signOut: () => Promise<{ error: AuthError | null }>
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>
+  updatePassword: (password: string) => Promise<{ error: AuthError | null }>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -50,9 +51,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Handle password recovery - redirect to reset password page
       if (event === 'PASSWORD_RECOVERY') {
         console.log('PASSWORD_RECOVERY event detected, redirecting to reset password page');
+        console.log('PASSWORD_RECOVERY session:', !!session);
         
         // Set a flag to indicate we're in password recovery mode
         sessionStorage.setItem('isPasswordRecovery', 'true');
+        
+        // Update session state for password recovery
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
         
         window.history.pushState({}, '', '/reset-password');
         window.dispatchEvent(new PopStateEvent('popstate'));
@@ -167,6 +174,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return { error }
   }
 
+  const updatePassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({
+      password: password
+    })
+    return { error }
+  }
+
   const value = {
     user,
     session,
@@ -177,6 +191,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signInWithMicrosoft,
     signOut,
     resetPassword,
+    updatePassword,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

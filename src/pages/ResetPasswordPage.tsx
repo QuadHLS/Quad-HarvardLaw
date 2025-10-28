@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
@@ -10,9 +11,50 @@ export function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [sessionValid, setSessionValid] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const { updatePassword } = useAuth();
+
+  // Check for valid session on component mount
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Session check error:', error);
+          setError('Failed to verify session. Please try the password reset link again.');
+          setCheckingSession(false);
+          return;
+        }
+
+        if (!session) {
+          setError('Auth session missing! Please click the password reset link from your email again.');
+          setCheckingSession(false);
+          return;
+        }
+
+        // Session is valid
+        setSessionValid(true);
+        setCheckingSession(false);
+      } catch (err) {
+        console.error('Unexpected error checking session:', err);
+        setError('An unexpected error occurred. Please try again.');
+        setCheckingSession(false);
+      }
+    };
+
+    checkSession();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Don't allow submission if session is not valid
+    if (!sessionValid) {
+      setError('Please wait for session validation to complete.');
+      return;
+    }
     
     if (password !== confirmPassword) {
       setError('Passwords do not match');
@@ -28,9 +70,7 @@ export function ResetPasswordPage() {
     setError('');
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: password
-      });
+      const { error } = await updatePassword(password);
 
       if (error) throw error;
 
@@ -51,6 +91,45 @@ export function ResetPasswordPage() {
       setLoading(false);
     }
   };
+
+  // Show loading state while checking session
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex flex-col items-center relative px-4" style={{ backgroundColor: 'var(--background-color, #f9f5f0)', minHeight: '100vh' }}>
+        {/* Logo at the top - responsive sizing */}
+        <div className="flex-shrink-0" style={{ marginTop: 'clamp(20px, 4vh, 60px)', paddingBottom: 'clamp(10px, 2vh, 20px)' }}>
+          <div className="flex justify-center">
+            <img 
+              src="/QUAD.svg" 
+              alt="Quad Logo" 
+              className="w-auto object-contain"
+              style={{ height: 'clamp(120px, 18vh, 200px)' }}
+            />
+          </div>
+        </div>
+        
+        {/* Loading message */}
+        <div className="w-full max-w-md flex-1 flex flex-col justify-start" style={{ marginTop: '2rem' }}>
+          <Card className="w-full" style={{ backgroundColor: '#ffffff', border: 'none', boxShadow: '0 0 22px rgba(0, 0, 0, 0.12)', borderRadius: '1rem' }}>
+            <CardHeader className="text-center pb-2 px-4 pt-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-4">
+                <svg className="h-8 w-8 text-blue-600 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </div>
+              <CardTitle className="text-2xl">Verifying Session</CardTitle>
+              <CardDescription className="text-sm" style={{ marginTop: '0.5rem' }}>
+                Please wait while we verify your password reset session...
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <p className="text-sm text-gray-500 text-center">This may take a moment</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   if (success) {
     return (
@@ -136,6 +215,7 @@ export function ResetPasswordPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={8}
+                  disabled={!sessionValid || loading}
                   className="w-full"
                 />
               </div>
@@ -153,6 +233,7 @@ export function ResetPasswordPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                   minLength={8}
+                  disabled={!sessionValid || loading}
                   className="w-full"
                 />
               </div>
@@ -160,7 +241,7 @@ export function ResetPasswordPage() {
               {/* Submit Button */}
               <Button
                 type="submit"
-                disabled={loading}
+                disabled={!sessionValid || loading}
                 className="w-full"
                 style={{ backgroundColor: '#00962c', color: 'white' }}
               >

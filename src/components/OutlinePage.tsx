@@ -937,7 +937,9 @@ export function OutlinePage({
               <FileText className="w-8 h-8 text-red-400" />
             </div>
             <h3 className="text-lg font-semibold text-white mb-2">Preview Unavailable</h3>
-            <p className="text-gray-300 mb-6">Unable to load document preview</p>
+            <p className="text-gray-300 mb-6">
+              {error && error.includes('limit') ? 'You have exceeded your preview and download limit' : 'Unable to load document preview'}
+            </p>
             <Button
               onClick={() => handleDownload(outline)}
               className="bg-[#752432] hover:bg-[#5a1a26] text-white"

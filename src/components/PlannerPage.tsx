@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, X, Clock, MapPin, Trash2, Calendar, Save, FileText, ChevronDown, ChevronUp, FolderOpen, Grid, List, Check } from 'lucide-react';
+import { Search, Plus, X, Clock, MapPin, Trash2, Calendar, Save, FileText, ChevronDown, FolderOpen, Grid, List, Check } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -1917,9 +1917,6 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                           const firstCourse = courses[0];
                           const times = parseTimeString(firstCourse.times);
                           if (!times) return null; // Skip TBD courses
-                          
-                          const height = getCourseHeight(times.start, times.end);
-                          const top = getCourseTopPosition(times.start);
                           
                           
                           return courses.map((course: ScheduledCourse, index: number) => {

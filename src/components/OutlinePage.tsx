@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { 
   Download,
   Bookmark,
-  BookmarkCheck,
   FileText,
   Grid,
   List,
@@ -402,13 +401,6 @@ export function OutlinePage({
         return (gradeOrder[a] || 3) - (gradeOrder[b] || 3);
       });
 
-  const handleTagToggle = (tag: string) => {
-    setSelectedTags((prev: string[]) => 
-      prev.includes(tag) 
-        ? prev.filter((t: string) => t !== tag)
-        : [...prev, tag]
-    );
-  };
 
   // Handle download
   const handleFileSelect = (file: File) => {

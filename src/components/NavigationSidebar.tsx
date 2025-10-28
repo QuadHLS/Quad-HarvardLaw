@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, FileText, Star, Beer, Menu, User, Archive, ChevronDown, ChevronRight, BookOpen, MessageSquare, CalendarDays } from 'lucide-react';
+import { Home, FileText, Star, Beer, Menu, User, Archive, ChevronDown, ChevronRight, BookOpen, MessageSquare, CalendarDays, MessageCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -22,6 +22,7 @@ export function NavigationSidebar({ isCollapsed, onToggleCollapsed }: Navigation
     if (path.startsWith('/reviews')) return 'reviews';
     if (path.startsWith('/planner')) return 'planner';
     if (path.startsWith('/barreview')) return 'barreview';
+    if (path.startsWith('/feedback')) return 'feedback';
     if (path.startsWith('/profile')) return 'profile';
     if (path.startsWith('/course')) return 'course';
     if (path.startsWith('/student-profile')) return 'student-profile';
@@ -261,6 +262,20 @@ export function NavigationSidebar({ isCollapsed, onToggleCollapsed }: Navigation
 
         {/* Spacer */}
         <div className="flex-1" />
+
+        {/* Feedback button */}
+        <div className="px-2 pt-2">
+          <Link
+            to="/feedback"
+            className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
+              activeSection === 'feedback' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
+            }`}
+            style={{ borderRightColor: activeSection === 'feedback' ? '#752432' : 'transparent' }}
+          >
+            <MessageCircle className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
+            {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Feedback</span>}
+          </Link>
+        </div>
 
         {/* Profile bottom */}
         <div className="px-2 pt-2">

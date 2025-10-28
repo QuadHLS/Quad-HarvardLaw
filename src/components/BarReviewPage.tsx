@@ -166,7 +166,7 @@ export function BarReviewPage({ onNavigateToStudentProfile }: BarReviewPageProps
 
       if (rsvpData && rsvpData.length > 0) {
         // Get user IDs
-        const userIds = rsvpData.map(rsvp => rsvp.identity);
+        const userIds = rsvpData.map((rsvp: { identity: string }) => rsvp.identity);
         
         // Fetch full names from profiles table
         const { data: profilesData, error: profilesError } = await supabase
@@ -182,12 +182,12 @@ export function BarReviewPage({ onNavigateToStudentProfile }: BarReviewPageProps
 
         // Extract names and IDs, filter out null/empty names, and sort alphabetically
         const attendeeData = profilesData
-          ?.map(profile => ({
+          ?.map((profile: { full_name: string; id: string }) => ({
             name: profile.full_name,
             id: profile.id
           }))
-          .filter(attendee => attendee.name && attendee.name.trim() !== '')
-          .sort((a, b) => a.name.localeCompare(b.name)) || [];
+          .filter((attendee: { name: string; id: string }) => attendee.name && attendee.name.trim() !== '')
+          .sort((a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name)) || [];
         
         // If we have fewer names than RSVPs, show a message
         if (attendeeData.length < rsvpData.length) {
@@ -245,7 +245,7 @@ export function BarReviewPage({ onNavigateToStudentProfile }: BarReviewPageProps
       if (!isRSVPed) {
         
         // Test the policy first
-        const { data: testData, error: testError } = await supabase
+        await supabase
           .from('bar_count')
           .select('*')
           .limit(1);
@@ -263,7 +263,7 @@ export function BarReviewPage({ onNavigateToStudentProfile }: BarReviewPageProps
         }
 
         // Add user to bar_count table
-        const { data, error: insertError } = await supabase
+        const { error: insertError } = await supabase
           .from('bar_count')
           .insert({
             identity: user.id
@@ -283,7 +283,7 @@ export function BarReviewPage({ onNavigateToStudentProfile }: BarReviewPageProps
       } else {
         
         // Remove user from bar_count table
-        const { data, error: deleteError } = await supabase
+        const { error: deleteError } = await supabase
           .from('bar_count')
           .delete()
           .eq('identity', user.id)
@@ -300,7 +300,7 @@ export function BarReviewPage({ onNavigateToStudentProfile }: BarReviewPageProps
         fetchAttendees();
         await fetchRsvpCount();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating RSVP:', error);
       alert(`Failed to update RSVP: ${error.message || 'Unknown error'}. Please check the console for details.`);
     } finally {

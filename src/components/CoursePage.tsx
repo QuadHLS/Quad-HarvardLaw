@@ -2013,8 +2013,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                     }}
                                     className="px-2 py-1 text-white rounded-md transition-colors text-xs"
                                     style={{ 
-                                      backgroundColor: courseColor,
-                                      '--hover-color': `${courseColor}90`
+                                      backgroundColor: courseColor
                                     }}
                                     onMouseEnter={(e: React.MouseEvent) => {
                                       (e.currentTarget as HTMLElement).style.backgroundColor = `${courseColor}90`;
@@ -2032,8 +2031,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                     }}
                                     className="px-2 py-1 text-white rounded-md transition-colors text-xs"
                                     style={{ 
-                                      backgroundColor: courseColor,
-                                      '--hover-color': `${courseColor}90`
+                                      backgroundColor: courseColor
                                     }}
                                     onMouseEnter={(e: React.MouseEvent) => {
                                       (e.currentTarget as HTMLElement).style.backgroundColor = `${courseColor}90`;
@@ -2333,8 +2331,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                                   }}
                                                   className="px-2 py-1 text-white rounded-md transition-colors text-xs"
                                                   style={{ 
-                                                    backgroundColor: courseColor,
-                                                    '--hover-color': `${courseColor}90`
+                                                    backgroundColor: courseColor
                                                   }}
                                                   onMouseEnter={(e: React.MouseEvent) => {
                                                     (e.currentTarget as HTMLElement).style.backgroundColor = `${courseColor}90`;
@@ -2352,8 +2349,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                                   }}
                                                   className="px-2 py-1 text-white rounded-md transition-colors text-xs"
                                                   style={{ 
-                                                    backgroundColor: courseColor,
-                                                    '--hover-color': `${courseColor}90`
+                                                    backgroundColor: courseColor
                                                   }}
                                                   onMouseEnter={(e: React.MouseEvent) => {
                                                     (e.currentTarget as HTMLElement).style.backgroundColor = `${courseColor}90`;
@@ -2495,8 +2491,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                                           }}
                                                           className="px-2 py-1 text-white rounded-md transition-colors text-xs"
                                                           style={{ 
-                                                            backgroundColor: courseColor,
-                                                            '--hover-color': `${courseColor}90`
+                                                            backgroundColor: courseColor
                                                           }}
                                                           onMouseEnter={(e: React.MouseEvent) => {
                                                             (e.currentTarget as HTMLElement).style.backgroundColor = `${courseColor}90`;
@@ -2514,8 +2509,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                                                           }}
                                                           className="px-2 py-1 text-white rounded-md transition-colors text-xs"
                                                           style={{ 
-                                                            backgroundColor: courseColor,
-                                                            '--hover-color': `${courseColor}90`
+                                                            backgroundColor: courseColor
                                                           }}
                                                           onMouseEnter={(e: React.MouseEvent) => {
                                                             (e.currentTarget as HTMLElement).style.backgroundColor = `${courseColor}90`;

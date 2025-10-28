@@ -5,6 +5,8 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { toast } from 'sonner';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 export function FeedbackPage() {
   const [name, setName] = useState('');
@@ -12,6 +14,21 @@ export function FeedbackPage() {
   const [category, setCategory] = useState('');
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
+
+  const handleFeedbackChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    
+    // Count lines by splitting on newlines
+    const lines = value.split('\n').length;
+    
+    // If we're at 20 lines and user tries to add more, prevent it
+    if (lines > 20) {
+      return; // Don't update the state
+    }
+    
+    setFeedback(value);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,10 +38,30 @@ export function FeedbackPage() {
       return;
     }
 
+    if (!user) {
+      toast.error('Please log in to submit feedback');
+      return;
+    }
+
     setIsSubmitting(true);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const { error } = await supabase
+        .from('feedback')
+        .insert({
+          user_id: user.id,
+          name: name.trim() || null,
+          email: email.trim() || null,
+          category: category,
+          feedback_text: feedback.trim()
+        });
+
+      if (error) {
+        console.error('Error submitting feedback:', error);
+        toast.error('Failed to submit feedback. Please try again.');
+        return;
+      }
+
       toast.success('Thank you! Your feedback has been submitted successfully.');
       
       // Reset form
@@ -32,21 +69,25 @@ export function FeedbackPage() {
       setEmail('');
       setCategory('');
       setFeedback('');
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      toast.error('Failed to submit feedback. Please try again.');
+    } finally {
       setIsSubmitting(false);
-    }, 1000);
+    }
   };
 
   return (
     <div className="h-screen overflow-y-auto" style={{ backgroundColor: '#FEFBF6' }}>
       {/* Logo */}
-      <div className="max-w-4xl mx-auto px-8 pt-12 pb-6">
+      <div className="max-w-4xl mx-auto px-8 pb-6" style={{ paddingTop: '40px' }}>
         <div className="flex justify-center">
-          <img src="/QUAD.svg" alt="Quad Logo" className="w-[120px] h-auto" />
+          <img src="/QUAD.svg" alt="Quad Logo" className="h-auto" style={{ width: '110px' }} />
         </div>
       </div>
 
       {/* Content */}
-      <div className="max-w-4xl mx-auto px-8 pb-8">
+      <div className="max-w-4xl mx-auto px-8" style={{ paddingBottom: '30px' }}>
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-8">
           <div className="mb-6">
             <h2 className="text-gray-800 mb-2">Share Your Thoughts</h2>
@@ -117,9 +158,11 @@ export function FeedbackPage() {
               <Textarea
                 id="feedback"
                 value={feedback}
-                onChange={(e) => setFeedback(e.target.value)}
+                onChange={handleFeedbackChange}
                 placeholder="Tell us what's on your mind..."
                 className="w-full min-h-[200px] resize-none"
+                maxLength={1000}
+                rows={20}
               />
               <p className="text-xs text-gray-500 mt-1">
                 Please be as detailed as possible

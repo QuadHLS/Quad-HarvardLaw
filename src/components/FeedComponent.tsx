@@ -1838,6 +1838,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           if (error) throw error;
           
           await fetchPosts(); // Refresh posts
+          
+          // If we're in thread view and the deleted post is the selected one, go back to home
+          if (selectedPostThread === postId) {
+            setSelectedPostThread(null);
+          }
+          
           setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
         } catch (error) {
           console.error('Error deleting post:', error);
@@ -1863,8 +1869,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       
       setEditingComment(null);
       // Refresh comments for the specific post
+      // Check both top-level comments and replies
       const postId = Object.keys(comments).find(key => 
-        comments[key].some(c => c.id === commentId)
+        comments[key].some(c => 
+          c.id === commentId || 
+          (c.replies && c.replies.some(r => r.id === commentId))
+        )
       );
       if (postId) await fetchComments(postId);
     } catch (error) {
@@ -1898,20 +1908,30 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           }
 
           // Delete likes for all replies to this comment
-          const { error: replyLikesError } = await supabase
-            .from('likes')
-            .delete()
-            .eq('likeable_type', 'comment')
-            .in('likeable_id', 
-              supabase
-                .from('comments')
-                .select('id')
-                .eq('parent_comment_id', commentId)
-            );
+          // First, get all reply IDs for this comment
+          const { data: replyIds, error: replyIdsError } = await supabase
+            .from('comments')
+            .select('id')
+            .eq('parent_comment_id', commentId);
 
-          if (replyLikesError) {
-            console.error('Error deleting reply likes:', replyLikesError);
-            throw replyLikesError;
+          if (replyIdsError) {
+            console.error('Error fetching reply IDs:', replyIdsError);
+            throw replyIdsError;
+          }
+
+          // Delete likes for replies if there are any
+          if (replyIds && replyIds.length > 0) {
+            const replyIdList = replyIds.map((reply: { id: string }) => reply.id);
+            const { error: replyLikesError } = await supabase
+              .from('likes')
+              .delete()
+              .eq('likeable_type', 'comment')
+              .in('likeable_id', replyIdList);
+
+            if (replyLikesError) {
+              console.error('Error deleting reply likes:', replyLikesError);
+              throw replyLikesError;
+            }
           }
           
           // First, delete all replies to this comment (if it's a parent comment)

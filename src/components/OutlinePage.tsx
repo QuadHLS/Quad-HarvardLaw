@@ -15,6 +15,7 @@ import {
   CloudUpload,
   ChevronDown
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Card, CardContent, CardHeader } from './ui/card';
@@ -27,7 +28,7 @@ import { Label } from './ui/label';
 import { supabase } from '../lib/supabase';
 import type { Outline, Instructor } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { trackPreview, trackDownload } from '../utils/activityTracker';
+import { trackPreview, trackDownload, checkUserMonthlyLimit } from '../utils/activityTracker';
 
 interface OutlinePageProps {
   outlines: Outline[];
@@ -544,6 +545,18 @@ export function OutlinePage({
   };
 
   const handleDownload = async (outline: Outline) => {
+    if (!user) {
+      toast.error('Please log in to download files');
+      return;
+    }
+
+    // Check monthly usage limit before allowing download
+    const limitCheck = await checkUserMonthlyLimit(user.id, outline.file_size || 0);
+    if (!limitCheck.allowed) {
+      toast.error(limitCheck.message || 'Monthly download limit exceeded');
+      return;
+    }
+
     try {
       // Try different file path formats
       const possiblePaths = [
@@ -868,6 +881,15 @@ export function OutlinePage({
         setError(null);
         
         try {
+          // Check monthly usage limit before allowing preview
+          if (user) {
+            const limitCheck = await checkUserMonthlyLimit(user.id, outline.file_size || 0);
+            if (!limitCheck.allowed) {
+              setError(limitCheck.message || 'Monthly preview limit exceeded');
+              return;
+            }
+          }
+
           const url = await getDocumentViewerUrl(outline);
           if (url) {
             setViewerUrl(url);

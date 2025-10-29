@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MapPin, Edit, Save, X, Trophy, BookOpen, Clock, Upload, ArrowLeft, ChevronLeft, ChevronRight, Plus, Eye } from 'lucide-react';
+import { MapPin, Edit, Save, X, Trophy, BookOpen, Clock, Upload, ArrowLeft, ChevronLeft, ChevronRight, Plus, Eye, RotateCcw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -342,6 +342,8 @@ interface ProfilePageProps {
 export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
   const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [showRedoConfirm, setShowRedoConfirm] = useState(false);
+  const [redoButtonRef, setRedoButtonRef] = useState<HTMLButtonElement | null>(null);
   const scheduleScrollRef = useRef<HTMLDivElement>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
@@ -717,6 +719,44 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
     setEditedData(profileData);
     setIsEditing(false);
     }
+  };
+
+  const handleRedoOnboarding = () => {
+    if (showRedoConfirm) {
+      // If popup is already open, close it
+      setShowRedoConfirm(false);
+    } else {
+      // If popup is closed, open it
+      setShowRedoConfirm(true);
+    }
+  };
+
+  const confirmRedoOnboarding = async () => {
+    if (!user?.id) return;
+
+    try {
+      // Set classes_filled to false to trigger onboarding
+      const { error } = await supabase
+        .from('profiles')
+        .update({ classes_filled: false })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error resetting onboarding:', error);
+        alert('Error resetting onboarding. Please try again.');
+        return;
+      }
+
+      // Reload the page to trigger onboarding flow
+      window.location.reload();
+    } catch (error) {
+      console.error('Error resetting onboarding:', error);
+      alert('Error resetting onboarding. Please try again.');
+    }
+  };
+
+  const cancelRedoOnboarding = () => {
+    setShowRedoConfirm(false);
   };
 
   // Avatar delete function
@@ -1382,10 +1422,21 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                     <>
                       {/* Show Edit button only for main user */}
                       {(!studentName || studentName === 'Justin Abbey') && (
-                        <Button onClick={handleEdit} variant="outline" className="gap-2">
-                          <Edit className="w-4 h-4" />
-                          Edit Profile
-                        </Button>
+                        <div className="flex flex-col gap-2">
+                          <Button onClick={handleEdit} variant="outline" className="gap-2">
+                            <Edit className="w-4 h-4" />
+                            Edit Profile
+                          </Button>
+                          <Button 
+                            ref={setRedoButtonRef}
+                            onClick={handleRedoOnboarding} 
+                            variant="outline" 
+                            className="gap-2 text-red-600 border-red-600 hover:bg-red-50"
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                            Redo Onboarding
+                          </Button>
+                        </div>
                       )}
                     </>
                   ) : (
@@ -1822,6 +1873,49 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
           </div>
         </div>
       </div>
+
+      {/* Redo Onboarding Confirmation Popup */}
+      {showRedoConfirm && redoButtonRef && (
+        <div 
+          className="fixed inset-0 z-50"
+          onClick={cancelRedoOnboarding}
+        >
+          {/* Popup positioned under the button */}
+          <div 
+            className="absolute bg-white border border-red-200 rounded-lg p-4 shadow-lg pointer-events-auto"
+            style={{
+              top: redoButtonRef.offsetTop + redoButtonRef.offsetHeight + 8,
+              right: '20px',
+              width: '200px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h4 className="text-sm font-semibold text-gray-900 mb-2">
+              Redo Onboarding
+            </h4>
+            <p className="text-sm text-gray-600 mb-3">
+              This will reset your course selections and profile information. You can always edit your profile later.
+            </p>
+            <div className="flex gap-2">
+              <Button 
+                onClick={cancelRedoOnboarding} 
+                variant="outline"
+                size="sm"
+                className="text-xs"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={confirmRedoOnboarding}
+                size="sm"
+                className="text-xs bg-red-600 hover:bg-red-700 text-white"
+              >
+                Yes, Redo
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

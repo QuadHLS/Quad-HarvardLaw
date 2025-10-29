@@ -680,7 +680,8 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo 
                              summer_firm: postGradEmployer,
                              instagram: instagram,
                              linkedin: linkedIn,
-                             clubs_activities: clubsActivities
+                             clubs_activities: clubsActivities,
+                             classes_filled: true
                            })
                            .eq('id', user.id);
 

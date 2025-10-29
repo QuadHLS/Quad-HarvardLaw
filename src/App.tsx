@@ -45,7 +45,7 @@ function AppContent({ user }: { user: any }) {
           return;
         }
 
-        const { error } = await supabase
+        const { data: profile, error } = await supabase
           .from('profiles')
           .select('classes_filled')
           .eq('id', currentUser.id)
@@ -53,15 +53,18 @@ function AppContent({ user }: { user: any }) {
 
         if (error) {
           console.error('Error fetching profile:', error);
-        if (isMounted) {
-          setHasCompletedOnboarding(false);
-          setAuthLoading(false);
-        }
+          if (isMounted) {
+            setHasCompletedOnboarding(false);
+            setAuthLoading(false);
+          }
           return;
         }
 
+        // Check if user has completed onboarding (classes_filled = true)
+        const onboardingCompleted = profile?.classes_filled === true;
+        
         if (isMounted) {
-          setHasCompletedOnboarding(false);
+          setHasCompletedOnboarding(onboardingCompleted);
           setAuthLoading(false);
         }
       } catch (_err) {
@@ -83,7 +86,7 @@ function AppContent({ user }: { user: any }) {
       listener.subscription.unsubscribe();
     };
   }, [user]);
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean | null>(null);
   const [showResetPassword, setShowResetPassword] = useState(() => {
     return window.location.pathname === '/reset-password';
   });
@@ -820,9 +823,21 @@ function AppContent({ user }: { user: any }) {
     return <AuthPage />;
   }
 
+  // Show loading spinner while checking onboarding status
+  if (hasCompletedOnboarding === null && user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-700 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Show onboarding flow if user hasn't completed onboarding (unless we're on reset password page or in password recovery)
   const isPasswordRecovery = sessionStorage.getItem('isPasswordRecovery') === 'true';
-  if (!hasCompletedOnboarding && !showResetPassword && !isPasswordRecovery) {
+  if (hasCompletedOnboarding === false && !showResetPassword && !isPasswordRecovery) {
     return (
       <OnboardingFlow onComplete={async () => {
         // Mark classes_filled as true in the database

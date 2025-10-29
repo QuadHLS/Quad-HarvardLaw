@@ -881,18 +881,11 @@ export function OutlinePage({
     const softStallTimerRef = useRef<NodeJS.Timeout | null>(null);
     const hardStallTimerRef = useRef<NodeJS.Timeout | null>(null);
     const isTabVisibleRef = useRef(true);
-    const retryCountRef = useRef(0);
     const inflightRef = useRef(false);
-
-    // Update ref when state changes
-    useEffect(() => {
-      retryCountRef.current = retryCount;
-    }, [retryCount]);
 
     // Reset retry count when outline changes
     useEffect(() => {
       setRetryCount(0);
-      retryCountRef.current = 0;
       setIsVisible(false);
       setViewerUrl(null);
       setError(null);
@@ -1007,7 +1000,7 @@ export function OutlinePage({
             // Start stall detection timers
             // Soft stall: 10s - retry with fresh URL immediately
             softStallTimerRef.current = setTimeout(async () => {
-              if (!iframeLoadedRef.current && isTabVisibleRef.current && retryCountRef.current < 1) {
+              if (!iframeLoadedRef.current && isTabVisibleRef.current && retryCount < 1) {
                 setRetryCount(prev => prev + 1);
                 try {
                   // Fetch fresh signed URL immediately to avoid race conditions
@@ -1134,7 +1127,7 @@ export function OutlinePage({
             ) : (
               <iframe
                 key={viewerUrl}
-                src={`https://docs.google.com/gview?url=${encodeURIComponent(viewerUrl)}&embedded=1`}
+                src={`https://docs.google.com/gview?url=${encodeURIComponent(viewerUrl)}&embedded=true`}
                 className="w-full h-full border-0"
                 title={`${documentType} Preview: ${outline.title}`}
                 onLoad={() => {

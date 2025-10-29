@@ -1464,9 +1464,13 @@ export function OnboardingPage(props: OnboardingPageProps) {
 
             {/* Complete Setup Button */}
             <div className="flex-1 flex justify-end gap-3">
-            <button
-              className="text-sm text-gray-500 hover:text-gray-700"
-              onClick={async () => {
+            <Button
+              variant="outline"
+              className="text-sm text-gray-500 hover:text-gray-700 border-gray-300"
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
                 // Save empty classes array to profiles table
                 if (user) {
                   try {
@@ -1492,10 +1496,12 @@ export function OnboardingPage(props: OnboardingPageProps) {
               }}
             >
               Skip for now
-            </button>
+            </Button>
             <Button
               disabled={!areRequirementsMet()}
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 // Don't save to database here - will be saved after page 3
                 onComplete();
               }}
@@ -1504,7 +1510,7 @@ export function OnboardingPage(props: OnboardingPageProps) {
                 backgroundColor: areRequirementsMet() ? '#00962c' : '#752531'
               }}
             >
-              Done!
+              Next: Profile
             </Button>
             </div>
           </div>

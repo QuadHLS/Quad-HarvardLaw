@@ -254,30 +254,44 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
               
               {/* Professor Dropdown */}
               {showProfessorDropdown && dropdownPosition && createPortal(
-                <div
-                  ref={professorDropdownPanelRef}
-                  className="border border-gray-200 shadow-xl backdrop-blur-sm overflow-hidden"
-                  data-radix-scroll-lock-ignore
-                  onWheel={(e) => e.stopPropagation()}
-                  onTouchMove={(e) => e.stopPropagation()}
-                  style={{
-                    position: 'fixed',
-                    left: dropdownPosition.left,
-                    top: dropdownPosition.top,
-                    width: dropdownPosition.width,
-                    backgroundColor: 'white',
-                    WebkitOverflowScrolling: 'touch',
-                    borderRadius: '24px',
-                    height: 220,
-                    overflowY: 'auto',
-                    overflowX: 'hidden',
-                    overscrollBehavior: 'contain',
-                    touchAction: 'pan-y',
-                    zIndex: 2147483647, // ensure above modal
-                    pointerEvents: 'auto'
-                  }}
-                >
-                  {professors.map((prof) => {
+                <>
+                  {/* Backdrop to prevent background interaction */}
+                  <div
+                    style={{
+                      position: 'fixed',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      zIndex: 2147483646,
+                      backgroundColor: 'transparent'
+                    }}
+                    onClick={() => setShowProfessorDropdown(false)}
+                  />
+                  <div
+                    ref={professorDropdownPanelRef}
+                    className="border border-gray-200 shadow-xl overflow-hidden"
+                    data-radix-scroll-lock-ignore
+                    onWheel={(e) => e.stopPropagation()}
+                    onTouchMove={(e) => e.stopPropagation()}
+                    style={{
+                      position: 'fixed',
+                      left: dropdownPosition.left,
+                      top: dropdownPosition.top,
+                      width: dropdownPosition.width,
+                      backgroundColor: 'white',
+                      WebkitOverflowScrolling: 'touch',
+                      borderRadius: '24px',
+                      height: 220,
+                      overflowY: 'auto',
+                      overflowX: 'hidden',
+                      overscrollBehavior: 'contain',
+                      touchAction: 'pan-y',
+                      zIndex: 2147483647, // ensure above modal
+                      pointerEvents: 'auto'
+                    }}
+                  >
+                  {filteredProfessors.map((prof) => {
                     // Parse the name to display in "Last Name, First Name" format
                     const [firstName, lastName] = prof.name.includes(',') 
                       ? prof.name.split(',').map(part => part.trim())
@@ -295,7 +309,8 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
                       </button>
                     );
                   })}
-                </div>,
+                  </div>
+                </>,
                 document.body
               )}
               

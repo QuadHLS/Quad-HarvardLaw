@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Download,
   Bookmark,
@@ -883,8 +883,51 @@ export function ExamPage({
     const [viewerUrl, setViewerUrl] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isVisible, setIsVisible] = useState(false);
+    const [retryCount, setRetryCount] = useState(0);
+    const containerRef = useRef<HTMLDivElement>(null);
 
+    // Reset retry count when exam changes
     useEffect(() => {
+      setRetryCount(0);
+      setIsVisible(false);
+      setViewerUrl(null);
+    }, [exam.id]);
+
+    // IntersectionObserver: only load when visible (prevents too many iframes at once)
+    useEffect(() => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      // Check if already visible (e.g., after exam change while container is still in view)
+      const checkVisibility = () => {
+        const rect = container.getBoundingClientRect();
+        const isInView = rect.top < window.innerHeight + 200 && rect.bottom > -200;
+        if (isInView) {
+          setIsVisible(true);
+        }
+      };
+
+      // Initial check
+      checkVisibility();
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (entries[0]?.isIntersecting) {
+            setIsVisible(true);
+          }
+        },
+        { rootMargin: '200px' } // Start loading 200px before visible
+      );
+
+      observer.observe(container);
+      return () => observer.disconnect();
+    }, [exam.id]);
+
+    // Load viewer URL when visible (just-in-time)
+    useEffect(() => {
+      if (!isVisible || viewerUrl) return;
+
       const loadViewer = async () => {
         setLoading(true);
         setError(null);
@@ -925,20 +968,10 @@ export function ExamPage({
       };
 
       loadViewer();
-    }, [exam.id, user]);
+    }, [exam.id, user, isVisible, viewerUrl]);
 
-    if (loading) {
-      return (
-        <div className="h-full w-full flex items-center justify-center bg-gray-800">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-            <p className="text-white">Loading document...</p>
-          </div>
-        </div>
-      );
-    }
-
-    if (error || !viewerUrl) {
+    // Early returns for errors that prevent loading
+    if (error && error.includes('limit')) {
       return (
         <div className="h-full flex items-center justify-center">
           <div className="text-center p-8">
@@ -946,9 +979,7 @@ export function ExamPage({
               <FileText className="w-8 h-8 text-red-400" />
             </div>
             <h3 className="text-lg font-semibold text-white mb-2">Preview Unavailable</h3>
-            <p className="text-gray-300 mb-6">
-              {error && error.includes('limit') ? 'You have exceeded your preview and download limit' : 'Unable to load document preview'}
-            </p>
+            <p className="text-gray-300 mb-6">You have exceeded your preview and download limit</p>
           </div>
         </div>
       );
@@ -961,7 +992,7 @@ export function ExamPage({
       const iconColor = fileType === 'pdf' ? 'bg-red-500' : 'bg-blue-500';
       
       return (
-        <div className="h-full flex flex-col">
+        <div className="h-full flex flex-col" ref={containerRef}>
           {/* Document Viewer Header */}
           <div className="flex items-center justify-between px-4 py-2 border-b border-gray-600 bg-gray-800">
             <div className="flex items-center gap-2">
@@ -985,11 +1016,41 @@ export function ExamPage({
           
           {/* Google Docs Viewer */}
           <div className="flex-1">
-            <iframe
-              src={`https://docs.google.com/gview?url=${encodeURIComponent(viewerUrl)}&embedded=true`}
-              className="w-full h-full border-0"
-              title={`${documentType} Preview: ${exam.title}`}
-            />
+            {loading || !viewerUrl ? (
+              <div className="h-full w-full flex items-center justify-center bg-gray-800">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                  <p className="text-white">Loading document...</p>
+                </div>
+              </div>
+            ) : error ? (
+              <div className="h-full w-full flex items-center justify-center bg-gray-800">
+                <div className="text-center p-8">
+                  <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <FileText className="w-8 h-8 text-red-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-white mb-2">Preview Unavailable</h3>
+                  <p className="text-gray-300 mb-6">{error}</p>
+                </div>
+              </div>
+            ) : (
+              <iframe
+                key={viewerUrl}
+                src={`https://docs.google.com/gview?url=${encodeURIComponent(viewerUrl)}&embedded=true`}
+                className="w-full h-full border-0"
+                title={`${documentType} Preview: ${exam.title}`}
+                onError={() => {
+                  // Retry by refreshing the signed URL (in case it expired)
+                  if (retryCount < 1) {
+                    setRetryCount(prev => prev + 1);
+                    setViewerUrl(null);
+                    setLoading(true);
+                  } else {
+                    setError('Failed to load preview. Please try refreshing or downloading the document.');
+                  }
+                }}
+              />
+            )}
           </div>
         </div>
       );

@@ -153,7 +153,7 @@ export const getResourcePopularity = async (limit: number = 10) => {
 
 /**
  * Check if user has exceeded monthly file size limit
- * Limit: 0.187 GB = 196,083,712 bytes (using binary calculation)
+ * Limit: 0.375 GB = 402,653,184 bytes (using binary calculation)
  */
 export const checkUserMonthlyLimit = async (userId: string, additionalFileSize: number = 0): Promise<{
   allowed: boolean;
@@ -162,7 +162,7 @@ export const checkUserMonthlyLimit = async (userId: string, additionalFileSize: 
   remaining: number;
   message?: string;
 }> => {
-  const MONTHLY_LIMIT_BYTES = 0.187 * 1024 * 1024 * 1024; // 196,083,712 bytes
+  const MONTHLY_LIMIT_BYTES = 0.375 * 1024 * 1024 * 1024; // 402,653,184 bytes
   
   try {
     const { data, error } = await supabase

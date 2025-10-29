@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
 import { Switch } from './ui/switch';
-import { Search, X } from 'lucide-react';
+import { Search } from 'lucide-react';
 
 interface ReviewFormData {
   professor_name: string;
@@ -236,25 +236,21 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
                   placeholder="Search for professor..."
                   value={professorSearch}
                   onChange={(e) => handleProfessorSearchChange(e.target.value)}
-                  onFocus={() => setShowProfessorDropdown(true)}
-                  className="pl-10 pr-10 h-9 rounded-3xl border border-gray-200 focus:ring-2 focus:ring-[#752432] focus:border-transparent transition"
+                  onFocus={() => {
+                    // If professor is already selected, clear it when clicking the input
+                    if (formData.professor_name) {
+                      setProfessorSearch('');
+                      setFormData(prev => ({ ...prev, professor_name: '', course_name: '' }));
+                      setShowProfessorDropdown(false);
+                    } else {
+                      setShowProfessorDropdown(true);
+                    }
+                  }}
+                  className="pl-10 h-9 rounded-3xl border border-gray-200 focus:ring-2 focus:ring-[#752432] focus:border-transparent transition"
                   style={{ backgroundColor: 'white', borderRadius: 16, fontSize: '12px' }}
                   autoFocus={false}
                   tabIndex={-1}
                 />
-                {professorSearch && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setProfessorSearch('');
-                      setFormData(prev => ({ ...prev, professor_name: '', course_name: '' }));
-                      setShowProfessorDropdown(false);
-                    }}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
               </div>
               
               {/* Professor Dropdown */}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Users, MessageSquare, GraduationCap, Clock, MapPin, X } from 'lucide-react';
+import { Users, MessageSquare, GraduationCap, Clock, MapPin, X, ArrowLeft } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { ExpandableText } from './ui/expandable-text';
@@ -155,7 +155,7 @@ interface Poll {
 
 
 
-export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePageOverviewProps) {
+export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: CoursePageOverviewProps) {
   const { user } = useAuth();
   const [userCourse, setUserCourse] = useState<UserCourse | null>(null);
   const [userCourses, setUserCourses] = useState<UserCourse[]>([]);
@@ -568,61 +568,33 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
 
       const previousSelection = post.poll.userVotedOptionId;
 
-      if (!previousSelection) {
-        // First vote
-        console.log('Inserting poll vote:', {
+      // If user has already voted, prevent any further voting
+      if (previousSelection) {
+        console.log('User has already voted on this poll, voting disabled');
+        return;
+      }
+
+      // First vote only
+      console.log('Inserting poll vote:', {
+        poll_id: post.poll.id,
+        option_id: optionId,
+        user_id: user.id
+      });
+      
+      const { error } = await supabase
+        .from('poll_votes')
+        .insert({
           poll_id: post.poll.id,
           option_id: optionId,
           user_id: user.id
         });
-        
-        const { error } = await supabase
-          .from('poll_votes')
-          .insert({
-            poll_id: post.poll.id,
-            option_id: optionId,
-            user_id: user.id
-          });
 
-        if (error) {
-          console.error('Error voting on poll:', error);
-          return;
-        }
-        
-        console.log('Poll vote inserted successfully');
-      } else if (previousSelection === optionId) {
-        // Toggle off (re-click same option)
-        console.log('Removing poll vote for poll:', post.poll.id, 'user:', user.id);
-        
-        const { error } = await supabase
-          .from('poll_votes')
-          .delete()
-          .eq('poll_id', post.poll.id)
-          .eq('user_id', user.id);
-
-        if (error) {
-          console.error('Error removing poll vote:', error);
-          return;
-        }
-        
-        console.log('Poll vote removed successfully');
-      } else {
-        // Switch choice (different option)
-        console.log('Updating poll vote from', previousSelection, 'to', optionId);
-        
-        const { error } = await supabase
-          .from('poll_votes')
-          .update({ option_id: optionId })
-          .eq('poll_id', post.poll.id)
-          .eq('user_id', user.id);
-
-        if (error) {
-          console.error('Error updating poll vote:', error);
-          return;
-        }
-        
-        console.log('Poll vote updated successfully');
+      if (error) {
+        console.error('Error voting on poll:', error);
+        return;
       }
+      
+      console.log('Poll vote inserted successfully');
 
       // Update local state immediately for better UX
       setCoursePosts(prevPosts => 
@@ -632,17 +604,11 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                 ...p,
                 poll: p.poll ? {
                   ...p.poll,
-                  userVotedOptionId: previousSelection === optionId ? undefined : optionId,
-                  totalVotes: previousSelection === optionId 
-                    ? p.poll.totalVotes - 1
-                    : previousSelection 
-                    ? p.poll.totalVotes 
-                    : p.poll.totalVotes + 1,
+                  userVotedOptionId: optionId,
+                  totalVotes: p.poll.totalVotes + 1,
                   options: p.poll.options.map(opt => ({
                     ...opt,
-                    votes: opt.id === optionId 
-                      ? (previousSelection === optionId ? opt.votes - 1 : opt.votes + 1)
-                      : (previousSelection === opt.id ? opt.votes - 1 : opt.votes)
+                    votes: opt.id === optionId ? opt.votes + 1 : opt.votes
                   }))
                 } : undefined
               }
@@ -1815,6 +1781,14 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                   )}
                 </div>
               </div>
+              <button
+                onClick={onBack}
+                className="flex items-center gap-2 px-3 py-2 text-white hover:bg-white/20 rounded-lg transition-colors"
+                aria-label="Go back"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                Back
+              </button>
             </div>
           </div>
         </div>
@@ -1904,7 +1878,7 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                         </div>
                   <button
                     onClick={() => setShowCreatePostDialog(true)}
-                    className="px-3 py-1.5 text-sm font-medium rounded transition-colors bg-[#752432] text-white hover:bg-[#752432]/90"
+                    className="px-3 py-1.5 text-sm font-medium rounded transition-colors bg-white text-[#752432] hover:bg-gray-100"
                     aria-label="Create post"
                     title="Create post"
                   >
@@ -2809,7 +2783,14 @@ export function CoursePage({ courseName, onNavigateToStudentProfile }: CoursePag
                 </div>
               </div>
               <label htmlFor="anonymous-post" className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                <span className="text-lg">👁️</span>
+                <span className={`text-lg ${postAnonymously ? 'relative' : ''}`}>
+                  👁️
+                  {postAnonymously && (
+                    <span className="absolute inset-0 flex items-center justify-center text-black font-bold text-xl leading-none pointer-events-none">
+                      ╱
+                    </span>
+                  )}
+                </span>
                 Post anonymously
               </label>
             </div>

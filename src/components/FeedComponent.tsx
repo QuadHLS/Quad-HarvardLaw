@@ -1687,61 +1687,33 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
       const previousSelection = post.poll.userVotedOptionId;
 
-      if (!previousSelection) {
-        // First vote
-        console.log('Inserting poll vote:', {
+      // If user has already voted, prevent any further voting
+      if (previousSelection) {
+        console.log('User has already voted on this poll, voting disabled');
+        return;
+      }
+
+      // First vote only
+      console.log('Inserting poll vote:', {
+        poll_id: post.poll.id,
+        option_id: optionId,
+        user_id: user.id
+      });
+      
+      const { error } = await supabase
+        .from('poll_votes')
+        .insert({
           poll_id: post.poll.id,
           option_id: optionId,
           user_id: user.id
         });
-        
-        const { error } = await supabase
-          .from('poll_votes')
-          .insert({
-            poll_id: post.poll.id,
-            option_id: optionId,
-            user_id: user.id
-          });
 
-        if (error) {
-          console.error('Error voting on poll:', error);
-          return;
-        }
-        
-        console.log('Poll vote inserted successfully');
-      } else if (previousSelection === optionId) {
-        // Toggle off (re-click same option)
-        console.log('Removing poll vote for poll:', post.poll.id, 'user:', user.id);
-        
-        const { error } = await supabase
-          .from('poll_votes')
-          .delete()
-          .eq('poll_id', post.poll.id)
-          .eq('user_id', user.id);
-
-        if (error) {
-          console.error('Error removing poll vote:', error);
-          return;
-        }
-        
-        console.log('Poll vote removed successfully');
-      } else {
-        // Switch choice (different option)
-        console.log('Updating poll vote from', previousSelection, 'to', optionId);
-        
-        const { error } = await supabase
-          .from('poll_votes')
-          .update({ option_id: optionId })
-          .eq('poll_id', post.poll.id)
-          .eq('user_id', user.id);
-
-        if (error) {
-          console.error('Error updating poll vote:', error);
-          return;
-        }
-        
-        console.log('Poll vote updated successfully');
+      if (error) {
+        console.error('Error voting on poll:', error);
+        return;
       }
+      
+      console.log('Poll vote inserted successfully');
 
       // Update local state for poll voting
       setPosts(prevPosts => 
@@ -1751,17 +1723,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 ...p, 
                 poll: p.poll ? {
                   ...p.poll,
-                  userVotedOptionId: previousSelection === optionId ? undefined : optionId,
-                  totalVotes: previousSelection === optionId 
-                    ? p.poll.totalVotes - 1 
-                    : previousSelection 
-                    ? p.poll.totalVotes 
-                    : p.poll.totalVotes + 1,
+                  userVotedOptionId: optionId,
+                  totalVotes: p.poll.totalVotes + 1,
                   options: p.poll.options.map(opt => ({
                     ...opt,
-                    votes: opt.id === optionId 
-                      ? (previousSelection === optionId ? opt.votes - 1 : opt.votes + 1)
-                      : (previousSelection === opt.id ? opt.votes - 1 : opt.votes)
+                    votes: opt.id === optionId ? opt.votes + 1 : opt.votes
                   }))
                 } : undefined
               }
@@ -2735,24 +2701,9 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     <Card className="overflow-hidden flex flex-col" style={{ backgroundColor: '#FEFBF6', height: '100%', minWidth: '400px' }}>
       <div className="px-4 py-2 border-b border-gray-200" style={{ backgroundColor: '#F8F4ED' }}>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="checkbox-wrapper-35">
-              <input 
-                type="checkbox" 
-                id="feed-mode-toggle" 
-                className="switch"
-                checked={feedMode === 'my-courses'}
-                onChange={(e) => onFeedModeChange?.(e.target.checked ? 'my-courses' : 'campus')}
-              />
-              <label htmlFor="feed-mode-toggle">
-                <span className="switch-x-toggletext">
-                  <span className="switch-x-unchecked"><span className="switch-x-hiddenlabel">Unchecked: </span>Campus</span>
-                  <span className="switch-x-checked"><span className="switch-x-hiddenlabel">Checked: </span>My Courses</span>
-                </span>
-              </label>
-            </div>
+          <div className="flex items-center">
             {/* Real-time connection indicator */}
-            <div className="relative flex items-center justify-center w-2 h-2 overflow-visible">
+            <div className="relative flex items-center justify-center w-2 h-2 overflow-visible mr-2">
               {realtimeStatus === 'connected' && (
                 <div 
                   className="quad-ping"
@@ -2777,6 +2728,21 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 }
               />
             </div>
+            <div className="checkbox-wrapper-35">
+              <input 
+                type="checkbox" 
+                id="feed-mode-toggle" 
+                className="switch"
+                checked={feedMode === 'my-courses'}
+                onChange={(e) => onFeedModeChange?.(e.target.checked ? 'my-courses' : 'campus')}
+              />
+              <label htmlFor="feed-mode-toggle">
+                <span className="switch-x-toggletext">
+                  <span className="switch-x-unchecked"><span className="switch-x-hiddenlabel">Unchecked: </span>Campus</span>
+                  <span className="switch-x-checked"><span className="switch-x-hiddenlabel">Checked: </span>My Courses</span>
+                </span>
+              </label>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             {/* Add Post button in header */}
@@ -2785,7 +2751,10 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 setNewPostTarget(feedMode);
                 setShowCreatePostDialog(true);
               }}
-              className="px-3 py-1.5 text-sm font-medium rounded transition-colors bg-[#752432] text-white hover:bg-[#752432]/90"
+              className="px-3 py-1.5 text-sm font-medium rounded transition-colors text-white hover:opacity-90"
+              style={{
+                backgroundColor: feedMode === 'my-courses' ? '#0080BD' : '#04913A'
+              }}
               aria-label="Create post"
               title="Create post"
             >
@@ -2822,7 +2791,10 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 setNewPostTarget(feedMode);
                 setShowCreatePostDialog(true);
               }}
-              className="px-3 py-1.5 text-sm font-medium rounded transition-colors bg-[#752432] text-white hover:bg-[#752432]/90"
+              className="px-3 py-1.5 text-sm font-medium rounded transition-colors text-white hover:opacity-90"
+              style={{
+                backgroundColor: feedMode === 'my-courses' ? '#0080BD' : '#04913A'
+              }}
             >
               Create First Post
             </button>
@@ -3563,7 +3535,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           <div className="space-y-4">
             {/* Post Target Selection */}
             <div className="space-y-3">
-              <div className="flex items-center justify-center">
+              <div className="flex items-center justify-start">
                 <div className="checkbox-wrapper-35">
                   <input 
                     type="checkbox" 
@@ -3711,10 +3683,17 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 id="anonymous-post"
                 checked={isAnonymousPost}
                 onChange={(e) => setIsAnonymousPost(e.target.checked)}
-                className="w-4 h-4 text-[#752432] bg-gray-100 border-gray-300 rounded focus:ring-[#752432] focus:ring-2"
+                className="w-4 h-4 text-[#752432] bg-gray-100 border-gray-300 rounded focus:ring-0 focus:outline-none"
               />
               <label htmlFor="anonymous-post" className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                <span className="text-lg">👁️</span>
+                <span className={`text-lg ${isAnonymousPost ? 'relative' : ''}`}>
+                  👁️
+                  {isAnonymousPost && (
+                    <span className="absolute inset-0 flex items-center justify-center text-black font-bold text-xl leading-none pointer-events-none">
+                      ╱
+                    </span>
+                  )}
+                </span>
                 Post anonymously
               </label>
             </div>
@@ -3742,7 +3721,10 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 </Button>
                 <Button 
                   onClick={handleCreatePost}
-                  className="bg-[#752432] hover:bg-[#752432]/90"
+                  className="text-white hover:opacity-90"
+                  style={{
+                    backgroundColor: newPostTarget === 'my-courses' ? '#0080BD' : '#04913A'
+                  }}
                   disabled={
                     !newPostTitle.trim() || 
                     (newPostType === 'text' && !newPost.trim()) ||

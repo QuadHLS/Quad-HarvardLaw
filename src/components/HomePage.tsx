@@ -653,36 +653,30 @@ function MyCourses({
   return (
     <Card className="overflow-hidden" style={{ backgroundColor: '#FEFBF6' }}>
       <div className="px-4 py-2 border-b border-gray-200" style={{ backgroundColor: '#F8F4ED' }}>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center gap-2">
           {onSemesterChange && selectedSemester && (
             <div className="flex gap-1">
-              {['Fall', 'Winter', 'Spring'].map((term) => {
+              {['Fall', 'Winter', 'Spring'].map((term, index) => {
                 const year = selectedSemester.slice(0, 4);
                 const semesterCode = `${year}${term === 'Fall' ? 'FA' : term === 'Winter' ? 'WI' : 'SP'}`;
                 const isSelected = selectedSemester === semesterCode;
                 
-                // Check if this semester has any courses using multi-semester logic
-                const termCode = term === 'Fall' ? 'FA' : term === 'Winter' ? 'WI' : 'SP';
-                const hasCourses = allUserCourses?.some(course => {
-                  const courseSemester = course.schedule?.semester;
-                  return courseMatchesSemester(courseSemester, termCode);
-                });
-                
-                // Only render button if there are courses for this semester
-                if (!hasCourses) return null;
-                
                 return (
-                  <button
-                    key={term}
-                    onClick={() => onSemesterChange(semesterCode)}
-                    className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
-                      isSelected 
-                        ? 'bg-[#752432] text-white' 
-                        : 'text-gray-600 hover:text-[#752432] hover:bg-gray-100'
-                    }`}
-                  >
-                    {term}
-                  </button>
+                  <div key={term} className="flex items-center">
+                    <button
+                      onClick={() => onSemesterChange(semesterCode)}
+                      className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+                        isSelected 
+                          ? 'bg-[#752432] text-white' 
+                          : 'text-gray-600 hover:text-[#752432] hover:bg-white'
+                      }`}
+                    >
+                      {term}
+                    </button>
+                    {index < 2 && (
+                      <span className="mx-1 text-gray-400 text-xs">|</span>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -739,7 +733,7 @@ function MyCourses({
           <div className="text-center py-8">
             <Book className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <p className="text-sm text-gray-500 mb-2">No courses enrolled</p>
-            <p className="text-xs text-gray-400">Contact your advisor to enroll in courses</p>
+            <p className="text-xs text-gray-400">Redo onboarding</p>
             </div>
           )}
           </div>

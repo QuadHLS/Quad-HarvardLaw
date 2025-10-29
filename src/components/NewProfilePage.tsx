@@ -2,6 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MapPin, Edit, Save, X, Trophy, BookOpen, Clock, Upload, ArrowLeft, ChevronLeft, ChevronRight, Plus, Eye, RotateCcw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { Badge } from './ui/badge';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
 
 // Utility function for class merging
 function cn(...inputs: any[]) {
@@ -316,6 +319,7 @@ interface ProfileData {
   year: string;
   age: number | null;
   hometown: string;
+  underGrad: string;
   summerCity: string;
   summerFirm: string;
   bio: string;
@@ -372,7 +376,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       try {
         let query = supabase
           .from('profiles')
-          .select('full_name, email, phone, class_year, section, classes, age, hometown, summer_city, summer_firm, instagram, linkedin, avatar_url, photo_urls, bio, clubs_activities, clubs_visibility, courses_visibility, schedule_visibility');
+          .select('full_name, email, phone, class_year, section, classes, age, hometown, under_grad, summer_city, summer_firm, instagram, linkedin, avatar_url, photo_urls, bio, clubs_activities, clubs_visibility, courses_visibility, schedule_visibility');
 
         // If viewing another student's profile, fetch by name; otherwise fetch by user ID
         if (studentName && studentName !== user.email) {
@@ -400,6 +404,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
             year: profile.class_year || '2L',
             age: profile.age || null,
             hometown: profile.hometown || '',
+            underGrad: profile.under_grad || '',
             summerCity: profile.summer_city || '',
             summerFirm: profile.summer_firm || '',
             bio: profile.bio || '',
@@ -691,6 +696,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
           clubs_activities: editedData.clubMemberships,
           age: editedData.age,
           hometown: editedData.hometown,
+          under_grad: editedData.underGrad || null,
           clubs_visibility: editedData.clubs_visibility,
           courses_visibility: editedData.courses_visibility,
           schedule_visibility: editedData.schedule_visibility
@@ -1261,50 +1267,41 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
           overflow: hidden;
           background: #ffd700;
           border-radius: 0.5rem;
-          padding: 0.5rem;
+          padding: 0.25rem 0.75rem;
           box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
           transition: 0.5s;
           display: flex;
           align-items: center;
           justify-content: center;
+          height: fit-content;
         }
         
-        .golden-quad-logo img {
-          position: relative;
-          z-index: 2;
-        }
         
         .golden-quad-logo::before {
           content: "";
           position: absolute;
-          height: 200%;
-          width: 8px;
-          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
-          animation: shimmer 2s infinite linear;
-          animation-delay: 0.3s;
-          z-index: 1;
-          left: 0;
           top: 0;
-        }
-        
-        .golden-quad-logo::after {
-          content: "";
-          position: absolute;
-          height: 200%;
-          width: 6px;
-          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
-          animation: shimmer 2s infinite linear;
+          left: -100%;
+          width: 50%;
+          height: 100%;
+          background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.2),
+            rgba(255, 255, 255, 0.55),
+            rgba(255, 255, 255, 0.2),
+            transparent
+          );
+          animation: shimmer 2s infinite;
           z-index: 1;
-          left: 0;
-          top: 0;
         }
         
         @keyframes shimmer {
           0% {
-            transform: translateX(-100%) translateY(-100%) skewX(45deg);
+            left: -100%;
           }
           100% {
-            transform: translateX(100%) translateY(100%) skewX(45deg);
+            left: 100%;
           }
         }
       `}</style>
@@ -1403,16 +1400,6 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                     <Badge className="border-0 text-white" style={{ backgroundColor: '#752432' }}>
                       {profileData.year}
                     </Badge>
-                    {/* Gold Quad Logo Button for Special Users */}
-                    {profileData.email && ['justin031607@gmail.com', 'jabbey@jd26.law.harvard.edu', 'lnassif@jd26.law.harvard.edu'].includes(profileData.email.toLowerCase()) && (
-                      <div className="golden-quad-logo">
-                        <img 
-                          src="/QUAD.svg" 
-                          alt="Quad Logo" 
-                          className="w-6 h-6"
-                        />
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -1526,23 +1513,25 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                     />
               </div>
                 ) : (
-                  <div 
-                    className="flex items-center gap-2 cursor-pointer hover:opacity-80"
-                    onClick={() => {
-                      if (profileData.instagram) {
-                        const url = profileData.instagram.startsWith('http') 
-                          ? profileData.instagram 
-                          : `https://${profileData.instagram}`;
-                        window.open(url, '_blank');
-                      }
-                    }}
-                  >
-                    <img 
-                      src="/Instagram_Glyph_Gradient.png" 
-                      alt="Instagram" 
-                      className="h-6 w-auto" 
-                    />
-                  </div>
+                  profileData.instagram && profileData.instagram.trim() !== '' && (
+                    <div 
+                      className="flex items-center gap-2 cursor-pointer hover:opacity-80"
+                      onClick={() => {
+                        if (profileData.instagram) {
+                          const url = profileData.instagram.startsWith('http') 
+                            ? profileData.instagram 
+                            : `https://${profileData.instagram}`;
+                          window.open(url, '_blank');
+                        }
+                      }}
+                    >
+                      <img 
+                        src="/Instagram_Glyph_Gradient.png" 
+                        alt="Instagram" 
+                        className="h-6 w-auto" 
+                      />
+                    </div>
+                  )
                 )}
                 
                 {isEditing && (!studentName || studentName === 'Justin Abbey') ? (
@@ -1560,23 +1549,25 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                     />
                   </div>
                 ) : (
-                  <div 
-                    className="flex items-center gap-2 cursor-pointer hover:opacity-80"
-                    onClick={() => {
-                      if (profileData.linkedin) {
-                        const url = profileData.linkedin.startsWith('http') 
-                          ? profileData.linkedin 
-                          : `https://${profileData.linkedin}`;
-                        window.open(url, '_blank');
-                      }
-                    }}
-                  >
-                    <img 
-                      src="/LI-In-Bug.png" 
-                      alt="LinkedIn" 
-                      className="h-6 w-auto" 
-                    />
-                  </div>
+                  profileData.linkedin && profileData.linkedin.trim() !== '' && (
+                    <div 
+                      className="flex items-center gap-2 cursor-pointer hover:opacity-80"
+                      onClick={() => {
+                        if (profileData.linkedin) {
+                          const url = profileData.linkedin.startsWith('http') 
+                            ? profileData.linkedin 
+                            : `https://${profileData.linkedin}`;
+                          window.open(url, '_blank');
+                        }
+                      }}
+                    >
+                      <img 
+                        src="/LI-In-Bug.png" 
+                        alt="LinkedIn" 
+                        className="h-6 w-auto" 
+                      />
+                    </div>
+                  )
                 )}
               </div>
 
@@ -1616,6 +1607,16 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                             placeholder="City, State"
                           />
                         </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs">🎓</span>
+                          <span className="text-xs">Undergraduate:</span>
+                          <Input
+                            value={editedData?.underGrad || ''}
+                            onChange={(e) => editedData && setEditedData({ ...editedData, underGrad: e.target.value })}
+                            className="w-32 h-6 text-xs px-1"
+                            placeholder="Harvard University"
+                          />
+                        </div>
                       </>
                     ) : (
                       <>
@@ -1628,6 +1629,19 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                     <Badge variant="secondary" className="px-3 py-1">
                             🏡 From {profileData.hometown}
                     </Badge>
+                        )}
+                        {profileData.underGrad && profileData.underGrad.trim() !== '' && (
+                    <Badge variant="secondary" className="px-3 py-1">
+                            🎓 Undergraduate: {profileData.underGrad}
+                    </Badge>
+                        )}
+                        {/* Gold Quad Logo Button for Special Users */}
+                        {profileData.email && ['justin031607@gmail.com', 'jabbey@jd26.law.harvard.edu', 'lnassif@jd26.law.harvard.edu'].includes(profileData.email.toLowerCase()) && (
+                          <div className="golden-quad-logo">
+                            <span className="text-sm font-semibold text-gray-900" style={{ position: 'relative', zIndex: 2 }}>
+                              Quadfathers
+                            </span>
+                          </div>
                         )}
                       </>
                     )}

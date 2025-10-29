@@ -219,6 +219,7 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo 
   const [bio, setBio] = useState('');
   const [age, setAge] = useState('');
   const [hometown, setHometown] = useState('');
+  const [underGrad, setUnderGrad] = useState('');
   const [postGradEmployer, setPostGradEmployer] = useState('');
   const [postGradCity, setPostGradCity] = useState('');
   const [clubsActivities, setClubsActivities] = useState<string[]>([]);
@@ -492,8 +493,8 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo 
                 />
               </div>
 
-              {/* Age and Home Town - Same Line */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Age, Home Town, and Under Grad - Same Line */}
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="age">Age</Label>
                   <Input
@@ -520,6 +521,18 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo 
                     placeholder="Boston, MA"
                     value={hometown}
                     onChange={(e) => setHometown(e.target.value)}
+                    className="mt-1.5"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="underGrad">Undergraduate</Label>
+                  <Input
+                    id="underGrad"
+                    type="text"
+                    placeholder="Harvard University"
+                    value={underGrad}
+                    onChange={(e) => setUnderGrad(e.target.value)}
                     className="mt-1.5"
                   />
                 </div>
@@ -676,6 +689,7 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo 
                              bio: bio,
                              age: age ? parseInt(age) : null,
                              hometown: hometown,
+                             under_grad: underGrad || null,
                              summer_city: postGradCity,
                              summer_firm: postGradEmployer,
                              instagram: instagram,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, startTransition } from 'react';
 import { supabase } from '../lib/supabase';
 import { ExpandableText } from './ui/expandable-text';
 import { ConfirmationPopup } from './ui/confirmation-popup';
@@ -324,7 +324,7 @@ const Dialog = ({ children, open, onOpenChange }: { children: React.ReactNode; o
   
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => onOpenChange(false)} />
+      <div className="fixed inset-0 bg-black/50" onClick={() => onOpenChange(false)} />
       <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         {children}
       </div>
@@ -1040,7 +1040,9 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         },
         (payload: any) => {
           console.log('Post deleted:', payload);
-          setPosts(prev => prev.filter(post => post.id !== payload.old.id));
+          startTransition(() => {
+            setPosts(prev => prev.filter(post => post.id !== payload.old.id));
+          });
         }
       )
       .subscribe((status: any, err: any) => {
@@ -1138,11 +1140,13 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         async (payload: any) => {
           console.log('New comment received:', payload);
           // Update comment count for the post
-          setPosts(prev => prev.map(post => 
-            post.id === payload.new.post_id 
-              ? { ...post, comments_count: post.comments_count + 1 }
-              : post
-          ));
+          startTransition(() => {
+            setPosts(prev => prev.map(post => 
+              post.id === payload.new.post_id 
+                ? { ...post, comments_count: post.comments_count + 1 }
+                : post
+            ));
+          });
           
           // If comments are expanded for this post, refresh them
           // Use refs to get current state without dependency issues
@@ -1161,11 +1165,13 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         async (payload: any) => {
           console.log('Comment deleted:', payload);
           // Update comment count for the post
-          setPosts(prev => prev.map(post => 
-            post.id === payload.old.post_id 
-              ? { ...post, comments_count: Math.max(0, post.comments_count - 1) }
-              : post
-          ));
+          startTransition(() => {
+            setPosts(prev => prev.map(post => 
+              post.id === payload.old.post_id 
+                ? { ...post, comments_count: Math.max(0, post.comments_count - 1) }
+                : post
+            ));
+          });
           
           // If comments are expanded for this post, refresh them
           // Use refs to get current state without dependency issues

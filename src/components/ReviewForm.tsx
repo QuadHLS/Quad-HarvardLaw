@@ -176,11 +176,11 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
       computePosition();
     }
     
-    window.addEventListener('resize', computePosition);
-    window.addEventListener('scroll', computePosition, true);
+    window.addEventListener('resize', computePosition, { passive: true });
+    window.addEventListener('scroll', computePosition, { passive: true, capture: true });
     return () => {
-      window.removeEventListener('resize', computePosition);
-      window.removeEventListener('scroll', computePosition, true);
+      window.removeEventListener('resize', computePosition, { passive: true });
+      window.removeEventListener('scroll', computePosition, { passive: true, capture: true });
     };
   }, [showProfessorDropdown]);
 
@@ -207,7 +207,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
   return (
     <Dialog open={showReviewForm} onOpenChange={setShowReviewForm}>
       <DialogContent
-        className="w-[820px] max-w-[92vw] rounded-[24px] shadow-2xl border border-white/60 backdrop-blur-md overflow-hidden p-0"
+        className="w-[820px] max-w-[92vw] rounded-[24px] shadow-2xl border border-white/60 overflow-hidden p-0"
         style={{ backgroundColor: '#faf5f1', borderRadius: 24 }}
       >
         <DialogHeader className="px-6 pt-6 pb-3 border-b border-white/60">

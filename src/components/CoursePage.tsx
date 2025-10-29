@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, startTransition } from 'react';
 import { Users, MessageSquare, GraduationCap, Clock, MapPin, X, ArrowLeft } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -1183,7 +1183,9 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
           },
           (payload: any) => {
             console.log('Post deleted:', payload);
-            setCoursePosts(prev => prev.filter(post => post.id !== payload.old.id));
+            startTransition(() => {
+              setCoursePosts(prev => prev.filter(post => post.id !== payload.old.id));
+            });
           }
         )
         .subscribe((status: any, err: any) => {
@@ -1264,11 +1266,13 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
           async (payload: any) => {
             console.log('Comment added:', payload);
             // Update comment count for the post locally
-            setCoursePosts(prev => prev.map(post => 
-              post.id === payload.new.post_id 
-                ? { ...post, comments_count: post.comments_count + 1 }
-                : post
-            ));
+            startTransition(() => {
+              setCoursePosts(prev => prev.map(post => 
+                post.id === payload.new.post_id 
+                  ? { ...post, comments_count: post.comments_count + 1 }
+                  : post
+              ));
+            });
             
             // If comments are expanded for this post, refresh them
             if (expandedComments[payload.new.post_id]) {
@@ -1286,11 +1290,13 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
           async (payload: any) => {
             console.log('Comment removed:', payload);
             // Update comment count for the post locally
-            setCoursePosts(prev => prev.map(post => 
-              post.id === payload.old.post_id 
-                ? { ...post, comments_count: Math.max(0, post.comments_count - 1) }
-                : post
-            ));
+            startTransition(() => {
+              setCoursePosts(prev => prev.map(post => 
+                post.id === payload.old.post_id 
+                  ? { ...post, comments_count: Math.max(0, post.comments_count - 1) }
+                  : post
+              ));
+            });
             
             // If comments are expanded for this post, refresh them
             if (expandedComments[payload.old.post_id]) {

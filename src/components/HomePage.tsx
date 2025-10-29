@@ -524,8 +524,8 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
       {/* Add Todo Dialog */}
       <Dialog open={showAddTodo} onOpenChange={setShowAddTodo}>
         <DialogContent 
-          className="max-w-sm backdrop-blur-sm border border-gray-200"
-          style={{ backgroundColor: 'rgba(255, 255, 255, 0.9)' }}
+          className="max-w-sm border border-gray-200 bg-white"
+          style={{ backgroundColor: 'rgb(255, 255, 255)' }}
         >
           <DialogHeader>
             <DialogTitle>Add New Task</DialogTitle>

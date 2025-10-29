@@ -241,10 +241,9 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
                     if (formData.professor_name) {
                       setProfessorSearch('');
                       setFormData(prev => ({ ...prev, professor_name: '', course_name: '' }));
-                      setShowProfessorDropdown(false);
-                    } else {
-                      setShowProfessorDropdown(true);
                     }
+                    // Always show dropdown when focusing the input
+                    setShowProfessorDropdown(true);
                   }}
                   className="pl-10 h-9 rounded-3xl border border-gray-200 focus:ring-2 focus:ring-[#752432] focus:border-transparent transition"
                   style={{ backgroundColor: 'white', borderRadius: 16, fontSize: '12px' }}

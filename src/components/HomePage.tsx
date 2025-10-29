@@ -733,7 +733,7 @@ function MyCourses({
           <div className="text-center py-8">
             <Book className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <p className="text-sm text-gray-500 mb-2">No courses enrolled</p>
-            <p className="text-xs text-gray-400">Redo onboarding</p>
+            <p className="text-xs text-gray-400">Edit Profile</p>
             </div>
           )}
           </div>

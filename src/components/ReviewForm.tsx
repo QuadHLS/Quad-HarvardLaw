@@ -185,7 +185,12 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
   }, [showProfessorDropdown]);
 
   const handleProfessorSelect = (professorName: string) => {
-    setFormData(prev => ({ ...prev, professor_name: professorName, course_name: '' }));
+    // If the same professor is selected again, clear the course selection
+    if (formData.professor_name === professorName) {
+      setFormData(prev => ({ ...prev, course_name: '' }));
+    } else {
+      setFormData(prev => ({ ...prev, professor_name: professorName, course_name: '' }));
+    }
     setProfessorSearch(formatProfessorDisplayName(professorName));
     setShowProfessorDropdown(false);
   };

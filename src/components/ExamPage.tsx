@@ -885,14 +885,48 @@ export function ExamPage({
     const [error, setError] = useState<string | null>(null);
     const [isVisible, setIsVisible] = useState(false);
     const [retryCount, setRetryCount] = useState(0);
+    const iframeLoadedRef = useRef(false);
     const containerRef = useRef<HTMLDivElement>(null);
+    const softStallTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const hardStallTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const isTabVisibleRef = useRef(true);
+    const retryCountRef = useRef(0);
+    const inflightRef = useRef(false);
+
+    // Update ref when state changes
+    useEffect(() => {
+      retryCountRef.current = retryCount;
+    }, [retryCount]);
 
     // Reset retry count when exam changes
     useEffect(() => {
       setRetryCount(0);
+      retryCountRef.current = 0;
       setIsVisible(false);
       setViewerUrl(null);
+      setError(null);
+      setLoading(true); // Reset to loading state
+      iframeLoadedRef.current = false;
+      inflightRef.current = false;
+      // Clear timers
+      if (softStallTimerRef.current) {
+        clearTimeout(softStallTimerRef.current);
+        softStallTimerRef.current = null;
+      }
+      if (hardStallTimerRef.current) {
+        clearTimeout(hardStallTimerRef.current);
+        hardStallTimerRef.current = null;
+      }
     }, [exam.id]);
+
+    // Visibility detection for pausing timers when tab is hidden
+    useEffect(() => {
+      const handleVisibilityChange = () => {
+        isTabVisibleRef.current = !document.hidden;
+      };
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, []);
 
     // IntersectionObserver: only load when visible (prevents too many iframes at once)
     useEffect(() => {
@@ -926,9 +960,10 @@ export function ExamPage({
 
     // Load viewer URL when visible (just-in-time)
     useEffect(() => {
-      if (!isVisible || viewerUrl) return;
+      if (!isVisible || viewerUrl || inflightRef.current) return;
 
       const loadViewer = async () => {
+        inflightRef.current = true;
         setLoading(true);
         setError(null);
         
@@ -944,7 +979,27 @@ export function ExamPage({
 
           const url = await getDocumentViewerUrl(exam);
           if (url) {
+            // Preflight check: validate URL before loading viewer (warm cache, catch bad URLs early)
+            // Use GET with Range header instead of HEAD (more reliable with CDNs/storage)
+            try {
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout for preflight
+              await fetch(url, {
+                method: 'GET',
+                headers: { Range: 'bytes=0-0' }, // Only fetch first byte
+                mode: 'no-cors',
+                signal: controller.signal as any
+              }).catch(() => {
+                // Preflight failure doesn't block viewer load - still try viewer
+                // (signed URLs might still work even if GET fails due to CORS)
+              });
+              clearTimeout(timeoutId);
+            } catch {
+              // Preflight failed silently - proceed anyway
+            }
+
             setViewerUrl(url);
+            iframeLoadedRef.current = false;
             
             // Track preview activity when viewer loads successfully
             if (user) {
@@ -957,6 +1012,45 @@ export function ExamPage({
                 exam.file_size
               );
             }
+
+            // Start stall detection timers
+            // Soft stall: 10s - retry with fresh URL immediately
+            softStallTimerRef.current = setTimeout(async () => {
+              if (!iframeLoadedRef.current && isTabVisibleRef.current && retryCountRef.current < 1) {
+                setRetryCount(prev => prev + 1);
+                try {
+                  // Fetch fresh signed URL immediately to avoid race conditions
+                  const freshUrl = await getDocumentViewerUrl(exam);
+                  if (freshUrl) {
+                    setViewerUrl(freshUrl);
+                    iframeLoadedRef.current = false;
+                    setLoading(true);
+                  }
+                } catch {
+                  // If fetch fails, fall back to setting viewerUrl to null (triggers effect retry)
+                  setViewerUrl(null);
+                  setLoading(true);
+                  iframeLoadedRef.current = false;
+                }
+              }
+            }, 10000);
+
+            // Hard stall: 20s - show error
+            hardStallTimerRef.current = setTimeout(() => {
+              if (!iframeLoadedRef.current && isTabVisibleRef.current) {
+                // Clear timers first to prevent memory leaks and double transitions
+                if (softStallTimerRef.current) {
+                  clearTimeout(softStallTimerRef.current);
+                  softStallTimerRef.current = null;
+                }
+                if (hardStallTimerRef.current) {
+                  clearTimeout(hardStallTimerRef.current);
+                  hardStallTimerRef.current = null;
+                }
+                setError('Failed to load preview. Please try refreshing or downloading the document.');
+                setLoading(false);
+              }
+            }, 20000);
           } else {
             setError('Failed to load document');
           }
@@ -964,11 +1058,24 @@ export function ExamPage({
           setError('Error loading document');
         } finally {
           setLoading(false);
+          inflightRef.current = false;
         }
       };
 
       loadViewer();
-    }, [exam.id, user, isVisible, viewerUrl]);
+
+      // Cleanup timers
+      return () => {
+        if (softStallTimerRef.current) {
+          clearTimeout(softStallTimerRef.current);
+          softStallTimerRef.current = null;
+        }
+        if (hardStallTimerRef.current) {
+          clearTimeout(hardStallTimerRef.current);
+          hardStallTimerRef.current = null;
+        }
+      };
+    }, [exam.id, user, isVisible, viewerUrl, retryCount]);
 
     // Early returns for errors that prevent loading
     if (error && error.includes('limit')) {
@@ -1036,15 +1143,29 @@ export function ExamPage({
             ) : (
               <iframe
                 key={viewerUrl}
-                src={`https://docs.google.com/gview?url=${encodeURIComponent(viewerUrl)}&embedded=true`}
+                src={`https://docs.google.com/gview?url=${encodeURIComponent(viewerUrl)}&embedded=1`}
                 className="w-full h-full border-0"
                 title={`${documentType} Preview: ${exam.title}`}
+                onLoad={() => {
+                  // Clear timers on successful load
+                  iframeLoadedRef.current = true;
+                  setLoading(false);
+                  if (softStallTimerRef.current) {
+                    clearTimeout(softStallTimerRef.current);
+                    softStallTimerRef.current = null;
+                  }
+                  if (hardStallTimerRef.current) {
+                    clearTimeout(hardStallTimerRef.current);
+                    hardStallTimerRef.current = null;
+                  }
+                }}
                 onError={() => {
                   // Retry by refreshing the signed URL (in case it expired)
                   if (retryCount < 1) {
                     setRetryCount(prev => prev + 1);
                     setViewerUrl(null);
                     setLoading(true);
+                    iframeLoadedRef.current = false;
                   } else {
                     setError('Failed to load preview. Please try refreshing or downloading the document.');
                   }

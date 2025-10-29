@@ -720,6 +720,38 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
     }
   };
 
+  // Handle visibility toggle changes immediately
+  const handleVisibilityChange = async (field: 'clubs_visibility' | 'courses_visibility' | 'schedule_visibility', value: boolean) => {
+    if (!user?.id) return;
+    
+    // Only allow changes on own profile (when viewing own profile, studentName is undefined or matches user email)
+    const isOwnProfile = !studentName || studentName === user.email || (profileData && profileData.email === user.email);
+    if (!isOwnProfile) return;
+
+    try {
+      // Update in database immediately
+      const { error } = await supabase
+        .from('profiles')
+        .update({ [field]: value })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error updating visibility:', error);
+        return;
+      }
+
+      // Update local state
+      if (isEditing && editedData) {
+        setEditedData({ ...editedData, [field]: value });
+      }
+      if (profileData) {
+        setProfileData({ ...profileData, [field]: value });
+      }
+    } catch (error) {
+      console.error('Error updating visibility:', error);
+    }
+  };
+
   const handleCancel = () => {
     if (profileData) {
     setEditedData(profileData);
@@ -1262,6 +1294,15 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
   return (
     <div className="h-full overflow-y-auto" style={{ backgroundColor: '#FAF5EF' }}>
       <style>{`
+        /* Visibility toggle custom colors */
+        .visibility-toggle-wrapper .switch + label::before {
+          background-color: #ef4444 !important;
+        }
+        
+        .visibility-toggle-wrapper .switch:checked + label::before {
+          background-color: #04913A !important;
+        }
+        
         .golden-quad-logo {
           position: relative;
           overflow: hidden;
@@ -1408,7 +1449,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                   {!isEditing ? (
                     <>
                       {/* Show Edit button only for main user */}
-                      {(!studentName || studentName === 'Justin Abbey') && (
+                      {(!studentName || studentName === user?.email || (profileData && profileData.email === user?.email)) && (
                         <div className="flex flex-col gap-2">
                           <Button onClick={handleEdit} variant="outline" className="gap-2">
                             <Edit className="w-4 h-4" />
@@ -1657,23 +1698,37 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
           <div className="space-y-4" style={{ width: '30%' }}>
             {/* Clubs */}
             {(isEditing ? true : profileData?.clubs_visibility) && (
-              <div className={`bg-white shadow-sm p-6 transition-opacity ${isEditing && !editedData?.clubs_visibility ? 'opacity-40 grayscale' : ''}`} style={{ borderRadius: '20px' }}>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="flex items-center gap-2">
-                    <Trophy className="w-5 h-5" style={{ color: '#752432' }} />
-                    Clubs & Activities
-                  </h3>
-                  {isEditing && (!studentName || studentName === 'Justin Abbey') && (
-                    <div className="flex items-center gap-1">
-                      <Switch 
-                        checked={editedData?.clubs_visibility ?? true}
-                        onCheckedChange={(checked) => editedData && setEditedData({ ...editedData, clubs_visibility: checked })}
-                        className="scale-75"
-                      />
-                      <Eye className="w-3 h-3 text-gray-400" />
-                    </div>
-                  )}
-                </div>
+              <div className="relative">
+                {isEditing && (!studentName || studentName === user?.email || (profileData && profileData.email === user?.email)) && (
+                  <div className="checkbox-wrapper-35 visibility-toggle-wrapper" style={{ transform: 'scale(0.75) translateX(0)', transformOrigin: 'right center', position: 'absolute', left: 'calc(100% - 135px)', top: '12px', zIndex: 10 }}>
+                    <input 
+                      type="checkbox" 
+                      id="clubs-visibility-toggle" 
+                      className="switch"
+                      checked={isEditing ? (editedData?.clubs_visibility ?? true) : (profileData?.clubs_visibility ?? true)}
+                      onChange={(e) => {
+                        const newValue = e.target.checked;
+                        if (isEditing && editedData) {
+                          setEditedData({ ...editedData, clubs_visibility: newValue });
+                        }
+                        handleVisibilityChange('clubs_visibility', newValue);
+                      }}
+                    />
+                    <label htmlFor="clubs-visibility-toggle">
+                      <span className="switch-x-toggletext">
+                        <span className="switch-x-unchecked"><span className="switch-x-hiddenlabel">Unchecked: </span>Hidden</span>
+                        <span className="switch-x-checked"><span className="switch-x-hiddenlabel">Checked: </span>Visible</span>
+                      </span>
+                    </label>
+                  </div>
+                )}
+                <div className={`bg-white shadow-sm p-6 transition-opacity ${isEditing && !editedData?.clubs_visibility ? 'opacity-40 grayscale' : ''}`} style={{ borderRadius: '20px' }}>
+                  <div className="flex items-center mb-3">
+                    <h3 className="flex items-center gap-2">
+                      <Trophy className="w-5 h-5" style={{ color: '#752432' }} />
+                      Clubs & Activities
+                    </h3>
+                  </div>
               {isEditing && (!studentName || studentName === 'Justin Abbey') ? (
                 <ClubsAndActivities
                   selectedClubs={editedData?.clubMemberships || []}
@@ -1690,28 +1745,43 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                   ))}
                 </div>
               )}
+                </div>
               </div>
             )}
 
             {/* Current Courses - Compact */}
             {(isEditing ? true : profileData?.courses_visibility) && (
-              <div className={`bg-white shadow-sm p-6 transition-opacity ${isEditing && !editedData?.courses_visibility ? 'opacity-40 grayscale' : ''}`} style={{ borderRadius: '20px' }}>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="flex items-center gap-2">
-                    <BookOpen className="w-5 h-5" style={{ color: '#752432' }} />
-                    Current Courses
-                  </h3>
-                  {isEditing && (!studentName || studentName === 'Justin Abbey') && (
-                    <div className="flex items-center gap-1">
-                      <Switch 
-                        checked={editedData?.courses_visibility ?? true}
-                        onCheckedChange={(checked) => editedData && setEditedData({ ...editedData, courses_visibility: checked })}
-                        className="scale-75"
-                      />
-                      <Eye className="w-3 h-3 text-gray-400" />
-                    </div>
-                  )}
-                </div>
+              <div className="relative">
+                {isEditing && (!studentName || studentName === user?.email || (profileData && profileData.email === user?.email)) && (
+                  <div className="checkbox-wrapper-35 visibility-toggle-wrapper" style={{ transform: 'scale(0.75) translateX(0)', transformOrigin: 'right center', position: 'absolute', left: 'calc(100% - 135px)', top: '12px', zIndex: 10 }}>
+                    <input 
+                      type="checkbox" 
+                      id="courses-visibility-toggle" 
+                      className="switch"
+                      checked={isEditing ? (editedData?.courses_visibility ?? true) : (profileData?.courses_visibility ?? true)}
+                      onChange={(e) => {
+                        const newValue = e.target.checked;
+                        if (isEditing && editedData) {
+                          setEditedData({ ...editedData, courses_visibility: newValue });
+                        }
+                        handleVisibilityChange('courses_visibility', newValue);
+                      }}
+                    />
+                    <label htmlFor="courses-visibility-toggle">
+                      <span className="switch-x-toggletext">
+                        <span className="switch-x-unchecked"><span className="switch-x-hiddenlabel">Unchecked: </span>Hidden</span>
+                        <span className="switch-x-checked"><span className="switch-x-hiddenlabel">Checked: </span>Visible</span>
+                      </span>
+                    </label>
+                  </div>
+                )}
+                <div className={`bg-white shadow-sm p-6 transition-opacity ${isEditing && !editedData?.courses_visibility ? 'opacity-40 grayscale' : ''}`} style={{ borderRadius: '20px' }}>
+                  <div className="flex items-center mb-3">
+                    <h3 className="flex items-center gap-2">
+                      <BookOpen className="w-5 h-5" style={{ color: '#752432' }} />
+                      Current Courses
+                    </h3>
+                  </div>
                 <div className="space-y-2">
                   {profileData.currentCourses.map((course, index) => (
                     <div key={index} className="text-sm py-2 px-2 rounded-lg hover:bg-gray-50 transition-colors">
@@ -1720,28 +1790,43 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                     </div>
                   ))}
                 </div>
+                </div>
               </div>
             )}
 
             {/* Weekly Schedule - Vertical */}
             {(isEditing ? true : profileData?.schedule_visibility) && (
-              <div className={`bg-white shadow-sm p-6 transition-opacity ${isEditing && !editedData?.schedule_visibility ? 'opacity-40 grayscale' : ''}`} style={{ borderRadius: '20px' }}>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-5 h-5" style={{ color: '#752432' }} />
-                    <h3>This Week's Schedule</h3>
+              <div className="relative">
+                {isEditing && (!studentName || studentName === user?.email || (profileData && profileData.email === user?.email)) && (
+                  <div className="checkbox-wrapper-35 visibility-toggle-wrapper" style={{ transform: 'scale(0.75) translateX(0)', transformOrigin: 'right center', position: 'absolute', left: 'calc(100% - 135px)', top: '12px', zIndex: 10 }}>
+                    <input 
+                      type="checkbox" 
+                      id="schedule-visibility-toggle" 
+                      className="switch"
+                      checked={isEditing ? (editedData?.schedule_visibility ?? true) : (profileData?.schedule_visibility ?? true)}
+                      onChange={(e) => {
+                        const newValue = e.target.checked;
+                        if (isEditing && editedData) {
+                          setEditedData({ ...editedData, schedule_visibility: newValue });
+                        }
+                        handleVisibilityChange('schedule_visibility', newValue);
+                      }}
+                    />
+                    <label htmlFor="schedule-visibility-toggle">
+                      <span className="switch-x-toggletext">
+                        <span className="switch-x-unchecked"><span className="switch-x-hiddenlabel">Unchecked: </span>Hidden</span>
+                        <span className="switch-x-checked"><span className="switch-x-hiddenlabel">Checked: </span>Visible</span>
+                      </span>
+                    </label>
                   </div>
-                  {isEditing && (!studentName || studentName === 'Justin Abbey') && (
-                    <div className="flex items-center gap-1">
-                      <Switch 
-                        checked={editedData?.schedule_visibility ?? true}
-                        onCheckedChange={(checked) => editedData && setEditedData({ ...editedData, schedule_visibility: checked })}
-                        className="scale-75"
-                      />
-                      <Eye className="w-3 h-3 text-gray-400" />
+                )}
+                <div className={`bg-white shadow-sm p-6 transition-opacity ${isEditing && !editedData?.schedule_visibility ? 'opacity-40 grayscale' : ''}`} style={{ borderRadius: '20px' }}>
+                  <div className="flex items-center mb-4">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-5 h-5" style={{ color: '#752432' }} />
+                      <h3>This Week's Schedule</h3>
                     </div>
-                  )}
-                </div>
+                  </div>
 
               {/* Day Navigation - Single Day with Arrows */}
               <div className="flex items-center justify-between mb-4 bg-gray-50 rounded-lg p-3">
@@ -1804,6 +1889,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                   )}
                 </div>
               </div>
+                </div>
               </div>
             )}
           </div>

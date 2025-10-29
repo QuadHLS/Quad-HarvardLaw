@@ -171,8 +171,11 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
       const rect = el.getBoundingClientRect();
       setDropdownPosition({ left: rect.left + window.scrollX, top: rect.bottom + window.scrollY + 6, width: rect.width });
     };
-    computePosition();
-    if (!showProfessorDropdown) return;
+    
+    if (showProfessorDropdown) {
+      computePosition();
+    }
+    
     window.addEventListener('resize', computePosition);
     window.addEventListener('scroll', computePosition, true);
     return () => {

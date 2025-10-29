@@ -96,16 +96,16 @@ function ClubsAndActivities({
           {selectedClubs.map((club) => (
             <Badge
               key={club}
-              className="text-white hover:opacity-90 pl-3 pr-2 py-1.5"
-              style={{ backgroundColor: '#752432' }}
+              variant="secondary"
+              className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs px-2 py-0.5 rounded-full border-0"
             >
               {club}
               <button
                 onClick={() => removeClub(club)}
-                className="ml-1.5 hover:bg-white/20 rounded-full p-0.5"
+                className="ml-1.5 hover:bg-gray-400/30 rounded-full p-0.5 transition-colors"
                 type="button"
               >
-                <X className="w-3 h-3" />
+                <X className="w-2.5 h-2.5 text-gray-600" />
               </button>
             </Badge>
           ))}
@@ -1352,7 +1352,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
           <Button 
             variant="ghost" 
             onClick={onBack}
-            className="mb-2 text-gray-600 hover:text-gray-800"
+            className="mb-2 text-gray-600 hover:text-gray-800 bg-white hover:bg-gray-100"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Course

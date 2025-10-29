@@ -1561,15 +1561,85 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
     }
   };
 
+  // Helper functions for semester matching (matching HomePage logic)
+  const getSemestersFromCode = (semesterCode: string): ('FA' | 'WI' | 'SP')[] => {
+    switch (semesterCode) {
+      case 'FA': return ['FA'];
+      case 'WI': return ['WI'];
+      case 'SP': return ['SP'];
+      case 'FS': return ['FA', 'SP'];
+      case 'FW': return ['FA', 'WI'];
+      case 'WS': return ['WI', 'SP'];
+      default: return [];
+    }
+  };
+
+  const courseMatchesSemester = (courseTerm: string, selectedSemester: 'FA' | 'WI' | 'SP'): boolean => {
+    if (!courseTerm || courseTerm === 'TBD') return false;
+    const semesterCode = courseTerm.slice(-2);
+    const semesters = getSemestersFromCode(semesterCode);
+    return semesters.includes(selectedSemester);
+  };
+
+  const formatDisplayCourseName = (rawName: string): string => {
+    if (!rawName) return rawName;
+    const requiredPatterns = [
+      'Civil Procedure',
+      'Contracts',
+      'Criminal Law',
+      'Torts',
+      'Constitutional Law',
+      'Property',
+      'Legislation and Regulation'
+    ];
+    const pattern = new RegExp(`^(?:${requiredPatterns.join('|')})\\s([1-7])$`);
+    if (pattern.test(rawName)) {
+      return rawName.replace(/\s[1-7]$/, '');
+    }
+    return rawName;
+  };
+
+  // Get current semester using date-based logic (matching HomePage)
+  const getCurrentSemester = (): string => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth() + 1;
+    const day = today.getDate();
+    
+    if ((month === 9 && day >= 2) || month === 10 || (month === 11 && day <= 25)) {
+      return `${year}FA`;
+    } else if (month === 1 && day >= 5 && day <= 21) {
+      return `${year}WI`;
+    } else if ((month === 1 && day >= 26) || month === 2 || month === 3 || (month === 4 && day <= 24)) {
+      return `${year}SP`;
+    } else {
+      return `${year}FA`;
+    }
+  };
+
   // Helper function to get course-specific color (matches HomePage color system exactly)
   const getCourseColor = (courseName: string) => {
     // Use the same color cycle as HomePage
     const colorCycle = ['#04913A', '#0080BD', '#FFBB06', '#F22F21'];
     
-    // Find the course's index in the user's course list to match HomePage color assignment
-    const courseIndex = userCourses.findIndex((course: UserCourse) => {
+    // Get current semester
+    const currentSemester = getCurrentSemester();
+    const currentTerm = currentSemester.slice(-2) as 'FA' | 'WI' | 'SP';
+    
+    // Filter courses for current semester (same logic as HomePage)
+    const filteredCourses = userCourses.filter(course => {
+      const courseSemester = course.schedule?.semester;
+      return courseMatchesSemester(courseSemester, currentTerm);
+    });
+    
+    // Find the course's index in the filtered course list (matching HomePage behavior)
+    const courseIndex = filteredCourses.findIndex((course: UserCourse) => {
       const courseClass = course.class || '';
-      return courseClass === courseName || 
+      const formattedClassName = formatDisplayCourseName(courseClass);
+      const formattedCourseName = formatDisplayCourseName(courseName);
+      
+      return formattedClassName === formattedCourseName || 
+             courseClass === courseName || 
              courseClass.startsWith(courseName + ' ') ||
              courseName.startsWith(courseClass + ' ');
     });
@@ -1878,7 +1948,8 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                         </div>
                   <button
                     onClick={() => setShowCreatePostDialog(true)}
-                    className="px-3 py-1.5 text-sm font-medium rounded transition-colors bg-white text-[#752432] hover:bg-gray-100"
+                    className="px-3 py-1.5 text-sm font-medium rounded transition-colors bg-white hover:bg-gray-100"
+                    style={{ color: courseColor }}
                     aria-label="Create post"
                     title="Create post"
                   >

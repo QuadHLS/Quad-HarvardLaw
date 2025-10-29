@@ -1976,7 +1976,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             <Button
               variant="ghost"
               onClick={handleBackToFeed}
-              className="flex items-center gap-2 text-[#752432] hover:bg-[#752432]/10"
+              className="flex items-center gap-2 text-[#752432] bg-white hover:bg-[#752432]/10"
             >
               <ArrowLeft className="w-4 h-4" />
               Back to Feed

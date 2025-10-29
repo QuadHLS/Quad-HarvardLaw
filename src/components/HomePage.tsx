@@ -1122,11 +1122,11 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
     const dayOfWeek = selectedDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
     
     return userCourses.filter(course => {
-      // Check if course is for current semester using multi-semester logic
+      // Check if course is for selected semester using multi-semester logic
       const courseSemester = course.schedule?.semester;
-      const currentTerm = currentSemester.slice(-2) as 'FA' | 'WI' | 'SP';
+      const selectedTerm = selectedSemester.slice(-2) as 'FA' | 'WI' | 'SP';
       
-      if (!courseMatchesSemester(courseSemester, currentTerm)) {
+      if (!courseMatchesSemester(courseSemester, selectedTerm)) {
         return false;
       }
       
@@ -1489,7 +1489,7 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
 
                   {/* Current time indicator */}
                   <div
-                    className="absolute left-16 right-0 z-50 flex items-center"
+                    className="absolute left-16 right-0 z-40 flex items-center"
                     style={{ top: `${getCurrentTimePosition()}px` }}
                   >
                     <div className="w-1.5 h-1.5 bg-red-500 rounded-full shadow-sm"></div>

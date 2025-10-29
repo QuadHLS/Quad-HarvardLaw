@@ -949,13 +949,6 @@ export function ExamPage({
             <p className="text-gray-300 mb-6">
               {error && error.includes('limit') ? 'You have exceeded your preview and download limit' : 'Unable to load document preview'}
             </p>
-            <Button
-              onClick={() => handleDownload(exam)}
-              className="bg-[#752432] hover:bg-[#5a1a26] text-white"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Download Instead
-            </Button>
           </div>
         </div>
       );

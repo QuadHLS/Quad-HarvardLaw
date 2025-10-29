@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { OnboardingPage } from './OnboardingPage';
 import { OnboardingStepThree } from './OnboardingStepThree';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface CourseData {
   id: string;
@@ -16,6 +18,7 @@ interface CourseData {
 }
 
 export function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState<'page1' | 'page2' | 'profile'>('page1');
   
   // Lift all state from OnboardingPage to preserve across navigation
@@ -26,6 +29,42 @@ export function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
   const [section, setSection] = useState('');
   const [lrwSection, setLrwSection] = useState<'A' | 'B' | ''>('');
   const [loading, setLoading] = useState(false);
+
+  // Fetch existing profile data to auto-fill fields
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      if (!user?.id) return;
+
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('full_name, phone')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error fetching profile:', error);
+          return;
+        }
+
+        if (profile) {
+          // Auto-fill name if it exists and is not empty
+          if (profile.full_name && profile.full_name.trim() !== '') {
+            setName(profile.full_name);
+          }
+          // Auto-fill phone if it exists and is not empty
+          if (profile.phone && profile.phone.trim() !== '') {
+            setPhone(profile.phone);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching profile data:', error);
+      }
+    };
+
+    fetchProfileData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   // Course selection
   const [selectedCourses, setSelectedCourses] = useState<CourseData[]>([]);

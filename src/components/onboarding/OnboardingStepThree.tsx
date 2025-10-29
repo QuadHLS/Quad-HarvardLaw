@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
@@ -229,6 +229,74 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo 
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarWarning, setAvatarWarning] = useState<string>('');
+
+  // Fetch existing profile data to auto-fill fields
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      if (!user?.id) return;
+
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('bio, age, hometown, under_grad, summer_firm, summer_city, clubs_activities, instagram, linkedin, avatar_url')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error fetching profile:', error);
+          return;
+        }
+
+        if (profile) {
+          // Auto-fill bio if it exists and is not empty
+          if (profile.bio && profile.bio.trim() !== '') {
+            setBio(profile.bio);
+          }
+          // Auto-fill age if it exists
+          if (profile.age && profile.age > 0) {
+            setAge(profile.age.toString());
+          }
+          // Auto-fill hometown if it exists and is not empty
+          if (profile.hometown && profile.hometown.trim() !== '') {
+            setHometown(profile.hometown);
+          }
+          // Auto-fill under_grad if it exists and is not empty
+          if (profile.under_grad && profile.under_grad.trim() !== '') {
+            setUnderGrad(profile.under_grad);
+          }
+          // Auto-fill summer_firm if it exists and is not empty
+          if (profile.summer_firm && profile.summer_firm.trim() !== '') {
+            setPostGradEmployer(profile.summer_firm);
+          }
+          // Auto-fill summer_city if it exists and is not empty
+          if (profile.summer_city && profile.summer_city.trim() !== '') {
+            setPostGradCity(profile.summer_city);
+          }
+          // Auto-fill clubs_activities if it exists and is not empty
+          if (profile.clubs_activities && Array.isArray(profile.clubs_activities) && profile.clubs_activities.length > 0) {
+            setClubsActivities(profile.clubs_activities);
+          }
+          // Auto-fill instagram if it exists and is not empty
+          if (profile.instagram && profile.instagram.trim() !== '') {
+            setInstagram(profile.instagram);
+          }
+          // Auto-fill linkedin if it exists and is not empty
+          if (profile.linkedin && profile.linkedin.trim() !== '') {
+            setLinkedIn(profile.linkedin);
+          }
+          // Auto-fill avatar if it exists
+          if (profile.avatar_url && profile.avatar_url.trim() !== '') {
+            setProfileImage(profile.avatar_url);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching profile data:', error);
+      }
+    };
+
+    fetchProfileData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
   // Avatar compression function (targets 500KB, maintains original ratio)
   const compressAvatarImage = (file: File): Promise<File> => {
     return new Promise((resolve, reject) => {

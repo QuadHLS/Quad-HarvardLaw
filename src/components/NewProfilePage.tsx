@@ -307,6 +307,8 @@ interface ProfileData {
   clubs_visibility: boolean;
   courses_visibility: boolean;
   schedule_visibility: boolean;
+  onboarding_count?: number;
+  onboarding_count_year?: number;
 }
 
 interface ProfilePageProps {
@@ -316,7 +318,8 @@ interface ProfilePageProps {
 }
 
 export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const EXEMPT_EMAILS = ['justin031607@gmail.com', 'jabbey@jd26.law.harvard.edu', 'lnassif@jd26.law.harvard.edu'];
   const [isEditing, setIsEditing] = useState(false);
   const [showRedoConfirm, setShowRedoConfirm] = useState(false);
   const [redoButtonRef, setRedoButtonRef] = useState<HTMLButtonElement | null>(null);
@@ -348,7 +351,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       try {
         let query = supabase
           .from('profiles')
-          .select('full_name, email, phone, class_year, section, classes, age, hometown, under_grad, summer_city, summer_firm, instagram, linkedin, avatar_url, photo_urls, bio, clubs_activities, clubs_visibility, courses_visibility, schedule_visibility');
+          .select('full_name, email, phone, class_year, section, classes, age, hometown, under_grad, summer_city, summer_firm, instagram, linkedin, avatar_url, photo_urls, bio, clubs_activities, clubs_visibility, courses_visibility, schedule_visibility, onboarding_count, onboarding_count_year');
 
         // If viewing another student's profile, fetch by name; otherwise fetch by user ID
         if (studentName && studentName !== user.email) {
@@ -459,6 +462,9 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
             clubs_visibility: profile.clubs_visibility ?? true,
             courses_visibility: profile.courses_visibility ?? true,
             schedule_visibility: profile.schedule_visibility ?? true
+            ,
+            onboarding_count: profile.onboarding_count ?? 2,
+            onboarding_count_year: profile.onboarding_count_year ?? undefined
           };
 
           setProfileData(convertedProfile);
@@ -578,6 +584,35 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       setEditedData(profileData);
     }
   }, [profileData]);
+
+  // Compute current onboarding period year (Aug 1 - Jul 31 cycle)
+  const getCurrentOnboardingPeriodYear = (): number => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1; // 1-12
+    // Period starts Aug 1: Aug-Dec belong to current year; Jan-Jul belong to previous year's period
+    return month >= 8 ? year : year - 1;
+  };
+
+  // Reset onboarding_count at the start of a new period
+  useEffect(() => {
+    const maybeResetOnboardingCount = async () => {
+      if (!user?.id || !profileData) return;
+      const currentPeriod = getCurrentOnboardingPeriodYear();
+      if (profileData.onboarding_count_year !== currentPeriod) {
+        try {
+          const { error } = await supabase
+            .from('profiles')
+            .update({ onboarding_count: 2, onboarding_count_year: currentPeriod })
+            .eq('id', user.id);
+          if (!error) {
+            setProfileData({ ...profileData, onboarding_count: 2, onboarding_count_year: currentPeriod });
+          }
+        } catch {}
+      }
+    };
+    maybeResetOnboardingCount();
+  }, [user?.id, profileData]);
   
 
 
@@ -745,12 +780,31 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
     if (!user?.id) return;
 
     try {
-      // Set classes_filled to false to trigger onboarding
-      const { error } = await supabase
-        .from('profiles')
-        .update({ classes_filled: false })
-        .eq('id', user.id);
-
+      const isExempt = !!profileData?.email && EXEMPT_EMAILS.includes(profileData.email.toLowerCase());
+      // If exempt, do NOT decrement; always keep at 2
+      let error = null;
+      if (isExempt) {
+        const res = await supabase
+          .from('profiles')
+          .update({ classes_filled: false, onboarding_count: 2 })
+          .eq('id', user.id);
+        error = res.error ?? null;
+        if (!error) {
+          setProfileData(prev => prev ? { ...prev, onboarding_count: 2 } : prev);
+        }
+      } else {
+        // Decrement remaining quota and reset onboarding
+        const current = (profileData?.onboarding_count ?? 2);
+        const newValue = Math.max(0, current - 1);
+        const res = await supabase
+          .from('profiles')
+          .update({ classes_filled: false, onboarding_count: newValue })
+          .eq('id', user.id);
+        error = res.error ?? null;
+        if (!error) {
+          setProfileData(prev => prev ? { ...prev, onboarding_count: newValue } : prev);
+        }
+      }
       if (error) {
         console.error('Error resetting onboarding:', error);
         alert('Error resetting onboarding. Please try again.');
@@ -758,6 +812,26 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       }
 
       // Reload the page to trigger onboarding flow
+      window.location.reload();
+    } catch (error) {
+      console.error('Error resetting onboarding:', error);
+      alert('Error resetting onboarding. Please try again.');
+    }
+  };
+
+  // Complete onboarding without decrementing quota (used when no current courses)
+  const completeOnboardingNoDecrement = async () => {
+    if (!user?.id) return;
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ classes_filled: false })
+        .eq('id', user.id);
+      if (error) {
+        console.error('Error resetting onboarding:', error);
+        alert('Error resetting onboarding. Please try again.');
+        return;
+      }
       window.location.reload();
     } catch (error) {
       console.error('Error resetting onboarding:', error);
@@ -1427,15 +1501,45 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                             <Edit className="w-4 h-4" />
                             Edit Profile
                           </Button>
+                          {profileData.currentCourses.length === 0 ? (
+                            <Button 
+                              ref={setRedoButtonRef}
+                              onClick={completeOnboardingNoDecrement}
+                              variant="outline" 
+                              size="sm"
+                              className="gap-2 text-xs px-3 py-1 h-7"
+                            >
+                              Complete Onboarding
+                            </Button>
+                          ) : (
+                            <Button 
+                              ref={setRedoButtonRef}
+                              onClick={handleRedoOnboarding} 
+                              variant="outline" 
+                              size="sm"
+                              className={`gap-2 text-red-600 border-red-600 hover:bg-red-50 text-xs px-3 py-1 h-7 ${
+                                (profileData?.email && EXEMPT_EMAILS.includes(profileData.email.toLowerCase()))
+                                  ? ''
+                                  : (profileData?.onboarding_count !== undefined && profileData.onboarding_count <= 0 ? 'opacity-50 cursor-not-allowed pointer-events-none' : '')
+                              }`}
+                              disabled={
+                                (profileData?.email && EXEMPT_EMAILS.includes(profileData.email.toLowerCase()))
+                                  ? false
+                                  : (profileData?.onboarding_count !== undefined && profileData.onboarding_count <= 0)
+                              }
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                              Redo Onboarding
+                            </Button>
+                          )}
+                          {/* Sign out under redo/completion button */}
                           <Button 
-                            ref={setRedoButtonRef}
-                            onClick={handleRedoOnboarding} 
+                            onClick={() => signOut()} 
                             variant="outline" 
                             size="sm"
-                            className="gap-2 text-red-600 border-red-600 hover:bg-red-50 text-xs px-3 py-1 h-7"
+                            className="gap-2 text-xs px-3 py-1 h-7"
                           >
-                            <RotateCcw className="w-4 h-4" />
-                            Redo Onboarding
+                            Sign out
                           </Button>
                         </div>
                       )}
@@ -1764,7 +1868,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                           size="sm" 
                           variant="outline" 
                           className="gap-2"
-                          onClick={confirmRedoOnboarding}
+                          onClick={completeOnboardingNoDecrement}
                         >
                           Complete Onboarding
                         </Button>
@@ -1984,6 +2088,13 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
             </h4>
             <p className="text-sm text-gray-600 mb-3">
               This will let you update your class year, section, and courses. All other profile information will be kept.
+            </p>
+            <p className="text-xs text-gray-500 mb-3">
+              Redos left this year: <span className="font-semibold text-gray-700">{
+                (profileData?.email && EXEMPT_EMAILS.includes(profileData.email.toLowerCase())) 
+                  ? 2 
+                  : Math.max(0, profileData.onboarding_count ?? 0)
+              }</span>
             </p>
             <div className="flex gap-2">
               <Button 

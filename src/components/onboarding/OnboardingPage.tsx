@@ -62,6 +62,7 @@ interface OnboardingPageProps {
   onComplete: () => void;
   initialPage?: number;
   setSkipCourses: (skip: boolean) => void;
+  onBackToPage1?: () => void;
   // Basic info form
   name: string;
   setName: (name: string) => void;
@@ -100,6 +101,7 @@ export function OnboardingPage(props: OnboardingPageProps) {
     onComplete, 
     initialPage = 1,
     setSkipCourses,
+    onBackToPage1,
     name, setName,
     phone, setPhone,
     classYear, setClassYear,
@@ -328,8 +330,9 @@ export function OnboardingPage(props: OnboardingPageProps) {
   };
 
   const handleBack = () => {
-    // Parent controls page; optionally could emit a custom event if needed
-    console.log('[Onboarding Debug] Back clicked on page 2');
+    if (initialPage === 2) {
+      onBackToPage1?.();
+    }
   };
 
   // Format phone number as user types

@@ -93,6 +93,10 @@ export function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
     onComplete();
   };
 
+  const handleBackToPage1 = () => {
+    setCurrentStep('page1');
+  };
+
   // Go back to course selection (page 2)
   const handleBackToCourseSelection = () => {
     setCurrentStep('page2');
@@ -130,6 +134,7 @@ export function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
       searchQuery, setSearchQuery,
       availableCourses, setAvailableCourses,
       showMaxCourseWarning, setShowMaxCourseWarning,
+      onBackToPage1: handleBackToPage1,
     };
     
     if (currentStep === 'page2') {

@@ -1069,7 +1069,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
           <div className="flex flex-col lg:flex-row lg:items-center gap-4">
             {/* Left side - Title */}
             <div className="flex-shrink-0">
-              <h1 className="text-2xl font-semibold text-white whitespace-nowrap">Course Planner</h1>
+              <h1 className="text-2xl font-semibold text-white whitespace-nowrap">Registration Planner</h1>
             </div>
 
             {/* Center - Controls and buttons */}

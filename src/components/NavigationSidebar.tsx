@@ -202,8 +202,12 @@ export function NavigationSidebar({ isCollapsed, onToggleCollapsed }: Navigation
             }`}
             style={{ borderRightColor: activeSection === 'planner' ? '#752432' : 'transparent' }}
           >
-            <CalendarDays className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
-            {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Planner</span>}
+            <div className="w-5 h-5 flex-shrink-0">
+              <CalendarDays className="w-5 h-5" style={{ color: '#752432' }} />
+            </div>
+            {!isCollapsedOverride && showText && (
+              <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Registration Planner</span>
+            )}
           </Link>
 
           {/* Resources - not clickable, only sub-items are */}

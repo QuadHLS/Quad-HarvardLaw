@@ -1390,6 +1390,21 @@ export function OnboardingPage(props: OnboardingPageProps) {
                                               <div className="font-medium leading-tight mb-1 truncate text-center">
                                                 {formatDisplayCourseName(course.courseName)}
                                               </div>
+                                              {/* Professor under class name */}
+                                              <div className="text-[11px] opacity-90 leading-tight truncate text-center">
+                                                {(() => {
+                                                  const raw = String(course.professor || '');
+                                                  if (!raw) return '';
+                                                  const names = raw
+                                                    .split(';')
+                                                    .map((s: string) => s.trim())
+                                                    .filter(Boolean)
+                                                    .map((s: string) => s.split(',')[0])
+                                                    .filter(Boolean)
+                                                    .join(' | ');
+                                                  return names;
+                                                })()}
+                                              </div>
                                               <div className="text-xs opacity-75 leading-tight truncate text-center">
                                                 {stripAmPm(startTime)}-{stripAmPm(endTime)}
                                               </div>

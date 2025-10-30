@@ -329,6 +329,17 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   
+  // Pick a consistent color for the default avatar (green, blue, yellow, red)
+  const getDefaultAvatarColor = (seed: string | undefined): string => {
+    const colors = ['#04913A', '#0080BD', '#FFBB06', '#F22F21'];
+    if (!seed) return colors[Math.floor(Math.random() * colors.length)];
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+      hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+    }
+    return colors[hash % colors.length];
+  };
+  
   // Get current day of week (0 = Monday, 1 = Tuesday, etc.)
   const getCurrentDayIndex = () => {
     const today = new Date();
@@ -1410,7 +1421,8 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
           <div className="flex flex-col sm:flex-row items-start gap-6">
             {/* Avatar with Upload */}
             <div className="relative flex-shrink-0 mx-auto sm:mx-0">
-              <div className="w-24 h-24 border-4 border-white shadow-lg rounded-full overflow-hidden bg-gray-100 flex items-center justify-center mx-auto">
+              <div className="w-24 h-24 border-4 border-white shadow-lg rounded-full overflow-hidden flex items-center justify-center mx-auto"
+                   style={{ backgroundColor: profileData?.avatar_url ? undefined : getDefaultAvatarColor(profileData?.email || profileData?.name) }}>
                 {profileData.avatar_url ? (
                   <img 
                     src={profileData.avatar_url} 
@@ -1418,7 +1430,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="w-24 h-24 text-2xl font-medium bg-gray-100 text-gray-700 flex items-center justify-center">
+                  <div className="w-24 h-24 text-2xl font-medium text-white flex items-center justify-center">
                   {profileData.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                   </div>
                 )}

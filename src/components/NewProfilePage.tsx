@@ -1676,12 +1676,20 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                     <div 
                       className="flex items-center gap-2 cursor-pointer hover:opacity-80"
                       onClick={() => {
-                        if (profileData.instagram) {
-                          const url = profileData.instagram.startsWith('http') 
-                            ? profileData.instagram 
-                            : `https://${profileData.instagram}`;
-                          window.open(url, '_blank');
+                        const raw = (profileData.instagram || '').trim();
+                        if (!raw) return;
+                        let url = '';
+                        if (/^https?:\/\//i.test(raw)) {
+                          url = raw;
+                        } else if (/^www\./i.test(raw)) {
+                          url = `https://${raw}`;
+                        } else if (/instagram\.com/i.test(raw)) {
+                          url = `https://${raw.replace(/^https?:\/\//i, '')}`;
+                        } else {
+                          const handle = raw.replace(/^@+/, '');
+                          if (handle) url = `https://instagram.com/${handle}`;
                         }
+                        if (url) window.open(url, '_blank');
                       }}
                     >
                       <img 

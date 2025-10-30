@@ -145,12 +145,9 @@ export function OutlinePage({
     }
   }, [savedCourseFilter, savedGradeFilter, savedYearFilter]);
 
-  // When the search results are empty (Discover state), clear the preview so the right panel shows the empty state
-  useEffect(() => {
-    if (activeTab === 'search' && outlines.length === 0) {
-      setPreviewOutline(null);
-    }
-  }, [activeTab, outlines]);
+  // Preserve the current preview when filters change, even if the results list is empty.
+  // We still reset the preview only when switching tabs (handled in handleTabChange).
+  // Intentionally no-op on outlines length changes to avoid unnecessary viewer reloads.
 
   const getGradeColor = (grade: string) => {
     switch (grade) {

@@ -146,12 +146,9 @@ export function ExamPage({
     }
   }, [savedCourseFilter, savedGradeFilter, savedYearFilter]);
 
-  // When the search results are empty (Discover state), clear the preview so the right panel shows the empty state
-  useEffect(() => {
-    if (activeTab === 'search' && exams.length === 0) {
-      setPreviewExam(null);
-    }
-  }, [activeTab, exams]);
+  // Preserve the current preview when filters change, even if the results list is empty.
+  // We still reset the preview only when switching tabs (handled in handleTabChange).
+  // Intentionally no-op on exams length changes to avoid unnecessary viewer reloads.
 
   const getGradeColor = (grade: string) => {
     switch (grade) {

@@ -77,6 +77,33 @@ function ClubsAndActivities({
 }: ClubsAndActivitiesProps) {
   const [clubsPopoverOpen, setClubsPopoverOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [clubsList, setClubsList] = useState<string[]>([]);
+  const [loadingClubs, setLoadingClubs] = useState(false);
+
+  useEffect(() => {
+    const fetchClubs = async () => {
+      setLoadingClubs(true);
+      try {
+        const { data, error } = await supabase
+          .from('clubs')
+          .select('name')
+          .order('name');
+        if (!error && Array.isArray(data)) {
+          const names = data
+            .map((row: any) => String(row?.name || '').trim())
+            .filter((n: string) => n.length > 0);
+          setClubsList(names);
+        } else {
+          setClubsList([]);
+        }
+      } catch {
+        setClubsList([]);
+      } finally {
+        setLoadingClubs(false);
+      }
+    };
+    fetchClubs();
+  }, []);
 
   const toggleClub = (club: string) => {
     if (selectedClubs.includes(club)) {
@@ -119,7 +146,7 @@ function ClubsAndActivities({
             />
           </div>
           <div className="max-h-[300px] overflow-y-auto">
-            {LAW_SCHOOL_CLUBS
+            {clubsList
               .filter(club => 
                 club.toLowerCase().includes(searchQuery.toLowerCase())
               )
@@ -153,12 +180,15 @@ function ClubsAndActivities({
                   <span className="text-sm">{club}</span>
                 </div>
               ))}
-            {LAW_SCHOOL_CLUBS.filter(club => 
+            {(!loadingClubs && clubsList.filter(club => 
               club.toLowerCase().includes(searchQuery.toLowerCase())
-            ).length === 0 && (
+            ).length === 0) && (
               <div className="p-6 text-center text-sm text-gray-500">
                 No clubs found.
               </div>
+            )}
+            {loadingClubs && (
+              <div className="p-6 text-center text-sm text-gray-500">Loading clubs…</div>
             )}
           </div>
         </PopoverContent>

@@ -223,25 +223,21 @@ export function FeedbackPage() {
           <div className="mt-8 pt-6 border-t border-gray-200">
             <div className="flex items-center justify-center gap-6">
               <a
-                href="#"
+                href="/QUADPRIVACYPOLICY.html"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-sm hover:underline"
                 style={{ color: '#752432' }}
-                onClick={(e) => {
-                  e.preventDefault();
-                  toast.info('Privacy Policy page coming soon');
-                }}
               >
                 Privacy Policy
               </a>
               <span className="text-gray-300">|</span>
               <a
-                href="#"
+                href="/QUADTERMSOFSERVICE.html"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-sm hover:underline"
                 style={{ color: '#752432' }}
-                onClick={(e) => {
-                  e.preventDefault();
-                  toast.info('Terms of Service page coming soon');
-                }}
               >
                 Terms of Service
               </a>

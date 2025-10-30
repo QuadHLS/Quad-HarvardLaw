@@ -566,7 +566,7 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
               {/* Age, Home Town, and Under Grad - Same Line */}
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="age">Age</Label>
+                  <Label htmlFor="age">Age <span className="text-red-500">*</span></Label>
                   <Input
                     id="age"
                     type="text"
@@ -584,7 +584,7 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
                 </div>
 
                 <div>
-                  <Label htmlFor="hometown">Home Town</Label>
+                  <Label htmlFor="hometown">Home Town <span className="text-red-500">*</span></Label>
                   <Input
                     id="hometown"
                     type="text"
@@ -596,7 +596,7 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
                 </div>
 
                 <div>
-                  <Label htmlFor="underGrad">Undergraduate</Label>
+                  <Label htmlFor="underGrad">Undergraduate <span className="text-red-500">*</span></Label>
                   <Input
                     id="underGrad"
                     type="text"
@@ -700,10 +700,22 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
 
           {/* Finish Button */}
                 <Button
+                  disabled={(() => { const n=parseInt(age||'0',10); return submitting || !(n>0 && (hometown||'').trim() !== '' && (underGrad||'').trim() !== ''); })()}
                   onClick={async () => {
                     if (submitting) return;
                     setSubmitting(true);
                      // Save all courses and profile data to database
+                    // Validate required fields: age, hometown, underGrad
+                    const missingFields: string[] = [];
+                    const ageNum = parseInt(age as string, 10);
+                    if (!age || isNaN(ageNum) || ageNum <= 0) missingFields.push('Age');
+                    if (!hometown || hometown.trim() === '') missingFields.push('Hometown');
+                    if (!underGrad || underGrad.trim() === '') missingFields.push('Undergraduate');
+                    if (missingFields.length > 0) {
+                      // Keep button disabled; do not show browser alert
+                      setSubmitting(false);
+                      return;
+                    }
                      if (user && selectedCourses.length > 0) {
                        try {
                          let avatarUrl = null;
@@ -760,7 +772,7 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
                              section: userInfo.section,
                              avatar_url: avatarUrl,
                              bio: bio,
-                             age: age ? parseInt(age) : null,
+                            age: parseInt(age),
                              hometown: hometown,
                              under_grad: underGrad || null,
                              summer_city: postGradCity,
@@ -790,7 +802,7 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
                      
                      onDone();
                    }}
-           className={`text-white px-8 py-2 ${submitting ? 'bg-green-600 opacity-70 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+           className={`text-white px-8 py-2 ${(() => { const n=parseInt(age||'0',10); const valid=(n>0 && (hometown||'').trim()!=='' && (underGrad||'').trim()!==''); return (submitting || !valid) ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'; })()}`}
             type="button"
           >
            {submitting ? 'Saving…' : 'Done!'}

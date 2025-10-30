@@ -1474,47 +1474,8 @@ export function OnboardingPage(props: OnboardingPageProps) {
               </div>
             </div>
 
-            {/* Complete Setup Button */}
+            {/* Step 2 Action Button(s) */}
             <div className="flex-1 flex justify-end gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              className="text-sm text-gray-500 hover:text-gray-700 border-gray-300"
-              onClick={async () => {
-                if (skipHandledRef.current) {
-                  return;
-                }
-                skipHandledRef.current = true;
-                
-                // Save empty classes array to profiles table
-                if (user) {
-                  try {
-                    // Mark skip in flow and clear local selections immediately
-                    setSkipCourses(true);
-                    setSelectedCourses([]);
-
-                    // Navigate immediately; persist change in background
-                    onComplete();
-
-                    const { error } = await supabase
-                      .from('profiles')
-                      .update({ 
-                        classes: [] // Empty array instead of selected courses
-                      })
-                      .eq('id', user.id);
-
-                    if (error) {
-                      console.error('Error updating profile with empty classes:', error);
-                    }
-                  } catch (error) {
-                    console.error('Error saving empty classes:', error);
-                  }
-                }
-                // No-op: navigation already triggered above
-              }}
-            >
-              Skip for now
-            </Button>
             <Button
               type="button"
               disabled={!areRequirementsMet()}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -61,6 +61,7 @@ const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 interface OnboardingPageProps {
   onComplete: () => void;
   initialPage?: number;
+  setSkipCourses: (skip: boolean) => void;
   // Basic info form
   name: string;
   setName: (name: string) => void;
@@ -98,6 +99,7 @@ export function OnboardingPage(props: OnboardingPageProps) {
   const { 
     onComplete, 
     initialPage = 1,
+    setSkipCourses,
     name, setName,
     phone, setPhone,
     classYear, setClassYear,
@@ -113,12 +115,7 @@ export function OnboardingPage(props: OnboardingPageProps) {
     showMaxCourseWarning, setShowMaxCourseWarning,
   } = props;
   const { user, signOut } = useAuth();
-  const [currentPage, setCurrentPage] = useState(initialPage);
-  
-  // Update currentPage when initialPage changes (for back navigation)
-  useEffect(() => {
-    setCurrentPage(initialPage);
-  }, [initialPage]);
+  const skipHandledRef = useRef(false);
   
   // Add keyframes for the rotating border animation
   useEffect(() => {
@@ -277,9 +274,9 @@ export function OnboardingPage(props: OnboardingPageProps) {
   const stripAmPm = (t: string): string => t.replace(/\s*(AM|PM)\b/gi, '');
 
   const handleNext = async () => {
-    console.log('handleNext called', { currentPage, isStep1Valid: isStep1Valid(), user: user?.id });
+    console.log('handleNext called', { initialPage, isStep1Valid: isStep1Valid(), user: user?.id });
     
-    if (currentPage === 1) {
+    if (initialPage === 1) {
       // Save basic info to profiles table
       if (!isStep1Valid()) {
         console.log('Form not valid:', { name, classYear, section });
@@ -318,7 +315,7 @@ export function OnboardingPage(props: OnboardingPageProps) {
         }
 
         console.log('Profile data saved successfully');
-        setCurrentPage(2);
+        onComplete();
         } catch (error) {
         console.error('Error saving profile:', error);
         alert('Error saving your information. Please try again.');
@@ -331,9 +328,8 @@ export function OnboardingPage(props: OnboardingPageProps) {
   };
 
   const handleBack = () => {
-    if (currentPage === 2) {
-      setCurrentPage(1);
-    }
+    // Parent controls page; optionally could emit a custom event if needed
+    console.log('[Onboarding Debug] Back clicked on page 2');
   };
 
   // Format phone number as user types
@@ -450,17 +446,15 @@ export function OnboardingPage(props: OnboardingPageProps) {
     
     setSelectedCourses((prev: CourseData[]) => [...prev, newCourse]);
     
-    // Clear the search bar and focus it for immediate typing
+    // Clear the search bar and refocus for quick subsequent searches
     setSearchQuery('');
-    
-    // Focus and select the search input after a brief delay to ensure the state update has completed
     setTimeout(() => {
-      const searchInput = document.querySelector('input[placeholder*="Search courses"]') as HTMLInputElement;
+      const searchInput = document.querySelector('input[placeholder*="Search courses"]') as HTMLInputElement | null;
       if (searchInput) {
         searchInput.focus();
         searchInput.select();
       }
-    }, 50);
+    }, 0);
   };
 
   const filteredCourses = (searchQuery 
@@ -814,9 +808,9 @@ export function OnboardingPage(props: OnboardingPageProps) {
 
   return (
     <div className="min-h-screen py-8 px-4" style={{ backgroundColor: '#f9f5f0', minHeight: '100vh' }}>
-      <div className={currentPage === 1 ? "max-w-4xl mx-auto" : "max-w-7xl mx-auto"}>
+      <div className={initialPage === 1 ? "max-w-4xl mx-auto" : "max-w-7xl mx-auto"}>
         {/* Go Back to Sign In Button - Only show on first page */}
-        {currentPage === 1 && (
+        {initialPage === 1 && (
           <div className="mb-4 flex justify-start">
             <button
               onClick={() => signOut()}
@@ -843,7 +837,7 @@ export function OnboardingPage(props: OnboardingPageProps) {
         </div>
 
         {/* Page Content */}
-        {currentPage === 1 ? (
+        {initialPage === 1 ? (
           <>
             {/* Header */}
             <div className="text-center mb-8">
@@ -1438,8 +1432,8 @@ export function OnboardingPage(props: OnboardingPageProps) {
                         )}
 
         {/* Bottom Navigation and Progress Indicator - All in one line */}
-        {currentPage === 2 && (
-          <div className="flex items-center mt-8">
+        {initialPage === 2 && (
+          <div className="flex items-center mt-8 relative z-50 pointer-events-auto">
             {/* Back Button */}
             <div className="flex-1 flex justify-start">
                   <Button
@@ -1465,15 +1459,25 @@ export function OnboardingPage(props: OnboardingPageProps) {
             {/* Complete Setup Button */}
             <div className="flex-1 flex justify-end gap-3">
             <Button
+              type="button"
               variant="outline"
               className="text-sm text-gray-500 hover:text-gray-700 border-gray-300"
-              onClick={async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
+              onClick={async () => {
+                if (skipHandledRef.current) {
+                  return;
+                }
+                skipHandledRef.current = true;
                 
                 // Save empty classes array to profiles table
                 if (user) {
                   try {
+                    // Mark skip in flow and clear local selections immediately
+                    setSkipCourses(true);
+                    setSelectedCourses([]);
+
+                    // Navigate immediately; persist change in background
+                    onComplete();
+
                     const { error } = await supabase
                       .from('profiles')
                       .update({ 
@@ -1483,25 +1487,20 @@ export function OnboardingPage(props: OnboardingPageProps) {
 
                     if (error) {
                       console.error('Error updating profile with empty classes:', error);
-                    } else {
-                      console.log('Profile updated with empty classes');
                     }
                   } catch (error) {
                     console.error('Error saving empty classes:', error);
                   }
                 }
-                
-                // Navigate to home page
-                onComplete();
+                // No-op: navigation already triggered above
               }}
             >
               Skip for now
             </Button>
             <Button
+              type="button"
               disabled={!areRequirementsMet()}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
+              onClick={() => {
                 // Don't save to database here - will be saved after page 3
                 onComplete();
               }}

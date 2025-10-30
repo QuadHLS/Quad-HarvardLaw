@@ -71,6 +71,7 @@ export function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
   const [currentSemester, setCurrentSemester] = useState<'Fall 2025' | 'Winter 2026' | 'Spring 2026'>('Fall 2025');
   const [allCourseData, setAllCourseData] = useState<any[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(false);
+  const [skipCourses, setSkipCourses] = useState(false);
   
   // Course search
   const [searchQuery, setSearchQuery] = useState('');
@@ -104,6 +105,7 @@ export function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
       onBack={handleBackToCourseSelection}
       selectedCourses={selectedCourses}
       userInfo={{ name, phone, classYear, section }}
+      skipCourses={skipCourses}
     />;
   }
 
@@ -131,9 +133,9 @@ export function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
     };
     
     if (currentStep === 'page2') {
-      return { ...baseProps, onComplete: handlePage2Complete, initialPage: 2 };
+      return { ...baseProps, onComplete: handlePage2Complete, initialPage: 2, setSkipCourses };
     }
-    return { ...baseProps, onComplete: handlePage1Complete, initialPage: 1 };
+    return { ...baseProps, onComplete: handlePage1Complete, initialPage: 1, setSkipCourses };
   };
 
   return <OnboardingPage {...getOnboardingProps()} />;

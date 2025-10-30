@@ -1423,7 +1423,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                       {/* Show Edit button only for main user */}
                       {(!studentName || studentName === user?.email || (profileData && profileData.email === user?.email)) && (
                         <div className="flex flex-col gap-2">
-                          <Button onClick={handleEdit} variant="outline" className="gap-2">
+                          <Button onClick={handleEdit} variant="outline" size="sm" className="gap-2 text-xs px-3 py-1 h-7">
                             <Edit className="w-4 h-4" />
                             Edit Profile
                           </Button>
@@ -1431,7 +1431,8 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                             ref={setRedoButtonRef}
                             onClick={handleRedoOnboarding} 
                             variant="outline" 
-                            className="gap-2 text-red-600 border-red-600 hover:bg-red-50"
+                            size="sm"
+                            className="gap-2 text-red-600 border-red-600 hover:bg-red-50 text-xs px-3 py-1 h-7"
                           >
                             <RotateCcw className="w-4 h-4" />
                             Redo Onboarding
@@ -1754,13 +1755,29 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                       Current Courses
                     </h3>
                   </div>
-                <div className="space-y-2">
-                  {profileData.currentCourses.map((course, index) => (
-                    <div key={index} className="text-sm py-2 px-2 rounded-lg hover:bg-gray-50 transition-colors">
-                      <div className="text-gray-900">{course.name}</div>
-                      <div className="text-xs text-gray-500 mt-0.5">{course.professor}</div>
+                <div className="space-y-2 mt-2">
+                  {profileData.currentCourses.length === 0 ? (
+                    <div className="text-center py-6">
+                      <p className="text-sm text-gray-500 mb-3">No current courses added yet.</p>
+                      {(!studentName || studentName === user?.email || (profileData && profileData.email === user?.email)) && (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="gap-2"
+                          onClick={confirmRedoOnboarding}
+                        >
+                          Complete Onboarding
+                        </Button>
+                      )}
                     </div>
-                  ))}
+                  ) : (
+                    profileData.currentCourses.map((course, index) => (
+                      <div key={index} className="text-sm py-2 px-2 rounded-lg hover:bg-gray-50 transition-colors">
+                        <div className="text-gray-900">{course.name}</div>
+                        <div className="text-xs text-gray-500 mt-0.5">{course.professor}</div>
+                      </div>
+                    ))
+                  )}
                 </div>
                 </div>
               </div>
@@ -1966,7 +1983,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
               Redo Onboarding
             </h4>
             <p className="text-sm text-gray-600 mb-3">
-              This will reset your course selections and profile information. You can always edit your profile later.
+              This will let you update your class year, section, and courses. All other profile information will be kept.
             </p>
             <div className="flex gap-2">
               <Button 

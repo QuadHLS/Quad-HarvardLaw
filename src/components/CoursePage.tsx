@@ -1634,7 +1634,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
     
     // Filter courses for current semester (same logic as HomePage)
     const filteredCourses = userCourses.filter(course => {
-      const courseSemester = course.schedule?.semester;
+      const courseSemester = course.schedule?.semester ?? '';
       return courseMatchesSemester(courseSemester, currentTerm);
     });
     
@@ -1859,7 +1859,8 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
               </div>
               <button
                 onClick={onBack}
-                className="flex items-center gap-2 px-3 py-2 text-white hover:bg-white/20 rounded-lg transition-colors"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors bg-white hover:bg-gray-100"
+                style={{ color: courseColor }}
                 aria-label="Go back"
               >
                 <ArrowLeft className="w-5 h-5" />

@@ -212,9 +212,10 @@ interface OnboardingStepThreeProps {
     classYear: string;
     section: string;
   };
+  skipCourses?: boolean;
 }
 
-export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo }: OnboardingStepThreeProps) {
+export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo, skipCourses = false }: OnboardingStepThreeProps) {
   const { user } = useAuth();
   const [bio, setBio] = useState('');
   const [age, setAge] = useState('');
@@ -229,6 +230,7 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo 
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarWarning, setAvatarWarning] = useState<string>('');
+  const [submitting, setSubmitting] = useState(false);
 
   // Fetch existing profile data to auto-fill fields
   useEffect(() => {
@@ -697,8 +699,10 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo 
           </div>
 
           {/* Finish Button */}
-                 <Button
-                   onClick={async () => {
+                <Button
+                  onClick={async () => {
+                    if (submitting) return;
+                    setSubmitting(true);
                      // Save all courses and profile data to database
                      if (user && selectedCourses.length > 0) {
                        try {
@@ -715,10 +719,11 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo 
                              .from('Avatar')
                              .upload(fileName, avatarFile);
 
-                           if (uploadError) {
+                          if (uploadError) {
                              console.error('Error uploading avatar:', uploadError);
                              alert('Error uploading avatar. Please try again.');
-                             return;
+                            setSubmitting(false);
+                            return;
                            }
 
                            // Get public URL
@@ -730,7 +735,7 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo 
                            console.log('Avatar uploaded successfully:', avatarUrl);
                          }
 
-                         const classesData = selectedCourses.map(course => ({
+                        const classesData = (skipCourses ? [] : selectedCourses).map(course => ({
                            class: course.courseName,
                            schedule: {
                              days: course.days.join(' • '),
@@ -763,29 +768,32 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo 
                              instagram: instagram,
                              linkedin: linkedIn,
                              clubs_activities: clubsActivities,
-                             classes_filled: true
+                             classes_filled: !skipCourses
                            })
                            .eq('id', user.id);
 
-                         if (error) {
+                        if (error) {
                            console.error('Error saving profile:', error);
                            alert('Error saving your profile. Please try again.');
-                           return;
+                          setSubmitting(false);
+                          return;
                          }
                          
-                         console.log('Profile and courses saved successfully');
+                        // Saved successfully
                        } catch (error) {
                          console.error('Error saving profile:', error);
                          alert('Error saving your profile. Please try again.');
+                         setSubmitting(false);
                          return;
                        }
                      }
                      
                      onDone();
                    }}
-            className="bg-green-600 hover:bg-green-700 text-white px-8 py-2"
+           className={`text-white px-8 py-2 ${submitting ? 'bg-green-600 opacity-70 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+            type="button"
           >
-            Done!
+           {submitting ? 'Saving…' : 'Done!'}
           </Button>
         </div>
       </div>

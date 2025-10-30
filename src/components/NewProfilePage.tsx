@@ -770,8 +770,8 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
   const handleVisibilityChange = async (field: 'clubs_visibility' | 'courses_visibility' | 'schedule_visibility', value: boolean) => {
     if (!user?.id) return;
     
-    // Only allow changes on own profile (when viewing own profile, studentName is undefined or matches user email)
-    const isOwnProfile = !studentName || studentName === user.email || (profileData && profileData.email === user.email);
+    // Only allow changes when directly accessing own profile (no studentName param means direct /profile access)
+    const isOwnProfile = !studentName && profileData && profileData.email === user.email;
     if (!isOwnProfile) return;
 
     try {
@@ -1064,6 +1064,10 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
   const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || !user?.id) return;
+    
+    // Only allow upload when directly accessing own profile (no studentName param)
+    const isOwnProfile = !studentName && profileData && profileData.email === user.email;
+    if (!isOwnProfile) return;
 
     // Check if user already has 12 photos
     if (profileData?.photo_urls && profileData.photo_urls.length >= 12) {
@@ -1157,6 +1161,10 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
   // Photo delete function
   const handleDeletePhoto = async (photoUrl: string) => {
     if (!user?.id || !profileData?.photo_urls) return;
+    
+    // Only allow deletion when directly accessing own profile (no studentName param)
+    const isOwnProfile = !studentName && profileData && profileData.email === user.email;
+    if (!isOwnProfile) return;
 
     try {
       // Extract filename from URL
@@ -1464,7 +1472,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                   </div>
                 )}
               </div>
-              {isEditing && (!studentName || studentName === 'Justin Abbey') && (
+              {isEditing && !studentName && profileData && profileData.email === user?.email && (
                 <div className="flex flex-col gap-2 mt-4">
                   <input
                     type="file"
@@ -1535,8 +1543,8 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                 <div className="flex flex-wrap gap-2 justify-center sm:justify-end">
                   {!isEditing ? (
                     <>
-                      {/* Show Edit button only for main user */}
-                      {(!studentName || studentName === user?.email || (profileData && profileData.email === user?.email)) && (
+                      {/* Show Edit button only when directly accessing own profile (no studentName param) */}
+                      {(!studentName && profileData && profileData.email === user?.email) && (
                         <div className="flex flex-col gap-2">
                           <Button onClick={handleEdit} variant="outline" size="sm" className="gap-2 text-xs px-3 py-1 h-7">
                             <Edit className="w-4 h-4" />
@@ -1825,7 +1833,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
             {/* Clubs */}
             {(isEditing ? true : profileData?.clubs_visibility) && (
               <div className="relative">
-                {isEditing && (!studentName || studentName === user?.email || (profileData && profileData.email === user?.email)) && (
+                {isEditing && !studentName && profileData && profileData.email === user?.email && (
                   <div className="checkbox-wrapper-35 visibility-toggle-wrapper" style={{ transform: 'scale(0.75) translateX(0)', transformOrigin: 'right center', position: 'absolute', left: 'calc(100% - 135px)', top: '12px', zIndex: 10 }}>
                     <input 
                       type="checkbox" 
@@ -1878,7 +1886,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
             {/* Current Courses - Compact */}
             {(isEditing ? true : profileData?.courses_visibility) && (
               <div className="relative">
-                {isEditing && (!studentName || studentName === user?.email || (profileData && profileData.email === user?.email)) && (
+                {isEditing && !studentName && profileData && profileData.email === user?.email && (
                   <div className="checkbox-wrapper-35 visibility-toggle-wrapper" style={{ transform: 'scale(0.75) translateX(0)', transformOrigin: 'right center', position: 'absolute', left: 'calc(100% - 135px)', top: '12px', zIndex: 10 }}>
                     <input 
                       type="checkbox" 
@@ -1912,7 +1920,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                   {profileData.currentCourses.length === 0 ? (
                     <div className="text-center py-6">
                       <p className="text-sm text-gray-500 mb-3">No current courses added yet.</p>
-                      {(!studentName || studentName === user?.email || (profileData && profileData.email === user?.email)) && (
+                      {!studentName && profileData && profileData.email === user?.email && (
                         <Button 
                           size="sm" 
                           variant="outline" 
@@ -1939,7 +1947,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
             {/* Weekly Schedule - Vertical */}
             {(isEditing ? true : profileData?.schedule_visibility) && (
               <div className="relative">
-                {isEditing && (!studentName || studentName === user?.email || (profileData && profileData.email === user?.email)) && (
+                {isEditing && !studentName && profileData && profileData.email === user?.email && (
                   <div className="checkbox-wrapper-35 visibility-toggle-wrapper" style={{ transform: 'scale(0.75) translateX(0)', transformOrigin: 'right center', position: 'absolute', left: 'calc(100% - 135px)', top: '12px', zIndex: 10 }}>
                     <input 
                       type="checkbox" 
@@ -2044,7 +2052,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                 <h3 className="flex items-center gap-2">
                   Photos
                 </h3>
-                {(!studentName || studentName === 'Justin Abbey') && (
+                {!studentName && profileData && profileData.email === user?.email && (
                   <>
                     <input
                       id="photo-upload"
@@ -2077,7 +2085,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                 {profileData.photo_urls && profileData.photo_urls.length > 0 ? (
                   profileData.photo_urls.map((photoUrl, index) => (
                     <div key={index} className="relative aspect-square rounded-xl overflow-hidden group">
-                      {(!studentName || studentName === 'Justin Abbey') ? (
+                      {(!studentName || studentName === user?.email || (profileData && profileData.email === user?.email)) ? (
                         <div
                           onClick={() => handleDeletePhoto(photoUrl)}
                           className="cursor-pointer relative"

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, FileText, Star, Beer, Menu, User, Archive, ChevronDown, ChevronRight, BookOpen, MessageSquare, CalendarDays, Mail } from 'lucide-react';
+import { Home, FileText, Star, Beer, Menu, User, Archive, ChevronDown, ChevronRight, BookOpen, MessageSquare, CalendarDays, Mail, Users } from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -21,6 +21,7 @@ export function NavigationSidebar({ isCollapsed, onToggleCollapsed }: Navigation
     if (path.startsWith('/exams')) return 'exams';
     if (path.startsWith('/reviews')) return 'reviews';
     if (path.startsWith('/planner')) return 'planner';
+    if (path.startsWith('/directory')) return 'directory';
     if (path.startsWith('/barreview')) return 'barreview';
     if (path.startsWith('/feedback')) return 'feedback';
     if (path.startsWith('/profile')) return 'profile';
@@ -208,6 +209,18 @@ export function NavigationSidebar({ isCollapsed, onToggleCollapsed }: Navigation
             {!isCollapsedOverride && showText && (
               <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Registration Planner</span>
             )}
+          </Link>
+
+          {/* Directory */}
+          <Link
+            to="/directory"
+            className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
+              activeSection === 'directory' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
+            }`}
+            style={{ borderRightColor: activeSection === 'directory' ? '#752432' : 'transparent' }}
+          >
+            <Users className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
+            {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Directory</span>}
           </Link>
 
           {/* Resources - not clickable, only sub-items are */}

@@ -11,6 +11,7 @@ import { CoursePage } from './components/CoursePage';
 import { BarReviewPage } from './components/BarReviewPage';
 import { ProfilePage } from './components/NewProfilePage';
 import { FeedbackPage } from './components/FeedbackPage';
+import { DirectoryPage } from './components/DirectoryPage';
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/auth/AuthPage';
@@ -957,6 +958,7 @@ function AppContent({ user }: { user: any }) {
           <Route path="/reviews" element={<ReviewsPage />} />
           <Route path="/planner" element={<PlannerPage />} />
           <Route path="/barreview" element={<BarReviewPage onNavigateToStudentProfile={handleNavigateToStudentProfile} />} />
+          <Route path="/directory" element={<DirectoryPage onNavigateToStudentProfile={handleNavigateToStudentProfile} />} />
           <Route path="/feedback" element={<FeedbackPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/course/:courseName" element={<CoursePageWrapper />} />

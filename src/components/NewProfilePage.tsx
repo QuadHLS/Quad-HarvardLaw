@@ -2068,8 +2068,13 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                 ) : (
                   /* Show placeholder when no photos */
                   [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => (
-                  <div key={i} className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center hover:shadow-md transition-shadow cursor-pointer">
-                    <span className="text-3xl opacity-40">📸</span>
+                  <div
+                    key={i}
+                    className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl hover:shadow-md transition-shadow cursor-pointer flex items-center justify-center"
+                  >
+                    {i === 5 && (
+                      <span className="text-sm text-gray-500 italic">No photos added</span>
+                    )}
                   </div>
                   ))
                 )}

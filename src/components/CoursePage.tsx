@@ -1874,15 +1874,16 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
         <div className="flex gap-6 w-full">
           {/* Students List - Fixed height - LEFT SIDE */}
           <div style={{ width: '30%', minWidth: '300px', flexShrink: 0 }}>
-            <Card className="h-[600px] flex flex-col overflow-hidden w-full">
+            <Card className="flex flex-col overflow-hidden w-full" style={{ height: 'calc(100vh - 230px)' }}>
               <div className="text-white p-4 pb-3" style={{ backgroundColor: courseColor }}>
                 <h3 className="font-medium text-white flex items-center gap-2">
                   <Users className="w-5 h-5 text-white" />
                     Students ({courseStudents.length})
                 </h3>
               </div>
-              <div className="flex-1 overflow-y-auto bg-white p-3 pt-0 -mt-3" style={{ 
-                scrollbarWidth: 'thin',
+              <div className="bg-white p-3 pt-0 -mt-3 overflow-y-auto" style={{ 
+                height: 'calc(100vh - 300px)',
+                scrollbarWidth: 'thin', 
                 scrollbarColor: '#752531 transparent'
               }}>
                 <div className="space-y-2">

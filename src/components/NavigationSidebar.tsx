@@ -206,12 +206,15 @@ export function NavigationSidebar({ isCollapsed, onToggleCollapsed }: Navigation
             {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Planner</span>}
           </Link>
 
-          {/* Resources - always expanded */}
+          {/* Resources - not clickable, only sub-items are */}
           <div
             className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
-              ['outlines', 'reviews', 'exams'].includes(activeSection) ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
+              ['outlines', 'reviews', 'exams'].includes(activeSection) ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600'
             }`}
-            style={{ borderRightColor: ['outlines', 'reviews', 'exams'].includes(activeSection) ? '#752432' : 'transparent' }}
+            style={{ 
+              borderRightColor: ['outlines', 'reviews', 'exams'].includes(activeSection) ? '#752432' : 'transparent',
+              cursor: 'default'
+            }}
           >
             <Archive className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
             {!isCollapsedOverride && showText && <span className="font-medium text-sm flex-1 transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Resources</span>}

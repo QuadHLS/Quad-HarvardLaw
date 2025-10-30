@@ -5,60 +5,11 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Badge } from '../ui/badge';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { ArrowLeft, Upload, X, Check, ChevronsUpDown } from 'lucide-react';
+import { ArrowLeft, Upload, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 
-// Law School Clubs and Organizations
-const LAW_SCHOOL_CLUBS = [
-  'Harvard Law Review',
-  'Harvard Civil Rights-Civil Liberties Law Review',
-  'Harvard Environmental Law Review',
-  'Harvard International Law Journal',
-  'Harvard Journal of Law & Public Policy',
-  'Harvard Journal on Legislation',
-  'Harvard Latino Law Review',
-  'Harvard National Security Journal',
-  'Harvard Negotiation Law Review',
-  'HALB (Harvard Association for Law and Business)',
-  'HLEP (Harvard Law Entrepreneurship Project)',
-  'Ames Moot Court',
-  'Harvard Legal Aid Bureau',
-  'Student Government',
-  'Black Law Students Association',
-  'Lambda (LGBTQ+ Alliance)',
-  'Asian Pacific American Law Students Association',
-  'Jewish Law Students Association',
-  'American Constitution Society',
-  'Federalist Society',
-  'Environmental Law Society',
-  'International Law Society',
-  'Women\'s Law Association',
-  'Veterans Legal Clinic',
-  'Prison Legal Assistance Project',
-  'Harvard Defenders',
-  'Immigration Project',
-  'Tenant Advocacy Project',
-  'Harvard Journal of Sports & Entertainment Law',
-  'Harvard Business Law Review',
-  'Berkman Klein Center Student Fellows',
-  'Alternative Dispute Resolution Program',
-  'Harvard Law & International Development Society',
-  'Health Law Society',
-  'Intellectual Property Law Society',
-  'Entertainment & Media Law Society',
-  'Real Estate Law Society',
-  'Tax Law Society',
-  'Labor & Employment Law Society',
-  'National Lawyers Guild',
-  'Public Interest Law Society',
-  'Christian Legal Society',
-  'South Asian Law Students Association',
-  'Native American Law Students Association',
-  'Middle Eastern Law Students Association'
-].sort();
 
 interface ClubsAndActivitiesProps {
   selectedClubs: string[];
@@ -792,27 +743,32 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
                            course_id: (course as any).course_uuid || null
                          }));
 
-                         const { error } = await supabase
-                           .from('profiles')
-                           .update({ 
-                             classes: classesData,
-                             full_name: userInfo.name,
-                             phone: userInfo.phone,
-                             class_year: userInfo.classYear,
-                             section: userInfo.section,
-                             avatar_url: avatarUrl,
-                             bio: bio,
-                            age: parseInt(age),
-                             hometown: hometown,
-                             under_grad: underGrad || null,
-                             summer_city: postGradCity,
-                             summer_firm: postGradEmployer,
-                             instagram: instagram,
-                             linkedin: linkedIn,
-                             clubs_activities: clubsActivities,
-                             classes_filled: !skipCourses
-                           })
-                           .eq('id', user.id);
+                        // Build update payload; only set avatar_url if a new file was uploaded
+                        const updatePayload: any = {
+                          classes: classesData,
+                          full_name: userInfo.name,
+                          phone: userInfo.phone,
+                          class_year: userInfo.classYear,
+                          section: userInfo.section,
+                          bio: bio,
+                          age: parseInt(age),
+                          hometown: hometown,
+                          under_grad: underGrad || null,
+                          summer_city: postGradCity,
+                          summer_firm: postGradEmployer,
+                          instagram: instagram,
+                          linkedin: linkedIn,
+                          clubs_activities: clubsActivities,
+                          classes_filled: !skipCourses
+                        };
+                        if (avatarFile) {
+                          updatePayload.avatar_url = avatarUrl;
+                        }
+
+                        const { error } = await supabase
+                          .from('profiles')
+                          .update(updatePayload)
+                          .eq('id', user.id);
 
                         if (error) {
                            console.error('Error saving profile:', error);

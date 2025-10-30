@@ -1449,16 +1449,17 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
           <div className="flex flex-col sm:flex-row items-start gap-6">
             {/* Avatar with Upload */}
             <div className="relative flex-shrink-0 mx-auto sm:mx-0">
-              <div className="w-24 h-24 border-4 border-white shadow-lg rounded-full overflow-hidden flex items-center justify-center mx-auto"
+              <div className="w-24 h-24 rounded-full overflow-hidden flex items-center justify-center mx-auto"
                    style={{ backgroundColor: profileData?.avatar_url ? undefined : getDefaultAvatarColor(profileData?.email || profileData?.name) }}>
                 {profileData.avatar_url ? (
                   <img 
                     src={profileData.avatar_url} 
                     alt="Profile" 
-                    className="w-full h-full object-cover"
+                    className="h-auto object-contain rounded-full border-4 border-[#f8f5ed]"
+                    style={{ maxWidth: '96px', maxHeight: '96px' }}
                   />
                 ) : (
-                  <div className="w-24 h-24 text-2xl font-medium text-white flex items-center justify-center">
+                  <div className="w-24 h-24 text-2xl font-medium text-white flex items-center justify-center rounded-full border-4 border-[#f8f5ed]">
                   {profileData.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                   </div>
                 )}
@@ -1488,7 +1489,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                     ) : (
                       <div className="flex items-center gap-1">
                         <Upload className="w-3 h-3" />
-                        <span>Add Avatar</span>
+                        <span>{profileData.avatar_url ? 'Change Avatar' : 'Add Avatar'}</span>
                       </div>
                     )}
                   </Button>

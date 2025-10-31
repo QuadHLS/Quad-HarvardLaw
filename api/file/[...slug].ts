@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const mime = (name: string) => {
   const n = name.toLowerCase();
@@ -9,10 +8,15 @@ const mime = (name: string) => {
   return 'application/octet-stream';
 };
 
-export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse
-) {
+export default async function handler(req: any, res: any) {
+  // Log that the API route was hit
+  console.log('File proxy API route hit:', {
+    method: req.method,
+    url: req.url,
+    query: req.query,
+    path: req.url
+  });
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -26,7 +30,7 @@ export default async function handler(
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const bucket = req.query.bucket as string;
+  const bucket = req.query.bucket;
   if (!bucket) {
     return res.status(400).json({ error: 'Missing bucket parameter' });
   }
@@ -36,20 +40,16 @@ export default async function handler(
     return res.status(400).json({ error: 'Missing file path' });
   }
 
-  const path = slug.join('/'); // file path inside the bucket
+  // Decode each segment and join them - handle URL encoding
+  const path = slug.map(segment => decodeURIComponent(segment)).join('/'); // file path inside the bucket
 
   try {
     // Initialize Supabase admin client with service role key
-    // Vercel serverless functions use process.env directly
-    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('Missing Supabase credentials', {
-        hasUrl: !!supabaseUrl,
-        hasKey: !!supabaseServiceKey,
-        envKeys: Object.keys(process.env).filter(k => k.includes('SUPABASE'))
-      });
+      console.error('Missing Supabase credentials');
       return res.status(500).json({ error: 'Server configuration error' });
     }
 
@@ -84,17 +84,16 @@ export default async function handler(
     );
     res.setHeader('Cache-Control', 'public, max-age=3600, immutable');
     res.setHeader('X-From', 'supabase-file-proxy');
-    // CORS headers for Office Online Viewer
+    // CORS headers for iframe embedding
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Access-Control-Expose-Headers', 'Content-Type, Content-Disposition');
 
     // Send the file
     return res.status(200).send(buffer);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error proxying file:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error', message: error?.message });
   }
 }
 

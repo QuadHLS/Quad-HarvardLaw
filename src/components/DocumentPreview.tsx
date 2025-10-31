@@ -24,15 +24,17 @@ export default function DocumentPreview({
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const ext = path.split('.').pop()?.toLowerCase();
+  const isPDF = ext === 'pdf';
+  const isWord = ext === 'docx' || ext === 'doc';
+
+  // For PDFs, we'll use signed URLs directly (get them from parent component)
+  // For DOCX, we need the proxy URL for Office Viewer
   const proxyUrl = `/api/file/${path.split('/').map(encodeURIComponent).join('/')}?bucket=${encodeURIComponent(bucket)}`;
 
   // Office Viewer needs an absolute, publicly reachable URL
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const absoluteProxyUrl = origin ? `${origin}${proxyUrl}` : proxyUrl;
   const officeEmbed = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(absoluteProxyUrl)}`;
-
-  const isPDF = ext === 'pdf';
-  const isWord = ext === 'docx' || ext === 'doc';
 
   useEffect(() => {
     setLoading(true);
@@ -41,29 +43,12 @@ export default function DocumentPreview({
 
   const handleIframeLoad = () => {
     setLoading(false);
-    setError(null);
   };
 
   const handleIframeError = () => {
     setLoading(false);
     setError('Failed to load preview. Please try downloading the document.');
   };
-
-  // Verify proxy URL is accessible (for debugging)
-  useEffect(() => {
-    if (!isPDF && isWord && absoluteProxyUrl) {
-      // Check if URL is HTTPS (Office Viewer requires HTTPS)
-      const isHttps = absoluteProxyUrl.startsWith('https://');
-      if (!isHttps && window.location.protocol !== 'https:') {
-        console.warn('Office Viewer requires HTTPS. Current URL:', absoluteProxyUrl);
-      }
-      
-      // Try to verify the proxy URL is accessible
-      fetch(proxyUrl, { method: 'HEAD', mode: 'no-cors' }).catch((err) => {
-        console.error('Proxy URL check failed:', err);
-      });
-    }
-  }, [isPDF, isWord, absoluteProxyUrl, proxyUrl]);
 
   // Fallback: download link component
   const DownloadLink = () => (

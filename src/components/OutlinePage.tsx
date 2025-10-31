@@ -909,7 +909,70 @@ export function OutlinePage({
       );
     }
 
-    // Determine file path - try multiple possible formats
+    // Get signed URL for PDFs (direct browser support), use proxy for DOCX
+    const [documentUrl, setDocumentUrl] = useState<string | null>(null);
+    const [urlLoading, setUrlLoading] = useState(true);
+
+    useEffect(() => {
+      const getUrl = async () => {
+        if (!isVisibleRef.current) return;
+        
+        setUrlLoading(true);
+        const fileType = outline.file_type?.toLowerCase() || 'pdf';
+        
+        // For PDFs, use signed URLs directly (no proxy needed)
+        if (fileType === 'pdf') {
+          const possiblePaths = [
+            outline.file_path,
+            outline.file_name,
+            `out/${outline.file_name}`,
+            `out/${outline.file_path}`,
+            outline.file_path?.replace(/^out\//, ''),
+            outline.file_path?.replace(/^outlines\//, ''),
+            `out/${outline.file_path?.replace(/^out\//, '')}`,
+            `out/${outline.file_name?.replace(/^out\//, '')}`
+          ].filter((f): f is string => Boolean(f));
+
+          for (const path of possiblePaths) {
+            try {
+              const { data, error } = await supabase.storage
+                .from(bucketName)
+                .createSignedUrl(path, 3600);
+
+              if (!error && data?.signedUrl) {
+                setDocumentUrl(data.signedUrl);
+                setUrlLoading(false);
+                return;
+              }
+            } catch (err) {
+              continue;
+            }
+          }
+          setUrlLoading(false);
+        } else {
+          // For DOCX, we'll use the proxy URL
+          const possiblePaths = [
+            outline.file_path,
+            outline.file_name,
+            `out/${outline.file_name}`,
+            `out/${outline.file_path}`,
+            outline.file_path?.replace(/^out\//, ''),
+            outline.file_path?.replace(/^outlines\//, ''),
+            `out/${outline.file_path?.replace(/^out\//, '')}`,
+            `out/${outline.file_name?.replace(/^out\//, '')}`
+          ].filter((f): f is string => Boolean(f));
+          
+          const filePath = possiblePaths[0] || outline.file_name || '';
+          // Proxy URL will be constructed in DocumentPreview component
+          setDocumentUrl('proxy'); // Signal to use proxy
+          setUrlLoading(false);
+        }
+      };
+
+      getUrl();
+    }, [outline.id, outline.file_path, outline.file_name, outline.file_type, bucketName]);
+
+    // Determine file path for proxy (DOCX only)
     const getFilePath = () => {
       const possiblePaths = [
         outline.file_path,
@@ -922,7 +985,6 @@ export function OutlinePage({
         `out/${outline.file_name?.replace(/^out\//, '')}`
       ].filter((f): f is string => Boolean(f));
 
-      // Return the first valid path, or fallback to file_name
       return possiblePaths[0] || outline.file_name || '';
     };
 
@@ -933,12 +995,50 @@ export function OutlinePage({
     if (fileType === 'pdf' || fileType === 'docx' || fileType === 'doc') {
       return (
         <div className="h-full flex flex-col" ref={containerRef}>
-          <DocumentPreview
-            bucket={bucketName}
-            path={filePath}
-            title={outline.title}
-            onDownload={() => handleDownload(outline)}
-          />
+          {urlLoading ? (
+            <div className="h-full flex items-center justify-center bg-gray-800">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                <p className="text-white">Loading document...</p>
+              </div>
+            </div>
+          ) : fileType === 'pdf' && documentUrl ? (
+            // For PDFs, use signed URL directly in iframe
+            <div className="h-full flex flex-col">
+              <div className="flex items-center justify-between px-4 py-2 border-b border-gray-600 bg-gray-800">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 bg-red-500 rounded flex items-center justify-center">
+                    <FileText className="w-3 h-3 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-medium text-sm">{outline.title}</h3>
+                    <p className="text-gray-400 text-xs">PDF Document</p>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => handleDownload(outline)}
+                  size="sm"
+                  className="bg-[#752432] hover:bg-[#5a1a26] text-white h-7 px-3 text-xs"
+                >
+                  <Download className="w-3 h-3 mr-1" />
+                  Download
+                </Button>
+              </div>
+              <iframe
+                src={documentUrl}
+                className="w-full flex-1 border-0"
+                title={`PDF Preview: ${outline.title}`}
+              />
+            </div>
+          ) : (
+            // For DOCX, use DocumentPreview with proxy
+            <DocumentPreview
+              bucket={bucketName}
+              path={filePath}
+              title={outline.title}
+              onDownload={() => handleDownload(outline)}
+            />
+          )}
         </div>
       );
     } else {

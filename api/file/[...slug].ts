@@ -9,12 +9,11 @@ const mime = (name: string) => {
 };
 
 export default async function handler(req: any, res: any) {
-  // Log that the API route was hit
+  // Log that the API route was hit (for debugging)
   console.log('File proxy API route hit:', {
     method: req.method,
     url: req.url,
-    query: req.query,
-    path: req.url
+    query: req.query
   });
 
   // Handle CORS preflight

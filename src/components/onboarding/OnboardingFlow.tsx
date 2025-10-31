@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { OnboardingPage } from './OnboardingPage';
 import { OnboardingStepThree } from './OnboardingStepThree';
 import { supabase } from '../../lib/supabase';
@@ -17,6 +17,17 @@ interface CourseData {
   course_uuid?: string;
 }
 
+// Helper function to normalize time range (same as in OnboardingPage)
+const normalizeTimeRange = (raw: string | undefined | null): string => {
+  if (!raw) return 'TBD';
+  let s = String(raw).trim();
+  s = s.replace(/[–—]/g, '-');
+  s = s.replace(/\s*-\s*/g, '-');
+  s = s.replace(/(\d)\s*(AM|PM)\b/gi, '$1 $2');
+  s = s.replace(/\b(am|pm)\b/g, (m) => m.toUpperCase());
+  return s;
+};
+
 export function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState<'page1' | 'page2' | 'profile'>('page1');
@@ -30,6 +41,11 @@ export function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
   const [lrwSection, setLrwSection] = useState<'A' | 'B' | ''>('');
   const [loading, setLoading] = useState(false);
 
+  // Store original classYear to detect if user changed it
+  const [originalClassYear, setOriginalClassYear] = useState<'1L' | '2L' | '3L' | 'LLM' | '' | null>(null);
+  const [profileClasses, setProfileClasses] = useState<any[]>([]);
+  const hasAutoPopulatedRef = useRef(false);
+
   // Fetch existing profile data to auto-fill fields
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -38,7 +54,7 @@ export function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
       try {
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('full_name, phone')
+          .select('full_name, phone, class_year, section, classes')
           .eq('id', user.id)
           .maybeSingle();
 
@@ -55,6 +71,19 @@ export function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
           // Auto-fill phone if it exists and is not empty
           if (profile.phone && profile.phone.trim() !== '') {
             setPhone(profile.phone);
+          }
+          // Auto-fill classYear if it exists and is not empty
+          if (profile.class_year && profile.class_year.trim() !== '') {
+            setClassYear(profile.class_year as '1L' | '2L' | '3L' | 'LLM');
+            setOriginalClassYear(profile.class_year as '1L' | '2L' | '3L' | 'LLM');
+          }
+          // Auto-fill section if it exists and is not empty
+          if (profile.section && profile.section.trim() !== '') {
+            setSection(profile.section);
+          }
+          // Store classes for auto-population
+          if (profile.classes && Array.isArray(profile.classes) && profile.classes.length > 0) {
+            setProfileClasses(profile.classes);
           }
         }
       } catch (error) {
@@ -101,6 +130,87 @@ export function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
   const handleBackToCourseSelection = () => {
     setCurrentStep('page2');
   };
+
+  // Reset auto-populate flag when classYear changes or when going back to page 1
+  useEffect(() => {
+    if (currentStep === 'page1') {
+      hasAutoPopulatedRef.current = false;
+    }
+  }, [currentStep]);
+
+  // Reset auto-populate flag if user changes classYear from original
+  useEffect(() => {
+    if (classYear !== originalClassYear && originalClassYear !== null) {
+      hasAutoPopulatedRef.current = false;
+    }
+  }, [classYear, originalClassYear]);
+
+  // Auto-populate courses for 2L/3L when on page 2
+  useEffect(() => {
+    const autoPopulateCourses = async () => {
+      // Only auto-populate if:
+      // 1. We're on page 2 (course selection)
+      // 2. classYear is not '1L' (1L has its own logic)
+      // 3. classYear hasn't changed from original
+      // 4. profileClasses has data
+      // 5. allCourseData is loaded
+      // 6. We haven't already auto-populated
+      if (
+        currentStep !== 'page2' ||
+        classYear === '1L' ||
+        classYear !== originalClassYear ||
+        profileClasses.length === 0 ||
+        allCourseData.length === 0 ||
+        hasAutoPopulatedRef.current
+      ) {
+        return;
+      }
+
+      // Mark that we've auto-populated
+      hasAutoPopulatedRef.current = true;
+
+      // For each class in profileClasses, find the course by UUID and add it
+      const coursesToAdd: CourseData[] = [];
+      for (const classData of profileClasses) {
+        if (!classData.course_id) continue; // Skip if no course_id UUID
+
+        // Find the course in allCourseData by UUID
+        const course = allCourseData.find(c => c.id === classData.course_id);
+        
+        if (course) {
+          // Create a CourseData object similar to what handleCourseSelect does
+          const newCourse: CourseData = {
+            id: `${course.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            courseName: course.course_name,
+            professor: course.instructor || classData.professor || 'TBA',
+            credits: course.credits || 3,
+            semester: (course.semester as 'Spring' | 'Fall' | 'Winter') || 'Fall',
+            days: course.days ? (typeof course.days === 'string' ? course.days.split(';').map((d: string) => d.trim()) : course.days) : ['TBA'],
+            time: course.times ? normalizeTimeRange(course.times.split('|').map((t: string) => t.trim())[0]) : 'TBA',
+            location: course.location,
+            original_course_id: course.original_course_id,
+            course_uuid: course.id
+          };
+
+          coursesToAdd.push(newCourse);
+        }
+      }
+
+      // Add all courses at once to avoid multiple re-renders
+      if (coursesToAdd.length > 0) {
+        setSelectedCourses((prev: CourseData[]) => {
+          // Filter out duplicates
+          const existing = new Set(prev.map(c => `${c.courseName}-${c.professor}`));
+          const newCourses = coursesToAdd.filter(c => 
+            !existing.has(`${c.courseName}-${c.professor}`)
+          );
+          return [...prev, ...newCourses];
+        });
+      }
+    };
+
+    autoPopulateCourses();
+  }, [currentStep, classYear, originalClassYear, profileClasses, allCourseData]);
 
   // Show profile step
   if (currentStep === 'profile') {

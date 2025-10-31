@@ -335,8 +335,6 @@ interface ProfileData {
   clubs_visibility: boolean;
   courses_visibility: boolean;
   schedule_visibility: boolean;
-  onboarding_count?: number;
-  onboarding_count_year?: number;
 }
 
 interface ProfilePageProps {
@@ -347,7 +345,6 @@ interface ProfilePageProps {
 
 export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
   const { user, signOut } = useAuth();
-  const EXEMPT_EMAILS = ['justin031607@gmail.com', 'jabbey@jd26.law.harvard.edu', 'lnassif@jd26.law.harvard.edu'];
   const [isEditing, setIsEditing] = useState(false);
   const [showRedoConfirm, setShowRedoConfirm] = useState(false);
   const [redoButtonRef, setRedoButtonRef] = useState<HTMLButtonElement | null>(null);
@@ -390,7 +387,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       try {
         let query = supabase
           .from('profiles')
-          .select('full_name, email, phone, class_year, section, classes, age, hometown, under_grad, summer_city, summer_firm, instagram, linkedin, avatar_url, photo_urls, bio, clubs_activities, clubs_visibility, courses_visibility, schedule_visibility, onboarding_count, onboarding_count_year');
+          .select('full_name, email, phone, class_year, section, classes, age, hometown, under_grad, summer_city, summer_firm, instagram, linkedin, avatar_url, photo_urls, bio, clubs_activities, clubs_visibility, courses_visibility, schedule_visibility');
 
         // If viewing another student's profile, fetch by name; otherwise fetch by user ID
         if (studentName && studentName !== user.email) {
@@ -501,9 +498,6 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
             clubs_visibility: profile.clubs_visibility ?? true,
             courses_visibility: profile.courses_visibility ?? true,
             schedule_visibility: profile.schedule_visibility ?? true
-            ,
-            onboarding_count: profile.onboarding_count ?? 2,
-            onboarding_count_year: profile.onboarding_count_year ?? undefined
           };
 
           setProfileData(convertedProfile);
@@ -623,35 +617,6 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       setEditedData(profileData);
     }
   }, [profileData]);
-  
-  // Compute current onboarding period year (Aug 1 - Jul 31 cycle)
-  const getCurrentOnboardingPeriodYear = (): number => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth() + 1; // 1-12
-    // Period starts Aug 1: Aug-Dec belong to current year; Jan-Jul belong to previous year's period
-    return month >= 8 ? year : year - 1;
-  };
-
-  // Reset onboarding_count at the start of a new period
-  useEffect(() => {
-    const maybeResetOnboardingCount = async () => {
-      if (!user?.id || !profileData) return;
-      const currentPeriod = getCurrentOnboardingPeriodYear();
-      if (profileData.onboarding_count_year !== currentPeriod) {
-        try {
-          const { error } = await supabase
-            .from('profiles')
-            .update({ onboarding_count: 2, onboarding_count_year: currentPeriod })
-            .eq('id', user.id);
-          if (!error) {
-            setProfileData({ ...profileData, onboarding_count: 2, onboarding_count_year: currentPeriod });
-          }
-        } catch {}
-      }
-    };
-    maybeResetOnboardingCount();
-  }, [user?.id, profileData]);
   
 
 
@@ -819,31 +784,11 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
     if (!user?.id) return;
 
     try {
-      const isExempt = !!profileData?.email && EXEMPT_EMAILS.includes(profileData.email.toLowerCase());
-      // If exempt, do NOT decrement; always keep at 2
-      let error = null;
-      if (isExempt) {
-        const res = await supabase
+      const { error } = await supabase
         .from('profiles')
-          .update({ classes_filled: false, onboarding_count: 2 })
+        .update({ classes_filled: false })
         .eq('id', user.id);
-        error = res.error ?? null;
-        if (!error) {
-          setProfileData(prev => prev ? { ...prev, onboarding_count: 2 } : prev);
-        }
-      } else {
-        // Decrement remaining quota and reset onboarding
-        const current = (profileData?.onboarding_count ?? 2);
-        const newValue = Math.max(0, current - 1);
-        const res = await supabase
-          .from('profiles')
-          .update({ classes_filled: false, onboarding_count: newValue })
-          .eq('id', user.id);
-        error = res.error ?? null;
-        if (!error) {
-          setProfileData(prev => prev ? { ...prev, onboarding_count: newValue } : prev);
-        }
-      }
+
       if (error) {
         console.error('Error resetting onboarding:', error);
         alert('Error resetting onboarding. Please try again.');
@@ -1566,19 +1511,20 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                             onClick={handleRedoOnboarding} 
                             variant="outline" 
                               size="sm"
-                              className={`gap-2 text-red-600 border-red-600 hover:bg-red-50 text-xs px-3 py-1 h-7 ${
-                                (profileData?.email && EXEMPT_EMAILS.includes(profileData.email.toLowerCase()))
-                                  ? ''
-                                  : (profileData?.onboarding_count !== undefined && profileData.onboarding_count <= 0 ? 'opacity-50 cursor-not-allowed pointer-events-none' : '')
-                              }`}
-                              disabled={
-                                (profileData?.email && EXEMPT_EMAILS.includes(profileData.email.toLowerCase()))
-                                  ? false
-                                  : (profileData?.onboarding_count !== undefined && profileData.onboarding_count <= 0)
-                              }
+                              className="gap-2 text-blue-600 border-blue-600 text-xs px-3 py-1 h-7"
+                              style={{ 
+                                backgroundColor: 'rgba(59, 130, 246, 0.4)',
+                                borderColor: 'rgb(37, 99, 235)',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.5)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.4)';
+                              }}
                           >
                             <RotateCcw className="w-4 h-4" />
-                            Redo Onboarding
+                            Edit Courses
                             </Button>
                           )}
                           {/* Sign out under redo/completion button */}
@@ -1784,7 +1730,6 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                         </div>
                         <div className="flex items-center gap-1">
                           <span className="text-xs">🎓</span>
-                          <span className="text-xs">Undergraduate:</span>
                           <Input
                             value={editedData?.underGrad || ''}
                             onChange={(e) => editedData && setEditedData({ ...editedData, underGrad: e.target.value })}
@@ -1807,7 +1752,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                         )}
                         {profileData.underGrad && profileData.underGrad.trim() !== '' && (
                     <Badge variant="secondary" className="px-3 py-1">
-                            🎓 Undergraduate: {profileData.underGrad}
+                            🎓 {profileData.underGrad}
                     </Badge>
                         )}
                         {/* Gold Quad Logo Button for Special Users */}
@@ -2129,7 +2074,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
         </div>
       </div>
 
-      {/* Redo Onboarding Confirmation Popup */}
+      {/* Edit Courses Confirmation Popup */}
       {showRedoConfirm && redoButtonRef && (
         <div 
           className="fixed inset-0 z-50"
@@ -2137,7 +2082,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
         >
           {/* Popup positioned under the button */}
           <div 
-            className="absolute bg-white border border-red-200 rounded-lg p-4 shadow-lg pointer-events-auto"
+            className="absolute bg-white border border-blue-200/30 rounded-lg p-4 shadow-lg pointer-events-auto"
             style={{
               top: redoButtonRef.offsetTop + redoButtonRef.offsetHeight + 8,
               right: '20px',
@@ -2146,17 +2091,10 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
             onClick={(e) => e.stopPropagation()}
           >
             <h4 className="text-sm font-semibold text-gray-900 mb-2">
-              Redo Onboarding
+              Edit Courses
             </h4>
             <p className="text-sm text-gray-600 mb-3">
               This will let you update your class year, section, and courses. All other profile information will be kept.
-            </p>
-            <p className="text-xs text-gray-500 mb-3">
-              Redos left this year: <span className="font-semibold text-gray-700">{
-                (profileData?.email && EXEMPT_EMAILS.includes(profileData.email.toLowerCase())) 
-                  ? 2 
-                  : Math.max(0, profileData.onboarding_count ?? 0)
-              }</span>
             </p>
             <div className="flex gap-2">
               <Button 
@@ -2169,10 +2107,21 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
               </Button>
               <Button 
                 onClick={confirmRedoOnboarding}
+                variant="outline"
                 size="sm"
-                className="text-xs bg-red-600 hover:bg-red-700 text-white"
+                className="text-xs text-blue-600 border-blue-600"
+                style={{ 
+                  backgroundColor: 'rgba(59, 130, 246, 0.4)',
+                  borderColor: 'rgb(37, 99, 235)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.5)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.4)';
+                }}
               >
-                Yes, Redo
+                Yes, Edit
               </Button>
             </div>
           </div>

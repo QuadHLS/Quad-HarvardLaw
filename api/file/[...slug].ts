@@ -83,6 +83,7 @@ export default async function handler(req: any, res: any) {
     );
     res.setHeader('Cache-Control', 'public, max-age=3600, immutable');
     res.setHeader('X-From', 'supabase-file-proxy');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     // CORS headers for iframe embedding
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');

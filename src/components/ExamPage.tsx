@@ -904,7 +904,7 @@ export function ExamPage({
         setUrlLoading(true);
         const fileType = exam.file_type?.toLowerCase() || 'pdf';
         
-        // For PDFs, use signed URLs directly (no proxy needed)
+        // For PDFs, use proxy route (service-role bypasses RLS, works for everyone)
         if (fileType === 'pdf') {
           const possiblePaths = [
             exam.file_path,
@@ -917,24 +917,15 @@ export function ExamPage({
             exam.file_name?.replace(/^exams\//, '')
           ].filter((f): f is string => Boolean(f));
 
-          for (const path of possiblePaths) {
-            try {
-              const { data, error } = await supabase.storage
-                .from(bucketName)
-                .createSignedUrl(path, 3600);
-
-              if (!error && data?.signedUrl) {
-                setDocumentUrl(data.signedUrl);
-                setUrlLoading(false);
-                return;
-              }
-            } catch (err) {
-              continue;
-            }
-          }
+          // Use first valid path with proxy route
+          const filePath = possiblePaths[0] || exam.file_name || '';
+          // Encode each path segment separately for proper URL encoding
+          const encodedPath = filePath.split('/').map(segment => encodeURIComponent(segment)).join('/');
+          const proxyUrl = `/api/file/${encodedPath}?bucket=${encodeURIComponent(bucketName)}`;
+          setDocumentUrl(proxyUrl);
           setUrlLoading(false);
         } else {
-          // For DOCX, get signed URL and use Office Online Viewer
+          // For DOCX, use proxy route with Office Online Viewer
           const possiblePaths = [
             exam.file_path,
             exam.file_name,
@@ -946,22 +937,23 @@ export function ExamPage({
             exam.file_name?.replace(/^exams\//, '')
           ].filter((f): f is string => Boolean(f));
 
-          for (const path of possiblePaths) {
-            try {
-              const { data, error } = await supabase.storage
-                .from(bucketName)
-                .createSignedUrl(path, 3600);
-
-              if (!error && data?.signedUrl) {
-                // Use Office Online Viewer with the signed URL
-                const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(data.signedUrl)}`;
-                setDocumentUrl(officeViewerUrl);
-                setUrlLoading(false);
-                return;
-              }
-            } catch (err) {
-              continue;
-            }
+          // Use first valid path with proxy route
+          const filePath = possiblePaths[0] || exam.file_name || '';
+          const encodedPath = filePath.split('/').map(segment => encodeURIComponent(segment)).join('/');
+          const proxyUrl = `/api/file/${encodedPath}?bucket=${encodeURIComponent(bucketName)}`;
+          
+          // Office Viewer needs absolute HTTPS URL (only works on production)
+          const isProdHosted = typeof window !== 'undefined' && 
+            window.location.protocol === 'https:' && 
+            !/localhost|127\.0\.0\.1/.test(window.location.hostname);
+          
+          if (isProdHosted) {
+            const absoluteProxyUrl = `${window.location.origin}${proxyUrl}`;
+            const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(absoluteProxyUrl)}`;
+            setDocumentUrl(officeViewerUrl);
+          } else {
+            // Fallback for local dev - just use proxy directly (won't show preview but can download)
+            setDocumentUrl(proxyUrl);
           }
           setUrlLoading(false);
         }

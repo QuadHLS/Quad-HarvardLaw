@@ -13,7 +13,8 @@ import {
   Upload,
   Clock,
   CloudUpload,
-  ChevronDown
+  ChevronDown,
+  Tag
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
@@ -699,7 +700,7 @@ export function OutlinePage({
     setSelectedInstructor('');
     setSelectedGrade(undefined);
     setSelectedYear(undefined);
-    setSelectedTags(['Attack', 'Outline']); // Keep both selected by default
+    setSelectedTags([]); // No tags selected by default (show all)
   };
 
   const clearSavedFilters = () => {
@@ -713,7 +714,7 @@ export function OutlinePage({
     selectedInstructor && selectedInstructor !== '' ? 1 : 0,
     selectedGrade && selectedGrade !== '' ? 1 : 0,
     selectedYear && selectedYear !== '' ? 1 : 0,
-    selectedTags.length !== 2 ? 1 : 0 // Only count if not both Attack and Outline selected
+    selectedTags.length > 0 ? 1 : 0 // Count if any tag is selected
   ].reduce((sum, count) => sum + count, 0);
 
   const activeSavedFilterCount = [
@@ -761,6 +762,12 @@ export function OutlinePage({
               <span>•</span>
               <FileText className="w-3 h-3" />
               <span>{outline.file_type?.toUpperCase?.() === 'DOCX' ? 'DOC' : outline.file_type?.toUpperCase?.() || outline.file_type}</span>
+              {outline.pages && (
+                <>
+                  <span>•</span>
+                  <span>{outline.pages} pages</span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -845,6 +852,12 @@ export function OutlinePage({
           <div className="flex items-center gap-1.5 text-xs text-gray-500">
             <FileText className="w-3 h-3 flex-shrink-0" />
             <span>{outline.file_type?.toUpperCase?.() === 'DOCX' ? 'DOC' : outline.file_type?.toUpperCase?.() || outline.file_type}</span>
+            {outline.pages && (
+              <>
+                <span>•</span>
+                <span>{outline.pages} pages</span>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-1.5">
             <Button
@@ -1449,6 +1462,40 @@ export function OutlinePage({
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium flex items-center gap-1 text-white">
+                      <Tag className="w-4 h-4" />
+                      Type:
+                    </label>
+                    <div className="flex items-center gap-1">
+                      {(['Attack', 'Outline'] as const).map(type => {
+                        const isSelected = selectedTags.includes(type);
+                        return (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                // Unselect current one (show all)
+                                setSelectedTags([]);
+                              } else {
+                                // Select this one, unselect the other (single selection)
+                                setSelectedTags([type]);
+                              }
+                            }}
+                            className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
+                              isSelected
+                                ? 'bg-white text-[#752432]'
+                                : 'bg-white opacity-50 text-[#752432]/70 hover:opacity-100 hover:text-[#752432]'
+                            }`}
+                          >
+                            {type}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   {activeSearchFilterCount > 0 && (

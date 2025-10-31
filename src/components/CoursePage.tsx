@@ -1883,7 +1883,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
               </div>
               <div className="bg-white p-3 pt-0 -mt-3 overflow-y-auto" style={{ 
                 height: 'calc(100vh - 300px)',
-                scrollbarWidth: 'thin', 
+                scrollbarWidth: 'thin',
                 scrollbarColor: '#752531 transparent'
               }}>
                 <div className="space-y-2">

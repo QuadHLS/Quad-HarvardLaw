@@ -131,7 +131,7 @@ function AppContent({ user }: { user: any }) {
   const [selectedYear, setSelectedYear] = useState<string | undefined>(
     undefined
   );
-  const [selectedTags, setSelectedTags] = useState<string[]>(['Attack', 'Outline']);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]); // Default: no selection (show all)
   const [activeTab, setActiveTab] = useState<'search' | 'saved' | 'upload'>(
     'search'
   );

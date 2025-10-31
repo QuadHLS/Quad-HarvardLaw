@@ -1631,10 +1631,10 @@ export function OutlinePage({
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <div className={`${activeTab === 'upload' ? 'flex-1' : 'w-[600px] shrink min-w-0'} overflow-auto bg-[#F8F4ED]`} style={{ 
+        <div className={`${activeTab === 'upload' ? 'flex-1' : 'w-[800px] shrink min-w-0'} overflow-auto bg-[#F8F4ED]`} style={{ 
           scrollbarWidth: 'thin',
           scrollbarColor: '#752531 transparent',
-          maxWidth: activeTab === 'upload' ? 'none' : '600px'
+          maxWidth: activeTab === 'upload' ? 'none' : '800px'
         }}>
           {activeTab === 'search' && (
             <div className="h-full flex flex-col">
@@ -2068,7 +2068,7 @@ export function OutlinePage({
         </div>
 
         {activeTab !== 'upload' && (
-          <div className="border-l border-border bg-black flex-1" style={{ minWidth: '600px', maxWidth: 'none', width: 'auto' }}>
+          <div className="border-l border-border bg-black flex-1" style={{ minWidth: '450px', maxWidth: 'none', width: 'auto' }}>
             <FilePreview />
           </div>
         )}

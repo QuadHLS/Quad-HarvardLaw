@@ -29,7 +29,6 @@ import { supabase } from '../lib/supabase';
 import type { Outline, Instructor } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { trackPreview, trackDownload, checkUserMonthlyLimit } from '../utils/activityTracker';
-import DocumentPreview from './DocumentPreview';
 
 interface ExamPageProps {
   exams: Outline[];
@@ -935,7 +934,7 @@ export function ExamPage({
           }
           setUrlLoading(false);
         } else {
-          // For DOCX, we'll use the proxy URL
+          // For DOCX, get signed URL and use Office Online Viewer
           const possiblePaths = [
             exam.file_path,
             exam.file_name,
@@ -946,10 +945,24 @@ export function ExamPage({
             exam.file_name?.replace(/^out\//, ''),
             exam.file_name?.replace(/^exams\//, '')
           ].filter((f): f is string => Boolean(f));
-          
-          const filePath = possiblePaths[0] || exam.file_name || '';
-          // Proxy URL will be constructed in DocumentPreview component
-          setDocumentUrl('proxy'); // Signal to use proxy
+
+          for (const path of possiblePaths) {
+            try {
+              const { data, error } = await supabase.storage
+                .from(bucketName)
+                .createSignedUrl(path, 3600);
+
+              if (!error && data?.signedUrl) {
+                // Use Office Online Viewer with the signed URL
+                const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(data.signedUrl)}`;
+                setDocumentUrl(officeViewerUrl);
+                setUrlLoading(false);
+                return;
+              }
+            } catch (err) {
+              continue;
+            }
+          }
           setUrlLoading(false);
         }
       };
@@ -957,27 +970,13 @@ export function ExamPage({
       getUrl();
     }, [exam.id, exam.file_path, exam.file_name, exam.file_type, bucketName]);
 
-    // Determine file path for proxy (DOCX only)
-    const getFilePath = () => {
-      const possiblePaths = [
-        exam.file_path,
-        exam.file_name,
-        `Exam/${exam.file_path}`,
-        `Exam/${exam.file_name}`,
-        exam.file_path?.replace(/^out\//, ''),
-        exam.file_path?.replace(/^exams\//, ''),
-        exam.file_name?.replace(/^out\//, ''),
-        exam.file_name?.replace(/^exams\//, '')
-      ].filter((f): f is string => Boolean(f));
-
-      return possiblePaths[0] || exam.file_name || '';
-    };
-
-    const filePath = getFilePath();
     const fileType = exam.file_type?.toLowerCase() || 'pdf';
 
     // Only show preview for supported file types
     if (fileType === 'pdf' || fileType === 'docx' || fileType === 'doc') {
+      const documentType = fileType === 'pdf' ? 'PDF' : 'Word';
+      const iconColor = fileType === 'pdf' ? 'bg-red-500' : 'bg-blue-500';
+      
       return (
         <div className="h-full flex flex-col" ref={containerRef}>
           {urlLoading ? (
@@ -987,17 +986,17 @@ export function ExamPage({
                 <p className="text-white">Loading document...</p>
               </div>
             </div>
-          ) : fileType === 'pdf' && documentUrl ? (
-            // For PDFs, use signed URL directly in iframe
+          ) : documentUrl ? (
+            // For both PDF and DOCX, use signed URLs (DOCX goes through Office Viewer)
             <div className="h-full flex flex-col">
               <div className="flex items-center justify-between px-4 py-2 border-b border-gray-600 bg-gray-800">
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 bg-red-500 rounded flex items-center justify-center">
+                  <div className={`w-6 h-6 ${iconColor} rounded flex items-center justify-center`}>
                     <FileText className="w-3 h-3 text-white" />
                   </div>
                   <div>
                     <h3 className="text-white font-medium text-sm">{exam.title}</h3>
-                    <p className="text-gray-400 text-xs">PDF Document</p>
+                    <p className="text-gray-400 text-xs">{documentType} Document</p>
                   </div>
                 </div>
                 <Button
@@ -1012,17 +1011,27 @@ export function ExamPage({
               <iframe
                 src={documentUrl}
                 className="w-full flex-1 border-0"
-                title={`PDF Preview: ${exam.title}`}
+                title={`${documentType} Preview: ${exam.title}`}
               />
             </div>
           ) : (
-            // For DOCX, use DocumentPreview with proxy
-            <DocumentPreview
-              bucket={bucketName}
-              path={filePath}
-              title={exam.title}
-              onDownload={() => handleDownload(exam)}
-            />
+            // Error state - couldn't load document
+            <div className="h-full flex items-center justify-center bg-gray-800">
+              <div className="text-center p-8">
+                <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FileText className="w-8 h-8 text-red-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-white mb-2">Preview Unavailable</h3>
+                <p className="text-gray-300 mb-6">Unable to load document. Please try downloading.</p>
+                <Button
+                  onClick={() => handleDownload(exam)}
+                  className="bg-[#752432] hover:bg-[#5a1a26] text-white"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download File
+                </Button>
+              </div>
+            </div>
           )}
         </div>
       );

@@ -623,7 +623,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       setEditedData(profileData);
     }
   }, [profileData]);
-
+  
   // Compute current onboarding period year (Aug 1 - Jul 31 cycle)
   const getCurrentOnboardingPeriodYear = (): number => {
     const now = new Date();
@@ -824,9 +824,9 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       let error = null;
       if (isExempt) {
         const res = await supabase
-          .from('profiles')
+        .from('profiles')
           .update({ classes_filled: false, onboarding_count: 2 })
-          .eq('id', user.id);
+        .eq('id', user.id);
         error = res.error ?? null;
         if (!error) {
           setProfileData(prev => prev ? { ...prev, onboarding_count: 2 } : prev);
@@ -1561,10 +1561,10 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                               Complete Onboarding
                             </Button>
                           ) : (
-                            <Button 
-                              ref={setRedoButtonRef}
-                              onClick={handleRedoOnboarding} 
-                              variant="outline" 
+                          <Button 
+                            ref={setRedoButtonRef}
+                            onClick={handleRedoOnboarding} 
+                            variant="outline" 
                               size="sm"
                               className={`gap-2 text-red-600 border-red-600 hover:bg-red-50 text-xs px-3 py-1 h-7 ${
                                 (profileData?.email && EXEMPT_EMAILS.includes(profileData.email.toLowerCase()))
@@ -1576,9 +1576,9 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                                   ? false
                                   : (profileData?.onboarding_count !== undefined && profileData.onboarding_count <= 0)
                               }
-                            >
-                              <RotateCcw className="w-4 h-4" />
-                              Redo Onboarding
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                            Redo Onboarding
                             </Button>
                           )}
                           {/* Sign out under redo/completion button */}
@@ -1933,10 +1933,10 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                     </div>
                   ) : (
                     profileData.currentCourses.map((course, index) => (
-                      <div key={index} className="text-sm py-2 px-2 rounded-lg hover:bg-gray-50 transition-colors">
-                        <div className="text-gray-900">{course.name}</div>
-                        <div className="text-xs text-gray-500 mt-0.5">{course.professor}</div>
-                      </div>
+                    <div key={index} className="text-sm py-2 px-2 rounded-lg hover:bg-gray-50 transition-colors">
+                      <div className="text-gray-900">{course.name}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">{course.professor}</div>
+                    </div>
                     ))
                   )}
                 </div>

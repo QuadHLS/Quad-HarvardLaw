@@ -28,6 +28,7 @@ import { Label } from './ui/label';
 import { supabase } from '../lib/supabase';
 import type { Outline, Instructor } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { extractPageCount } from '../utils/pageCountExtractor';
 import { trackPreview, trackDownload, checkUserMonthlyLimit } from '../utils/activityTracker';
 
 interface OutlinePageProps {
@@ -485,9 +486,19 @@ export function OutlinePage({
       // Get file size
       const fileSize = uploadFile.size;
       
-      // Page count will be calculated separately (set to NULL for now)
-      // Note: pages column constraint requires pages > 0, so we use NULL instead of 0
-      const pageCount = null;
+      // Extract page count using Tier 1 method (DOCX metadata or PDF page count)
+      // Note: pages column constraint requires pages > 0, so we use NULL if extraction fails
+      let pageCount: number | null = null;
+      try {
+        pageCount = await extractPageCount(uploadFile);
+        // Ensure pageCount is valid (must be > 0 per constraint)
+        if (pageCount !== null && pageCount <= 0) {
+          pageCount = null;
+        }
+      } catch (error) {
+        console.error('Error extracting page count:', error);
+        // pageCount remains null if extraction fails
+      }
 
       // Create new row in outlines table
       const { error: insertError } = await supabase

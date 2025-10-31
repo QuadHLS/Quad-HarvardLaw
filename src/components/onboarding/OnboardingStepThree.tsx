@@ -680,9 +680,9 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
           </div>
 
           {/* Finish Button */}
-                <Button
+                 <Button
                   disabled={(() => { const n=parseInt(age||'0',10); return submitting || !(n>0 && (hometown||'').trim() !== '' && (underGrad||'').trim() !== ''); })()}
-                  onClick={async () => {
+                   onClick={async () => {
                     if (submitting) return;
                     setSubmitting(true);
                      // Save all courses and profile data to database
@@ -712,11 +712,11 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
                              .from('Avatar')
                              .upload(fileName, avatarFile);
 
-                          if (uploadError) {
+                           if (uploadError) {
                              console.error('Error uploading avatar:', uploadError);
                              alert('Error uploading avatar. Please try again.');
                             setSubmitting(false);
-                            return;
+                             return;
                            }
 
                            // Get public URL
@@ -745,20 +745,20 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
 
                         // Build update payload; only set avatar_url if a new file was uploaded
                         const updatePayload: any = {
-                          classes: classesData,
-                          full_name: userInfo.name,
-                          phone: userInfo.phone,
-                          class_year: userInfo.classYear,
-                          section: userInfo.section,
-                          bio: bio,
+                             classes: classesData,
+                             full_name: userInfo.name,
+                             phone: userInfo.phone,
+                             class_year: userInfo.classYear,
+                             section: userInfo.section,
+                             bio: bio,
                           age: parseInt(age),
-                          hometown: hometown,
-                          under_grad: underGrad || null,
-                          summer_city: postGradCity,
-                          summer_firm: postGradEmployer,
-                          instagram: instagram,
-                          linkedin: linkedIn,
-                          clubs_activities: clubsActivities,
+                             hometown: hometown,
+                             under_grad: underGrad || null,
+                             summer_city: postGradCity,
+                             summer_firm: postGradEmployer,
+                             instagram: instagram,
+                             linkedin: linkedIn,
+                             clubs_activities: clubsActivities,
                           classes_filled: !skipCourses
                         };
                         if (avatarFile) {
@@ -768,13 +768,13 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
                         const { error } = await supabase
                           .from('profiles')
                           .update(updatePayload)
-                          .eq('id', user.id);
+                           .eq('id', user.id);
 
-                        if (error) {
+                         if (error) {
                            console.error('Error saving profile:', error);
                            alert('Error saving your profile. Please try again.');
                           setSubmitting(false);
-                          return;
+                           return;
                          }
                          
                         // Saved successfully

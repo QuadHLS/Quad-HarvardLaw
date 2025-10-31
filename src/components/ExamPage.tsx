@@ -1586,10 +1586,9 @@ export function ExamPage({
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <div className={`${activeTab === 'upload' ? 'flex-1' : 'w-[600px] flex-shrink-0'} overflow-auto bg-[#F8F4ED]`} style={{ 
+        <div className={`${activeTab === 'upload' ? 'flex-1' : 'w-[600px] shrink min-w-0'} overflow-auto bg-[#F8F4ED]`} style={{ 
           scrollbarWidth: 'thin',
           scrollbarColor: '#752531 transparent',
-          minWidth: activeTab === 'upload' ? 'auto' : '600px',
           maxWidth: activeTab === 'upload' ? 'none' : '600px'
         }}>
           {activeTab === 'search' && (
@@ -2024,7 +2023,7 @@ export function ExamPage({
         </div>
 
         {activeTab !== 'upload' && (
-          <div className="flex-1 border-l border-border bg-black">
+          <div className="border-l border-border bg-black flex-1" style={{ minWidth: '600px', maxWidth: 'none', width: 'auto' }}>
             <FilePreview />
           </div>
         )}

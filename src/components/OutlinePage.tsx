@@ -908,7 +908,7 @@ export function OutlinePage({
       );
     }
 
-    // Get signed URL for PDFs (direct browser support), use proxy for DOCX
+    // Get document URLs for PDF (Google Docs Viewer) and DOCX (Office Online Viewer)
     const [documentUrl, setDocumentUrl] = useState<string | null>(null);
     const [urlLoading, setUrlLoading] = useState(true);
 
@@ -919,7 +919,7 @@ export function OutlinePage({
         setUrlLoading(true);
         const fileType = outline.file_type?.toLowerCase() || 'pdf';
         
-        // For PDFs, use proxy route (service-role bypasses RLS, works for everyone)
+        // For PDFs, use Google Docs Viewer with signed URL
         if (fileType === 'pdf') {
           const possiblePaths = [
             outline.file_path,
@@ -932,15 +932,26 @@ export function OutlinePage({
             `out/${outline.file_name?.replace(/^out\//, '')}`
           ].filter((f): f is string => Boolean(f));
 
-          // Use first valid path with proxy route
-          const filePath = possiblePaths[0] || outline.file_name || '';
-          // Encode each path segment separately for proper URL encoding
-          const encodedPath = filePath.split('/').map(segment => encodeURIComponent(segment)).join('/');
-          const proxyUrl = `/api/file/${encodedPath}?bucket=${encodeURIComponent(bucketName)}`;
-          setDocumentUrl(proxyUrl);
+          for (const path of possiblePaths) {
+            try {
+              const { data, error } = await supabase.storage
+                .from(bucketName)
+                .createSignedUrl(path, 3600);
+
+              if (!error && data?.signedUrl) {
+                // Use Google Docs Viewer for PDFs
+                const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(data.signedUrl)}&embedded=true`;
+                setDocumentUrl(googleViewerUrl);
+                setUrlLoading(false);
+                return;
+              }
+            } catch (err) {
+              continue;
+            }
+          }
           setUrlLoading(false);
         } else {
-          // For DOCX, use proxy route with Office Online Viewer
+          // For DOCX, get signed URL and use Office Online Viewer
           const possiblePaths = [
             outline.file_path,
             outline.file_name,
@@ -952,23 +963,22 @@ export function OutlinePage({
             `out/${outline.file_name?.replace(/^out\//, '')}`
           ].filter((f): f is string => Boolean(f));
 
-          // Use first valid path with proxy route
-          const filePath = possiblePaths[0] || outline.file_name || '';
-          const encodedPath = filePath.split('/').map(segment => encodeURIComponent(segment)).join('/');
-          const proxyUrl = `/api/file/${encodedPath}?bucket=${encodeURIComponent(bucketName)}`;
-          
-          // Office Viewer needs absolute HTTPS URL (only works on production)
-          const isProdHosted = typeof window !== 'undefined' && 
-            window.location.protocol === 'https:' && 
-            !/localhost|127\.0\.0\.1/.test(window.location.hostname);
-          
-          if (isProdHosted) {
-            const absoluteProxyUrl = `${window.location.origin}${proxyUrl}`;
-            const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(absoluteProxyUrl)}`;
-            setDocumentUrl(officeViewerUrl);
-          } else {
-            // Fallback for local dev - just use proxy directly (won't show preview but can download)
-            setDocumentUrl(proxyUrl);
+          for (const path of possiblePaths) {
+            try {
+              const { data, error } = await supabase.storage
+                .from(bucketName)
+                .createSignedUrl(path, 3600);
+
+              if (!error && data?.signedUrl) {
+                // Use Office Online Viewer with the signed URL
+                const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(data.signedUrl)}`;
+                setDocumentUrl(officeViewerUrl);
+                setUrlLoading(false);
+                return;
+              }
+            } catch (err) {
+              continue;
+            }
           }
           setUrlLoading(false);
         }
@@ -994,7 +1004,7 @@ export function OutlinePage({
               </div>
             </div>
           ) : documentUrl ? (
-            // For both PDF and DOCX, use signed URLs (DOCX goes through Office Viewer)
+            // PDFs use Google Docs Viewer, DOCX uses Office Online Viewer
             <div className="h-full flex flex-col">
               <div className="flex items-center justify-between px-4 py-2 border-b border-gray-600 bg-gray-800">
                 <div className="flex items-center gap-2">
@@ -1019,6 +1029,12 @@ export function OutlinePage({
                 src={documentUrl}
                 className="w-full flex-1 border-0"
                 title={`${documentType} Preview: ${outline.title}`}
+                {...(fileType === 'docx' || fileType === 'doc' ? {
+                  allow: "fullscreen",
+                  // Office Online Viewer requires full navigation permissions for OAuth
+                  // No sandbox restrictions for DOCX to allow Microsoft login redirects
+                  // Note: Console errors from Office Online Viewer nested iframes are expected and harmless
+                } : {})}
               />
             </div>
           ) : (

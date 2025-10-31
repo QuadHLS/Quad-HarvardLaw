@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-unused-expressions */
+// App component - main entry point
 import React, { useEffect, useState, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { NavigationSidebar } from './components/NavigationSidebar';

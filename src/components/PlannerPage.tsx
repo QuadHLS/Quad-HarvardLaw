@@ -120,9 +120,15 @@ const truncateText = (text: string, maxWords: number = 125): { truncated: string
 const formatCourseDescription = (text: string): string => {
   if (!text || text === 'TBD') return text;
   
-  let formatted = text;
+  // First, escape all existing HTML to prevent XSS
+  let formatted = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
   
-  // Make specific text patterns bold
+  // Make specific text patterns bold (using escaped versions)
   const boldPatterns = [
     'Prerequisite:',
     'Prerequisites:',
@@ -135,6 +141,8 @@ const formatCourseDescription = (text: string): string => {
   ];
   
   boldPatterns.forEach(pattern => {
+    // Match the pattern in the already-escaped text (patterns don't contain HTML, so they match normally)
+    // Escape regex special characters in the pattern for safe matching
     const regex = new RegExp(`\\b${pattern.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}`, 'gi');
     formatted = formatted.replace(regex, `<strong>${pattern}</strong>`);
   });

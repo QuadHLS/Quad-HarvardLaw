@@ -10,10 +10,6 @@ interface BaseDocument {
   instructor: string;
   year: string;
   pages: number;
-  description: string | null;
-  rating: number;
-  rating_count: number;
-  download_count: number;
   created_at: string;
   updated_at: string;
 }

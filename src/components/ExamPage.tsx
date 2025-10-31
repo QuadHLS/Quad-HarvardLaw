@@ -496,10 +496,12 @@ export function ExamPage({
       // Get random file name from database
       const formattedName = await getRandomFileName();
       
-      // Get file size and page count
+      // Get file size
       const fileSize = uploadFile.size;
       
-      const pageCount = 1;
+      // Page count will be calculated separately (set to NULL for now)
+      // Note: pages column constraint requires pages > 0, so we use NULL instead of 0
+      const pageCount = null;
 
       // Create new row in exams table
       const { error: insertError } = await supabase
@@ -514,11 +516,7 @@ export function ExamPage({
           file_path: filePath, // This uses the unique filename for storage
           file_size: fileSize,
           file_type: fileExtension,
-          pages: pageCount,
-          rating: 0,
-          rating_count: 0,
-          download_count: 0,
-          description: null
+          pages: pageCount
         })
         .select();
 

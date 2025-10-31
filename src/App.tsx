@@ -345,10 +345,6 @@ function AppContent({ user }: { user: any }) {
           instructor: item.instructor,
           year: item.year,
           pages: item.pages || 0,
-          description: item.description,
-          rating: item.rating || 0,
-          rating_count: item.rating_count || 0,
-          download_count: item.download_count || 0,
           created_at: item.created_at,
           updated_at: item.updated_at,
           grade: item.grade || 'P', // Use database 'grade' field directly
@@ -561,9 +557,6 @@ function AppContent({ user }: { user: any }) {
 
   // Sort outlines
   const sortedOutlines = [...filteredOutlines].sort((a, b) => {
-    if (sortBy === 'Highest Rated') {
-      return b.rating - a.rating;
-    }
     if (sortBy === 'Newest') {
       return parseInt(b.year) - parseInt(a.year);
     }

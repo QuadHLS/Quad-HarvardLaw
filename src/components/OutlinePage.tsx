@@ -31,6 +31,7 @@ import type { Outline, Instructor } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { extractPageCount } from '../utils/pageCountExtractor';
 import { trackPreview, trackDownload, checkUserMonthlyLimit } from '../utils/activityTracker';
+import DocumentPreview from './DocumentPreview';
 
 interface OutlinePageProps {
   outlines: Outline[];
@@ -631,69 +632,6 @@ export function OutlinePage({
     }
   };
 
-  // Get document viewer URL
-  const getDocumentViewerUrl = async (outline: Outline) => {
-    try {
-      // Debug: Log the outline data
-      console.log('Attempting to create viewer URL for outline:', {
-        title: outline.title,
-        file_name: outline.file_name,
-        file_path: outline.file_path,
-        file_type: outline.file_type
-      });
-
-      // Try different file path formats
-      const possiblePaths = [
-        outline.file_path,
-        outline.file_name,
-        `out/${outline.file_name}`,
-        `out/${outline.file_path}`,
-        outline.file_path?.replace(/^out\//, ''), // Remove 'out/' prefix if present
-        outline.file_path?.replace(/^outlines\//, ''), // Remove 'outlines/' prefix if present
-        `out/${outline.file_path?.replace(/^out\//, '')}`, // Ensure single 'out/' prefix
-        `out/${outline.file_name?.replace(/^out\//, '')}` // Ensure single 'out/' prefix for file_name
-      ].filter((f): f is string => Boolean(f));
-
-      console.log('Trying paths:', possiblePaths);
-
-      for (const path of possiblePaths) {
-        try {
-          const { data, error } = await supabase.storage
-            .from(bucketName)
-            .createSignedUrl(path, 3600);
-
-          if (!error && data?.signedUrl) {
-            console.log(`✅ Successfully created viewer URL for path: ${path}`);
-            return data.signedUrl;
-          } else {
-            console.log(`❌ Failed to create URL for path: ${path}`, error);
-          }
-        } catch (pathError) {
-          console.log(`❌ Exception for path: ${path}`, pathError);
-          continue;
-        }
-      }
-
-      // If all paths fail, try to list files in the bucket to debug
-      try {
-        const { data: files, error: listError } = await supabase.storage
-          .from(bucketName)
-          .list('', { limit: 10 });
-        
-        if (!listError && files) {
-          console.log('Available files in bucket:', files.map((f: any) => f.name));
-        }
-      } catch (listError) {
-        console.log('Could not list bucket contents:', listError);
-      }
-
-      console.error('All file path attempts failed for outline:', outline.title);
-      return null;
-    } catch (error) {
-      console.error('Error getting document viewer URL:', error);
-      return null;
-    }
-  };
 
   const clearSearchFilters = () => {
     setSelectedCourse('');
@@ -893,198 +831,71 @@ export function OutlinePage({
 
   // Document Viewer Component with PDF and Word support
   const DocumentViewer = ({ outline }: { outline: Outline }) => {
-    const [viewerUrl, setViewerUrl] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [isVisible, setIsVisible] = useState(false);
-    const [retryCount, setRetryCount] = useState(0);
-    const iframeLoadedRef = useRef(false);
+    const [limitError, setLimitError] = useState<string | null>(null);
+    const [hasCheckedLimit, setHasCheckedLimit] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
-    const softStallTimerRef = useRef<NodeJS.Timeout | null>(null);
-    const hardStallTimerRef = useRef<NodeJS.Timeout | null>(null);
-    const isTabVisibleRef = useRef(true);
-    const inflightRef = useRef(false);
+    const isVisibleRef = useRef(false);
 
-    // Reset retry count when outline changes
+    // Check monthly usage limit before allowing preview
     useEffect(() => {
-      setRetryCount(0);
-      setIsVisible(false);
-      setViewerUrl(null);
-      setError(null);
-      setLoading(true); // Reset to loading state
-      iframeLoadedRef.current = false;
-      inflightRef.current = false;
-      // Clear timers
-      if (softStallTimerRef.current) {
-        clearTimeout(softStallTimerRef.current);
-        softStallTimerRef.current = null;
-      }
-      if (hardStallTimerRef.current) {
-        clearTimeout(hardStallTimerRef.current);
-        hardStallTimerRef.current = null;
-      }
-    }, [outline.id]);
+      const checkLimit = async () => {
+        if (!user || hasCheckedLimit) return;
 
-    // Visibility detection for pausing timers when tab is hidden
-    useEffect(() => {
-      const handleVisibilityChange = () => {
-        isTabVisibleRef.current = !document.hidden;
+        try {
+          const limitCheck = await checkUserMonthlyLimit(user.id, outline.file_size || 0);
+          if (!limitCheck.allowed) {
+            setLimitError(limitCheck.message || 'Monthly preview limit exceeded');
+          } else {
+            // Track preview activity when limit check passes
+            await trackPreview(
+              user,
+              'outline',
+              outline.id,
+              outline.title,
+              outline.file_type || 'pdf',
+              outline.file_size
+            );
+          }
+        } catch (err) {
+          console.error('Error checking limit:', err);
+        } finally {
+          setHasCheckedLimit(true);
+        }
       };
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-      return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, []);
+
+      checkLimit();
+    }, [outline.id, user, outline.file_size, outline.title, outline.file_type]);
 
     // IntersectionObserver: only load when visible (prevents too many iframes at once)
     useEffect(() => {
       const container = containerRef.current;
       if (!container) return;
 
-      // Check if already visible (e.g., after outline change while container is still in view)
       const checkVisibility = () => {
         const rect = container.getBoundingClientRect();
         const isInView = rect.top < window.innerHeight + 200 && rect.bottom > -200;
         if (isInView) {
-          setIsVisible(true);
+          isVisibleRef.current = true;
         }
       };
 
-      // Initial check
       checkVisibility();
 
       const observer = new IntersectionObserver(
         (entries) => {
           if (entries[0]?.isIntersecting) {
-            setIsVisible(true);
+            isVisibleRef.current = true;
           }
         },
-        { rootMargin: '200px' } // Start loading 200px before visible
+        { rootMargin: '200px' }
       );
 
       observer.observe(container);
       return () => observer.disconnect();
     }, [outline.id]);
 
-    // Load viewer URL when visible (just-in-time)
-    useEffect(() => {
-      if (!isVisible || viewerUrl || inflightRef.current) return;
-
-      const loadViewer = async () => {
-        inflightRef.current = true;
-        setLoading(true);
-        setError(null);
-        
-        try {
-          // Check monthly usage limit before allowing preview
-          if (user) {
-            const limitCheck = await checkUserMonthlyLimit(user.id, outline.file_size || 0);
-            if (!limitCheck.allowed) {
-              setError(limitCheck.message || 'Monthly preview limit exceeded');
-              return;
-            }
-          }
-
-          const url = await getDocumentViewerUrl(outline);
-          if (url) {
-            // Preflight check: validate URL before loading viewer (warm cache, catch bad URLs early)
-            // Use GET with Range header instead of HEAD (more reliable with CDNs/storage)
-            try {
-              const controller = new AbortController();
-              const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout for preflight
-              await fetch(url, {
-                method: 'GET',
-                headers: { Range: 'bytes=0-0' }, // Only fetch first byte
-                mode: 'no-cors',
-                signal: controller.signal as any
-              }).catch(() => {
-                // Preflight failure doesn't block viewer load - still try viewer
-                // (signed URLs might still work even if GET fails due to CORS)
-              });
-              clearTimeout(timeoutId);
-            } catch {
-              // Preflight failed silently - proceed anyway
-            }
-
-            setViewerUrl(url);
-            iframeLoadedRef.current = false;
-            
-            // Track preview activity when viewer loads successfully
-            if (user) {
-              await trackPreview(
-                user,
-                'outline',
-                outline.id,
-                outline.title,
-                outline.file_type || 'pdf',
-                outline.file_size
-              );
-            }
-
-            // Start stall detection timers
-            // Soft stall: 10s - retry with fresh URL immediately
-            softStallTimerRef.current = setTimeout(async () => {
-              if (!iframeLoadedRef.current && isTabVisibleRef.current && retryCount < 1) {
-                setRetryCount(prev => prev + 1);
-                try {
-                  // Fetch fresh signed URL immediately to avoid race conditions
-                  const freshUrl = await getDocumentViewerUrl(outline);
-                  if (freshUrl) {
-                    setViewerUrl(freshUrl);
-                    iframeLoadedRef.current = false;
-                    setLoading(true);
-                  }
-                } catch {
-                  // If fetch fails, fall back to setting viewerUrl to null (triggers effect retry)
-                  setViewerUrl(null);
-                  setLoading(true);
-                  iframeLoadedRef.current = false;
-                }
-              }
-            }, 10000);
-
-            // Hard stall: 20s - show error
-            hardStallTimerRef.current = setTimeout(() => {
-              if (!iframeLoadedRef.current && isTabVisibleRef.current) {
-                // Clear timers first to prevent memory leaks and double transitions
-                if (softStallTimerRef.current) {
-                  clearTimeout(softStallTimerRef.current);
-                  softStallTimerRef.current = null;
-                }
-                if (hardStallTimerRef.current) {
-                  clearTimeout(hardStallTimerRef.current);
-                  hardStallTimerRef.current = null;
-                }
-                setError('Failed to load preview. Please try refreshing or downloading the document.');
-                setLoading(false);
-              }
-            }, 20000);
-          } else {
-            setError('Failed to load document');
-          }
-        } catch (err) {
-          setError('Error loading document');
-        } finally {
-          setLoading(false);
-          inflightRef.current = false;
-        }
-      };
-
-      loadViewer();
-
-      // Cleanup timers
-      return () => {
-        if (softStallTimerRef.current) {
-          clearTimeout(softStallTimerRef.current);
-          softStallTimerRef.current = null;
-        }
-        if (hardStallTimerRef.current) {
-          clearTimeout(hardStallTimerRef.current);
-          hardStallTimerRef.current = null;
-        }
-      };
-    }, [outline.id, user, isVisible, viewerUrl, retryCount]);
-
-    // Early returns for errors that prevent loading
-    if (error && error.includes('limit')) {
+    // Early return for limit errors
+    if (limitError) {
       return (
         <div className="h-full flex items-center justify-center">
           <div className="text-center p-8">
@@ -1092,93 +903,42 @@ export function OutlinePage({
               <FileText className="w-8 h-8 text-red-400" />
             </div>
             <h3 className="text-lg font-semibold text-white mb-2">Preview Unavailable</h3>
-            <p className="text-gray-300 mb-6">You have exceeded your preview and download limit</p>
+            <p className="text-gray-300 mb-6">{limitError}</p>
           </div>
         </div>
       );
     }
 
+    // Determine file path - try multiple possible formats
+    const getFilePath = () => {
+      const possiblePaths = [
+        outline.file_path,
+        outline.file_name,
+        `out/${outline.file_name}`,
+        `out/${outline.file_path}`,
+        outline.file_path?.replace(/^out\//, ''),
+        outline.file_path?.replace(/^outlines\//, ''),
+        `out/${outline.file_path?.replace(/^out\//, '')}`,
+        `out/${outline.file_name?.replace(/^out\//, '')}`
+      ].filter((f): f is string => Boolean(f));
+
+      // Return the first valid path, or fallback to file_name
+      return possiblePaths[0] || outline.file_name || '';
+    };
+
+    const filePath = getFilePath();
     const fileType = outline.file_type?.toLowerCase() || 'pdf';
-    
+
+    // Only show preview for supported file types
     if (fileType === 'pdf' || fileType === 'docx' || fileType === 'doc') {
-      const documentType = fileType === 'pdf' ? 'PDF' : 'Word';
-      const iconColor = fileType === 'pdf' ? 'bg-red-500' : 'bg-blue-500';
-      
       return (
         <div className="h-full flex flex-col" ref={containerRef}>
-          {/* Document Viewer Header */}
-          <div className="flex items-center justify-between px-4 py-2 border-b border-gray-600 bg-gray-800">
-            <div className="flex items-center gap-2">
-              <div className={`w-6 h-6 ${iconColor} rounded flex items-center justify-center`}>
-                <FileText className="w-3 h-3 text-white" />
-              </div>
-              <div>
-                <h3 className="text-white font-medium text-sm">{outline.title}</h3>
-                <p className="text-gray-400 text-xs">{documentType} Document</p>
-              </div>
-            </div>
-            <Button
-              onClick={() => handleDownload(outline)}
-              size="sm"
-              className="bg-[#752432] hover:bg-[#5a1a26] text-white h-7 px-3 text-xs"
-            >
-              <Download className="w-3 h-3 mr-1" />
-              Download
-            </Button>
-          </div>
-          
-          {/* Google Docs Viewer */}
-          <div className="flex-1">
-            {loading || !viewerUrl ? (
-              <div className="h-full w-full flex items-center justify-center bg-gray-800">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-                  <p className="text-white">Loading document...</p>
-                </div>
-              </div>
-            ) : error ? (
-              <div className="h-full w-full flex items-center justify-center bg-gray-800">
-                <div className="text-center p-8">
-                  <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <FileText className="w-8 h-8 text-red-400" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-white mb-2">Preview Unavailable</h3>
-                  <p className="text-gray-300 mb-6">{error}</p>
-                </div>
-              </div>
-            ) : (
-              <iframe
-                key={viewerUrl}
-                src={`https://docs.google.com/gview?url=${encodeURIComponent(viewerUrl)}&embedded=true`}
-                className="w-full h-full border-0"
-                title={`${documentType} Preview: ${outline.title}`}
-                onLoad={() => {
-                  // Clear timers on successful load
-                  iframeLoadedRef.current = true;
-                  setLoading(false);
-                  if (softStallTimerRef.current) {
-                    clearTimeout(softStallTimerRef.current);
-                    softStallTimerRef.current = null;
-                  }
-                  if (hardStallTimerRef.current) {
-                    clearTimeout(hardStallTimerRef.current);
-                    hardStallTimerRef.current = null;
-                  }
-                }}
-                onError={() => {
-                  // Retry by refreshing the signed URL (in case it expired)
-                  if (retryCount < 1) {
-                    setRetryCount(prev => prev + 1);
-                    setViewerUrl(null);
-                    setLoading(true);
-                    iframeLoadedRef.current = false;
-                  } else {
-                    setError('Failed to load preview. Please try refreshing or downloading the document.');
-                  }
-                }}
-              />
-            )}
-          </div>
+          <DocumentPreview
+            bucket={bucketName}
+            path={filePath}
+            title={outline.title}
+            onDownload={() => handleDownload(outline)}
+          />
         </div>
       );
     } else {

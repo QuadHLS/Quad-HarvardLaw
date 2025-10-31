@@ -2400,7 +2400,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                         <ExpandableText 
                           text={comment.content}
                           maxLines={10}
-                          className="text-gray-800 text-sm mb-2 whitespace-pre-wrap"
+                          className="text-gray-800 text-base mb-2 whitespace-pre-wrap"
                           buttonColor={getPostColor(selectedPost.id)}
                         />
                       )}
@@ -2489,7 +2489,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                       !reply.is_anonymous && handleProfileClick(reply.author_id, reply.author?.name || 'Anonymous');
                                     }}
                                   >
-                                    <h6 className="font-medium text-gray-900 text-xs">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
+                                    <h6 className="font-medium text-gray-900 text-sm">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
                                   </div>
                                   {!reply.is_anonymous && <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>}
                                   {/* verified badge removed */}
@@ -2551,7 +2551,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                   <ExpandableText 
                                     text={reply.content.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')}
                                     maxLines={10}
-                                    className="text-gray-800 text-xs mb-2 whitespace-pre-wrap"
+                                    className="text-gray-800 text-sm mb-2 whitespace-pre-wrap"
                                     buttonColor={getPostColor(selectedPost.id)}
                                   />
                                 )}

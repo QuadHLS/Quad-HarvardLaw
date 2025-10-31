@@ -1911,7 +1911,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
 
           {/* Course Feed - Reddit-style with create post functionality - RIGHT SIDE */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <Card className="h-[600px] overflow-hidden w-full">
+            <Card className="overflow-hidden w-full" style={{ height: 'calc(100vh - 230px)' }}>
               <div className="text-white p-4 pb-3" style={{ backgroundColor: courseColor }}>
                 <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">

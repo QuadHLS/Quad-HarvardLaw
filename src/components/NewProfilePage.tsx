@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MapPin, Edit, Save, X, Trophy, BookOpen, Clock, Upload, ArrowLeft, ChevronLeft, ChevronRight, Plus, RotateCcw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { extractFilename, getStorageUrl } from '../utils/storage';
 
 // Utility function for class merging
 function cn(...inputs: any[]) {
@@ -375,6 +376,8 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
   };
   
   const [selectedDayIndex, setSelectedDayIndex] = useState(getCurrentDayIndex());
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [photoUrls, setPhotoUrls] = useState<Record<number, string>>({});
   
   // Fetch profile data from Supabase
   useEffect(() => {
@@ -501,6 +504,28 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
           };
 
           setProfileData(convertedProfile);
+
+          // Generate signed URLs for avatar and photos
+          if (profile.avatar_url) {
+            const signedUrl = await getStorageUrl(profile.avatar_url, 'Avatar');
+            setAvatarUrl(signedUrl);
+          } else {
+            setAvatarUrl(null);
+          }
+
+          // Generate signed URLs for photos
+          if (profile.photo_urls && profile.photo_urls.length > 0) {
+            const photoUrlsMap: Record<number, string> = {};
+            for (let i = 0; i < profile.photo_urls.length; i++) {
+              const signedUrl = await getStorageUrl(profile.photo_urls[i], 'Photos');
+              if (signedUrl) {
+                photoUrlsMap[i] = signedUrl;
+              }
+            }
+            setPhotoUrls(photoUrlsMap);
+          } else {
+            setPhotoUrls({});
+          }
         }
       } catch (error) {
         console.error('Error fetching profile:', error);
@@ -832,14 +857,12 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
     if (!user?.id || !profileData?.avatar_url) return;
 
     try {
-      // Extract filename from URL
-      const urlParts = profileData.avatar_url.split('/');
-      const fileName = urlParts[urlParts.length - 1];
+      // Extract filename (handles both old full URL format and new filename format)
+      const fileName = extractFilename(profileData.avatar_url);
       
       console.log('Delete attempt:', {
         avatarUrl: profileData.avatar_url,
         extractedFileName: fileName,
-        urlParts: urlParts,
         userId: user.id,
         filenameStartsWithUserId: fileName.startsWith(user.id)
       });
@@ -876,6 +899,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
 
       // Update local state
       setProfileData(prev => prev ? { ...prev, avatar_url: '' } : prev);
+      setAvatarUrl(null);
       
       // Reset the file input
       const fileInput = document.getElementById('avatar-upload') as HTMLInputElement;
@@ -909,8 +933,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
     try {
       // Delete existing avatar if it exists
       if (profileData?.avatar_url) {
-        const urlParts = profileData.avatar_url.split('/');
-        const oldFileName = urlParts[urlParts.length - 1];
+        const oldFileName = extractFilename(profileData.avatar_url);
         
         console.log('Deleting old avatar:', oldFileName);
         
@@ -957,19 +980,15 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
         return;
       }
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('Avatar')
-        .getPublicUrl(fileName);
+      // Store just the filename (not full URL) since bucket is now private
+      const avatarFileName = fileName;
+      console.log('Stored avatar filename:', avatarFileName);
 
-      const avatarUrl = urlData.publicUrl;
-      console.log('Generated avatar URL:', avatarUrl);
-
-      // Update profile with new avatar URL
-      console.log('Attempting to update profile with avatar URL:', avatarUrl);
+      // Update profile with just filename
+      console.log('Attempting to update profile with avatar filename:', avatarFileName);
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ avatar_url: avatarUrl })
+        .update({ avatar_url: avatarFileName })
         .eq('id', user.id);
 
       if (updateError) {
@@ -983,11 +1002,15 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
         return;
       }
 
-      console.log('Successfully updated avatar URL in database');
+      console.log('Successfully updated avatar filename in database');
 
       // Update local state
-      setProfileData(prev => prev ? { ...prev, avatar_url: avatarUrl } : null);
-      console.log('Updated local profile data with new avatar URL');
+      setProfileData(prev => prev ? { ...prev, avatar_url: avatarFileName } : null);
+      console.log('Updated local profile data with new avatar filename');
+      
+      // Generate signed URL for new avatar
+      const signedUrl = await getStorageUrl(avatarFileName, 'Avatar');
+      setAvatarUrl(signedUrl);
     } catch (error) {
       console.error('Error uploading avatar:', error);
       if (error instanceof Error && error.message && error.message.includes('timeout')) {
@@ -1059,12 +1082,14 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
             continue;
           }
 
-          // Get public URL
-          const { data: urlData } = supabase.storage
-            .from('Photos')
-            .getPublicUrl(fileName);
-
-          newPhotoUrls.push(urlData.publicUrl);
+          // Store just the filename (not full URL) since bucket is now private
+          newPhotoUrls.push(fileName);
+          
+          // Generate signed URL for new photo and add to state
+          const signedUrl = await getStorageUrl(fileName, 'Photos');
+          if (signedUrl) {
+            setPhotoUrls(prev => ({ ...prev, [profileData.photo_urls.length + newPhotoUrls.length - 1]: signedUrl }));
+          }
         } catch (compressionError) {
           console.error(`Error compressing ${file.name}:`, compressionError);
           alert(`Error processing ${file.name}. Please try a different image.`);
@@ -1112,9 +1137,8 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
     if (!isOwnProfile) return;
 
     try {
-      // Extract filename from URL
-      const urlParts = photoUrl.split('/');
-      const fileName = urlParts[urlParts.length - 1];
+      // Extract filename (handles both old full URL format and new filename format)
+      const fileName = extractFilename(photoUrl);
       
       // Delete from storage
       const { error: deleteError } = await supabase.storage
@@ -1127,13 +1151,29 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
         return;
       }
 
-      // Update profile to remove photo URL
-      const updatedPhotoUrls = profileData.photo_urls.filter(url => url !== photoUrl);
+      // Extract filename from photoUrl (handles both old full URL format and new filename format)
+      const photoFilename = extractFilename(photoUrl);
+      
+      // Update profile to remove photo URL (match by filename)
+      const updatedPhotoUrls = profileData.photo_urls.filter(url => {
+        const storedFilename = extractFilename(url);
+        return storedFilename !== photoFilename;
+      });
       
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ photo_urls: updatedPhotoUrls })
         .eq('id', user.id);
+      
+      // Update local photoUrls state
+      const photoIndex = profileData.photo_urls.findIndex(url => extractFilename(url) === photoFilename);
+      if (photoIndex !== -1) {
+        setPhotoUrls(prev => {
+          const updated = { ...prev };
+          delete updated[photoIndex];
+          return updated;
+        });
+      }
 
       if (updateError) {
         console.error('Error updating profile:', updateError);
@@ -1404,9 +1444,9 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
             <div className="relative flex-shrink-0 mx-auto sm:mx-0">
               <div className="w-24 h-24 rounded-full overflow-hidden flex items-center justify-center mx-auto"
                    style={{ backgroundColor: profileData?.avatar_url ? undefined : getDefaultAvatarColor(profileData?.email || profileData?.name) }}>
-                {profileData.avatar_url ? (
+                {avatarUrl ? (
                   <img 
-                    src={profileData.avatar_url} 
+                    src={avatarUrl} 
                     alt="Profile" 
                     className="h-auto object-contain rounded-full border-4 border-[#f8f5ed]"
                     style={{ maxWidth: '96px', maxHeight: '96px' }}
@@ -2036,9 +2076,17 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                           className="cursor-pointer relative"
                         >
                           <img 
-                            src={photoUrl} 
+                            src={photoUrls[index] || ''} 
                             alt={`Photo ${index + 1}`}
                             className="w-full h-full object-cover hover:shadow-md transition-shadow"
+                            onError={() => {
+                              // Try to regenerate signed URL if it expired
+                              getStorageUrl(photoUrl, 'Photos').then(url => {
+                                if (url) {
+                                  setPhotoUrls(prev => ({ ...prev, [index]: url }));
+                                }
+                              });
+                            }}
                           />
                           <div className="absolute inset-0 flex items-center justify-center">
                             <div className="bg-red-500 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-lg">
@@ -2048,9 +2096,17 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                         </div>
                       ) : (
                         <img 
-                          src={photoUrl} 
+                          src={photoUrls[index] || ''} 
                           alt={`Photo ${index + 1}`}
                           className="w-full h-full object-cover"
+                          onError={() => {
+                            // Try to regenerate signed URL if it expired
+                            getStorageUrl(photoUrl, 'Photos').then(url => {
+                              if (url) {
+                                setPhotoUrls(prev => ({ ...prev, [index]: url }));
+                              }
+                            });
+                          }}
                         />
                       )}
                     </div>

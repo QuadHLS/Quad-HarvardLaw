@@ -8,6 +8,7 @@ import { Badge } from '../ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { ArrowLeft, Upload, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { getStorageUrl } from '../../utils/storage';
 import { supabase } from '../../lib/supabase';
 
 
@@ -208,6 +209,7 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
   const [instagram, setInstagram] = useState('');
   const [linkedIn, setLinkedIn] = useState('');
   const [profileImage, setProfileImage] = useState<string>('');
+  const [profileImageUrl, setProfileImageUrl] = useState<string>('');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarWarning, setAvatarWarning] = useState<string>('');
@@ -270,6 +272,12 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
           // Auto-fill avatar if it exists
           if (profile.avatar_url && profile.avatar_url.trim() !== '') {
             setProfileImage(profile.avatar_url);
+            // Generate signed URL for existing avatar
+            getStorageUrl(profile.avatar_url, 'Avatar').then(url => {
+              if (url) setProfileImageUrl(url);
+            });
+          } else {
+            setProfileImageUrl('');
           }
         }
       } catch (error) {
@@ -447,9 +455,9 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
               <div className="flex flex-col items-center">
                 <div>
                   <div className="-mt-12 flex items-center justify-center">
-                    {profileImage ? (
+                    {profileImageUrl ? (
                       <img
-                        src={profileImage}
+                        src={profileImageUrl}
                         alt="Profile"
                         className="h-auto object-contain rounded-full border-4 border-white shadow-lg"
                         style={{ maxWidth: '96px', maxHeight: '96px' }}
@@ -719,13 +727,9 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
                              return;
                            }
 
-                           // Get public URL
-                           const { data: urlData } = supabase.storage
-                             .from('Avatar')
-                             .getPublicUrl(fileName);
-
-                           avatarUrl = urlData.publicUrl;
-                           console.log('Avatar uploaded successfully:', avatarUrl);
+                           // Store just the filename (not full URL) since bucket is now private
+                           avatarUrl = fileName;
+                           console.log('Avatar uploaded successfully, filename:', avatarUrl);
                          }
 
                         const classesData = (skipCourses ? [] : selectedCourses).map(course => ({

@@ -294,7 +294,8 @@ const ProfileBubble = ({ userName, size = "md", borderColor = "#752432", isAnony
   
   const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase();
   
-  const handleClick = () => {
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!isAnonymous && userId && onProfileClick) {
       onProfileClick(userId, userName);
     }
@@ -538,7 +539,6 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   const [userProfile, setUserProfile] = useState<any>(null);
   const [likingPosts, setLikingPosts] = useState<Set<string>>(new Set());
 
-  const [expandedComments] = useState<Record<string, boolean>>({});
   const [newComment, setNewComment] = useState<Record<string, string>>({});
   const [commentAnonymously, setCommentAnonymously] = useState<Record<string, boolean>>({});
   const [replyingTo, setReplyingTo] = useState<string | null>(null); // format: `${postId}:${commentId}`
@@ -586,13 +586,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   const fetchPostsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Refs for realtime callbacks to access current state without causing re-subscriptions
-  const expandedCommentsRef = useRef<Record<string, boolean>>({});
   const selectedPostThreadRef = useRef<string | null>(null);
-
-  // Keep refs in sync with state
-  useEffect(() => {
-    expandedCommentsRef.current = expandedComments;
-  }, [expandedComments]);
 
   useEffect(() => {
     selectedPostThreadRef.current = selectedPostThread;
@@ -1271,7 +1265,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           
           // If comments are expanded for this post, refresh them
           // Use refs to get current state without dependency issues
-          if (expandedCommentsRef.current[payload.new.post_id] || selectedPostThreadRef.current === payload.new.post_id) {
+          if (selectedPostThreadRef.current === payload.new.post_id) {
             await fetchComments(payload.new.post_id);
           }
         }
@@ -1296,7 +1290,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           
           // If comments are expanded for this post, refresh them
           // Use refs to get current state without dependency issues
-          if (expandedCommentsRef.current[payload.old.post_id] || selectedPostThreadRef.current === payload.old.post_id) {
+          if (selectedPostThreadRef.current === payload.old.post_id) {
             await fetchComments(payload.old.post_id);
           }
         }
@@ -2952,13 +2946,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 {/* Post Header */}
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
-                    <div 
-                      className={`flex items-center gap-3 ${!post.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          !post.is_anonymous && handleProfileClick(post.author_id, post.author?.name || 'Anonymous');
-                        }}
-                    >
+                    <div className="flex items-center gap-3">
                       <ProfileBubble 
                         userName={post.author?.name || 'Anonymous'} 
                         size="md" 
@@ -2969,7 +2957,15 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       />
                       <div>
                         <div className="flex items-center gap-2">
-                          <h4 className="font-semibold text-gray-900 text-sm">{post.is_anonymous ? 'Anonymous' : (post.author?.name || 'Anonymous')}</h4>
+                          <h4 
+                            className={`font-semibold text-gray-900 text-sm ${!post.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              !post.is_anonymous && handleProfileClick(post.author_id, post.author?.name || 'Anonymous');
+                            }}
+                          >
+                            {post.is_anonymous ? 'Anonymous' : (post.author?.name || 'Anonymous')}
+                          </h4>
                           {!post.is_anonymous && <span className="text-xs text-gray-500">{post.author?.year || ''}</span>}
                           {/* verified badge removed */}
                         </div>
@@ -3204,444 +3200,6 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                     )}
                   </div>
                 </div>
-
-                {/* Inline Comments Section */}
-                {expandedComments[post.id] && (
-                  <div className="pt-4 border-t border-gray-100 mt-4" onMouseEnter={(e) => e.stopPropagation()} onMouseLeave={(e) => e.stopPropagation()}>
-                    {/* Add Comment Input */}
-                    <div className="flex gap-3 mb-4">
-                      <ProfileBubble userName={userProfile?.full_name || 'User'} size="md" borderColor={getPostColor(post.id)} />
-                      <div className="flex-1">
-                        <Textarea
-                          placeholder="Write a comment..."
-                          value={newComment[post.id] || ''}
-                          onChange={(e) => setNewComment(prev => ({ ...prev, [post.id]: e.target.value }))}
-                          className="min-h-[60px] text-sm resize-none"
-                          onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                        />
-                        <div className="flex items-center justify-between mt-2">
-                          <div className="flex items-center gap-2">
-                            <div className="relative">
-                              <input
-                                type="checkbox"
-                                id={`anonymous-comment-${post.id}`}
-                                checked={commentAnonymously[post.id] || false}
-                                onChange={(e) => setCommentAnonymously(prev => ({ ...prev, [post.id]: e.target.checked }))}
-                                className="sr-only"
-                              />
-                              <div 
-                                className="w-3 h-3 rounded border-2 flex items-center justify-center cursor-pointer transition-colors"
-                                style={{ 
-                                  backgroundColor: commentAnonymously[post.id] ? getPostColor(post.id) : 'white',
-                                  borderColor: commentAnonymously[post.id] ? getPostColor(post.id) : '#d1d5db'
-                                }}
-                                onClick={() => setCommentAnonymously(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
-                              >
-                                {commentAnonymously[post.id] && (
-                                  <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                  </svg>
-                                )}
-                              </div>
-                            </div>
-                            <label htmlFor={`anonymous-comment-${post.id}`} className="text-xs text-gray-600 cursor-pointer">
-                              Post anonymously
-                            </label>
-                          </div>
-                          <Button
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              addComment(post.id);
-                            }}
-                            disabled={!newComment[post.id]?.trim()}
-                            className="text-white"
-                            style={{ 
-                          backgroundColor: getPostColor(post.id)
-                            }}
-                            onMouseEnter={(e: React.MouseEvent) => {
-                              (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(post.id)}90`;
-                            }}
-                            onMouseLeave={(e: React.MouseEvent) => {
-                              (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(post.id);
-                            }}
-                          >
-                            Comment
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Loading State for Comments */}
-                    {loadingComments.has(post.id) && (
-                      <div className="flex items-center justify-center py-4">
-                        <div className="w-6 h-6 border-2 border-[#752432] border-t-transparent rounded-full animate-spin"></div>
-                        <span className="ml-2 text-sm text-gray-600">Loading comments...</span>
-                      </div>
-                    )}
-
-                    {/* Comments List */}
-                    {!loadingComments.has(post.id) && (
-                      <div className="space-y-4">
-                        {comments[post.id]?.map((comment) => (
-                        <div key={comment.id} className="flex gap-3" onClick={(e) => e.stopPropagation()}>
-                          <div 
-                            className={`flex items-start gap-3 ${!comment.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                !comment.is_anonymous && handleProfileClick(comment.author_id, comment.author?.name || 'Anonymous');
-                              }}
-                          >
-                            <ProfileBubble 
-                              userName={comment.author?.name || 'Anonymous'} 
-                              size="md" 
-                              borderColor={getPostColor(post.id)} 
-                              isAnonymous={comment.is_anonymous}
-                              userId={comment.author_id}
-                              onProfileClick={handleProfileClick}
-                            />
-                            <div className="flex-1">
-                              <div className="p-3">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h5 className="font-medium text-gray-900 text-sm">{comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Anonymous')}</h5>
-                                  {!comment.is_anonymous && <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>}
-                                  {/* verified badge removed */}
-                                  <span className="text-xs text-gray-500">•</span>
-                                  <span className="text-xs text-gray-500">{formatTimestamp(comment.created_at)}</span>
-                                  {comment.is_edited && (
-                                    <span className="text-xs text-gray-400 italic">(edited)</span>
-                                  )}
-                                </div>
-                              {editingComment === comment.id ? (
-                                <div className="space-y-2">
-                                  <textarea
-                                    value={editCommentContent}
-                                    onChange={(e) => setEditCommentContent(e.target.value)}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-20 resize-none text-sm"
-                                    placeholder="Comment content..."
-                                  />
-                                  <div className="flex gap-2">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleEditComment(comment.id);
-                                      }}
-                                      className="px-2 py-1 text-white rounded-md transition-colors text-xs"
-                        style={{ 
-                          backgroundColor: getPostColor(post.id)
-                        }}
-                                      onMouseEnter={(e: React.MouseEvent) => {
-                                        (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(post.id)}90`;
-                                      }}
-                                      onMouseLeave={(e: React.MouseEvent) => {
-                                        (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(post.id);
-                                      }}
-                                    >
-                                      Save
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setEditingComment(null);
-                                      }}
-                                      className="px-2 py-1 text-white rounded-md transition-colors text-xs"
-                        style={{ 
-                          backgroundColor: getPostColor(post.id)
-                        }}
-                                      onMouseEnter={(e: React.MouseEvent) => {
-                                        (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(post.id)}90`;
-                                      }}
-                                      onMouseLeave={(e: React.MouseEvent) => {
-                                        (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(post.id);
-                                      }}
-                                    >
-                                      Cancel
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <ExpandableText 
-                                  text={comment.content}
-                                  maxLines={10}
-                                  className="text-gray-800 text-sm whitespace-pre-wrap"
-                                  buttonColor={getPostColor(post.id)}
-                                />
-                              )}
-                              {/* comment actions */}
-                              <div className="mt-2 flex items-center gap-3">
-                                <button 
-                                  className={`flex items-center gap-1 text-xs font-medium transition-colors ${
-                                    comment.isLiked ? '' : 'text-gray-600'
-                                  }`}
-                                  style={{
-                                    color: comment.isLiked ? getPostColor(post.id) : undefined
-                                  }}
-                                  onMouseEnter={(e: React.MouseEvent) => {
-                                    if (!comment.isLiked) {
-                                      (e.currentTarget as HTMLElement).style.color = getPostColor(post.id);
-                                    }
-                                  }}
-                                  onMouseLeave={(e: React.MouseEvent) => {
-                                    if (!comment.isLiked) {
-                                      (e.currentTarget as HTMLElement).style.color = '';
-                                    }
-                                  }}
-                                  onClick={(e) => { e.stopPropagation(); toggleCommentLike(post.id, comment.id); }}
-                                >
-                                  <Heart className={`w-4 h-4 ${comment.isLiked ? 'fill-current' : ''}`} />
-                                  {comment.likes_count}
-                                </button>
-                                <button 
-                                  className="text-xs font-medium text-gray-600 hover:text-blue-500 transition-colors"
-                                  onClick={(e: React.MouseEvent) => { e.stopPropagation(); setReplyingTo(prev => prev === `${post.id}:${comment.id}` ? null : `${post.id}:${comment.id}`); }}
-                                >
-                                  Reply
-                                </button>
-                                
-                                {/* Edit/Delete buttons for comment author */}
-                                {comment.author_id === user?.id && (
-                                  <>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (editingComment === comment.id) {
-                                          // If already editing, cancel edit mode
-                                          setEditingComment(null);
-                                        } else {
-                                          // Start edit mode
-                                          setEditingComment(comment.id);
-                                          setEditCommentContent(comment.content);
-                                        }
-                                      }}
-                                      className="text-xs font-medium text-gray-600 hover:text-blue-500 transition-colors"
-                                    >
-                                      Edit
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteComment(comment.id, e);
-                                      }}
-                                      className="text-xs font-medium text-gray-600 hover:text-red-500 transition-colors"
-                                    >
-                                      Delete
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                            
-                            {/* Replies Display */}
-                            {comment.replies && comment.replies.length > 0 && (
-                              <div className="mt-3 ml-4 space-y-2">
-                                {comment.replies.map((reply) => (
-                                  <div key={reply.id} className="flex items-start gap-2">
-                                    <ProfileBubble 
-                                      userName={reply.author?.name || 'Anonymous'} 
-                                      size="sm" 
-                                      borderColor={getPostColor(post.id)} 
-                                      isAnonymous={reply.is_anonymous}
-                                      userId={reply.author_id}
-                                      onProfileClick={handleProfileClick}
-                                    />
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <div 
-                                          className={`${!reply.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              !reply.is_anonymous && handleProfileClick(reply.author_id, reply.author?.name || 'Anonymous');
-                                            }}
-                                        >
-                                          <h6 className="font-medium text-gray-900 text-xs">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
-                                        </div>
-                                        {!reply.is_anonymous && <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>}
-                                        <span className="text-xs text-gray-500">•</span>
-                                        <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>
-                                        {reply.is_edited && (
-                                          <span className="text-xs text-gray-400 italic">(edited)</span>
-                                        )}
-                                      </div>
-                                      {editingComment === reply.id ? (
-                                        <div className="space-y-2">
-                                          <textarea
-                                            value={editCommentContent}
-                                            onChange={(e) => setEditCommentContent(e.target.value)}
-                                            onClick={(e) => e.stopPropagation()}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-16 resize-none text-xs"
-                                            placeholder="Reply content..."
-                                          />
-                                          <div className="flex gap-2">
-                                            <button
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleEditComment(reply.id);
-                                              }}
-                                              className="px-2 py-1 text-white rounded-md transition-colors text-xs"
-                        style={{ 
-                          backgroundColor: getPostColor(post.id)
-                        }}
-                                              onMouseEnter={(e: React.MouseEvent) => {
-                                                (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(post.id)}90`;
-                                              }}
-                                              onMouseLeave={(e: React.MouseEvent) => {
-                                                (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(post.id);
-                                              }}
-                                            >
-                                              Save
-                                            </button>
-                                            <button
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setEditingComment(null);
-                                              }}
-                                              className="px-2 py-1 text-white rounded-md transition-colors text-xs"
-                        style={{ 
-                          backgroundColor: getPostColor(post.id)
-                        }}
-                                              onMouseEnter={(e: React.MouseEvent) => {
-                                                (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(post.id)}90`;
-                                              }}
-                                              onMouseLeave={(e: React.MouseEvent) => {
-                                                (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(post.id);
-                                              }}
-                                            >
-                                              Cancel
-                                            </button>
-                                          </div>
-                                        </div>
-                                      ) : (
-                                      <p className="text-gray-800 text-xs mb-2">{reply.content}</p>
-                                      )}
-                                      <div className="flex items-center gap-3">
-                                        <button 
-                                          className={`flex items-center gap-1 text-xs font-medium transition-colors ${
-                                            reply.isLiked ? '' : 'text-gray-600'
-                                          }`}
-                                          style={{
-                                            color: reply.isLiked ? getPostColor(post.id) : undefined
-                                          }}
-                                          onMouseEnter={(e: React.MouseEvent) => {
-                                            if (!reply.isLiked) {
-                                              (e.currentTarget as HTMLElement).style.color = getPostColor(post.id);
-                                            }
-                                          }}
-                                          onMouseLeave={(e: React.MouseEvent) => {
-                                            if (!reply.isLiked) {
-                                              (e.currentTarget as HTMLElement).style.color = '';
-                                            }
-                                          }}
-                                          onClick={(e) => { e.stopPropagation(); toggleReplyLike(post.id, comment.id, reply.id); }}
-                                        >
-                                          <Heart className={`w-4 h-4 ${reply.isLiked ? 'fill-current' : ''}`} />
-                                          {reply.likes_count}
-                                        </button>
-                                        
-                                        {/* Edit/Delete buttons for reply author */}
-                                        {reply.author_id === user?.id && (
-                                          <>
-                                            <button
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (editingComment === reply.id) {
-                                                  // If already editing, cancel edit mode
-                                                  setEditingComment(null);
-                                                } else {
-                                                  // Start edit mode
-                                                  setEditingComment(reply.id);
-                                                  setEditCommentContent(reply.content);
-                                                }
-                                              }}
-                                              className="text-xs font-medium text-gray-600 hover:text-blue-500 transition-colors"
-                                            >
-                                              Edit
-                                            </button>
-                                            <button
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDeleteComment(reply.id, e);
-                                              }}
-                                              className="text-xs font-medium text-gray-600 hover:text-red-500 transition-colors"
-                                            >
-                                              Delete
-                                            </button>
-                                          </>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            
-                            {/* reply composer (only one level deep) */}
-                            {replyingTo === `${post.id}:${comment.id}` && (
-                              <div className="mt-2 ml-3 space-y-2">
-                                <Textarea
-                                  value={replyText[`${post.id}:${comment.id}`] || ''}
-                                  onChange={(e) => setReplyText(prev => ({ ...prev, [`${post.id}:${comment.id}`]: e.target.value }))}
-                                  placeholder="Write a reply..."
-                                  className="min-h-[40px] text-xs"
-                                  onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                                />
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <div className="relative">
-                                      <input
-                                        type="checkbox"
-                                        id={`anonymous-reply-${post.id}-${comment.id}`}
-                                        checked={replyAnonymously[`${post.id}:${comment.id}`] || false}
-                                        onChange={(e) => setReplyAnonymously(prev => ({ ...prev, [`${post.id}:${comment.id}`]: e.target.checked }))}
-                                        className="sr-only"
-                                      />
-                                      <div 
-                                        className="w-3 h-3 rounded border-2 flex items-center justify-center cursor-pointer transition-colors"
-                                        style={{ 
-                                          backgroundColor: replyAnonymously[`${post.id}:${comment.id}`] ? getPostColor(post.id) : 'white',
-                                          borderColor: replyAnonymously[`${post.id}:${comment.id}`] ? getPostColor(post.id) : '#d1d5db'
-                                        }}
-                                        onClick={() => setReplyAnonymously(prev => ({ ...prev, [`${post.id}:${comment.id}`]: !prev[`${post.id}:${comment.id}`] }))}
-                                      >
-                                        {replyAnonymously[`${post.id}:${comment.id}`] && (
-                                          <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                          </svg>
-                                        )}
-                                      </div>
-                                    </div>
-                                    <label htmlFor={`anonymous-reply-${post.id}-${comment.id}`} className="text-xs text-gray-600 cursor-pointer">
-                                      Post anonymously
-                                    </label>
-                                  </div>
-                                  <Button
-                                    size="sm"
-                                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); addReply(post.id, comment.id); }}
-                                    disabled={!replyText[`${post.id}:${comment.id}`]?.trim()}
-                                    className="text-white"
-                                    style={{ 
-                          backgroundColor: getPostColor(post.id)
-                                    }}
-                                    onMouseEnter={(e: React.MouseEvent) => {
-                                      (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(post.id)}90`;
-                                    }}
-                                    onMouseLeave={(e: React.MouseEvent) => {
-                                      (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(post.id);
-                                    }}
-                                  >
-                                    Reply
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             </Card>
           ))}

@@ -169,13 +169,15 @@ interface CoursePost {
   content: string;
   author_id: string;
   course_id?: string;
-  post_type: 'text' | 'poll';
+  post_type: 'text' | 'poll' | 'youtube';
   is_anonymous: boolean;
   created_at: string;
   edited_at?: string;
   is_edited?: boolean;
   likes_count: number;
   comments_count: number;
+  photo_url?: string | null;
+  youtube_link?: string | null;
   author?: {
     name: string;
     year: string;
@@ -208,6 +210,55 @@ interface Poll {
 
 
 
+// Helper function to convert YouTube URL to embed format
+const getYouTubeEmbedUrl = (url: string | null | undefined): string | null => {
+  if (!url || !url.trim()) return null;
+  
+  const trimmedUrl = url.trim();
+  
+  // If already an embed URL, return as is
+  if (trimmedUrl.includes('youtube.com/embed/')) {
+    return trimmedUrl;
+  }
+  
+  // Extract video ID from various YouTube URL formats
+  let videoId = '';
+  
+  // Format: https://www.youtube.com/watch?v=VIDEO_ID
+  const watchMatch = trimmedUrl.match(/youtube\.com\/watch\?v=([^&\s]+)/);
+  if (watchMatch) {
+    videoId = watchMatch[1];
+  }
+  
+  // Format: https://youtu.be/VIDEO_ID
+  if (!videoId) {
+    const shortMatch = trimmedUrl.match(/youtu\.be\/([^?\s]+)/);
+    if (shortMatch) {
+      videoId = shortMatch[1];
+    }
+  }
+  
+  // Format: https://www.youtube.com/embed/VIDEO_ID
+  if (!videoId) {
+    const embedMatch = trimmedUrl.match(/youtube\.com\/embed\/([^?\s]+)/);
+    if (embedMatch) {
+      videoId = embedMatch[1];
+    }
+  }
+  
+  // If it's just a video ID (no URL structure)
+  if (!videoId && !trimmedUrl.includes('http') && !trimmedUrl.includes('/') && !trimmedUrl.includes('?')) {
+    videoId = trimmedUrl;
+  }
+  
+  if (!videoId) return null;
+  
+  // Clean video ID (remove any query params or fragments)
+  videoId = videoId.split('&')[0].split('#')[0];
+  
+  return `https://www.youtube.com/embed/${videoId}`;
+};
+
 export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: CoursePageOverviewProps) {
   const { user } = useAuth();
   const [userCourse, setUserCourse] = useState<UserCourse | null>(null);
@@ -238,13 +289,15 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
   const [showCreatePostDialog, setShowCreatePostDialog] = useState(false);
   const [newPostTitle, setNewPostTitle] = useState('');
   const [newPostContent, setNewPostContent] = useState('');
-  const [newPostType, setNewPostType] = useState<'text' | 'poll'>('text');
+  const [newPostType, setNewPostType] = useState<'text' | 'poll' | 'youtube'>('text');
   const [pollOptions, setPollOptions] = useState(['', '']);
   const [postAnonymously, setPostAnonymously] = useState(false);
   // Post photo state
   const [postPhotoFile, setPostPhotoFile] = useState<File | null>(null);
   const [postPhotoPreview, setPostPhotoPreview] = useState<string | null>(null);
   const [uploadingPostPhoto, setUploadingPostPhoto] = useState(false);
+  // YouTube link state
+  const [newYoutubeLink, setNewYoutubeLink] = useState('');
   // Post photo URLs (signed URLs for private bucket)
   const [postPhotoUrls, setPostPhotoUrls] = useState<Map<string, string>>(new Map());
   
@@ -1554,6 +1607,9 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
     // Validate content based on post type
     // Text posts can have empty content (optional), but polls need at least 2 options
     if (newPostType === 'poll' && pollOptions.filter(opt => opt.trim()).length < 2) return;
+    
+    // Validate YouTube link is required for YouTube posts
+    if (newPostType === 'youtube' && !newYoutubeLink.trim()) return;
 
     try {
       // Get current user
@@ -1601,13 +1657,15 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
           course_id: userCourse.course_id,
           post_type: newPostType,
           is_anonymous: postAnonymously,
-          photo_url: photoFileName
+          photo_url: photoFileName,
+          youtube_link: newPostType === 'youtube' ? newYoutubeLink.trim() : null
         })
         .select()
         .single();
 
       if (postError) {
         console.error('Error creating course post:', postError);
+        alert(`Error creating post: ${postError.message || 'Unknown error'}`);
         // If post creation failed and we uploaded a photo, clean it up
         if (photoFileName) {
           try {
@@ -1658,6 +1716,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
       setNewPostType('text');
       setPollOptions(['', '']);
       setPostAnonymously(false);
+      setNewYoutubeLink('');
       // Clear photo state
       if (postPhotoPreview) {
         URL.revokeObjectURL(postPhotoPreview);
@@ -2169,10 +2228,11 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                     className="rounded-lg"
                     style={{
                       maxWidth: '100%',
-                      maxHeight: '600px',
+                      maxHeight: '450px',
                       width: 'auto',
                       height: 'auto',
-                      objectFit: 'contain'
+                      objectFit: 'contain',
+                      display: 'block'
                     }}
                     onError={(e) => {
                       // If signed URL expires, regenerate it
@@ -2189,6 +2249,22 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                       }
                     }}
                   />
+                </div>
+              )}
+
+              {/* YouTube Video in Thread View */}
+              {selectedPost.youtube_link && getYouTubeEmbedUrl(selectedPost.youtube_link) && (
+                <div className="mb-4 mt-4">
+                  <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                    <iframe
+                      src={getYouTubeEmbedUrl(selectedPost.youtube_link) || ''}
+                      title="YouTube video player"
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                      className="absolute top-0 left-0 w-full h-full rounded-lg"
+                    />
+                  </div>
                 </div>
               )}
               
@@ -3194,10 +3270,11 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                                 className="rounded-lg"
                                 style={{
                                   maxWidth: '100%',
-                                  maxHeight: '600px',
+                                  maxHeight: '450px',
                                   width: 'auto',
                                   height: 'auto',
-                                  objectFit: 'contain'
+                                  objectFit: 'contain',
+                                  display: 'block'
                                 }}
                                 onError={(e) => {
                                   // If signed URL expires, regenerate it
@@ -3214,6 +3291,22 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                                   }
                                 }}
                               />
+                            </div>
+                          )}
+
+                          {/* YouTube Video */}
+                          {post.youtube_link && getYouTubeEmbedUrl(post.youtube_link) && (
+                            <div className="mb-3 mt-3">
+                              <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                                <iframe
+                                  src={getYouTubeEmbedUrl(post.youtube_link) || ''}
+                                  title="YouTube video player"
+                                  frameBorder="0"
+                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                  allowFullScreen
+                                  className="absolute top-0 left-0 w-full h-full rounded-lg"
+                                />
+                              </div>
                             </div>
                           )}
 
@@ -3363,9 +3456,12 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
         open={showCreatePostDialog} 
         onOpenChange={(open) => {
           setShowCreatePostDialog(open);
-          // Clear photo when dialog closes
-          if (!open && postPhotoPreview) {
-            handleRemovePostPhoto();
+          // Clear photo and YouTube link when dialog closes
+          if (!open) {
+            if (postPhotoPreview) {
+              handleRemovePostPhoto();
+            }
+            setNewYoutubeLink('');
           }
         }}
       >
@@ -3382,7 +3478,11 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
             {/* Post Type Selection */}
             <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
               <button
-                onClick={() => setNewPostType('text')}
+                onClick={() => {
+                  setNewPostType('text');
+                  // Clear YouTube link when switching to text
+                  setNewYoutubeLink('');
+                }}
                 className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   newPostType === 'text' 
                     ? 'bg-white text-gray-900 shadow-sm' 
@@ -3393,10 +3493,27 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
               </button>
               <button
                 onClick={() => {
-                  // Clear photo when switching to poll (photos only for text posts)
+                  // Clear photo when switching to youtube (photos only for text posts)
                   if (postPhotoPreview) {
                     handleRemovePostPhoto();
                   }
+                  setNewPostType('youtube');
+                }}
+                className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  newPostType === 'youtube' 
+                    ? 'bg-white text-gray-900 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                🎥 Youtube Vid
+              </button>
+              <button
+                onClick={() => {
+                  // Clear photo and YouTube link when switching to poll
+                  if (postPhotoPreview) {
+                    handleRemovePostPhoto();
+                  }
+                  setNewYoutubeLink('');
                   setNewPostType('poll');
                 }}
                 className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -3528,6 +3645,36 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
               </div>
             )}
 
+            {/* YouTube Content - Only show for youtube posts */}
+            {newPostType === 'youtube' && (
+              <div className="space-y-3">
+                <div>
+                  <Textarea
+                    value={newPostContent}
+                    onChange={(e) => setNewPostContent(e.target.value)}
+                    placeholder="What are your thoughts?"
+                    maxLength={1000}
+                    className="border-gray-300 focus:border-[#752432] focus:ring-[#752432] min-h-[120px] resize-none"
+                    rows={5}
+                  />
+                  <div className="text-xs text-gray-500 mt-1">
+                    {newPostContent.length}/1000
+                  </div>
+                </div>
+
+                {/* YouTube Link Input */}
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-gray-700">Paste YouTube link</div>
+                  <Input
+                    value={newYoutubeLink}
+                    onChange={(e) => setNewYoutubeLink(e.target.value)}
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    className="border-gray-300 focus:border-[#752432] focus:ring-[#752432]"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Poll Options */}
             {newPostType === 'poll' && (
               <div className="space-y-3">
@@ -3615,6 +3762,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                     setNewPostType('text');
                     setPollOptions(['', '']);
                     setPostAnonymously(false);
+                    setNewYoutubeLink('');
                     // Clear photo state
                     if (postPhotoPreview) {
                       handleRemovePostPhoto();
@@ -3632,7 +3780,8 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                   }}
                   disabled={
                     !newPostTitle.trim() || 
-                    (newPostType === 'poll' && pollOptions.filter(opt => opt.trim()).length < 2)
+                    (newPostType === 'poll' && pollOptions.filter(opt => opt.trim()).length < 2) ||
+                    (newPostType === 'youtube' && !newYoutubeLink.trim())
                   }
                 >
                   Post

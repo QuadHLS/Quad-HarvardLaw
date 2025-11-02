@@ -3426,7 +3426,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                                   return null;
                                 }
                                 return (
-                                  <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                                  <div className="relative w-full bg-gray-100" style={{ paddingBottom: '56.25%', minHeight: '200px' }}>
                                     <iframe
                                       src={embedData.embedUrl}
                                       title={`${embedData.platform} video player`}
@@ -3632,13 +3632,16 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                   }
                   setNewPostType('youtube');
                 }}
-                className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
                   newPostType === 'youtube' 
                     ? 'bg-white text-gray-900 shadow-sm' 
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                🎥 Youtube Vid
+                <img src="/yt_icon_red_digital.png" alt="YouTube" className="h-6 w-auto object-contain" />
+                <img src="/Youtube_shorts_icon.svg" alt="YouTube Shorts" className="h-5 w-auto object-contain" />
+                <img src="/TikTok_Icon_Black_Circle.png" alt="TikTok" className="h-5 w-auto object-contain" />
+                <img src="/Instagram_Glyph_Gradient.png" alt="Instagram" className="h-5 w-auto object-contain" />
               </button>
               <button
                 onClick={() => {

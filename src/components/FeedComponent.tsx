@@ -158,7 +158,7 @@ function Leaderboard() {
           <div className="px-4 pt-3 pb-2 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <BarChart3 className="w-5 h-5" style={{ color: '#752432' }} />
-              <h3 className="font-semibold text-gray-900">Leaderboard</h3>
+              <h3 className="font-semibold text-gray-900">1L Leaderboard</h3>
             </div>
             {leaderboardOpen ? (
               <ChevronUp className="w-4 h-4 text-gray-600" />
@@ -3756,13 +3756,16 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                   }
                   setNewPostType('youtube');
                 }}
-                className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
                   newPostType === 'youtube' 
                     ? 'bg-white text-gray-900 shadow-sm' 
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                🎥 Youtube Vid
+                <img src="/yt_icon_red_digital.png" alt="YouTube" className="h-6 w-auto object-contain" />
+                <img src="/Youtube_shorts_icon.svg" alt="YouTube Shorts" className="h-5 w-auto object-contain" />
+                <img src="/TikTok_Icon_Black_Circle.png" alt="TikTok" className="h-5 w-auto object-contain" />
+                <img src="/Instagram_Glyph_Gradient.png" alt="Instagram" className="h-5 w-auto object-contain" />
               </button>
               <button
                 onClick={() => {

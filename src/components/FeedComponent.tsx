@@ -78,13 +78,16 @@ interface Course {
 }
 
 // Leaderboard component
+// Max students per section (Sections 1-7)
+const SECTION_MAX_STUDENTS = [83, 83, 83, 84, 83, 83, 82];
+
 function Leaderboard() {
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [sectionData, setSectionData] = useState<Array<{ section: string; signups: number; maxStudents: number }>>(
     Array.from({ length: 7 }, (_, i) => ({
       section: `Section ${i + 1}`,
       signups: 0,
-      maxStudents: 80
+      maxStudents: SECTION_MAX_STUDENTS[i]
     }))
   );
 
@@ -92,11 +95,11 @@ function Leaderboard() {
   useEffect(() => {
     const fetchLeaderboardData = async () => {
       try {
-        // Initialize sections
+        // Initialize sections with section-specific max students
         const sections = Array.from({ length: 7 }, (_, i) => ({
           section: `Section ${i + 1}`,
           signups: 0,
-          maxStudents: 80
+          maxStudents: SECTION_MAX_STUDENTS[i]
         }));
 
         // Query all 1L students grouped by section
@@ -122,11 +125,11 @@ function Leaderboard() {
             }
           });
 
-          // Update sections with actual counts (capped at 80)
+          // Update sections with actual counts (capped at section-specific max)
           sections.forEach((section, index) => {
             const sectionNum = String(index + 1);
             const count = sectionCounts[sectionNum] || 0;
-            section.signups = Math.min(count, 80);
+            section.signups = Math.min(count, section.maxStudents);
           });
 
           setSectionData(sections);
@@ -139,7 +142,7 @@ function Leaderboard() {
         setSectionData(Array.from({ length: 7 }, (_, i) => ({
           section: `Section ${i + 1}`,
           signups: 0,
-          maxStudents: 80
+          maxStudents: SECTION_MAX_STUDENTS[i]
         })));
       }
     };

@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback, useRef, startTransition } from
 import { supabase } from '../lib/supabase';
 import { ExpandableText } from './ui/expandable-text';
 import { ConfirmationPopup } from './ui/confirmation-popup';
+import { BarChart3, ChevronUp, ChevronDown } from 'lucide-react';
+import { Card as UICard } from './ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 
 // Interfaces
 interface PollOption {
@@ -70,6 +73,124 @@ interface Course {
   class: string;
   professor: string;
   schedule?: any;
+}
+
+// Leaderboard component
+function Leaderboard() {
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [sectionData, setSectionData] = useState<Array<{ section: string; signups: number; maxStudents: number }>>(
+    Array.from({ length: 7 }, (_, i) => ({
+      section: `Section ${i + 1}`,
+      signups: 0,
+      maxStudents: 80
+    }))
+  );
+
+  // Fetch leaderboard data from profiles table
+  useEffect(() => {
+    const fetchLeaderboardData = async () => {
+      try {
+        // Initialize sections
+        const sections = Array.from({ length: 7 }, (_, i) => ({
+          section: `Section ${i + 1}`,
+          signups: 0,
+          maxStudents: 80
+        }));
+
+        // Query all 1L students grouped by section
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('section')
+          .eq('class_year', '1L')
+          .not('section', 'is', null);
+
+        if (error) {
+          console.error('Error fetching leaderboard data:', error);
+          setSectionData(sections);
+          return;
+        }
+
+        if (data) {
+          // Count students per section
+          const sectionCounts: Record<string, number> = {};
+          data.forEach((profile: { section: string }) => {
+            const sectionNum = profile.section?.trim();
+            if (sectionNum && ['1', '2', '3', '4', '5', '6', '7'].includes(sectionNum)) {
+              sectionCounts[sectionNum] = (sectionCounts[sectionNum] || 0) + 1;
+            }
+          });
+
+          // Update sections with actual counts (capped at 80)
+          sections.forEach((section, index) => {
+            const sectionNum = String(index + 1);
+            const count = sectionCounts[sectionNum] || 0;
+            section.signups = Math.min(count, 80);
+          });
+
+          setSectionData(sections);
+        } else {
+          setSectionData(sections);
+        }
+      } catch (error) {
+        console.error('Error fetching leaderboard data:', error);
+        // Initialize with empty data
+        setSectionData(Array.from({ length: 7 }, (_, i) => ({
+          section: `Section ${i + 1}`,
+          signups: 0,
+          maxStudents: 80
+        })));
+      }
+    };
+
+    fetchLeaderboardData();
+  }, []);
+
+  return (
+    <Collapsible open={leaderboardOpen} onOpenChange={setLeaderboardOpen}>
+      <UICard style={{ backgroundColor: '#FEFBF6', borderColor: '#752432', borderWidth: '3px' }}>
+        <CollapsibleTrigger className="w-full">
+          <div className="px-4 pt-3 pb-2 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5" style={{ color: '#752432' }} />
+              <h3 className="font-semibold text-gray-900">Leaderboard</h3>
+            </div>
+            {leaderboardOpen ? (
+              <ChevronUp className="w-4 h-4 text-gray-600" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-gray-600" />
+            )}
+          </div>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="px-4 pt-0 pb-4 space-y-3">
+            {sectionData.map((section, index) => {
+              const percentage = (section.signups / section.maxStudents) * 100;
+              const sectionColor = '#752432';
+              return (
+                <div key={index} className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium" style={{ color: sectionColor }}>{section.section}</span>
+                    <span className="text-xs text-gray-600">
+                      {section.signups}/{section.maxStudents} students
+                    </span>
+                  </div>
+                  <div className="w-full bg-[#F5F1E8] rounded-full h-2.5 overflow-hidden">
+                    <div 
+                      className="h-full transition-all duration-300" 
+                      style={{ 
+                        width: `${percentage}%`,
+                        backgroundColor: sectionColor
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CollapsibleContent>
+      </UICard>
+    </Collapsible>
+  );
 }
 
 // Component props interface
@@ -2774,6 +2895,9 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         msOverflowStyle: 'none',
         paddingBottom: '80px'
       }}>
+        <div className="mt-4 mb-4">
+          <Leaderboard />
+        </div>
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <div className="text-gray-500">Loading posts...</div>

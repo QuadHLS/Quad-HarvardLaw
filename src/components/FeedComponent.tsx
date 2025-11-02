@@ -37,7 +37,7 @@ interface Post {
   likes_count: number;
   comments_count: number;
   photo_url?: string | null;
-  youtube_link?: string | null;
+  vid_link?: string | null;
   // UI computed fields
   author?: {
     name: string;
@@ -528,53 +528,72 @@ const DialogDescription = ({ children }: { children: React.ReactNode }) => (
 //   </button>
 // );
 
-// Helper function to convert YouTube URL to embed format
-const getYouTubeEmbedUrl = (url: string | null | undefined): string | null => {
+// Helper function to convert video URLs (YouTube, YouTube Shorts, TikTok, Instagram) to embed format
+const getVideoEmbedUrl = (url: string | null | undefined): { embedUrl: string; platform: 'youtube' | 'tiktok' | 'instagram' } | null => {
   if (!url || !url.trim()) return null;
   
   const trimmedUrl = url.trim();
   
-  // If already an embed URL, return as is
-  if (trimmedUrl.includes('youtube.com/embed/')) {
-    return trimmedUrl;
-  }
-  
-  // Extract video ID from various YouTube URL formats
-  let videoId = '';
-  
+  // YouTube (regular videos and shorts)
   // Format: https://www.youtube.com/watch?v=VIDEO_ID
-  const watchMatch = trimmedUrl.match(/youtube\.com\/watch\?v=([^&\s]+)/);
+  let watchMatch = trimmedUrl.match(/youtube\.com\/watch\?v=([^&\s]+)/);
   if (watchMatch) {
-    videoId = watchMatch[1];
+    const videoId = watchMatch[1].split('&')[0].split('#')[0];
+    return { embedUrl: `https://www.youtube.com/embed/${videoId}`, platform: 'youtube' };
   }
   
   // Format: https://youtu.be/VIDEO_ID
-  if (!videoId) {
-    const shortMatch = trimmedUrl.match(/youtu\.be\/([^?\s]+)/);
-    if (shortMatch) {
-      videoId = shortMatch[1];
-    }
+  let shortMatch = trimmedUrl.match(/youtu\.be\/([^?\s]+)/);
+  if (shortMatch) {
+    const videoId = shortMatch[1].split('&')[0].split('#')[0];
+    return { embedUrl: `https://www.youtube.com/embed/${videoId}`, platform: 'youtube' };
+  }
+  
+  // Format: https://www.youtube.com/shorts/VIDEO_ID
+  let shortsMatch = trimmedUrl.match(/youtube\.com\/shorts\/([^?\s]+)/);
+  if (shortsMatch) {
+    const videoId = shortsMatch[1].split('&')[0].split('#')[0];
+    return { embedUrl: `https://www.youtube.com/embed/${videoId}`, platform: 'youtube' };
   }
   
   // Format: https://www.youtube.com/embed/VIDEO_ID
-  if (!videoId) {
-    const embedMatch = trimmedUrl.match(/youtube\.com\/embed\/([^?\s]+)/);
-    if (embedMatch) {
-      videoId = embedMatch[1];
+  let embedMatch = trimmedUrl.match(/youtube\.com\/embed\/([^?\s]+)/);
+  if (embedMatch) {
+    return { embedUrl: trimmedUrl, platform: 'youtube' };
+  }
+  
+  // If it's just a video ID (no URL structure) - assume YouTube
+  if (!trimmedUrl.includes('http') && !trimmedUrl.includes('/') && !trimmedUrl.includes('?')) {
+    return { embedUrl: `https://www.youtube.com/embed/${trimmedUrl}`, platform: 'youtube' };
+  }
+  
+  // TikTok
+  // Format: https://www.tiktok.com/@username/video/VIDEO_ID
+  let tiktokMatch = trimmedUrl.match(/tiktok\.com\/@[\w.-]+\/video\/(\d+)/);
+  if (tiktokMatch) {
+    const videoId = tiktokMatch[1];
+    return { embedUrl: `https://www.tiktok.com/embed/v2/${videoId}`, platform: 'tiktok' };
+  }
+  
+  // Format: https://vm.tiktok.com/CODE or https://tiktok.com/@username/video/VIDEO_ID
+  // Note: vm.tiktok.com links need to be resolved to full URLs first, but we can try direct embed
+  if (trimmedUrl.includes('tiktok.com') || trimmedUrl.includes('vm.tiktok.com')) {
+    // Extract video ID from various TikTok formats
+    let vidMatch = trimmedUrl.match(/video\/(\d+)/);
+    if (vidMatch) {
+      return { embedUrl: `https://www.tiktok.com/embed/v2/${vidMatch[1]}`, platform: 'tiktok' };
     }
   }
   
-  // If it's just a video ID (no URL structure)
-  if (!videoId && !trimmedUrl.includes('http') && !trimmedUrl.includes('/') && !trimmedUrl.includes('?')) {
-    videoId = trimmedUrl;
+  // Instagram
+  // Format: https://www.instagram.com/p/VIDEO_ID/ or https://www.instagram.com/reel/VIDEO_ID/
+  let instagramMatch = trimmedUrl.match(/instagram\.com\/(?:p|reel)\/([^\/\?\s]+)/);
+  if (instagramMatch) {
+    const postId = instagramMatch[1];
+    return { embedUrl: `https://www.instagram.com/p/${postId}/embed/`, platform: 'instagram' };
   }
   
-  if (!videoId) return null;
-  
-  // Clean video ID (remove any query params or fragments)
-  videoId = videoId.split('&')[0].split('#')[0];
-  
-  return `https://www.youtube.com/embed/${videoId}`;
+  return null;
 };
 
 export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCourses = [], onThreadViewChange, onNavigateToStudentProfile }: FeedProps) {
@@ -592,6 +611,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   const [postPhotoFile, setPostPhotoFile] = useState<File | null>(null);
   const [postPhotoPreview, setPostPhotoPreview] = useState<string | null>(null);
   const [uploadingPostPhoto, setUploadingPostPhoto] = useState(false);
+  const [isDragOverPhotoDrop, setIsDragOverPhotoDrop] = useState(false);
   // YouTube link state
   const [newYoutubeLink, setNewYoutubeLink] = useState('');
   const [posts, setPosts] = useState<Post[]>([]);
@@ -919,7 +939,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           likes_count: likesCount,
           comments_count: commentsCount,
           photo_url: post.photo_url || null,
-          youtube_link: post.youtube_link || null,
+          vid_link: post.vid_link || null,
           author: author && (author as any).full_name ? {
             name: post.is_anonymous ? `Anonymous User` : (author as any).full_name,
             year: (author as any).class_year || ''
@@ -1112,6 +1132,31 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       setUser(user);
     };
     getUser();
+  }, []);
+
+  // Prevent default drag behavior globally to stop images from opening in new tab
+  useEffect(() => {
+    const handleDragOver = (e: DragEvent) => {
+      if (e.dataTransfer?.types.includes('Files')) {
+        e.preventDefault();
+      }
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      // Only prevent default if not over our drop zone
+      // The drop zone handler will prevent default in its own handler
+      if (!e.target || !(e.target as Element).closest('.photo-drop-zone')) {
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener('dragover', handleDragOver);
+    document.addEventListener('drop', handleDrop);
+
+    return () => {
+      document.removeEventListener('dragover', handleDragOver);
+      document.removeEventListener('drop', handleDrop);
+    };
   }, []);
 
   // Fetch user profile data from profiles table
@@ -1468,7 +1513,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     // Text posts can have empty content (optional), but polls need at least 2 options
     if (newPostType === 'poll' && pollOptions.filter(opt => opt.trim()).length < 2) return;
     
-    // Validate YouTube link is required for YouTube posts
+    // Validate video link is required for YouTube posts
     if (newPostType === 'youtube' && !newYoutubeLink.trim()) return;
     
       // Validation: if posting to My Courses, must select a course
@@ -1524,7 +1569,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           post_type: newPostType,
           is_anonymous: isAnonymousPost,
           photo_url: photoFileName,
-          youtube_link: newPostType === 'youtube' ? newYoutubeLink.trim() : null
+          vid_link: newPostType === 'youtube' ? newYoutubeLink.trim() : null
         })
         .select()
         .single();
@@ -1710,6 +1755,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       return;
     }
 
+    // Clean up existing photo preview if there is one
+    if (postPhotoPreview) {
+      URL.revokeObjectURL(postPhotoPreview);
+    }
+
     setUploadingPostPhoto(true);
     
     try {
@@ -1740,6 +1790,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     }
     setPostPhotoFile(null);
     setPostPhotoPreview(null);
+    setIsDragOverPhotoDrop(false);
   };
 
   // Event handlers
@@ -2547,20 +2598,20 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 </div>
               )}
 
-              {/* YouTube Video in Thread View */}
-              {selectedPost.youtube_link && (
+              {/* Video Embed in Thread View */}
+              {selectedPost.vid_link && (
                 <div className="mb-4 mt-4">
                   {(() => {
-                    const embedUrl = getYouTubeEmbedUrl(selectedPost.youtube_link);
-                    if (!embedUrl) {
-                      console.warn('Failed to convert YouTube URL:', selectedPost.youtube_link);
+                    const embedData = getVideoEmbedUrl(selectedPost.vid_link);
+                    if (!embedData) {
+                      console.warn('Failed to convert video URL:', selectedPost.vid_link);
                       return null;
                     }
                     return (
                       <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
                         <iframe
-                          src={embedUrl}
-                          title="YouTube video player"
+                          src={embedData.embedUrl}
+                          title={`${embedData.platform} video player`}
                           frameBorder="0"
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                           allowFullScreen
@@ -3440,19 +3491,19 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                   </div>
                 )}
 
-                {/* YouTube Video */}
-                {post.youtube_link && (
+                {/* Video Embed (YouTube, TikTok, Instagram) */}
+                {post.vid_link && (
                   <div className="mb-3 mt-3">
                     {(() => {
-                      console.log('YouTube post detected:', { postId: post.id, youtubeLink: post.youtube_link, postType: post.post_type });
-                      const embedUrl = getYouTubeEmbedUrl(post.youtube_link);
-                      console.log('Converted embed URL:', embedUrl);
-                      if (!embedUrl) {
-                        console.warn('Failed to convert YouTube URL:', post.youtube_link);
+                      console.log('Video post detected:', { postId: post.id, videoLink: post.vid_link, postType: post.post_type });
+                      const embedData = getVideoEmbedUrl(post.vid_link);
+                      console.log('Converted embed data:', embedData);
+                      if (!embedData) {
+                        console.warn('Failed to convert video URL:', post.vid_link);
                         return (
                           <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                             <p className="text-sm text-yellow-800">
-                              Invalid YouTube URL: {post.youtube_link}
+                              Invalid video URL: {post.vid_link}
                             </p>
                           </div>
                         );
@@ -3460,8 +3511,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       return (
                         <div className="relative w-full bg-gray-100" style={{ paddingBottom: '56.25%', minHeight: '200px' }}>
                           <iframe
-                            src={embedUrl}
-                            title="YouTube video player"
+                            src={embedData.embedUrl}
+                            title={`${embedData.platform} video player`}
                             frameBorder="0"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                             allowFullScreen
@@ -3618,12 +3669,13 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         open={showCreatePostDialog} 
         onOpenChange={(open) => {
           setShowCreatePostDialog(open);
-          // Clear photo and YouTube link when dialog closes
+          // Clear photo and video link when dialog closes
           if (!open) {
             if (postPhotoPreview) {
               handleRemovePostPhoto();
             }
             setNewYoutubeLink('');
+            setIsDragOverPhotoDrop(false);
           }
         }}
       >
@@ -3685,7 +3737,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
               <button
                 onClick={() => {
                   setNewPostType('text');
-                  // Clear YouTube link when switching to text
+                  // Clear video link when switching to text
                   setNewYoutubeLink('');
                 }}
                 className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -3714,7 +3766,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
               </button>
               <button
                 onClick={() => {
-                  // Clear photo and YouTube link when switching to poll
+                  // Clear photo and video link when switching to poll
                   if (postPhotoPreview) {
                     handleRemovePostPhoto();
                   }
@@ -3765,47 +3817,75 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 {/* Photo Upload Dropbox */}
                 <div className="space-y-2">
                   <div className="text-sm font-medium text-gray-700">Add a photo</div>
-                  {!postPhotoPreview ? (
-                    <label 
-                      className="block"
-                      onDragOver={(e) => {
+                  <div className="photo-drop-zone">
+                    <div 
+                      className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors relative overflow-hidden ${
+                        isDragOverPhotoDrop 
+                          ? 'border-[#752432] bg-gray-50' 
+                          : 'border-gray-300 hover:border-[#752432] hover:bg-gray-50'
+                      }`}
+                      style={{ height: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      onDragEnter={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        const dropbox = e.currentTarget.querySelector('.dropbox') as HTMLElement;
-                        if (dropbox) {
-                          dropbox.classList.add('!border-[#752432]', '!bg-gray-50');
-                        }
+                        setIsDragOverPhotoDrop(true);
                       }}
                       onDragLeave={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        const dropbox = e.currentTarget.querySelector('.dropbox') as HTMLElement;
-                        if (dropbox) {
-                          dropbox.classList.remove('!border-[#752432]', '!bg-gray-50');
-                        }
+                        setIsDragOverPhotoDrop(false);
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
                       }}
                       onDrop={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        const dropbox = e.currentTarget.querySelector('.dropbox') as HTMLElement;
-                        if (dropbox) {
-                          dropbox.classList.remove('!border-[#752432]', '!bg-gray-50');
-                        }
+                        setIsDragOverPhotoDrop(false);
                         
                         const files = e.dataTransfer.files;
                         if (files.length > 0 && user?.id) {
+                          // Only process the first file, ignore others
                           const file = files[0];
                           if (file.type.startsWith('image/')) {
                             // Create a synthetic event to reuse handlePostPhotoUpload
                             const syntheticEvent = {
                               target: { files: [file], value: '' }
-                            } as React.ChangeEvent<HTMLInputElement>;
+                            } as unknown as React.ChangeEvent<HTMLInputElement>;
                             handlePostPhotoUpload(syntheticEvent);
                           }
                         }
                       }}
+                      onClick={() => {
+                        if (!postPhotoPreview) {
+                          document.getElementById('post-photo-upload')?.click();
+                        }
+                      }}
                     >
-                      <div className="dropbox border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-[#752432] hover:bg-gray-50 transition-colors">
+                      {postPhotoPreview ? (
+                        <div className="relative w-full h-full flex items-center justify-center">
+                          <img
+                            src={postPhotoPreview}
+                            alt="Post preview"
+                            className="max-w-full max-h-full object-contain"
+                            style={{ maxWidth: '100%', maxHeight: '100%' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemovePostPhoto();
+                            }}
+                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 transition-colors shadow-lg z-10"
+                            aria-label="Remove photo"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ) : (
                         <div className="flex flex-col items-center gap-2">
                           <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -3815,37 +3895,17 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                           </span>
                           <span className="text-xs text-gray-500">Click to upload or drag and drop</span>
                         </div>
-                      </div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handlePostPhotoUpload}
-                        disabled={uploadingPostPhoto}
-                        className="hidden"
-                        id="post-photo-upload"
-                      />
-                    </label>
-                  ) : (
-                    <div className="relative">
-                      <div className="border border-gray-300 rounded-lg overflow-hidden">
-                        <img
-                          src={postPhotoPreview}
-                          alt="Post preview"
-                          className="w-full max-h-64 object-contain bg-gray-50"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleRemovePostPhoto}
-                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 transition-colors shadow-lg"
-                        aria-label="Remove photo"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
+                      )}
                     </div>
-                  )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePostPhotoUpload}
+                      disabled={uploadingPostPhoto}
+                      className="hidden"
+                      id="post-photo-upload"
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -3869,11 +3929,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
                 {/* YouTube Link Input */}
                 <div className="space-y-2">
-                  <div className="text-sm font-medium text-gray-700">Paste YouTube link</div>
+                  <div className="text-sm font-medium text-gray-700">Paste video link (YouTube, YouTube Shorts, TikTok, or Instagram)</div>
                   <Input
                     value={newYoutubeLink}
                     onChange={(e) => setNewYoutubeLink(e.target.value)}
-                    placeholder="https://www.youtube.com/watch?v=..."
+                    placeholder="Paste YouTube, TikTok, or Instagram link"
                     className="border-gray-300 focus:border-[#752432] focus:ring-[#752432]"
                   />
                 </div>
@@ -3890,7 +3950,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       <div className="flex gap-2">
                         <Input
                           value={option}
-                          onChange={(e) => updatePollOption(index, e.target.value)}
+                          onChange={(e) => {
+                            const newOptions = [...pollOptions];
+                            newOptions[index] = e.target.value;
+                            setPollOptions(newOptions);
+                          }}
                           placeholder={`Option ${index + 1}`}
                           maxLength={100}
                           className="flex-1"
@@ -3925,32 +3989,32 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
               </div>
             )}
 
-            {/* Anonymous Posting Option */}
-            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-              <input
-                type="checkbox"
-                id="anonymous-post"
-                checked={isAnonymousPost}
-                onChange={(e) => setIsAnonymousPost(e.target.checked)}
-                className="w-4 h-4 text-[#752432] bg-gray-100 border-gray-300 rounded focus:ring-0 focus:outline-none"
-              />
-              <label htmlFor="anonymous-post" className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                <span className={`text-lg ${isAnonymousPost ? 'relative' : ''}`}>
-                  👁️
-                  {isAnonymousPost && (
-                    <span className="absolute inset-0 flex items-center justify-center text-black font-bold text-xl leading-none pointer-events-none">
-                      ╱
-                    </span>
-                  )}
-                </span>
-                Post anonymously
-              </label>
-            </div>
-
             {/* Action Buttons */}
             <div className="flex items-center justify-between pt-4 border-t">
-              <div className="text-xs text-gray-500">
-                Remember to be respectful and follow community guidelines
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="anonymous-post"
+                    checked={isAnonymousPost}
+                    onChange={(e) => setIsAnonymousPost(e.target.checked)}
+                    className="w-3.5 h-3.5 text-[#752432] bg-gray-100 border-gray-300 rounded focus:ring-0 focus:outline-none"
+                  />
+                  <label htmlFor="anonymous-post" className="flex items-center gap-1.5 text-xs text-gray-700 cursor-pointer">
+                    <span className={`text-sm ${isAnonymousPost ? 'relative' : ''}`}>
+                      👁️
+                      {isAnonymousPost && (
+                        <span className="absolute inset-0 flex items-center justify-center text-black font-bold text-base leading-none pointer-events-none">
+                          ╱
+                        </span>
+                      )}
+                    </span>
+                    Post anonymously
+                  </label>
+                </div>
+                <div className="text-xs text-gray-500">
+                  Remember to be respectful and follow community guidelines
+                </div>
               </div>
               <div className="flex gap-2">
                 <Button 

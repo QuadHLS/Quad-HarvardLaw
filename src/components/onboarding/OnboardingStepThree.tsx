@@ -8,7 +8,7 @@ import { Badge } from '../ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { ArrowLeft, Upload, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getStorageUrl } from '../../utils/storage';
+import { getStorageUrl, extractFilename } from '../../utils/storage';
 import { supabase } from '../../lib/supabase';
 
 
@@ -394,6 +394,7 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
       // Create a local preview URL
       const previewUrl = URL.createObjectURL(compressedFile);
       setProfileImage(previewUrl);
+      setProfileImageUrl(previewUrl); // Also set profileImageUrl so it displays immediately
       
       // Clear any previous warnings
       setAvatarWarning('');
@@ -501,8 +502,51 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
                                size="sm" 
                                variant="outline"
                                className="text-xs px-3 py-1 h-7 w-auto text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                               onClick={() => {
+                               onClick={async () => {
+                                 // Check if profileImage is a filename (not a blob URL)
+                                 if (profileImage && !profileImage.startsWith('blob:')) {
+                                   // It's an existing avatar, delete from storage and database
+                                   try {
+                                     const oldFileName = extractFilename(profileImage);
+                                     console.log('Deleting avatar from storage:', oldFileName);
+                                     
+                                     // Delete from storage
+                                     const { error: deleteError } = await supabase.storage
+                                       .from('Avatar')
+                                       .remove([oldFileName]);
+                                     
+                                     if (deleteError) {
+                                       console.error('Error deleting avatar from storage:', deleteError);
+                                       alert('Error deleting avatar from storage. Please try again.');
+                                       return;
+                                     }
+                                     
+                                     console.log('Successfully deleted avatar from storage');
+                                     
+                                     // Update database if profile exists
+                                     if (user?.id) {
+                                       const { error: updateError } = await supabase
+                                         .from('profiles')
+                                         .update({ avatar_url: null })
+                                         .eq('id', user.id);
+                                       
+                                       if (updateError) {
+                                         console.error('Error updating profile:', updateError);
+                                         // Don't block the UI if database update fails
+                                       } else {
+                                         console.log('Successfully updated profile to remove avatar');
+                                       }
+                                     }
+                                   } catch (error) {
+                                     console.error('Error deleting avatar:', error);
+                                     alert('Error deleting avatar. Please try again.');
+                                     return;
+                                   }
+                                 }
+                                 
+                                 // Clear local state (for both new uploads and existing avatars)
                                  setProfileImage('');
+                                 setProfileImageUrl('');
                                  setAvatarFile(null);
                                  setAvatarWarning('');
                                  // Reset the file input
@@ -711,6 +755,29 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
                          
                          // Upload avatar to bucket if one was selected
                          if (avatarFile) {
+                           // Check if user already has an avatar and delete it
+                           const { data: existingProfile } = await supabase
+                             .from('profiles')
+                             .select('avatar_url')
+                             .eq('id', user.id)
+                             .single();
+                           
+                           if (existingProfile?.avatar_url) {
+                             const oldFileName = extractFilename(existingProfile.avatar_url);
+                             console.log('Deleting old avatar during onboarding:', oldFileName);
+                             
+                             const { error: deleteError } = await supabase.storage
+                               .from('Avatar')
+                               .remove([oldFileName]);
+                             
+                             if (deleteError) {
+                               console.error('Error deleting old avatar during onboarding:', deleteError);
+                               // Continue with upload even if delete fails
+                             } else {
+                               console.log('Successfully deleted old avatar during onboarding');
+                             }
+                           }
+                           
                            const fileExt = avatarFile.name.split('.').pop();
                            const fileName = `${user.id}-${Date.now()}.${fileExt}`;
                            

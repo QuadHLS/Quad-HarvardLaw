@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <!-- Bar chart bars with Quad website colors in opposite order -->
+  <rect x="4" y="16" width="3" height="6" rx="0.5" fill="#f71417" />
+  <rect x="9" y="10" width="3" height="12" rx="0.5" fill="#ffb100" />
+  <rect x="14" y="4" width="3" height="18" rx="0.5" fill="#0078c5" />
+  <rect x="19" y="8" width="3" height="14" rx="0.5" fill="#00962c" />
+</svg>

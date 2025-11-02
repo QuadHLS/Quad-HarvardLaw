@@ -3740,13 +3740,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                   // Clear video link when switching to text
                   setNewYoutubeLink('');
                 }}
-                className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
                   newPostType === 'text' 
                     ? 'bg-white text-gray-900 shadow-sm' 
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                📝 Text and Picture
+                <img src="/text_picture_icon.svg" alt="Text and Picture" className="h-5 w-auto object-contain" />
+                <span>Text and Picture</span>
               </button>
               <button
                 onClick={() => {
@@ -3776,13 +3777,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                   setNewYoutubeLink('');
                   setNewPostType('poll');
                 }}
-                className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
                   newPostType === 'poll' 
                     ? 'bg-white text-gray-900 shadow-sm' 
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                📊 Poll
+                <img src="/poll_icon.svg" alt="Poll" className="h-5 w-auto object-contain align-middle" />
+                <span className="align-middle">Poll</span>
               </button>
             </div>
 

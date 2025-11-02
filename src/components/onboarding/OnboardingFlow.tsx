@@ -145,12 +145,12 @@ export function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
     }
   }, [classYear, originalClassYear]);
 
-  // Auto-populate courses for 2L/3L when on page 2
+  // Auto-populate courses for 2L/3L/LLM when on page 2
   useEffect(() => {
     const autoPopulateCourses = async () => {
       // Only auto-populate if:
       // 1. We're on page 2 (course selection)
-      // 2. classYear is not '1L' (1L has its own logic)
+      // 2. classYear is not '1L' (1L has its own logic, 2L/3L/LLM use this logic)
       // 3. classYear hasn't changed from original
       // 4. profileClasses has data
       // 5. allCourseData is loaded

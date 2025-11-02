@@ -348,7 +348,7 @@ export function ClassSelector({
           )}
         </Label>
 
-        {/* Display-only professor for all class years (1L, 2L, 3L) */}
+        {/* Display-only professor for all class years (1L, 2L, 3L, LLM) */}
         {true ? (
           <div className="min-h-[40px] py-2 px-3 style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} border border-gray-200 rounded-md text-sm text-gray-500 leading-tight mt-1">
             {selectedProfessor?.name || (selectedClass ? 'Loading...' : (classYear === '1L' && index < 7 ? 'Choose section' : 'Select class first'))}

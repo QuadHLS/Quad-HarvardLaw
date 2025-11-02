@@ -9,7 +9,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Search, X, Calendar } from 'lucid
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 
-type ClassYear = '1L' | '2L' | '3L';
+type ClassYear = '1L' | '2L' | '3L' | 'LLM';
 
 
 
@@ -375,6 +375,10 @@ export function OnboardingPage(props: OnboardingPageProps) {
   };
 
   const isStep1Valid = () => {
+    // Section is required for all class years except LLM
+    if (classYear === 'LLM') {
+      return name.trim() && classYear;
+    }
     return name.trim() && classYear && section;
   };
 
@@ -385,8 +389,8 @@ export function OnboardingPage(props: OnboardingPageProps) {
     if (classYear === '1L') {
       // 1L needs 9 required courses (7 initial + 2 LRW), 10th elective optional
       return selectedCourses.length >= 9 && selectedCourses.length <= 10;
-    } else if (classYear === '2L' || classYear === '3L') {
-      // 2L/3L need at least 3 required courses, max 10 total
+    } else if (classYear === '2L' || classYear === '3L' || classYear === 'LLM') {
+      // 2L/3L/LLM need at least 3 required courses, max 10 total
       return selectedCourses.length >= 3 && selectedCourses.length <= 10;
     }
     return false;
@@ -603,7 +607,7 @@ export function OnboardingPage(props: OnboardingPageProps) {
   // Fetch courses from API
   useEffect(() => {
     const fetchCourses = async () => {
-      if (classYear === '1L' || classYear === '2L' || classYear === '3L') {
+      if (classYear === '1L' || classYear === '2L' || classYear === '3L' || classYear === 'LLM') {
         console.log('Fetching courses for class year:', classYear);
         setCoursesLoading(true);
         try {
@@ -723,6 +727,13 @@ export function OnboardingPage(props: OnboardingPageProps) {
 
     autoPopulate1L();
   }, [classYear, section, allCourseData]);
+
+  // Clear section when LLM is selected
+  useEffect(() => {
+    if (classYear === 'LLM' && section) {
+      setSection('');
+    }
+  }, [classYear, section, setSection]);
 
   // Add/Update LRW course when user selects A or B
   useEffect(() => {
@@ -896,37 +907,40 @@ export function OnboardingPage(props: OnboardingPageProps) {
                           <SelectItem value="1L">1L</SelectItem>
                           <SelectItem value="2L">2L</SelectItem>
                           <SelectItem value="3L">3L</SelectItem>
+                          <SelectItem value="LLM">LLM</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
-                      <div className="space-y-2">
-                        <Label htmlFor="section">
-                        {classYear === '2L' || classYear === '3L' ? 'Former Section *' : 'Section *'}
-                        </Label>
-                      <Select 
-                        value={section} 
-                        onValueChange={setSection}
-                        disabled={!classYear}
-                      >
-                        <SelectTrigger id="section" className="bg-gray-100">
-                          <SelectValue placeholder={
-                            !classYear 
-                              ? "Select class year first" 
-                              : classYear === '1L' 
-                                ? "Select your section" 
-                                : "Select your former 1L section"
-                          } />
-                          </SelectTrigger>
-                          <SelectContent>
-                          {(classYear === '1L' ? [1, 2, 3, 4, 5, 6, 7] : [1, 2, 3, 4, 5, 6, 7, 8]).map((num) => (
-                            <SelectItem key={num} value={num.toString()}>
-                              Section {num}
-                            </SelectItem>
-                          ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      {classYear !== 'LLM' && (
+                        <div className="space-y-2">
+                          <Label htmlFor="section">
+                            {classYear === '2L' || classYear === '3L' ? 'Former Section *' : 'Section *'}
+                          </Label>
+                          <Select 
+                            value={section} 
+                            onValueChange={setSection}
+                            disabled={!classYear}
+                          >
+                            <SelectTrigger id="section" className="bg-gray-100">
+                              <SelectValue placeholder={
+                                !classYear 
+                                  ? "Select class year first" 
+                                  : classYear === '1L' 
+                                    ? "Select your section" 
+                                    : "Select your former 1L section"
+                              } />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(classYear === '1L' ? [1, 2, 3, 4, 5, 6, 7] : [1, 2, 3, 4, 5, 6, 7, 8]).map((num) => (
+                                <SelectItem key={num} value={num.toString()}>
+                                  Section {num}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                     </div>
 
 
@@ -999,7 +1013,7 @@ export function OnboardingPage(props: OnboardingPageProps) {
                     {/* Class Year | Section Display */}
                     <div className="flex items-center justify-between">
                       <div className="text-white text-sm font-medium">
-                        {classYear} | Section {section}
+                        {classYear === 'LLM' ? classYear : `${classYear} | Section ${section}`}
                       </div>
                     </div>
 

@@ -5,7 +5,7 @@ import { ClassSelector } from './ClassSelector';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 
-type ClassYear = '1L' | '2L' | '3L';
+type ClassYear = '1L' | '2L' | '3L' | 'LLM';
 
 interface SelectedClass {
   lawClass: LawClass | null;
@@ -69,10 +69,10 @@ export function CourseSelectionStep({ onNext, onBack, basicInfo }: CourseSelecti
   }>({});
   const [allCourseData, setAllCourseData] = useState<any[]>([]);
 
-  // Fetch courses from API for all students (1L, 2L, 3L)
+  // Fetch courses from API for all students (1L, 2L, 3L, LLM)
   useEffect(() => {
     const fetchCourses = async () => {
-      if (basicInfo.classYear === '1L' || basicInfo.classYear === '2L' || basicInfo.classYear === '3L') {
+      if (basicInfo.classYear === '1L' || basicInfo.classYear === '2L' || basicInfo.classYear === '3L' || basicInfo.classYear === 'LLM') {
         setCoursesLoading(true);
         setApiCourses([]);
         setAllCourseData([]);
@@ -229,7 +229,7 @@ export function CourseSelectionStep({ onNext, onBack, basicInfo }: CourseSelecti
           scheduleOption: null,
         }));
       setSelectedClasses(newSelectedClasses);
-    } else if (basicInfo.classYear === '2L' || basicInfo.classYear === '3L') {
+    } else if (basicInfo.classYear === '2L' || basicInfo.classYear === '3L' || basicInfo.classYear === 'LLM') {
       const newSelectedClasses = Array(10)
         .fill(null)
         .map(() => ({
@@ -272,7 +272,7 @@ export function CourseSelectionStep({ onNext, onBack, basicInfo }: CourseSelecti
 
     setScheduleOptionsBySlot((prev) => ({ ...prev, [index]: [] }));
     
-        if (lawClass && selectedProfessor && ((basicInfo.classYear === '2L' || basicInfo.classYear === '3L') || (basicInfo.classYear === '1L' && index === 7))) {
+        if (lawClass && selectedProfessor && ((basicInfo.classYear === '2L' || basicInfo.classYear === '3L' || basicInfo.classYear === 'LLM') || (basicInfo.classYear === '1L' && index === 7))) {
       const matchingCourses = allCourseData.filter(
         (course) => course.course_name === lawClass.name && course.instructor === selectedProfessor.name
       );
@@ -314,7 +314,7 @@ export function CourseSelectionStep({ onNext, onBack, basicInfo }: CourseSelecti
     };
     setSelectedClasses(newSelectedClasses);
 
-    if (professor && newSelectedClasses[index].lawClass && ((basicInfo.classYear === '2L' || basicInfo.classYear === '3L') || (basicInfo.classYear === '1L' && index === 7))) {
+    if (professor && newSelectedClasses[index].lawClass && ((basicInfo.classYear === '2L' || basicInfo.classYear === '3L' || basicInfo.classYear === 'LLM') || (basicInfo.classYear === '1L' && index === 7))) {
       const matchingCourses = allCourseData.filter(
         (course) => course.course_name === newSelectedClasses[index].lawClass!.name && course.instructor === professor.name
       );

@@ -412,9 +412,11 @@ export function DirectoryPage({ onNavigateToStudentProfile }: DirectoryPageProps
                                 {user.classYear}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-500">
-                              Section {user.section}
-                            </p>
+                            {user.classYear !== 'LLM' && (
+                              <p className="text-sm text-gray-500">
+                                Section {user.section}
+                              </p>
+                            )}
                           </div>
                           
                           {/* Arrow indicator */}

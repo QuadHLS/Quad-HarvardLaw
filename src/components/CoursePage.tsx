@@ -3326,14 +3326,14 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                   scrollbarWidth: 'thin',
                   scrollbarColor: '#752531 transparent'
                 }}>
-                  <div className="space-y-4 px-4 py-4 pt-1" style={{ paddingBottom: '160px' }}>
-                    {!postsLoading && coursePosts.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-gray-500">
-                          <MessageSquare className="w-12 h-12 mb-4 opacity-50" />
-                          <h3 className="text-lg font-medium mb-2">No posts yet</h3>
-                        </div>
-                    ) : (
-                      coursePosts.map((post) => (
+                  {!postsLoading && coursePosts.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full w-full text-gray-500">
+                      <MessageSquare className="w-12 h-12 mb-4 opacity-50" />
+                      <h3 className="text-lg font-medium mb-2">No posts yet</h3>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 px-4 py-4 pt-1" style={{ paddingBottom: '160px' }}>
+                      {coursePosts.map((post) => (
                       <div 
                         key={post.id}
                         className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden transition-all duration-200 border-l-4 cursor-pointer"
@@ -3686,11 +3686,11 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                           </div>
                         </div>
                       </div>
-                    ))
-                    )}
-                  </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
           </Card>
         </div>
         </div>

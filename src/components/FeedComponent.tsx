@@ -5,6 +5,7 @@ import { ConfirmationPopup } from './ui/confirmation-popup';
 import { BarChart3, ChevronUp, ChevronDown } from 'lucide-react';
 import { Card as UICard } from './ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
+import { getStorageUrl } from '../utils/storage';
 
 // Interfaces
 interface PollOption {
@@ -35,6 +36,7 @@ interface Post {
   is_edited?: boolean;
   likes_count: number;
   comments_count: number;
+  photo_url?: string | null;
   // UI computed fields
   author?: {
     name: string;
@@ -533,6 +535,10 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   const [selectedCourseForPost, setSelectedCourseForPost] = useState('');
   const [isAnonymousPost, setIsAnonymousPost] = useState(false);
   const [selectedPostThread, setSelectedPostThread] = useState<string | null>(null);
+  // Post photo state
+  const [postPhotoFile, setPostPhotoFile] = useState<File | null>(null);
+  const [postPhotoPreview, setPostPhotoPreview] = useState<string | null>(null);
+  const [uploadingPostPhoto, setUploadingPostPhoto] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
@@ -571,6 +577,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
   // Hover state for thread original post only
   const [isThreadPostHovered, setIsThreadPostHovered] = useState(false);
+  // Post photo URLs (signed URLs for private bucket)
+  const [postPhotoUrls, setPostPhotoUrls] = useState<Map<string, string>>(new Map());
 
   // Real-time connection status
   const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
@@ -855,6 +863,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           is_edited: post.is_edited,
           likes_count: likesCount,
           comments_count: commentsCount,
+          photo_url: post.photo_url || null,
           author: author && (author as any).full_name ? {
             name: post.is_anonymous ? `Anonymous User` : (author as any).full_name,
             year: (author as any).class_year || ''
@@ -866,6 +875,25 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       });
 
       setPosts(transformedPosts);
+
+      // Generate signed URLs for post photos
+      const postsWithPhotos = transformedPosts.filter(p => p.photo_url);
+      if (postsWithPhotos.length > 0) {
+        const photoUrlMap = new Map<string, string>();
+        await Promise.all(
+          postsWithPhotos.map(async (post) => {
+            if (post.photo_url) {
+              const signedUrl = await getStorageUrl(post.photo_url, 'post_picture');
+              if (signedUrl) {
+                photoUrlMap.set(post.id, signedUrl);
+              }
+            }
+          })
+        );
+        setPostPhotoUrls(photoUrlMap);
+      } else {
+        setPostPhotoUrls(new Map());
+      }
     } catch (error) {
       console.error('Error in fetchPosts:', error);
     } finally {
@@ -1381,7 +1409,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     if (!newPostTitle.trim()) return;
     
     // Validate content based on post type
-    if (newPostType === 'text' && !newPost.trim()) return;
+    // Text posts can have empty content (optional), but polls need at least 2 options
     if (newPostType === 'poll' && pollOptions.filter(opt => opt.trim()).length < 2) return;
     
       // Validation: if posting to My Courses, must select a course
@@ -1401,6 +1429,31 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         courseId = selectedCourseForPost;
       }
 
+      // Upload photo if present (for text posts only)
+      let photoFileName: string | null = null;
+      if (postPhotoFile && newPostType === 'text') {
+        try {
+          const fileExt = postPhotoFile.name.split('.').pop() || 'jpg';
+          const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('post_picture')
+            .upload(fileName, postPhotoFile);
+
+          if (uploadError) {
+            console.error('Error uploading post photo:', uploadError);
+            alert('Error uploading photo. Please try again.');
+            return;
+          }
+
+          photoFileName = fileName;
+        } catch (uploadError) {
+          console.error('Error uploading post photo:', uploadError);
+          alert('Error uploading photo. Please try again.');
+          return;
+        }
+      }
+
       // Create the post
       const { data: createdPost, error: postError } = await supabase
         .from('posts')
@@ -1410,13 +1463,22 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           author_id: user.id,
           course_id: courseId,
           post_type: newPostType,
-          is_anonymous: isAnonymousPost
+          is_anonymous: isAnonymousPost,
+          photo_url: photoFileName
         })
         .select()
         .single();
 
       if (postError) {
         console.error('Error creating post:', postError);
+        // If post creation failed and we uploaded a photo, clean it up
+        if (photoFileName) {
+          try {
+            await supabase.storage.from('post_picture').remove([photoFileName]);
+          } catch (cleanupError) {
+            console.error('Error cleaning up uploaded photo:', cleanupError);
+          }
+        }
         return;
       }
 
@@ -1462,6 +1524,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       setNewPostTarget('campus');
       setSelectedCourseForPost('');
       setIsAnonymousPost(false);
+      // Clear photo state
+      if (postPhotoPreview) {
+        URL.revokeObjectURL(postPhotoPreview);
+      }
+      setPostPhotoFile(null);
+      setPostPhotoPreview(null);
       setShowCreatePostDialog(false);
 
       // Refresh posts
@@ -1483,10 +1551,133 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     }
   };
 
-  const updatePollOption = (index: number, value: string) => {
-    const newOptions = [...pollOptions];
-    newOptions[index] = value;
-    setPollOptions(newOptions);
+  // Image compression function for post photos
+  const compressPostImage = (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      // Add timeout to prevent hanging
+      const timeout = setTimeout(() => {
+        reject(new Error('Compression timeout - image too large or complex'));
+      }, 30000); // 30 second timeout
+      
+      img.onload = () => {
+        try {
+          // Calculate new dimensions (max 1200px width/height for post photos)
+          const maxSize = 1200;
+          let { width, height } = img;
+          
+          if (width > height) {
+            if (width > maxSize) {
+              height = (height * maxSize) / width;
+              width = maxSize;
+            }
+          } else {
+            if (height > maxSize) {
+              width = (width * maxSize) / height;
+              height = maxSize;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          // Draw and compress
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Compress to target size (2MB for post photos)
+          const targetSize = 2 * 1024 * 1024; // 2MB in bytes
+          let quality = 0.8;
+          
+          const compressToTargetSize = (currentQuality: number): void => {
+            canvas.toBlob((blob) => {
+              if (blob) {
+                if (blob.size <= targetSize || currentQuality <= 0.1) {
+                  // If size is acceptable or quality is too low, use this result
+                  clearTimeout(timeout);
+                  const compressedFile = new File([blob], file.name, {
+                    type: 'image/jpeg',
+                    lastModified: Date.now(),
+                  });
+                  resolve(compressedFile);
+                } else {
+                  // Reduce quality and try again
+                  compressToTargetSize(currentQuality - 0.1);
+                }
+              } else {
+                clearTimeout(timeout);
+                resolve(file);
+              }
+            }, 'image/jpeg', currentQuality);
+          };
+          
+          compressToTargetSize(quality);
+        } catch (error) {
+          clearTimeout(timeout);
+          reject(error);
+        }
+      };
+      
+      img.onerror = () => {
+        clearTimeout(timeout);
+        reject(new Error('Failed to load image'));
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  // Handle post photo upload
+  const handlePostPhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0 || !user?.id) return;
+
+    const file = files[0];
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('File is not an image');
+      return;
+    }
+
+    // Validate file size (max 8MB before compression)
+    if (file.size > 8 * 1024 * 1024) {
+      alert('File is too large (max 8MB)');
+      return;
+    }
+
+    setUploadingPostPhoto(true);
+    
+    try {
+      // Compress image
+      const compressedFile = await compressPostImage(file);
+      
+      // Store compressed file and create preview
+      setPostPhotoFile(compressedFile);
+      const previewUrl = URL.createObjectURL(compressedFile);
+      setPostPhotoPreview(previewUrl);
+    } catch (compressionError) {
+      console.error('Error compressing image:', compressionError);
+      alert('Error processing image. Please try a different image.');
+    } finally {
+      setUploadingPostPhoto(false);
+      // Reset the file input
+      const fileInput = event.target;
+      if (fileInput) {
+        fileInput.value = '';
+      }
+    }
+  };
+
+  // Handle remove post photo
+  const handleRemovePostPhoto = () => {
+    if (postPhotoPreview) {
+      URL.revokeObjectURL(postPhotoPreview);
+    }
+    setPostPhotoFile(null);
+    setPostPhotoPreview(null);
   };
 
   // Event handlers
@@ -1903,7 +2094,32 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       position,
       onConfirm: async () => {
         try {
-          // First, delete all likes for this post
+          // First, get the post to check if it has a photo
+          const { data: postData } = await supabase
+            .from('posts')
+            .select('photo_url')
+            .eq('id', postId)
+            .eq('author_id', user?.id)
+            .single();
+
+          // Delete photo from bucket if it exists
+          if (postData?.photo_url) {
+            try {
+              const { error: photoError } = await supabase.storage
+                .from('post_picture')
+                .remove([postData.photo_url]);
+
+              if (photoError) {
+                console.error('Error deleting post photo from storage:', photoError);
+                // Continue with post deletion even if photo deletion fails
+              }
+            } catch (photoError) {
+              console.error('Error deleting post photo from storage:', photoError);
+              // Continue with post deletion even if photo deletion fails
+            }
+          }
+
+          // Delete all likes for this post
           const { error: likesError } = await supabase
             .from('likes')
             .delete()
@@ -2232,6 +2448,38 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                     maxLines={10}
                     className="text-gray-800 leading-relaxed whitespace-pre-wrap"
                     buttonColor={getPostColor(selectedPost.id)}
+                  />
+                </div>
+              )}
+
+              {/* Post Photo in Thread View */}
+              {selectedPost.photo_url && postPhotoUrls.has(selectedPost.id) && (
+                <div className="mb-4 mt-4">
+                  <img
+                    src={postPhotoUrls.get(selectedPost.id) || ''}
+                    alt="Post"
+                    className="rounded-lg"
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: '600px',
+                      width: 'auto',
+                      height: 'auto',
+                      objectFit: 'contain'
+                    }}
+                    onError={(e) => {
+                      // If signed URL expires, regenerate it
+                      if (selectedPost.photo_url) {
+                        getStorageUrl(selectedPost.photo_url, 'post_picture').then(url => {
+                          if (url) {
+                            setPostPhotoUrls(prev => {
+                              const newMap = new Map(prev);
+                              newMap.set(selectedPost.id, url);
+                              return newMap;
+                            });
+                          }
+                        });
+                      }
+                    }}
                   />
                 </div>
               )}
@@ -3070,6 +3318,39 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                     />
                   )}
                 </div>
+
+                {/* Post Photo */}
+                {post.photo_url && postPhotoUrls.has(post.id) && (
+                  <div className="mb-3 mt-3">
+                    <img
+                      src={postPhotoUrls.get(post.id) || ''}
+                      alt="Post"
+                      className="rounded-lg"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '600px',
+                        width: 'auto',
+                        height: 'auto',
+                        objectFit: 'contain'
+                      }}
+                      onError={(e) => {
+                        // If signed URL expires, regenerate it
+                        if (post.photo_url) {
+                          getStorageUrl(post.photo_url, 'post_picture').then(url => {
+                            if (url) {
+                              setPostPhotoUrls(prev => {
+                                const newMap = new Map(prev);
+                                newMap.set(post.id, url);
+                                return newMap;
+                              });
+                            }
+                          });
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+
                 {/* Poll Component */}
                 {post.poll && (
                   <div className="mb-4 p-4 rounded-lg">
@@ -3210,7 +3491,16 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       {/* Floating Action Button removed; moved to header */}
 
       {/* Enhanced Create Post Dialog - Reddit Style */}
-      <Dialog open={showCreatePostDialog} onOpenChange={setShowCreatePostDialog}>
+      <Dialog 
+        open={showCreatePostDialog} 
+        onOpenChange={(open) => {
+          setShowCreatePostDialog(open);
+          // Clear photo when dialog closes
+          if (!open && postPhotoPreview) {
+            handleRemovePostPhoto();
+          }
+        }}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -3267,17 +3557,25 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             {/* Post Type Selection */}
             <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
               <button
-                onClick={() => setNewPostType('text')}
+                onClick={() => {
+                  setNewPostType('text');
+                }}
                 className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   newPostType === 'text' 
                     ? 'bg-white text-gray-900 shadow-sm' 
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                📝 Text
+                📝 Text and Picture
               </button>
               <button
-                onClick={() => setNewPostType('poll')}
+                onClick={() => {
+                  // Clear photo when switching to poll (photos only for text posts)
+                  if (postPhotoPreview) {
+                    handleRemovePostPhoto();
+                  }
+                  setNewPostType('poll');
+                }}
                 className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   newPostType === 'poll' 
                     ? 'bg-white text-gray-900 shadow-sm' 
@@ -3304,17 +3602,105 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
             {/* Text Content - Only show for text posts */}
             {newPostType === 'text' && (
-              <div>
-                <Textarea
-                  value={newPost}
-                  onChange={(e) => setNewPost(e.target.value)}
-                  placeholder="What are your thoughts?"
-                  maxLength={1000}
-                  className="border-gray-300 focus:border-[#752432] focus:ring-[#752432] min-h-[120px] resize-none"
-                  rows={5}
-                />
-                <div className="text-xs text-gray-500 mt-1">
-                  {newPost.length}/1000
+              <div className="space-y-3">
+                <div>
+                  <Textarea
+                    value={newPost}
+                    onChange={(e) => setNewPost(e.target.value)}
+                    placeholder="What are your thoughts?"
+                    maxLength={1000}
+                    className="border-gray-300 focus:border-[#752432] focus:ring-[#752432] min-h-[120px] resize-none"
+                    rows={5}
+                  />
+                  <div className="text-xs text-gray-500 mt-1">
+                    {newPost.length}/1000
+                  </div>
+                </div>
+
+                {/* Photo Upload Dropbox */}
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-gray-700">Add a photo</div>
+                  {!postPhotoPreview ? (
+                    <label 
+                      className="block"
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const dropbox = e.currentTarget.querySelector('.dropbox') as HTMLElement;
+                        if (dropbox) {
+                          dropbox.classList.add('!border-[#752432]', '!bg-gray-50');
+                        }
+                      }}
+                      onDragLeave={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const dropbox = e.currentTarget.querySelector('.dropbox') as HTMLElement;
+                        if (dropbox) {
+                          dropbox.classList.remove('!border-[#752432]', '!bg-gray-50');
+                        }
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const dropbox = e.currentTarget.querySelector('.dropbox') as HTMLElement;
+                        if (dropbox) {
+                          dropbox.classList.remove('!border-[#752432]', '!bg-gray-50');
+                        }
+                        
+                        const files = e.dataTransfer.files;
+                        if (files.length > 0 && user?.id) {
+                          const file = files[0];
+                          if (file.type.startsWith('image/')) {
+                            // Create a synthetic event to reuse handlePostPhotoUpload
+                            const syntheticEvent = {
+                              target: { files: [file], value: '' }
+                            } as React.ChangeEvent<HTMLInputElement>;
+                            handlePostPhotoUpload(syntheticEvent);
+                          }
+                        }
+                      }}
+                    >
+                      <div className="dropbox border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-[#752432] hover:bg-gray-50 transition-colors">
+                        <div className="flex flex-col items-center gap-2">
+                          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span className="text-sm font-medium text-gray-700">
+                            {uploadingPostPhoto ? 'Processing image...' : 'Add a photo'}
+                          </span>
+                          <span className="text-xs text-gray-500">Click to upload or drag and drop</span>
+                        </div>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePostPhotoUpload}
+                        disabled={uploadingPostPhoto}
+                        className="hidden"
+                        id="post-photo-upload"
+                      />
+                    </label>
+                  ) : (
+                    <div className="relative">
+                      <div className="border border-gray-300 rounded-lg overflow-hidden">
+                        <img
+                          src={postPhotoPreview}
+                          alt="Post preview"
+                          className="w-full max-h-64 object-contain bg-gray-50"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRemovePostPhoto}
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 transition-colors shadow-lg"
+                        aria-label="Remove photo"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -3403,6 +3789,10 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                     setNewPostTarget('campus');
                     setSelectedCourseForPost('');
                     setIsAnonymousPost(false);
+                    // Clear photo state
+                    if (postPhotoPreview) {
+                      handleRemovePostPhoto();
+                    }
                   }}
                 >
                   Cancel
@@ -3415,7 +3805,6 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                   }}
                   disabled={
                     !newPostTitle.trim() || 
-                    (newPostType === 'text' && !newPost.trim()) ||
                     (newPostType === 'poll' && pollOptions.filter(opt => opt.trim()).length < 2) ||
                     (newPostTarget === 'my-courses' && !selectedCourseForPost)
                   }

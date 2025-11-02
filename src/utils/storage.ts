@@ -20,8 +20,8 @@ const CACHE_DURATION = 3600 * 1000; // 1 hour in milliseconds
  * @returns Promise that resolves to the URL to use for displaying the image, or null
  */
 export async function getStorageUrl(
-  storedPath: string | null | undefined, 
-  bucket: 'Avatar' | 'Photos'
+  storedPath: string | null | undefined,
+  bucket: 'Avatar' | 'Photos' | 'post_picture'
 ): Promise<string | null> {
   if (!storedPath || storedPath.trim() === '') {
     return null;

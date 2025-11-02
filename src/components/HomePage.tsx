@@ -1206,13 +1206,25 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
   return (
     <div className="h-full overflow-hidden" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
       <div className="max-w-full mx-auto p-6 pb-0">
+        <style>{`
+          @media (min-width: 900px) {
+            .sidebar-left, .sidebar-right {
+              display: flex !important;
+            }
+          }
+          @media (max-width: 899px) {
+            .sidebar-left, .sidebar-right {
+              display: none !important;
+            }
+          }
+        `}</style>
         <div className={`flex gap-6 ${isThreadViewOpen ? 'justify-center' : ''} min-w-0`} style={{ 
-          minWidth: 'calc(400px + 272px + 24px)', // Feed min + Right sidebar + gap
+          minWidth: '400px', // Just feed min width on smaller screens
           overflowX: 'auto'
         }}>
-          {/* Left Content - Only show when not in thread view */}
+          {/* Left Content - Only show when not in thread view and on screens >= 900px */}
           {!isThreadViewOpen && (
-            <div className="w-64 flex-shrink-0 space-y-4 overflow-y-auto scrollbar-hide hidden md:block" style={{ 
+            <div className="sidebar-left w-64 flex-shrink-0 flex-col space-y-4 overflow-y-auto scrollbar-hide" style={{ 
               height: 'calc(100vh - 0px)', 
               marginTop: '-24px', 
               paddingTop: '24px',
@@ -1253,9 +1265,9 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
             />
           </div>
 
-          {/* Right Sidebar - Only show when not in thread view */}
+          {/* Right Sidebar - Only show when not in thread view and on screens >= 900px */}
           {!isThreadViewOpen && (
-            <div className="w-68 flex-shrink-0 space-y-4 overflow-y-auto scrollbar-hide hidden md:block" style={{ 
+            <div className="sidebar-right w-68 flex-shrink-0 flex-col space-y-4 overflow-y-auto scrollbar-hide" style={{ 
               height: 'calc(100vh - 0px)', 
               marginTop: '-24px', 
               paddingTop: '24px',

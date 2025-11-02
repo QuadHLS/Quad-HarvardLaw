@@ -948,7 +948,19 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
 
           if (error) throw error;
           
+          // After successful deletion, if we're in thread view and the deleted post is the selected one, go back to feed
+          const wasInThreadView = selectedPostThread === postId;
+          
           await fetchCoursePosts(); // Refresh posts
+          
+          // Return to feed view after deletion if we were viewing the deleted post
+          if (wasInThreadView) {
+            setSelectedPostThread(null);
+            setIsThreadPostHovered(false);
+            setHoveredPostId(null);
+            setReplyingTo(null);
+          }
+          
           setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
         } catch (error) {
           console.error('CoursePage error deleting post:', error);
@@ -2190,6 +2202,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
     if (!selectedPost) return null;
     
     return (
+      <>
       <div className="h-full overflow-hidden" style={{ backgroundColor: '#FAF5EF' }}>
         <div className="flex justify-center min-w-0" style={{ minWidth: '400px' }}>
           <div className="w-full max-w-4xl flex flex-col" style={{ height: 'calc(100vh - 12px)', minWidth: '400px' }}>
@@ -2333,7 +2346,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
 
               {/* Post Photo in Thread View */}
               {selectedPost.photo_url && postPhotoUrls.has(selectedPost.id) && (
-                <div className="mb-4 mt-4">
+                <div className="mb-4 mt-4" onClick={(e) => e.stopPropagation()}>
                   <img
                     src={postPhotoUrls.get(selectedPost.id) || ''}
                     alt="Post"
@@ -2346,6 +2359,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                       objectFit: 'contain',
                       display: 'block'
                     }}
+                    onClick={(e) => e.stopPropagation()}
                     onError={(e) => {
                       // If signed URL expires, regenerate it
                       if (selectedPost.photo_url) {
@@ -2444,8 +2458,8 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
               )}
 
               {/* Post Actions */}
-              <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                <div className="flex items-center gap-4">
+              <div className="flex items-center justify-between pt-4 border-t border-gray-200 relative z-10">
+                <div className="flex items-center gap-4 relative z-10">
                   <button
                     onClick={() => togglePostLike(selectedPost.id)}
                     className={`flex items-center gap-2 text-sm font-medium transition-colors px-3 py-2 rounded-md ${
@@ -2475,11 +2489,12 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                   
                   {/* Edit/Delete buttons for post author */}
                   {selectedPost.author_id === user?.id && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 relative z-10">
                       {selectedPost.post_type !== 'poll' && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            e.preventDefault();
                             if (editingPost === selectedPost.id) {
                               setEditingPost(null);
                             } else {
@@ -2488,7 +2503,17 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                               setEditPostContent(selectedPost.content || '');
                             }
                           }}
-                          className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-blue-600 transition-colors px-2 py-1 rounded"
+                          className="flex items-center gap-1.5 text-xs font-medium transition-colors px-3 py-2 rounded-md relative z-10"
+                          style={{ 
+                            pointerEvents: 'auto',
+                            color: '#6B7280'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = getPostColor(selectedPost.id);
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = '#6B7280';
+                          }}
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -2499,9 +2524,20 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          e.preventDefault();
                           handleDeletePost(selectedPost.id, e);
                         }}
-                        className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-red-600 transition-colors px-2 py-1 rounded"
+                        className="flex items-center gap-1.5 text-xs font-medium transition-colors px-3 py-2 rounded-md relative z-10"
+                        style={{ 
+                          pointerEvents: 'auto',
+                          color: '#6B7280'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.color = '#DC2626';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = '#6B7280';
+                        }}
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -2694,8 +2730,21 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                           {comment.likes_count}
                         </button>
                         <button 
-                          className="text-xs font-medium text-gray-600 hover:text-blue-500 transition-colors"
-                          onClick={(e) => { e.stopPropagation(); setReplyingTo(prev => prev === `${selectedPost.id}:${comment.id}` ? null : `${selectedPost.id}:${comment.id}`); }}
+                          className="text-xs font-medium transition-colors"
+                          style={{ 
+                            color: '#6B7280'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = getPostColor(selectedPost.id);
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = '#6B7280';
+                          }}
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            e.preventDefault();
+                            setReplyingTo(prev => prev === `${selectedPost.id}:${comment.id}` ? null : `${selectedPost.id}:${comment.id}`); 
+                          }}
                         >
                           Reply
                         </button>
@@ -2706,6 +2755,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
+                                e.preventDefault();
                                 if (editingComment === comment.id) {
                                   setEditingComment(null);
                                 } else {
@@ -2713,16 +2763,35 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                                   setEditCommentContent(comment.content);
                                 }
                               }}
-                              className="text-xs font-medium text-gray-600 hover:text-blue-500 transition-colors"
+                              className="text-xs font-medium transition-colors"
+                              style={{ 
+                                color: '#6B7280'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.color = getPostColor(selectedPost.id);
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.color = '#6B7280';
+                              }}
                             >
                               Edit
                             </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
+                                e.preventDefault();
                                 handleDeleteComment(comment.id, e);
                               }}
-                              className="text-xs font-medium text-gray-600 hover:text-red-500 transition-colors"
+                              className="text-xs font-medium transition-colors"
+                              style={{ 
+                                color: '#6B7280'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.color = '#DC2626';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.color = '#6B7280';
+                              }}
                             >
                               Delete
                             </button>
@@ -2847,6 +2916,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
+                                          e.preventDefault();
                                           if (editingComment === reply.id) {
                                             setEditingComment(null);
                                           } else {
@@ -2854,16 +2924,35 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                                             setEditCommentContent(reply.content);
                                           }
                                         }}
-                                        className="text-xs font-medium text-gray-600 hover:text-blue-500 transition-colors"
+                                        className="text-xs font-medium transition-colors"
+                                        style={{ 
+                                          color: '#6B7280'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                          e.currentTarget.style.color = getPostColor(selectedPost.id);
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          e.currentTarget.style.color = '#6B7280';
+                                        }}
                                       >
                                         Edit
                                       </button>
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
+                                          e.preventDefault();
                                           handleDeleteComment(reply.id, e);
                                         }}
-                                        className="text-xs font-medium text-gray-600 hover:text-red-500 transition-colors"
+                                        className="text-xs font-medium transition-colors"
+                                        style={{ 
+                                          color: '#6B7280'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                          e.currentTarget.style.color = '#DC2626';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          e.currentTarget.style.color = '#6B7280';
+                                        }}
                                       >
                                         Delete
                                       </button>
@@ -2944,7 +3033,8 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
             </div>
           </div>
         </div>
-
+      </div>
+      
       <ConfirmationPopup
         isOpen={confirmationPopup.isOpen}
         title={confirmationPopup.title}
@@ -2955,7 +3045,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
         onConfirm={confirmationPopup.onConfirm}
         onCancel={() => setConfirmationPopup(prev => ({ ...prev, isOpen: false }))}
       />
-      </div>
+      </>
     );
   };
 
@@ -3385,7 +3475,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
 
                           {/* Post Photo */}
                           {post.photo_url && postPhotoUrls.has(post.id) && (
-                            <div className="mb-3 mt-3">
+                            <div className="mb-3 mt-3" onClick={(e) => e.stopPropagation()}>
                               <img
                                 src={postPhotoUrls.get(post.id) || ''}
                                 alt="Post"
@@ -3398,6 +3488,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                                   objectFit: 'contain',
                                   display: 'block'
                                 }}
+                                onClick={(e) => e.stopPropagation()}
                                 onError={(e) => {
                                   // If signed URL expires, regenerate it
                                   if (post.photo_url) {
@@ -3499,8 +3590,8 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                           )}
 
                           {/* Post Actions */}
-                          <div className="flex items-center justify-start pt-4 mt-1 border-t border-gray-200">
-                            <div className="flex items-center gap-4">
+                          <div className="flex items-center justify-start pt-4 mt-1 border-t border-gray-200 relative z-10">
+                            <div className="flex items-center gap-4 relative z-10">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -3532,11 +3623,12 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                               
                               {/* Edit/Delete buttons for post author */}
                               {post.author_id === user?.id && (
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 relative z-10">
                                   {post.post_type !== 'poll' && (
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
+                                        e.preventDefault();
                                         if (editingPost === post.id) {
                                           // If already editing, cancel edit mode
                                           setEditingPost(null);
@@ -3547,7 +3639,17 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                                           setEditPostContent(post.content || '');
                                         }
                                       }}
-                                      className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-blue-600 transition-colors px-2 py-1 rounded"
+                                      className="flex items-center gap-1.5 text-xs font-medium transition-colors px-3 py-2 rounded-md relative z-10"
+                                      style={{ 
+                                        pointerEvents: 'auto',
+                                        color: '#6B7280'
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.color = courseColor;
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.color = '#6B7280';
+                                      }}
                                     >
                                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -3558,9 +3660,20 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
+                                      e.preventDefault();
                                       handleDeletePost(post.id, e);
                                     }}
-                                    className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-red-600 transition-colors px-2 py-1 rounded"
+                                    className="flex items-center gap-1.5 text-xs font-medium transition-colors px-3 py-2 rounded-md relative z-10"
+                                    style={{ 
+                                      pointerEvents: 'auto',
+                                      color: '#6B7280'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.color = '#DC2626';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.color = '#6B7280';
+                                    }}
                                   >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -3937,6 +4050,17 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
           </div>
         </DialogContent>
       </Dialog>
+      
+      <ConfirmationPopup
+        isOpen={confirmationPopup.isOpen}
+        title={confirmationPopup.title}
+        message={confirmationPopup.message}
+        confirmText="Delete"
+        cancelText="Cancel"
+        position={confirmationPopup.position}
+        onConfirm={confirmationPopup.onConfirm}
+        onCancel={() => setConfirmationPopup(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }

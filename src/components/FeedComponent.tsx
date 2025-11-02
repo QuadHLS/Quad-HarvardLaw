@@ -2709,11 +2709,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                   
                   {/* Edit/Delete buttons for post author */}
                   {selectedPost.author_id === user?.id && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 relative z-10">
                       {selectedPost.post_type !== 'poll' && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            e.preventDefault();
                             if (editingPost === selectedPost.id) {
                               // If already editing, cancel edit mode
                               setEditingPost(null);
@@ -2724,7 +2725,17 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                               setEditPostContent(selectedPost.content || '');
                             }
                           }}
-                          className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-blue-600 transition-colors px-2 py-1 rounded"
+                          className="flex items-center gap-1.5 text-xs font-medium transition-colors px-3 py-2 rounded-md relative z-10"
+                          style={{ 
+                            pointerEvents: 'auto',
+                            color: '#6B7280'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = getPostColor(selectedPost.id);
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = '#6B7280';
+                          }}
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -2735,9 +2746,20 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          e.preventDefault();
                           handleDeletePost(selectedPost.id, e);
                         }}
-                        className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-red-600 transition-colors px-2 py-1 rounded"
+                        className="flex items-center gap-1.5 text-xs font-medium transition-colors px-3 py-2 rounded-md relative z-10"
+                        style={{ 
+                          pointerEvents: 'auto',
+                          color: '#6B7280'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.color = '#DC2626';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = '#6B7280';
+                        }}
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -2931,8 +2953,21 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                           {comment.likes_count}
                         </button>
                         <button 
-                          className="text-xs font-medium text-gray-600 hover:text-blue-500 transition-colors"
-                          onClick={(e) => { e.stopPropagation(); setReplyingTo(prev => prev === `${selectedPost.id}:${comment.id}` ? null : `${selectedPost.id}:${comment.id}`); }}
+                          className="text-xs font-medium transition-colors"
+                          style={{ 
+                            color: '#6B7280'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = getPostColor(selectedPost.id);
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = '#6B7280';
+                          }}
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            e.preventDefault();
+                            setReplyingTo(prev => prev === `${selectedPost.id}:${comment.id}` ? null : `${selectedPost.id}:${comment.id}`); 
+                          }}
                         >
                           Reply
                         </button>
@@ -2943,6 +2978,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
+                                e.preventDefault();
                                 if (editingComment === comment.id) {
                                   // If already editing, cancel edit mode
                                   setEditingComment(null);
@@ -2952,16 +2988,35 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                   setEditCommentContent(comment.content);
                                 }
                               }}
-                              className="text-xs font-medium text-gray-600 hover:text-blue-500 transition-colors"
+                              className="text-xs font-medium transition-colors"
+                              style={{ 
+                                color: '#6B7280'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.color = getPostColor(selectedPost.id);
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.color = '#6B7280';
+                              }}
                             >
                               Edit
                             </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
+                                e.preventDefault();
                                 handleDeleteComment(comment.id, e);
                               }}
-                              className="text-xs font-medium text-gray-600 hover:text-red-500 transition-colors"
+                              className="text-xs font-medium transition-colors"
+                              style={{ 
+                                color: '#6B7280'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.color = '#DC2626';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.color = '#6B7280';
+                              }}
                             >
                               Delete
                             </button>
@@ -3088,6 +3143,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
+                                          e.preventDefault();
                                           if (editingComment === reply.id) {
                                             // If already editing, cancel edit mode
                                             setEditingComment(null);
@@ -3097,16 +3153,35 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                             setEditCommentContent(reply.content);
                                           }
                                         }}
-                                        className="text-xs font-medium text-gray-600 hover:text-blue-500 transition-colors"
+                                        className="text-xs font-medium transition-colors"
+                                        style={{ 
+                                          color: '#6B7280'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                          e.currentTarget.style.color = getPostColor(selectedPost.id);
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          e.currentTarget.style.color = '#6B7280';
+                                        }}
                                       >
                                         Edit
                                       </button>
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
+                                          e.preventDefault();
                                           handleDeleteComment(reply.id, e);
                                         }}
-                                        className="text-xs font-medium text-gray-600 hover:text-red-500 transition-colors"
+                                        className="text-xs font-medium transition-colors"
+                                        style={{ 
+                                          color: '#6B7280'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                          e.currentTarget.style.color = '#DC2626';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          e.currentTarget.style.color = '#6B7280';
+                                        }}
                                       >
                                         Delete
                                       </button>
@@ -3616,11 +3691,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                     
                     {/* Edit/Delete buttons for post author */}
                     {post.author_id === user?.id && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 relative z-10">
                         {post.post_type !== 'poll' && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
+                              e.preventDefault();
                               if (editingPost === post.id) {
                                 // If already editing, cancel edit mode
                                 setEditingPost(null);
@@ -3631,7 +3707,17 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                 setEditPostContent(post.content || '');
                               }
                             }}
-                            className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-blue-600 transition-colors px-2 py-1 rounded"
+                            className="flex items-center gap-1.5 text-xs font-medium transition-colors px-3 py-2 rounded-md relative z-10"
+                            style={{ 
+                              pointerEvents: 'auto',
+                              color: '#6B7280'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = getPostColor(post.id);
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = '#6B7280';
+                            }}
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -3642,9 +3728,20 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            e.preventDefault();
                             handleDeletePost(post.id, e);
                           }}
-                          className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-red-600 transition-colors px-2 py-1 rounded"
+                          className="flex items-center gap-1.5 text-xs font-medium transition-colors px-3 py-2 rounded-md relative z-10"
+                          style={{ 
+                            pointerEvents: 'auto',
+                            color: '#6B7280'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = '#DC2626';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = '#6B7280';
+                          }}
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

@@ -174,7 +174,7 @@ function Leaderboard() {
                       {section.signups}/{section.maxStudents} students
                     </span>
                   </div>
-                  <div className="w-full bg-[#F5F1E8] rounded-full h-2.5 overflow-hidden">
+                  <div className="w-full rounded-full h-2.5 overflow-hidden" style={{ backgroundColor: '#f5f1e8' }}>
                     <div 
                       className="h-full transition-all duration-300" 
                       style={{ 

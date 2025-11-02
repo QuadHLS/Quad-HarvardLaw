@@ -919,6 +919,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           likes_count: likesCount,
           comments_count: commentsCount,
           photo_url: post.photo_url || null,
+          youtube_link: post.youtube_link || null,
           author: author && (author as any).full_name ? {
             name: post.is_anonymous ? `Anonymous User` : (author as any).full_name,
             year: (author as any).class_year || ''
@@ -2547,18 +2548,28 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
               )}
 
               {/* YouTube Video in Thread View */}
-              {selectedPost.youtube_link && getYouTubeEmbedUrl(selectedPost.youtube_link) && (
+              {selectedPost.youtube_link && (
                 <div className="mb-4 mt-4">
-                  <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-                    <iframe
-                      src={getYouTubeEmbedUrl(selectedPost.youtube_link) || ''}
-                      title="YouTube video player"
-                      frameBorder="0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                      className="absolute top-0 left-0 w-full h-full rounded-lg"
-                    />
-                  </div>
+                  {(() => {
+                    const embedUrl = getYouTubeEmbedUrl(selectedPost.youtube_link);
+                    if (!embedUrl) {
+                      console.warn('Failed to convert YouTube URL:', selectedPost.youtube_link);
+                      return null;
+                    }
+                    return (
+                      <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                        <iframe
+                          src={embedUrl}
+                          title="YouTube video player"
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                          className="absolute top-0 left-0 w-full h-full rounded-lg"
+                          style={{ border: 'none' }}
+                        />
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
               
@@ -3430,18 +3441,36 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 )}
 
                 {/* YouTube Video */}
-                {post.youtube_link && getYouTubeEmbedUrl(post.youtube_link) && (
+                {post.youtube_link && (
                   <div className="mb-3 mt-3">
-                    <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-                      <iframe
-                        src={getYouTubeEmbedUrl(post.youtube_link) || ''}
-                        title="YouTube video player"
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                        className="absolute top-0 left-0 w-full h-full rounded-lg"
-                      />
-                    </div>
+                    {(() => {
+                      console.log('YouTube post detected:', { postId: post.id, youtubeLink: post.youtube_link, postType: post.post_type });
+                      const embedUrl = getYouTubeEmbedUrl(post.youtube_link);
+                      console.log('Converted embed URL:', embedUrl);
+                      if (!embedUrl) {
+                        console.warn('Failed to convert YouTube URL:', post.youtube_link);
+                        return (
+                          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <p className="text-sm text-yellow-800">
+                              Invalid YouTube URL: {post.youtube_link}
+                            </p>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="relative w-full bg-gray-100" style={{ paddingBottom: '56.25%', minHeight: '200px' }}>
+                          <iframe
+                            src={embedUrl}
+                            title="YouTube video player"
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allowFullScreen
+                            className="absolute top-0 left-0 w-full h-full rounded-lg"
+                            style={{ border: 'none' }}
+                          />
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
 

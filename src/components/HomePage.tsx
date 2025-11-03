@@ -1266,8 +1266,8 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
               flexShrink: 0 // Ensure it doesn't shrink when feed hits minimum
             }}>
             {/* Calendar */}
-            <Card className="overflow-hidden relative" style={{ backgroundColor: '#FEFBF6' }}>
-              <div className="px-4 py-3 border-b border-gray-200" style={{ backgroundColor: '#F8F4ED' }}>
+            <Card className="overflow-hidden relative flex-shrink-0" style={{ backgroundColor: '#FEFBF6' }}>
+              <div className="px-4 py-3 border-b border-gray-200 flex-shrink-0" style={{ backgroundColor: '#F8F4ED' }}>
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold text-gray-900">{monthNames[currentMonth]} {currentYear}</h3>
                   <div className="flex items-center gap-2">
@@ -1328,7 +1328,7 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
                   </div>
                 </div>
               </div>
-              <div className="p-3">
+              <div className="p-3 flex-shrink-0">
                 {/* Calendar Grid */}
                 <div className="grid grid-cols-7 gap-1 mb-2">
                   {dayNames.map((day, index) => (
@@ -1423,9 +1423,9 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
             </Card>
 
             {/* Selected Day's Schedule - Google Calendar Style */}
-            <Card className="p-0 overflow-hidden" style={{ backgroundColor: '#FEFBF6' }}>
+            <Card className="p-0 overflow-hidden flex-shrink-0" style={{ backgroundColor: '#FEFBF6' }}>
               {/* Header */}
-              <div className="p-4 border-b border-gray-200" style={{ backgroundColor: '#F8F4ED' }}>
+              <div className="p-4 border-b border-gray-200 flex-shrink-0" style={{ backgroundColor: '#F8F4ED' }}>
                 <h3 className="font-semibold text-gray-900">
                   {selectedDate.toDateString() === new Date().toDateString() ? 'Today' : 'Schedule'}
                 </h3>
@@ -1440,8 +1440,9 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
 
               {/* Schedule Content */}
               <div 
-                className="overflow-hidden transition-all duration-1000 ease-out"
+                className="overflow-hidden transition-all duration-1000 ease-out flex-shrink-0"
                 style={{ 
+                  minHeight: selectedDayCourses.length === 0 ? '120px' : '520px',
                   height: selectedDayCourses.length === 0 ? '120px' : '520px',
                   backgroundColor: '#FEFBF6'
                 }}
@@ -1487,15 +1488,6 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
                     ))}
                   </div>
 
-                  {/* Current time indicator */}
-                  <div
-                    className="absolute left-16 right-0 z-40 flex items-center"
-                    style={{ top: `${getCurrentTimePosition()}px` }}
-                  >
-                    <div className="w-1.5 h-1.5 bg-red-500 rounded-full shadow-sm"></div>
-                    <div className="flex-1 h-0.5 bg-red-500"></div>
-                  </div>
-
                   {/* Events */}
                   <div className="absolute left-16 right-0 top-0 h-full pr-2">
                     {selectedDayCourses.map((course, index) => {
@@ -1521,6 +1513,15 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
                         </div>
                       );
                     })}
+                  </div>
+
+                  {/* Current time indicator - rendered after events to ensure it's on top */}
+                  <div
+                    className="absolute left-16 right-0 z-50 flex items-center pointer-events-none"
+                    style={{ top: `${getCurrentTimePosition()}px` }}
+                  >
+                    <div className="w-1.5 h-1.5 bg-red-500 rounded-full shadow-sm"></div>
+                    <div className="flex-1 h-0.5 bg-red-500"></div>
                   </div>
                   </div>
                 )}

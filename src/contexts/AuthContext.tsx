@@ -42,12 +42,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         await new Promise(resolve => setTimeout(resolve, 50));
         
         const { data: { session }, error } = await supabase.auth.getSession();
-        console.log('AuthContext: Initial session check:', { 
-          hasSession: !!session, 
-          error: error?.message,
-          userEmail: session?.user?.email 
-        });
-        
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -63,13 +57,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event: string, session: any) => {
-      console.log('Auth state change:', event, session?.user?.email, 'Session:', !!session);
-      
       // Handle password recovery - redirect to reset password page
       if (event === 'PASSWORD_RECOVERY') {
-        console.log('PASSWORD_RECOVERY event detected, redirecting to reset password page');
-        console.log('PASSWORD_RECOVERY session:', !!session);
-        
         // Set a flag to indicate we're in password recovery mode
         sessionStorage.setItem('isPasswordRecovery', 'true');
         
@@ -84,7 +73,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // Handle SIGNED_IN event
       if (event === 'SIGNED_IN' && session?.user) {
-        console.log('SIGNED_IN event detected, user:', session.user.email);
         setSession(session);
         setUser(session.user);
         setLoading(false);

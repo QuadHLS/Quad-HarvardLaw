@@ -52,8 +52,6 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
 
     // First validate email with edge function
     try {
-      console.log('Validating email with edge function:', { email });
-      
       const response = await fetch(
         'https://ujsnnvdbujguiejhxuds.supabase.co/functions/v1/validate-harvard-email',
         {
@@ -67,16 +65,12 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
       );
 
       const result = await response.json();
-      console.log('Email validation result:', result);
 
       if (!result.success) {
-        console.log('Email validation failed:', result);
         setError(result.error || 'Please use your Harvard Law School email address.');
         setLoading(false);
         return;
       }
-      
-      console.log('Email validation passed, creating account with Supabase auth');
       
     } catch (err) {
       console.error('Email validation error:', err);
@@ -102,7 +96,6 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
         return;
       }
 
-      console.log('Account created successfully:', data.user);
       setSuccess(true);
       
     } catch (err) {

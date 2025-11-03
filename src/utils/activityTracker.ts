@@ -36,8 +36,6 @@ export const trackUserActivity = async (activityData: ActivityData): Promise<voi
 
     if (error) {
       console.error('Error tracking user activity:', error);
-    } else {
-      console.log('User activity tracked successfully:', activityData.action_type, activityData.resource_title);
     }
   } catch (error) {
     console.error('Failed to track user activity:', error);

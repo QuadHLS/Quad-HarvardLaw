@@ -8,15 +8,12 @@ export const AuthCallback: React.FC = () => {
 
   useEffect(() => {
     const handleAuthCallback = async () => {
-      console.log('AuthCallback: Processing OAuth callback');
-      
       // Check for OAuth errors in URL parameters
       const urlParams = new URLSearchParams(window.location.search);
       const errorParam = urlParams.get('error');
       const errorDescription = urlParams.get('error_description');
       
       if (errorParam) {
-        console.log('AuthCallback: OAuth error detected:', errorParam, errorDescription);
         let errorMessage = 'OAuth authentication failed.';
         
         // Provide specific error messages based on OAuth error codes
@@ -43,22 +40,18 @@ export const AuthCallback: React.FC = () => {
       
       try {
         const { data, error } = await supabase.auth.getSession();
-        console.log('AuthCallback: Session data:', { session: !!data.session, error });
 
         if (error) {
-          console.log('AuthCallback: Session error:', error);
           setError(error.message);
           return;
         }
 
         if (data.session) {
           // User is authenticated (validation handled by server-side hook), redirect to main app
-          console.log('AuthCallback: User authenticated, redirecting to app');
           window.history.pushState({}, '', '/');
           window.dispatchEvent(new PopStateEvent('popstate'));
         } else {
           // No session, redirect to login
-          console.log('AuthCallback: No session, redirecting to login');
           window.history.pushState({}, '', '/');
           window.dispatchEvent(new PopStateEvent('popstate'));
         }

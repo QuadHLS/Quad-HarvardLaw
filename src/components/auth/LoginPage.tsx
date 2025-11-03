@@ -47,7 +47,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   };
 
   const handleGoogleSignIn = async () => {
-    console.log('Google sign in clicked');
     setLoading(true);
     setError('');
 
@@ -57,8 +56,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       console.error('Google sign in error:', error);
       setError(error.message);
       setLoading(false);
-    } else {
-      console.log('Google sign in successful');
     }
   };
 

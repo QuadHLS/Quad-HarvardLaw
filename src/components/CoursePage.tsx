@@ -809,16 +809,10 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
 
       // If user has already voted, prevent any further voting
       if (previousSelection) {
-        console.log('User has already voted on this poll, voting disabled');
         return;
       }
 
       // First vote only
-      console.log('Inserting poll vote:', {
-        poll_id: post.poll.id,
-        option_id: optionId,
-        user_id: user.id
-      });
       
       const { error } = await supabase
         .from('poll_votes')
@@ -832,8 +826,6 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
         console.error('Error voting on poll:', error);
         return;
       }
-      
-      console.log('Poll vote inserted successfully');
 
       // Update local state immediately for better UX
       setCoursePosts(prevPosts => 
@@ -1000,7 +992,6 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
   };
 
   const handleDeleteComment = async (commentId: string, event?: React.MouseEvent<HTMLButtonElement>) => {
-    console.log('CoursePage handleDeleteComment called with:', { commentId, userId: user?.id });
     const position = event ? { top: event.clientY, left: event.clientX } : { top: 0, left: 0 };
     
     setConfirmationPopup({
@@ -1010,8 +1001,6 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
       position,
       onConfirm: async () => {
         try {
-          console.log('CoursePage attempting to delete comment:', commentId);
-          
           // First, delete all likes for this comment and its replies
           const { error: likesError } = await supabase
             .from('likes')
@@ -1074,7 +1063,6 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
             throw error;
           }
           
-          console.log('CoursePage comment deleted successfully, refreshing comments...');
           // Refresh comments
           // Check both top-level comments and replies
           const postId = Object.keys(comments).find(key => 
@@ -1084,7 +1072,6 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
             )
           );
           if (postId) {
-            console.log('CoursePage refreshing comments for post:', postId);
             await fetchComments(postId);
           }
           setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
@@ -1176,14 +1163,12 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.log('No user found, skipping fetchCoursePosts');
         setPostsLoading(false);
         return;
       }
       
       // Check if we have a course with UUID
       if (!userCourse?.course_id) {
-        console.log('No course UUID found');
         setCoursePosts([]);
         setPostsLoading(false);
         return;
@@ -1435,12 +1420,9 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
   useEffect(() => {
     if (!user || !userCourse) return;
 
-    console.log('Setting up real-time subscriptions for course:', userCourse.class);
-    
     // Set a timeout to mark as disconnected if connection takes too long
     const connectionTimeout = setTimeout(() => {
       if (realtimeStatus === 'connecting') {
-        console.log('Real-time connection timeout - marking as disconnected');
         setRealtimeStatus('disconnected');
       }
     }, 15000); // 15 second timeout (increased from 10)
@@ -1448,23 +1430,17 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
     // Set up realtime channels
     const setupChannels = async () => {
       try {
-        console.log('Setting up realtime channels...');
-        
         // Clean up any existing channels first
       if (channelsRef.current.postsChannel) {
-        console.log('Removing existing posts channel');
         supabase.removeChannel(channelsRef.current.postsChannel);
       }
       if (channelsRef.current.likesChannel) {
-        console.log('Removing existing likes channel');
         supabase.removeChannel(channelsRef.current.likesChannel);
       }
       if (channelsRef.current.commentsChannel) {
-        console.log('Removing existing comments channel');
         supabase.removeChannel(channelsRef.current.commentsChannel);
       }
       if (channelsRef.current.pollVotesChannel) {
-        console.log('Removing existing poll votes channel');
         supabase.removeChannel(channelsRef.current.pollVotesChannel);
       }
       
@@ -1499,27 +1475,21 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
             table: 'posts'
           },
           (payload: any) => {
-            console.log('Post deleted:', payload);
             startTransition(() => {
               setCoursePosts(prev => prev.filter(post => post.id !== payload.old.id));
             });
           }
         )
         .subscribe((status: any, err: any) => {
-          console.log('Posts channel status:', status, err);
           if (err) {
             console.error('Posts channel error:', err);
             // Don't immediately set disconnected - let it retry
-            console.log('Posts channel will retry connection...');
           } else if (status === 'SUBSCRIBED') {
-            console.log('Posts channel successfully subscribed!');
             clearTimeout(connectionTimeout);
             setRealtimeStatus('connected');
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-            console.log('Posts channel failed:', status, '- will retry...');
             // Don't set disconnected immediately - let it retry
           } else {
-            console.log('Posts channel connecting...', status);
             setRealtimeStatus('connecting');
           }
         });
@@ -1538,7 +1508,6 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
             table: 'likes'
           },
           async (payload: any) => {
-            console.log('Like added:', payload);
             // Only refresh if we have a valid course UUID and this like is for a post in our course
             if (userCourse?.course_id) {
               debouncedFetchPosts();
@@ -1553,7 +1522,6 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
             table: 'likes'
           },
           async (payload: any) => {
-            console.log('Like removed:', payload);
             // Only refresh if we have a valid course UUID
             if (userCourse?.course_id) {
               debouncedFetchPosts();
@@ -1581,7 +1549,6 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
             table: 'comments'
           },
           async (payload: any) => {
-            console.log('Comment added:', payload);
             // Update comment count for the post locally
             startTransition(() => {
               setCoursePosts(prev => prev.map(post => 
@@ -1605,7 +1572,6 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
             table: 'comments'
           },
           async (payload: any) => {
-            console.log('Comment removed:', payload);
             // Update comment count for the post locally
             startTransition(() => {
               setCoursePosts(prev => prev.map(post => 
@@ -1642,7 +1608,6 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
             table: 'poll_votes'
           },
           async (payload: any) => {
-            console.log('Poll vote added:', payload);
             // Only refresh if we have a valid course UUID
             if (userCourse?.course_id) {
               debouncedFetchPosts();
@@ -1657,7 +1622,6 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
             table: 'poll_votes'
           },
           async (payload: any) => {
-            console.log('Poll vote removed:', payload);
             // Only refresh if we have a valid course UUID
             if (userCourse?.course_id) {
               debouncedFetchPosts();
@@ -1678,8 +1642,6 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
           commentsChannel,
           pollVotesChannel
         };
-        
-        console.log('All realtime channels set up successfully');
       } catch (error) {
         console.error('Error setting up realtime channels:', error);
         setRealtimeStatus('disconnected');
@@ -1690,7 +1652,6 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
 
     // Cleanup function
     return () => {
-      console.log('Cleaning up real-time subscriptions');
       if (channelsRef.current.postsChannel) {
         supabase.removeChannel(channelsRef.current.postsChannel);
       }
@@ -3054,7 +3015,6 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
     try {
       // Check if we have a course UUID
       if (!userCourse?.course_id) {
-        console.log('No course UUID available for fetching students');
         return;
       }
 
@@ -3070,7 +3030,6 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
       }
 
       if (!enrollments || enrollments.length === 0) {
-        console.log('No students found for this course');
         setCourseStudents([]);
         return;
       }

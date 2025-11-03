@@ -55,18 +55,6 @@ export function ClassSelector({
   isRequired = false,
   classYear = '',
 }: ClassSelectorProps) {
-  console.log('ClassSelector props:', {
-    index,
-    selectedClass: selectedClass?.name,
-    selectedClassId: selectedClass?.id,
-    selectedProfessor: selectedProfessor?.name,
-    onProfessorChange: typeof onProfessorChange,
-    isReadOnly,
-    isRequired,
-    hasProfessors: selectedClass?.professors?.length,
-    professorInputValue: selectedProfessor?.name || '',
-    shouldShowPlaceholder: !selectedClass,
-  });
   const [searchTerm, setSearchTerm] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [showProfessorDropdown, setShowProfessorDropdown] = useState(false);
@@ -95,7 +83,6 @@ export function ClassSelector({
 
   // Reset internal state when class year changes
   useEffect(() => {
-    console.log('ClassSelector - classYear changed:', classYear);
     setSearchTerm('');
     setShowDropdown(false);
     setShowProfessorDropdown(false);
@@ -104,19 +91,12 @@ export function ClassSelector({
 
   // Update search term when selected class changes
   useEffect(() => {
-    console.log('ClassSelector - selectedClass changed:', selectedClass?.name);
     setSearchTerm(selectedClass?.name || '');
     setShowProfessorDropdown(false); // Close professor dropdown when class changes
   }, [selectedClass]);
 
   // Filter available classes based on search term
   useEffect(() => {
-    console.log(
-      'ClassSelector useEffect - availableClasses:',
-      availableClasses.length,
-      availableClasses.map((c) => c.name)
-    );
-    console.log('ClassSelector useEffect - searchTerm:', searchTerm);
     if (!searchTerm) {
       setFilteredClasses(availableClasses);
     } else {
@@ -128,19 +108,9 @@ export function ClassSelector({
       // Auto-select if there's an exact match
       const exactMatch = availableClasses.find((c) => c.name === searchTerm);
       if (exactMatch && (!selectedClass || selectedClass.name !== searchTerm)) {
-        console.log(
-          'Auto-selecting exact match for index',
-          index,
-          ':',
-          exactMatch
-        );
         onClassChange(exactMatch);
       }
     }
-    console.log(
-      'ClassSelector useEffect - filteredClasses:',
-      filteredClasses.length
-    );
   }, [searchTerm, availableClasses, selectedClass, onClassChange, index]);
 
   // Handle clicks outside dropdown
@@ -179,21 +149,11 @@ export function ClassSelector({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    console.log('ClassSelector input change for index', index, ':', {
-      value,
-      availableClasses: availableClasses.length,
-      selectedClass: selectedClass?.name,
-      filteredClasses: filteredClasses.length,
-      exactMatch: availableClasses.find((c) => c.name === value),
-    });
     setSearchTerm(value);
     setShowDropdown(true);
 
     // If user starts typing and there's a selected class, clear it to allow new selection
     if (value && selectedClass && value !== selectedClass.name) {
-      console.log(
-        'ClassSelector - clearing selected class because user is typing new text'
-      );
       onClassChange(null);
       onProfessorChange(null);
     }
@@ -205,9 +165,6 @@ export function ClassSelector({
       const isUserAction =
         e.target === document.activeElement && e.nativeEvent.isTrusted;
       if (isUserAction) {
-        console.log(
-          'ClassSelector - clearing selected class due to user input'
-        );
         onClassChange(null);
         onProfessorChange(null);
       }
@@ -215,14 +172,6 @@ export function ClassSelector({
   };
 
   const handleClassSelect = (lawClass: LawClass) => {
-    console.log('ClassSelector class select:', {
-      lawClass: lawClass.name,
-      lawClassId: lawClass.id,
-      professors: lawClass.professors?.length,
-      professorNames: lawClass.professors?.map((p) => p.name),
-      index,
-      fullLawClass: lawClass,
-    });
     setSearchTerm(lawClass.name);
     setShowDropdown(false);
     onClassChange(lawClass);
@@ -253,20 +202,12 @@ export function ClassSelector({
             }
             onChange={handleInputChange}
             onClick={() => {
-              console.log('Input clicked:', {
-                isReadOnly,
-                selectedClass: selectedClass?.name,
-              });
               if (!isReadOnly) {
                 setSearchTerm(''); // Clear search term to show all options
                 setShowDropdown(true);
               }
             }}
             onFocus={() => {
-              console.log('Input focused:', {
-                isReadOnly,
-                selectedClass: selectedClass?.name,
-              });
               if (!isReadOnly) {
                 setSearchTerm(''); // Clear search term to show all options
                 setShowDropdown(true);
@@ -286,15 +227,6 @@ export function ClassSelector({
         </div>
 
         {/* Dropdown */}
-        {(() => {
-          console.log('Dropdown render check:', {
-            showDropdown,
-            isReadOnly,
-            filteredClassesLength: filteredClasses.length,
-            filteredClasses: filteredClasses.map((c) => c.name),
-          });
-          return null;
-        })()}
         {showDropdown && !isReadOnly && filteredClasses.length > 0 && (
           <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto" style={{ 
             position: 'absolute', 
@@ -302,30 +234,11 @@ export function ClassSelector({
             scrollbarWidth: 'thin',
             scrollbarColor: '#752531 transparent'
           }}>
-            {(() => {
-              console.log(
-                'Rendering dropdown options for index',
-                index,
-                ':',
-                filteredClasses.map((c) => ({
-                  id: c.id,
-                  name: c.name,
-                  hasProfessors: c.professors?.length,
-                }))
-              );
-              return null;
-            })()}
             {filteredClasses.map((lawClass, classIndex) => (
               <button
                 key={`${lawClass.id}-${classIndex}`}
                 type="button"
                 onClick={() => {
-                  console.log(
-                    'Dropdown option clicked for index',
-                    index,
-                    ':',
-                    lawClass
-                  );
                   handleClassSelect(lawClass);
                 }}
                 className="w-full px-3 py-2 text-left hover:bg-gray-100 text-sm border-b border-gray-100 last:border-b-0 bg-white"
@@ -367,32 +280,12 @@ export function ClassSelector({
                 cursor: !selectedClass ? 'not-allowed' : 'pointer',
               }}
               onMouseDown={() => {
-                console.log('Professor input mousedown:', {
-                  selectedClass: selectedClass?.name,
-                  selectedClassId: selectedClass?.id,
-                  professors: selectedClass?.professors?.length,
-                  professorNames: selectedClass?.professors?.map((p) => p.name),
-                  isRequired,
-                  index,
-                  fullSelectedClass: selectedClass,
-                });
                 if (
                   selectedClass &&
                   selectedClass.professors &&
                   selectedClass.professors.length > 0
                 ) {
-                  console.log(
-                    'Opening professor dropdown for:',
-                    selectedClass.name
-                  );
                   setShowProfessorDropdown(true);
-                } else {
-                  console.log(
-                    'Cannot open professor dropdown - no professors available for:',
-                    selectedClass?.name,
-                    'professors array:',
-                    selectedClass?.professors
-                  );
                 }
               }}
               className={`bg-input-background pr-10 ${
@@ -416,20 +309,6 @@ export function ClassSelector({
           {/* Professor dropdown disabled for all class years */}
           {false && (
             <>
-              {(() => {
-                console.log('Professor dropdown render check:', {
-                  showProfessorDropdown,
-                  selectedClass: selectedClass?.name,
-                  professors: selectedClass?.professors?.length,
-                  professorNames: selectedClass?.professors?.map((p) => p.name),
-                  shouldShow:
-                    showProfessorDropdown &&
-                    selectedClass &&
-                    selectedClass?.professors &&
-                    (selectedClass?.professors?.length ?? 0) > 0,
-                });
-                return null;
-              })()}
               {showProfessorDropdown &&
                 selectedClass &&
                 selectedClass?.professors &&
@@ -444,34 +323,19 @@ export function ClassSelector({
                   scrollbarColor: '#752531 transparent'
                 }}
                 onClick={(e) => {
-                  console.log(
-                    'Professor dropdown container clicked:',
-                    e.target
-                  );
                   e.stopPropagation();
                 }}
               >
                 <div className="p-2 text-xs text-gray-500 style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} border-b">
                   Professors for {formatDisplayCourseName(selectedClass?.name || '')}:
                 </div>
-                {selectedClass?.professors?.map((professor, profIndex) => {
-                  console.log('Rendering professor option:', professor);
-                  return (
+                {selectedClass?.professors?.map((professor, profIndex) => (
                     <button
                       key={`${professor.id}-${profIndex}`}
                       type="button"
                       onMouseDown={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        console.log(
-                          'Professor button mousedown (using this instead of click):',
-                          {
-                            professor,
-                            index,
-                            selectedClass: selectedClass?.name,
-                            event: e.type,
-                          }
-                        );
                         try {
                           onProfessorChange(professor);
                           setShowProfessorDropdown(false);
@@ -482,12 +346,6 @@ export function ClassSelector({
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        console.log('Professor button clicked (backup):', {
-                          professor,
-                          index,
-                          selectedClass: selectedClass?.name,
-                          event: e.type,
-                        });
                         try {
                           onProfessorChange(professor);
                           setShowProfessorDropdown(false);

@@ -24,8 +24,6 @@ export function ResetPasswordPage() {
       try {
         // First, let Supabase process any URL parameters (tokens, etc.)
         // This is important for password reset links that contain tokens in the URL
-        console.log('ResetPasswordPage: Checking for URL parameters and processing session');
-        console.log('ResetPasswordPage: Current URL:', window.location.href);
         
         // Check if there are URL parameters that might contain tokens
         const urlParams = new URLSearchParams(window.location.search);
@@ -39,18 +37,8 @@ export function ResetPasswordPage() {
         const token = urlParams.get('token') || hashParams.get('token');
         const tokenHash = urlParams.get('token_hash') || hashParams.get('token_hash');
         
-        console.log('ResetPasswordPage: URL parameters:', { 
-          hasUrlParams: !!hasUrlParams,
-          hasAccessToken: !!accessToken,
-          hasRefreshToken: !!refreshToken,
-          hasToken: !!token,
-          hasTokenHash: !!tokenHash,
-          type: type
-        });
-        
         // If we have tokens in the URL, set the session explicitly
         if (accessToken && refreshToken && type === 'recovery') {
-          console.log('ResetPasswordPage: Setting session from URL tokens (standard format)');
           const { data, error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken
@@ -62,13 +50,9 @@ export function ResetPasswordPage() {
             setCheckingSession(false);
             return;
           }
-          
-          console.log('ResetPasswordPage: Session set successfully from tokens');
         } else if (tokenHash && type) {
-          console.log('ResetPasswordPage: Token hash detected, attempting to verify OTP');
           // For token_hash format (from ConfirmationURL), use verifyOtp
           try {
-            console.log('ResetPasswordPage: Verifying OTP with token hash:', tokenHash, 'type:', type);
             const { data, error } = await supabase.auth.verifyOtp({
               token_hash: tokenHash,
               type: type
@@ -80,8 +64,6 @@ export function ResetPasswordPage() {
               setCheckingSession(false);
               return;
             }
-            
-            console.log('ResetPasswordPage: OTP verified successfully with token hash');
             // The session should now be established
           } catch (err) {
             console.error('ResetPasswordPage: Exception verifying OTP with token hash:', err);
@@ -92,10 +74,8 @@ export function ResetPasswordPage() {
           
           await new Promise(resolve => setTimeout(resolve, 500));
         } else if (token) {
-          console.log('ResetPasswordPage: Single token detected, attempting to process');
           // For single token format, we need to use verifyOtp to exchange the token for a session
           try {
-            console.log('ResetPasswordPage: Verifying OTP token:', token);
             const { data, error } = await supabase.auth.verifyOtp({
               token_hash: token,
               type: 'recovery'
@@ -107,8 +87,6 @@ export function ResetPasswordPage() {
               setCheckingSession(false);
               return;
             }
-            
-            console.log('ResetPasswordPage: OTP token verified successfully');
             // The session should now be established
           } catch (err) {
             console.error('ResetPasswordPage: Exception verifying OTP token:', err);
@@ -119,7 +97,6 @@ export function ResetPasswordPage() {
           
           await new Promise(resolve => setTimeout(resolve, 500));
         } else if (hasUrlParams) {
-          console.log('ResetPasswordPage: URL parameters detected, waiting for Supabase to process them');
           // Wait longer if there are URL parameters to process
           await new Promise(resolve => setTimeout(resolve, 500));
         } else {
@@ -128,12 +105,6 @@ export function ResetPasswordPage() {
         }
         
         const { data: { session }, error } = await supabase.auth.getSession();
-        
-        console.log('ResetPasswordPage: Session check result:', { 
-          hasSession: !!session, 
-          error: error?.message,
-          userEmail: session?.user?.email 
-        });
         
         if (error) {
           console.error('Session check error:', error);
@@ -149,7 +120,6 @@ export function ResetPasswordPage() {
         }
 
         // Session is valid
-        console.log('ResetPasswordPage: Valid session found, enabling form');
         setSessionValid(true);
         setCheckingSession(false);
       } catch (err) {

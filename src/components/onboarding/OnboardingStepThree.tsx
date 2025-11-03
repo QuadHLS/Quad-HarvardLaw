@@ -398,12 +398,6 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
       
       // Clear any previous warnings
       setAvatarWarning('');
-      
-      console.log('Avatar file prepared for upload:', {
-        fileName: compressedFile.name,
-        fileSize: compressedFile.size,
-        fileType: compressedFile.type
-      });
     } catch (error) {
       console.error('Error processing avatar:', error);
       if (error instanceof Error && error.message && error.message.includes('timeout')) {
@@ -508,7 +502,6 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
                                    // It's an existing avatar, delete from storage and database
                                    try {
                                      const oldFileName = extractFilename(profileImage);
-                                     console.log('Deleting avatar from storage:', oldFileName);
                                      
                                      // Delete from storage
                                      const { error: deleteError } = await supabase.storage
@@ -521,8 +514,6 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
                                        return;
                                      }
                                      
-                                     console.log('Successfully deleted avatar from storage');
-                                     
                                      // Update database if profile exists
                                      if (user?.id) {
                                        const { error: updateError } = await supabase
@@ -533,8 +524,6 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
                                        if (updateError) {
                                          console.error('Error updating profile:', updateError);
                                          // Don't block the UI if database update fails
-                                       } else {
-                                         console.log('Successfully updated profile to remove avatar');
                                        }
                                      }
                                    } catch (error) {
@@ -764,7 +753,6 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
                            
                            if (existingProfile?.avatar_url) {
                              const oldFileName = extractFilename(existingProfile.avatar_url);
-                             console.log('Deleting old avatar during onboarding:', oldFileName);
                              
                              const { error: deleteError } = await supabase.storage
                                .from('Avatar')
@@ -773,15 +761,11 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
                              if (deleteError) {
                                console.error('Error deleting old avatar during onboarding:', deleteError);
                                // Continue with upload even if delete fails
-                             } else {
-                               console.log('Successfully deleted old avatar during onboarding');
                              }
                            }
                            
                            const fileExt = avatarFile.name.split('.').pop();
                            const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-                           
-                           console.log('Uploading avatar to bucket:', fileName);
                            
                            const { error: uploadError } = await supabase.storage
                              .from('Avatar')
@@ -796,7 +780,6 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
 
                            // Store just the filename (not full URL) since bucket is now private
                            avatarUrl = fileName;
-                           console.log('Avatar uploaded successfully, filename:', avatarUrl);
                          }
 
                         const classesData = (skipCourses ? [] : selectedCourses).map(course => ({

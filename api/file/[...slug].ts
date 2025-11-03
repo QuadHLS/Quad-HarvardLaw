@@ -16,13 +16,6 @@ const getContentType = (name: string) => {
 };
 
 export default async function handler(req: any, res: any) {
-  // Log that the API route was hit (for debugging)
-  console.log('File proxy API route hit:', {
-    method: req.method,
-    url: req.url,
-    query: req.query
-  });
-
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -45,8 +38,6 @@ export default async function handler(req: any, res: any) {
   // URL format: /api/file/Avatar/filename.jpg -> slug = ['Avatar', 'filename.jpg']
   const bucket = decodeURIComponent(slug[0]);
   const path = slug.slice(1).map(segment => decodeURIComponent(segment)).join('/'); // file path inside the bucket
-  
-  console.log('File proxy request:', { bucket, path, slug });
 
   try {
     // Initialize Supabase admin client with service role key

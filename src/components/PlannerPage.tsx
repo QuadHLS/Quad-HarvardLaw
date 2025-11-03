@@ -779,19 +779,13 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
 
   // Format a single professor name from "lastname, firstname" to "Firstname Lastname"
   const formatSingleProfessor = (name: string): string => {
-    console.log('formatSingleProfessor input:', name);
-    
     if (name.includes(',')) {
       const parts = name.split(',');
       const lastName = parts[0].trim();
       const firstName = parts[1].trim();
-      const result = `${firstName} ${lastName}`;
-      console.log('formatSingleProfessor result:', result);
-      return result;
+      return `${firstName} ${lastName}`;
     }
-    const result = name.replace('Professor ', '');
-    console.log('formatSingleProfessor result (no comma):', result);
-    return result;
+    return name.replace('Professor ', '');
   };
 
   // Extract last name from faculty (for display in compact views)
@@ -819,20 +813,14 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
 
   // Get full faculty name without "Professor" prefix (for detailed views)
   const getFullFacultyName = (fullName: string): string => {
-    console.log('getFullFacultyName input:', fullName);
-    
     // Handle multiple professors separated by ";"
     if (fullName.includes(';')) {
       const professors = fullName.split(';').map(p => p.trim());
-      const result = professors.map(formatSingleProfessor).join('; ');
-      console.log('Multiple professors result:', result);
-      return result;
+      return professors.map(formatSingleProfessor).join('; ');
     }
     
     // Handle single professor "lastname, firstname" format - convert to "First Name Last Name"
-    const result = formatSingleProfessor(fullName);
-    console.log('Single professor result:', result);
-    return result;
+    return formatSingleProfessor(fullName);
   };
 
   // Handle professor name click to navigate to reviews
@@ -934,8 +922,6 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
         .eq('id', user.id)
         .single();
 
-      console.log('Profile fetch result:', { profileData, profileError });
-
       // Get existing saved schedules or initialize empty array
       let existingSchedules: SavedSchedule[] = [];
       
@@ -972,8 +958,6 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
           saved_schedules: updatedSchedules
         })
         .eq('id', user.id);
-
-      console.log('Update result:', { updateError, updatedSchedules });
 
       if (updateError) {
         console.error('Error saving schedule:', updateError);
@@ -1026,8 +1010,6 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
           saved_schedules: updatedSchedules
         })
         .eq('id', user.id);
-
-      console.log('Delete update result:', { updateError, updatedSchedules });
 
       if (updateError) {
         console.error('Error deleting schedule:', updateError);

@@ -724,12 +724,9 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.log('No user found, skipping fetchPosts');
         setLoading(false);
         return;
       }
-      
-      console.log('Fetching posts for user:', user.id, 'feedMode:', feedMode);
 
       // Build query based on feed mode - use simple select first
       let query = supabase
@@ -1205,8 +1202,6 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   useEffect(() => {
     if (!user) return;
 
-    console.log('Setting up real-time subscriptions for user:', user.id);
-    
     // Set a timeout to mark as disconnected if connection takes too long
     const connectionTimeout = setTimeout(() => {
       if (realtimeStatus === 'connecting') {
@@ -1216,23 +1211,17 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
     // Set up realtime channels
     const setupChannels = async () => {
-      console.log('Setting up realtime channels...');
-      
       // Clean up any existing channels first
       if (channelsRef.current.postsChannel) {
-        console.log('Removing existing posts channel');
         supabase.removeChannel(channelsRef.current.postsChannel);
       }
       if (channelsRef.current.likesChannel) {
-        console.log('Removing existing likes channel');
         supabase.removeChannel(channelsRef.current.likesChannel);
       }
       if (channelsRef.current.commentsChannel) {
-        console.log('Removing existing comments channel');
         supabase.removeChannel(channelsRef.current.commentsChannel);
       }
       if (channelsRef.current.pollVotesChannel) {
-        console.log('Removing existing poll votes channel');
         supabase.removeChannel(channelsRef.current.pollVotesChannel);
       }
       
@@ -1253,8 +1242,6 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           table: 'posts'
         },
         async (payload: any) => {
-          console.log('New post received:', payload);
-          
           // Check if the new post is relevant to current feed mode
           const newPost = payload.new;
           if (!newPost) return;
@@ -1283,27 +1270,22 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           table: 'posts'
         },
         (payload: any) => {
-          console.log('Post deleted:', payload);
           startTransition(() => {
             setPosts(prev => prev.filter(post => post.id !== payload.old.id));
           });
         }
       )
       .subscribe((status: any, err: any) => {
-        console.log('Posts channel status:', status, err);
         if (err) {
           console.error('Posts channel error:', err);
           setRealtimeStatus('disconnected');
         } else if (status === 'SUBSCRIBED') {
-          console.log('Posts channel successfully subscribed!');
           // Clear the connection timeout once we are subscribed to avoid stale timeout flipping status to red
           clearTimeout(connectionTimeout);
           setRealtimeStatus('connected');
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-          console.log('Posts channel failed:', status);
           setRealtimeStatus('disconnected');
         } else {
-          console.log('Posts channel connecting...', status);
           setRealtimeStatus('connecting');
         }
       });
@@ -1319,22 +1301,16 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           table: 'likes'
         },
         (payload: any) => {
-          console.log('Like added:', payload);
           // Only refresh if this like is from another user (not the current user)
           const payloadUserId = payload.new?.user_id;
-          console.log('Current user ID:', user?.id, 'Payload user ID:', payloadUserId);
           
           // If we can't determine the user ID from the payload, skip the refresh to be safe
           if (!payloadUserId) {
-            console.log('Skipping refresh because payload user ID is undefined');
             return;
           }
           
           if (user && payloadUserId !== user.id) {
-            console.log('Refreshing posts because like is from another user');
             debouncedFetchPosts();
-          } else {
-            console.log('Skipping refresh because like is from current user');
           }
         }
       )
@@ -1346,22 +1322,16 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           table: 'likes'
         },
         (payload: any) => {
-          console.log('Like removed:', payload);
           // Only refresh if this unlike is from another user (not the current user)
           const payloadUserId = payload.old?.user_id;
-          console.log('Current user ID:', user?.id, 'Payload user ID:', payloadUserId);
           
           // If we can't determine the user ID from the payload, skip the refresh to be safe
           if (!payloadUserId) {
-            console.log('Skipping refresh because payload user ID is undefined');
             return;
           }
           
           if (user && payloadUserId !== user.id) {
-            console.log('Refreshing posts because like removal is from another user');
             debouncedFetchPosts();
-          } else {
-            console.log('Skipping refresh because like removal is from current user');
           }
         }
       )
@@ -1382,7 +1352,6 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           table: 'comments'
         },
         async (payload: any) => {
-          console.log('New comment received:', payload);
           // Update comment count for the post
           startTransition(() => {
             setPosts(prev => prev.map(post => 
@@ -1407,7 +1376,6 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           table: 'comments'
         },
         async (payload: any) => {
-          console.log('Comment deleted:', payload);
           // Update comment count for the post
           startTransition(() => {
             setPosts(prev => prev.map(post => 
@@ -1441,7 +1409,6 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           table: 'poll_votes'
         },
         (payload: any) => {
-          console.log('Poll vote changed:', payload);
           // Only refresh if this poll vote is from another user (not the current user)
           const payloadUserId = payload.new?.user_id || payload.old?.user_id;
           if (user && payloadUserId && payloadUserId !== user.id) {
@@ -1469,7 +1436,6 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
     // Cleanup subscriptions on unmount or user change
     return () => {
-      console.log('Cleaning up real-time subscriptions');
       if (channelsRef.current.postsChannel) supabase.removeChannel(channelsRef.current.postsChannel);
       if (channelsRef.current.likesChannel) supabase.removeChannel(channelsRef.current.likesChannel);
       if (channelsRef.current.commentsChannel) supabase.removeChannel(channelsRef.current.commentsChannel);
@@ -2114,17 +2080,10 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
       // If user has already voted, prevent any further voting
       if (previousSelection) {
-        console.log('User has already voted on this poll, voting disabled');
         return;
       }
 
       // First vote only
-      console.log('Inserting poll vote:', {
-        poll_id: post.poll.id,
-        option_id: optionId,
-        user_id: user.id
-      });
-      
       const { error } = await supabase
         .from('poll_votes')
         .insert({
@@ -2137,8 +2096,6 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         console.error('Error voting on poll:', error);
         return;
       }
-      
-      console.log('Poll vote inserted successfully');
 
       // Update local state for poll voting
       setPosts(prevPosts => 
@@ -2299,7 +2256,6 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   };
 
   const handleDeleteComment = async (commentId: string, event?: React.MouseEvent<HTMLButtonElement>) => {
-    console.log('handleDeleteComment called with:', { commentId, userId: user?.id });
     const position = event ? { top: event.clientY, left: event.clientX } : { top: 0, left: 0 };
     
     setConfirmationPopup({
@@ -2309,8 +2265,6 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       position,
       onConfirm: async () => {
         try {
-          console.log('Attempting to delete comment:', commentId);
-          
           // First, delete all likes for this comment and its replies
           const { error: likesError } = await supabase
             .from('likes')
@@ -2373,13 +2327,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             throw error;
           }
           
-          console.log('Comment deleted successfully, refreshing comments...');
           // Refresh comments
           const postId = Object.keys(comments).find(key => 
             comments[key].some(c => c.id === commentId)
           );
           if (postId) {
-            console.log('Refreshing comments for post:', postId);
             await fetchComments(postId);
           }
           setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
@@ -3570,11 +3522,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 {post.vid_link && (
                   <div className="mb-3 mt-3">
                     {(() => {
-                      console.log('Video post detected:', { postId: post.id, videoLink: post.vid_link, postType: post.post_type });
                       const embedData = getVideoEmbedUrl(post.vid_link);
-                      console.log('Converted embed data:', embedData);
                       if (!embedData) {
-                        console.warn('Failed to convert video URL:', post.vid_link);
                         return (
                           <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                             <p className="text-sm text-yellow-800">

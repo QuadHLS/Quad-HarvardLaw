@@ -236,10 +236,6 @@ export function ReviewsPage() {
         // Removed null fields that might be causing constraint violations
       };
 
-      // Debug: Log the payload being sent
-      console.log('Form rating (0-5):', formData.overall_rating);
-      console.log('Stored rating (0-10):', Number((formData.overall_rating * 2).toFixed(1)));
-      console.log('Review payload being sent:', insertPayload);
 
       const { error } = await supabase
         .from('reviews')
@@ -282,9 +278,6 @@ export function ReviewsPage() {
         anonymous: false
       });
       setShowReviewForm(false);
-      
-      // Show success message
-      console.log('Review submitted successfully!');
 
     } catch (err) {
       console.error('Error submitting review:', err);

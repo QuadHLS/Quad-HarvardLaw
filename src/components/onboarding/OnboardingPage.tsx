@@ -276,18 +276,14 @@ export function OnboardingPage(props: OnboardingPageProps) {
   const stripAmPm = (t: string): string => t.replace(/\s*(AM|PM)\b/gi, '');
 
   const handleNext = async () => {
-    console.log('handleNext called', { initialPage, isStep1Valid: isStep1Valid(), user: user?.id });
-    
     if (initialPage === 1) {
       // Save basic info to profiles table
       if (!isStep1Valid()) {
-        console.log('Form not valid:', { name, classYear, section });
         alert('Please fill in all required fields');
         return;
       }
       
       if (!user?.id) {
-        console.log('No user ID');
         alert('User not authenticated. Please refresh and try again.');
         return;
       }
@@ -304,8 +300,6 @@ export function OnboardingPage(props: OnboardingPageProps) {
           updated_at: new Date().toISOString(),
         };
 
-        console.log('Saving profile data:', profileData);
-
         const { error } = await supabase
           .from('profiles')
           .upsert(profileData);
@@ -316,7 +310,6 @@ export function OnboardingPage(props: OnboardingPageProps) {
           return;
         }
 
-        console.log('Profile data saved successfully');
         onComplete();
         } catch (error) {
         console.error('Error saving profile:', error);
@@ -608,7 +601,6 @@ export function OnboardingPage(props: OnboardingPageProps) {
   useEffect(() => {
     const fetchCourses = async () => {
       if (classYear === '1L' || classYear === '2L' || classYear === '3L' || classYear === 'LLM') {
-        console.log('Fetching courses for class year:', classYear);
         setCoursesLoading(true);
         try {
           // Get courses from Courses table
@@ -616,11 +608,6 @@ export function OnboardingPage(props: OnboardingPageProps) {
             .from('Courses')
             .select('*')
             .order('course_name');
-
-          console.log('Course fetch response:', { courses, error });
-          console.log('First course sample:', courses?.[0]);
-          console.log('First course original_course_id:', courses?.[0]?.original_course_id);
-          console.log('All columns in first course:', Object.keys(courses?.[0] || {}));
 
           if (error) {
             console.error('Error fetching courses:', error);
@@ -645,9 +632,6 @@ export function OnboardingPage(props: OnboardingPageProps) {
             original_course_id: course.original_course_id
           }));
 
-          console.log('Transformed courses:', transformedCourses);
-          console.log('First transformed course original_course_id:', transformedCourses[0]?.original_course_id);
-          console.log('All columns in first transformed course:', Object.keys(transformedCourses[0] || {}));
           setAllCourseData(transformedCourses);
           setAvailableCourses(allCourses); // Set available courses for the new interface
         } catch (error) {

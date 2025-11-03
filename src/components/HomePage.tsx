@@ -244,11 +244,6 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
             .single();
 
           if (profile) {
-            console.log('Loaded from database:', {
-              todo_day: profile.todo_day,
-              todo_week: profile.todo_week
-            });
-            
             const todayTodos = (profile.todo_day || []).map((todo: any) => ({
               ...todo,
               category: 'today' as const
@@ -276,11 +271,6 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
       const todayTodos = todosToSave.filter(todo => todo.category === 'today');
       const thisWeekTodos = todosToSave.filter(todo => todo.category === 'this-week');
       
-      console.log('Saving todos to database:', {
-        todo_day: todayTodos,
-        todo_week: thisWeekTodos
-      });
-      
       const { error } = await supabase
         .from('profiles')
         .update({ 
@@ -291,8 +281,6 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
       
       if (error) {
         console.error('Error saving todos:', error);
-      } else {
-        console.log('Todos saved successfully to todo_day and todo_week columns');
       }
     } catch (error) {
       console.error('Error saving todos:', error);

@@ -143,14 +143,7 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
       if (classYear === '1L' || classYear === '2L' || classYear === '3L') {
         setCoursesLoading(true);
         try {
-          console.log(
-            'Fetching all courses from API for',
-            classYear,
-            'students...'
-          );
-
           // Query Supabase directly for ALL course data including schedule details
-          console.log('Making Supabase query...');
           const { data: courses, error } = await supabase
             .from('Courses')
             .select(
@@ -158,18 +151,10 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
             )
             .order('course_name');
 
-          console.log('Supabase query completed:', { courses, error });
-
           if (error) {
             console.error('Supabase error:', error);
             throw error;
           }
-
-          console.log('Raw courses from API:', {
-            count: courses?.length || 0,
-            courses: courses,
-            firstFew: courses?.slice(0, 3),
-          });
 
           // Store the full course data for later use
           setAllCourseData(courses || []);
@@ -204,11 +189,6 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
           });
 
           const transformedCourses = Array.from(courseMap.values());
-          console.log(
-            'Transformed courses for dropdown:',
-            transformedCourses.length,
-            transformedCourses.map((c) => c.name)
-          );
           setApiCourses(transformedCourses);
         } catch (error) {
           console.error('Error fetching courses:', error);
@@ -233,8 +213,6 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
     
     const autoPopulate1L = () => {
       if (classYear === '1L' && section && allCourseData.length > 0 && isMounted) {
-        console.log('Auto-populating 1L Section', section, 'courses...');
-        
         // Define the 7 required courses with dynamic section number
         const sectionNumber = section;
         const requiredCourses = [
@@ -254,14 +232,10 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
         for (let i = 0; i < 7; i++) {
           const courseName = requiredCourses[i];
           
-          console.log(`Processing slot ${i}: ${courseName}`);
-          
           // Find matching course in the Courses table
           const matchingCourses = allCourseData.filter(
             (course) => course.course_name === courseName
           );
-
-          console.log(`Found ${matchingCourses.length} matches for ${courseName}:`, matchingCourses);
 
           if (matchingCourses.length > 0) {
             const course = matchingCourses[0];
@@ -300,35 +274,15 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
               professor,
               scheduleOption
             };
-
-            console.log(`✅ Auto-populated slot ${i} (${courseName}):`, {
-              course: courseName,
-              professor: course.instructor,
-              schedule: scheduleOption ? `${scheduleOption.days} • ${scheduleOption.times}` : 'No schedule',
-              fullData: newSelectedClasses[i]
-            });
-          } else {
-            console.log(`❌ No matches found for ${courseName}`);
           }
         }
 
         // Only update state if component is still mounted and section hasn't changed
         if (isMounted && section === sectionNumber) {
-          console.log('Setting state for section', section, 'with classes:', newSelectedClasses.map((c, i) => ({
-            slot: i,
-            course: c.lawClass?.name,
-            professor: c.professor?.name,
-            hasSchedule: !!c.scheduleOption
-          })));
-          
           // Set all state at once to prevent any glitching
           setSelectedClasses([...newSelectedClasses]);
           setScheduleOptionsBySlot({});
           setScheduleLoadingBySlot({});
-          
-          console.log('1L Section', section, 'auto-population complete');
-        } else {
-          console.log('Skipping state update - isMounted:', isMounted, 'section match:', section === sectionNumber);
         }
       }
     };
@@ -344,7 +298,6 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
   // Initialize course selection state based on class year (only run once when class year is loaded)
   useEffect(() => {
     if (classYear) {
-      console.log('Initializing course selection for class year:', classYear);
 
       // Set up the correct number of slots based on class year
       if (classYear === '1L') {
@@ -357,7 +310,6 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
         setSelectedClasses(newSelectedClasses);
       }
 
-      console.log('Initialized course selection state for class year:', classYear);
     }
   }, [classYear]);
 
@@ -368,12 +320,6 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
     }
 
     // All class years (1L, 2L, 3L): Use API data from Supabase
-    console.log('Getting available classes for', classYear, ':', {
-      classYear,
-      apiCoursesCount: apiCourses.length,
-      apiCourseNames: apiCourses.map((c) => c.name),
-      coursesLoading,
-    });
     return apiCourses; // Return the fetched courses directly
   };
 
@@ -383,36 +329,15 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
     instructor: string,
     slotIndex: number
   ) => {
-    console.log('Getting schedule details for:', {
-      courseName,
-      instructor,
-      classYear,
-      slotIndex,
-    });
-
     // Set loading state for this specific slot
     setScheduleLoadingBySlot((prev) => ({ ...prev, [slotIndex]: true }));
 
     try {
       // All class years (1L, 2L, 3L): Filter from the already fetched course data
-      console.log('Schedule matching for', classYear, ':', {
-        courseName,
-        instructor, // Display name (keeps semicolons)
-        allCourseDataCount: allCourseData.length,
-        sampleInstructors: allCourseData.slice(0, 3).map(c => ({ name: c.course_name, instructor: c.instructor }))
-      });
-      
       const matchingCourses = allCourseData.filter(
         (course) =>
           course.course_name === courseName &&
           course.instructor === instructor
-      );
-      
-      console.log('Matching courses found:', matchingCourses.length, matchingCourses);
-
-      console.log(
-        'Found matching schedules from stored data:',
-        matchingCourses
       );
 
       // Create combined schedule options - combine multiple days/times into single display
@@ -460,13 +385,6 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
         }
       });
 
-      console.log(
-        'Processed schedule options for slot',
-        slotIndex,
-        ':',
-        scheduleOptions
-      );
-
       // Store schedule options for this specific slot
       setScheduleOptionsBySlot((prev) => ({
         ...prev,
@@ -487,19 +405,8 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
   };
 
   const handleClassChange = async (index: number, lawClass: LawClass | null) => {
-    console.log('Class change:', {
-      index,
-      lawClass: lawClass?.name,
-      lawClassId: lawClass?.id,
-      hasProfessors: lawClass?.professors?.length,
-      professorNames: lawClass?.professors?.map((p) => p.name),
-      classYear,
-      fullLawClass: lawClass,
-    });
-    
     // Skip handling for 1L required courses (slots 0-6) as they are auto-populated
     if (classYear === '1L' && index < 7) {
-      console.log('Skipping handleClassChange for 1L required course slot', index);
       return;
     }
     
@@ -509,7 +416,6 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
     let selectedProfessor = null;
     if (lawClass && lawClass.professors && lawClass.professors.length > 0) {
       selectedProfessor = lawClass.professors[0];
-      console.log('Auto-selecting first professor for', classYear, ':', selectedProfessor.name);
     }
     
     newSelectedClasses[index] = {
@@ -524,37 +430,16 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
     
     // Auto-fetch schedule for all class years after auto-selecting professor
     if (lawClass && selectedProfessor) {
-      console.log('Auto-fetching schedule for', classYear, 'class:', lawClass.name, 'with professor:', selectedProfessor.name);
       await fetchCourseDetails(lawClass.name, selectedProfessor.name, index);
     }
-    
-    console.log(
-      'Updated selectedClasses:',
-      newSelectedClasses.map((sc, i) => ({
-        index: i,
-        hasClass: !!sc.lawClass,
-        className: sc.lawClass?.name,
-        hasProfessors: sc.lawClass?.professors?.length,
-        professorNames: sc.lawClass?.professors?.map((p) => p.name),
-        hasProfessor: !!sc.professor,
-        professorName: sc.professor?.name,
-      }))
-    );
   };
 
   const handleProfessorChange = async (
     index: number,
     professor: Professor | null
   ) => {
-    console.log('Professor change:', {
-      index,
-      professor: professor?.name,
-      classYear,
-    });
-    
     // Skip handling for 1L required courses (slots 0-6) as they are auto-populated
     if (classYear === '1L' && index < 7) {
-      console.log('Skipping handleProfessorChange for 1L required course slot', index);
       return;
     }
     
@@ -577,35 +462,15 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
       // Clear schedule options when professor is deselected
       setScheduleOptionsBySlot((prev) => ({ ...prev, [index]: [] }));
     }
-
-    console.log(
-      'Updated selectedClasses after professor change:',
-      newSelectedClasses.map((sc, i) => ({
-        index: i,
-        hasClass: !!sc.lawClass,
-        className: sc.lawClass?.name,
-        hasProfessor: !!sc.professor,
-        professorName: sc.professor?.name,
-      }))
-    );
   };
 
   const isFormValid = () => {
-    console.log('=== FORM VALIDATION START ===');
-    console.log('Form data:', {
-      section,
-      classYear,
-      selectedClassesLength: selectedClasses.length,
-    });
-
     // Require section and class year
     if (!section) {
-      console.log('Form invalid: missing section', { section });
       return false;
     }
 
     if (!classYear) {
-      console.log('Form invalid: missing class year', { classYear });
       return false;
     }
 
@@ -618,24 +483,7 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
       const optionalClass = selectedClasses[7];
       const totalClasses = requiredClasses.length + (optionalClass?.lawClass ? 1 : 0);
 
-      console.log('1L Validation:', {
-        requiredClasses: requiredClasses.length,
-        optionalClass: !!optionalClass?.lawClass,
-        totalClasses,
-        selectedClasses: selectedClasses.map((sc, i) => ({
-          index: i,
-          hasClass: !!sc.lawClass,
-          hasProfessor: !!sc.professor,
-        })),
-      });
-
       const isValid = requiredClasses.length === 7; // Optional class is truly optional
-      console.log('1L Validation result:', {
-        requiredClasses: requiredClasses.length,
-        optionalClass: !!optionalClass?.lawClass,
-        totalClasses,
-        isValid,
-      });
       return isValid;
     } else {
       // 2L/3L: minimum 3, maximum 10
@@ -647,28 +495,11 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
         .filter((selected) => selected.lawClass);
       const totalClasses = requiredClasses.length + optionalClasses.length;
 
-      console.log(classYear, 'Validation:', {
-        requiredClasses: requiredClasses.length,
-        optionalClasses: optionalClasses.length,
-        totalClasses,
-        selectedClasses: selectedClasses.map((sc, i) => ({
-          index: i,
-          hasClass: !!sc.lawClass,
-          hasProfessor: !!sc.professor,
-        })),
-      });
-
       const isValid =
         requiredClasses.length === 3 && totalClasses >= 3 && totalClasses <= 10;
-      console.log(classYear, 'Validation result:', {
-        requiredClasses: requiredClasses.length,
-        totalClasses,
-        isValid,
-      });
       return isValid;
     }
 
-    console.log('Form invalid: unknown class year', { classYear });
     return false;
   };
 
@@ -707,11 +538,6 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
         updated_at: new Date().toISOString(),
       };
 
-      console.log(
-        'Attempting to update profile data:',
-        JSON.stringify(profileData, null, 2)
-      );
-
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert(profileData);
@@ -730,8 +556,6 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
             JSON.stringify(profileError)
         );
       }
-
-      console.log('Course selection updated successfully');
 
       // Complete course selection
       onComplete();

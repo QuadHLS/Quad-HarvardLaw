@@ -605,7 +605,6 @@ export function ExamPage({
             
             // Clean up the blob URL
             window.URL.revokeObjectURL(blobUrl);
-            console.log(`Successfully downloaded file from path: ${path}`);
             
             // Track download activity
             if (user) {
@@ -622,7 +621,6 @@ export function ExamPage({
             return;
           }
         } catch (pathError) {
-          console.log(`Failed to download from path: ${path}`, pathError);
           continue;
         }
       }

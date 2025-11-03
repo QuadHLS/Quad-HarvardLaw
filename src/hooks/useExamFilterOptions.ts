@@ -31,8 +31,6 @@ export function useExamFilterOptions() {
       setIsLoading(true)
       setError(null)
       
-      console.log('useExamFilterOptions: Starting to fetch exam filter options...')
-      
       // Fetch all exam data
       const { data: examsData, error: examsError } = await supabase
         .from('exams')
@@ -44,7 +42,6 @@ export function useExamFilterOptions() {
       }
 
       if (!examsData || examsData.length === 0) {
-        console.log('No exam data found')
         const emptyOptions = { 
           courses: [], 
           instructors: [], 
@@ -84,14 +81,6 @@ export function useExamFilterOptions() {
         examTypes
       }
 
-      console.log('useExamFilterOptions: Filter options extracted:', {
-        courses: courses.length,
-        instructors: instructors.length,
-        years: years.length,
-        semesters: semesters.length,
-        examTypes: examTypes.length
-      })
-
       setFilterOptions(options)
       return options
 
@@ -130,8 +119,6 @@ export function useExamFilterOptions() {
     try {
       setIsLoading(true)
       setError(null)
-      
-      console.log('useExamFilterOptions: Fetching combined filter options...')
       
       // Fetch from both tables in parallel
       const [outlinesData, examsData] = await Promise.all([
@@ -195,15 +182,6 @@ export function useExamFilterOptions() {
         examTypes,
         grades
       }
-
-      console.log('useExamFilterOptions: Combined filter options:', {
-        courses: courses.length,
-        instructors: instructors.length,
-        years: years.length,
-        semesters: semesters.length,
-        examTypes: examTypes.length,
-        grades: grades.length
-      })
 
       return combinedOptions
 

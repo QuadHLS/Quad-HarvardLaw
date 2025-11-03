@@ -77,8 +77,6 @@ export function CourseSelectionStep({ onNext, onBack, basicInfo }: CourseSelecti
         setApiCourses([]);
         setAllCourseData([]);
         try {
-          console.log('Fetching all courses from API for', basicInfo.classYear, 'students...');
-
           const { data: courses, error } = await supabase
             .from('Courses')
             .select('id, course_number, course_name, instructor, credits, days, times, location, semester')
@@ -139,8 +137,6 @@ export function CourseSelectionStep({ onNext, onBack, basicInfo }: CourseSelecti
     
     const autoPopulate1L = () => {
       if (basicInfo.classYear === '1L' && basicInfo.section && allCourseData.length > 0 && isMounted) {
-        console.log('Auto-populating 1L Section', basicInfo.section, 'courses...');
-        
         const sectionNumber = basicInfo.section;
         const requiredCourses = [
           `Civil Procedure ${sectionNumber}`,

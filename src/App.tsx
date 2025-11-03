@@ -99,14 +99,10 @@ function AppContent({ user }: { user: any }) {
   // Check if we're on special auth pages
   useEffect(() => {
     const checkSpecialPages = () => {
-      console.log('Checking URL:', window.location.pathname);
-      
       if (window.location.pathname === '/reset-password') {
-        console.log('Setting showResetPassword to true');
         setShowResetPassword(true);
         setShowAuthCallback(false);
       } else if (window.location.pathname === '/auth/callback') {
-        console.log('Setting showAuthCallback to true - OAuth callback detected');
         setShowAuthCallback(true);
         setShowResetPassword(false);
       } else {
@@ -258,8 +254,6 @@ function AppContent({ user }: { user: any }) {
   const CoursePageWrapper = () => {
     const { courseName } = useParams<{ courseName: string }>();
     const decodedCourseName = courseName ? decodeURIComponent(courseName) : '';
-    console.log('CoursePageWrapper - courseName param:', courseName);
-    console.log('CoursePageWrapper - decoded course name:', decodedCourseName);
     return (
       <CoursePage
         courseName={decodedCourseName}
@@ -303,8 +297,6 @@ function AppContent({ user }: { user: any }) {
         let from = 0;
         let hasMore = true;
 
-        console.log('Starting to fetch outlines with pagination...');
-
         while (hasMore) {
           const { data, error } = await supabase
             .from('outlines')
@@ -319,7 +311,6 @@ function AppContent({ user }: { user: any }) {
 
           if (data && data.length > 0) {
             allOutlines.push(...data);
-            console.log(`Fetched batch: ${data.length} records (total: ${allOutlines.length})`);
             
             // If we got less than batchSize, we've reached the end
             if (data.length < batchSize) {
@@ -331,8 +322,6 @@ function AppContent({ user }: { user: any }) {
             hasMore = false;
           }
         }
-
-        console.log(`Finished fetching outlines: ${allOutlines.length} total records`);
         
         // Transform database data to match Outline interface
         const transformedOutlines = allOutlines.map((item: any): Outline => ({
@@ -352,7 +341,6 @@ function AppContent({ user }: { user: any }) {
           type: item.pages <= 25 ? 'attack' : 'outline' // Determine type based on page count
         }));
         
-        console.log('Transformed outlines sample:', transformedOutlines.slice(0, 3));
         setOutlines(transformedOutlines);
         fetchedOutlinesOnceRef.current = true;
       } catch (error) {
@@ -382,8 +370,6 @@ function AppContent({ user }: { user: any }) {
         let from = 0;
         let hasMore = true;
 
-        console.log('Starting to fetch exams with pagination...');
-
         while (hasMore) {
           const { data, error } = await supabase
             .from('exams')
@@ -398,7 +384,6 @@ function AppContent({ user }: { user: any }) {
 
           if (data && data.length > 0) {
             allExams.push(...data);
-            console.log(`Fetched exam batch: ${data.length} records (total: ${allExams.length})`);
             
             // If we got less than batchSize, we've reached the end
             if (data.length < batchSize) {
@@ -411,7 +396,6 @@ function AppContent({ user }: { user: any }) {
           }
         }
 
-        console.log(`Finished fetching exams: ${allExams.length} total records`);
         setExams(allExams);
         fetchedExamsOnceRef.current = true;
       } catch (error) {
@@ -516,13 +500,11 @@ function AppContent({ user }: { user: any }) {
   const handleNavigateToStudentProfile = (studentName: string) => {
     setPreviousSection(activeSection); // Remember where we came from
     setPreviousUrl(location.pathname); // Remember the full URL we came from
-    console.log('Navigating to student profile, storing previous URL:', location.pathname);
     const encodedStudentName = encodeURIComponent(studentName);
     navigate(`/student-profile/${encodedStudentName}`);
   };
 
   const handleBackFromStudentProfile = () => {
-    console.log('Going back to previous URL:', previousUrl);
     navigate(previousUrl);
   };
 
@@ -803,13 +785,11 @@ function AppContent({ user }: { user: any }) {
 
   // Show auth callback page if user is on auth callback route (check this first)
   if (showAuthCallback) {
-    console.log('Rendering AuthCallback');
     return <AuthCallback />;
   }
 
   // Show reset password page if user is on reset password route
   if (showResetPassword) {
-    console.log('Rendering ResetPasswordPage');
     return <ResetPasswordPage />;
   }
 
@@ -845,8 +825,6 @@ function AppContent({ user }: { user: any }) {
           
           if (error) {
             console.error('Error updating classes_filled:', error);
-          } else {
-            console.log('Onboarding completed successfully');
           }
         }
         

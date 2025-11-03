@@ -748,8 +748,6 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       // Update local state
     setProfileData(editedData);
     setIsEditing(false);
-      
-      console.log('Profile updated successfully');
     } catch (error) {
       console.error('Error saving profile:', error);
       alert('Error saving profile. Please try again.');
@@ -859,31 +857,17 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
     try {
       // Extract filename (handles both old full URL format and new filename format)
       const fileName = extractFilename(profileData.avatar_url);
-      
-      console.log('Delete attempt:', {
-        avatarUrl: profileData.avatar_url,
-        extractedFileName: fileName,
-        userId: user.id,
-        filenameStartsWithUserId: fileName.startsWith(user.id)
-      });
 
       // Delete from storage
       const { data: deleteData, error: deleteError } = await supabase.storage
         .from('Avatar')
         .remove([fileName]);
 
-      console.log('Delete result:', {
-        deleteData: deleteData,
-        deleteError: deleteError
-      });
-
       if (deleteError) {
         console.error('Error deleting avatar from storage:', deleteError);
         alert('Error deleting avatar from storage. Please try again.');
         return;
       }
-
-      console.log('File successfully deleted from storage');
 
       // Update profile to remove avatar URL
       const { error: updateError } = await supabase
@@ -935,8 +919,6 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       if (profileData?.avatar_url) {
         const oldFileName = extractFilename(profileData.avatar_url);
         
-        console.log('Deleting old avatar:', oldFileName);
-        
         const { error: deleteError } = await supabase.storage
           .from('Avatar')
           .remove([oldFileName]);
@@ -944,8 +926,6 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
         if (deleteError) {
           console.error('Error deleting old avatar:', deleteError);
           // Continue with upload even if delete fails
-        } else {
-          console.log('Successfully deleted old avatar');
         }
       }
 
@@ -955,14 +935,6 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       // Create unique filename
       const fileExt = compressedFile.name.split('.').pop();
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      
-      console.log('Attempting to upload file:', {
-        fileName,
-        originalFileSize: file.size,
-        compressedFileSize: compressedFile.size,
-        fileType: file.type,
-        userId: user.id
-      });
       
       // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
@@ -982,10 +954,8 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
 
       // Store just the filename (not full URL) since bucket is now private
       const avatarFileName = fileName;
-      console.log('Stored avatar filename:', avatarFileName);
 
       // Update profile with just filename
-      console.log('Attempting to update profile with avatar filename:', avatarFileName);
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ avatar_url: avatarFileName })
@@ -1002,11 +972,8 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
         return;
       }
 
-      console.log('Successfully updated avatar filename in database');
-
       // Update local state
       setProfileData(prev => prev ? { ...prev, avatar_url: avatarFileName } : null);
-      console.log('Updated local profile data with new avatar filename');
       
       // Generate signed URL for new avatar
       const signedUrl = await getStorageUrl(avatarFileName, 'Avatar');

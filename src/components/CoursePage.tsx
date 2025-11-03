@@ -1419,7 +1419,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
   // Real-time subscriptions
   useEffect(() => {
     if (!user || !userCourse) return;
-
+    
     // Set a timeout to mark as disconnected if connection takes too long
     const connectionTimeout = setTimeout(() => {
       if (realtimeStatus === 'connecting') {
@@ -2345,19 +2345,50 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                   {(() => {
                     const embedData = getVideoEmbedUrl(selectedPost.vid_link);
                     if (!embedData) {
-                      console.warn('Failed to convert video URL:', selectedPost.vid_link);
                       return null;
                     }
+                    const isVertical = embedData.platform === 'tiktok' || embedData.platform === 'instagram';
+                    const isInstagram = embedData.platform === 'instagram';
+                    // Use different scales to make the actual content appear the same size
+                    const scale = isInstagram ? 0.65 : 0.90;
+                    const width = isInstagram ? '153.85%' : '111.11%';
+                    const height = isInstagram ? '153.85%' : '111.11%';
                     return (
-                      <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                      <div 
+                        className="relative overflow-hidden rounded-lg" 
+                        style={isVertical 
+                          ? { 
+                              maxHeight: '600px', 
+                              maxWidth: '45%',
+                              width: '45%',
+                              aspectRatio: '9/16',
+                              margin: '0 auto'
+                            } 
+                          : { paddingBottom: '56.25%', minHeight: '200px', width: '100%' }
+                        }
+                      >
                         <iframe
                           src={embedData.embedUrl}
                           title={`${embedData.platform} video player`}
                           frameBorder="0"
+                          scrolling="no"
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                           allowFullScreen
-                          className="absolute top-0 left-0 w-full h-full rounded-lg"
-                          style={{ border: 'none' }}
+                          className={isVertical ? "rounded-lg" : "absolute top-0 left-0 w-full h-full rounded-lg"}
+                          style={isVertical 
+                            ? { 
+                                border: 'none', 
+                                overflow: 'hidden',
+                                transform: `translate(-50%, -50%) scale(${scale})`,
+                                transformOrigin: 'center center',
+                                width: width,
+                                height: height,
+                                position: 'absolute',
+                                left: '50%',
+                                top: '50%'
+                              }
+                            : { border: 'none', overflow: 'hidden' }
+                          }
                         />
                       </div>
                     );
@@ -3472,19 +3503,49 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                               {(() => {
                                 const embedData = getVideoEmbedUrl(post.vid_link);
                                 if (!embedData) {
-                                  console.warn('Failed to convert video URL:', post.vid_link);
                                   return null;
                                 }
+                                const isVertical = embedData.platform === 'tiktok' || embedData.platform === 'instagram';
+                                const isInstagram = embedData.platform === 'instagram';
+                                const scale = isInstagram ? 0.75 : 0.85;
+                                const width = isInstagram ? '133.33%' : '117.65%';
+                                const height = isInstagram ? '133.33%' : '117.65%';
                                 return (
-                                  <div className="relative w-full bg-gray-100" style={{ paddingBottom: '56.25%', minHeight: '200px' }}>
+                                  <div 
+                                    className="relative overflow-hidden rounded-lg" 
+                                    style={isVertical 
+                                      ? { 
+                                          maxHeight: '600px', 
+                                          maxWidth: isInstagram ? '75%' : '65%',
+                                          width: isInstagram ? '75%' : '65%',
+                                          aspectRatio: '9/16',
+                                          margin: '0 auto'
+                                        } 
+                                      : { paddingBottom: '56.25%', minHeight: '200px', width: '100%' }
+                                    }
+                                  >
                                     <iframe
                                       src={embedData.embedUrl}
                                       title={`${embedData.platform} video player`}
                                       frameBorder="0"
+                                      scrolling="no"
                                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                                       allowFullScreen
-                                      className="absolute top-0 left-0 w-full h-full rounded-lg"
-                                      style={{ border: 'none' }}
+                                      className={isVertical ? "rounded-lg" : "absolute top-0 left-0 w-full h-full rounded-lg"}
+                                      style={isVertical 
+                                        ? { 
+                                            border: 'none', 
+                                            overflow: 'hidden',
+                                            transform: `translate(-50%, -50%) scale(${scale})`,
+                                            transformOrigin: 'center center',
+                                            width: width,
+                                            height: height,
+                                            position: 'absolute',
+                                            left: '50%',
+                                            top: '50%'
+                                          }
+                                        : { border: 'none', overflow: 'hidden' }
+                                      }
                                     />
                                   </div>
                                 );

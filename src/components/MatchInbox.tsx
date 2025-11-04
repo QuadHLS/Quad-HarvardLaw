@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 
@@ -101,35 +101,9 @@ export function MatchInbox({ open, onOpenChange, refreshTrigger }: MatchInboxPro
 
   const [loading, setLoading] = useState(true);
 
-  const [hasNewMatch, setHasNewMatch] = useState(false);
 
 
-
-  // Update last opened timestamp when dialog closes
-  useEffect(() => {
-    if (!open && user?.id) {
-      const lastOpenedKey = `matchInbox_lastOpened_${user.id}`;
-      localStorage.setItem(lastOpenedKey, new Date().toISOString());
-      setHasNewMatch(false); // Reset indicator when closed
-    }
-  }, [open, user?.id]);
-
-  // Fetch matches when dialog opens or refreshTrigger changes
-  useEffect(() => {
-    if (user?.id) {
-      if (open) {
-        // Check for new matches when dialog opens
-        fetchMatches(true); // Pass true to indicate we should check for new matches
-      } else if (refreshTrigger !== undefined) {
-        // If refreshTrigger changes while closed, fetch matches but don't check for new matches
-        fetchMatches(false);
-      }
-    }
-  }, [open, user?.id, refreshTrigger]);
-
-
-
-  const fetchMatches = async (checkForNew: boolean = false) => {
+  const fetchMatches = useCallback(async () => {
 
     if (!user?.id) return;
 
@@ -199,40 +173,6 @@ export function MatchInbox({ open, onOpenChange, refreshTrigger }: MatchInboxPro
         const formattedReceived = allReceivedMatches;
 
         setReceivedMatches(formattedReceived);
-
-        // Check if there are new matches since last opened (only when requested)
-
-        if (checkForNew && user?.id) {
-
-          const lastOpenedKey = `matchInbox_lastOpened_${user.id}`;
-
-          const lastOpenedStr = localStorage.getItem(lastOpenedKey);
-
-          if (lastOpenedStr) {
-
-            const lastOpened = new Date(lastOpenedStr);
-
-            // Check if any received match is newer than last opened time
-
-            const hasNew = receivedData?.some((match: any) => {
-
-              const matchTime = new Date(match.created_at);
-
-              return matchTime > lastOpened;
-
-            });
-
-            setHasNewMatch(hasNew || false);
-
-          } else {
-
-            // If never opened before, don't show indicator (first time opening)
-
-            setHasNewMatch(false);
-
-          }
-
-        }
 
       }
 
@@ -340,7 +280,14 @@ export function MatchInbox({ open, onOpenChange, refreshTrigger }: MatchInboxPro
 
     }
 
-  };
+  }, [user?.id]);
+
+  // Fetch matches when dialog opens or refreshTrigger changes
+  useEffect(() => {
+    if (open && user?.id) {
+      fetchMatches();
+    }
+  }, [open, user?.id, refreshTrigger, fetchMatches]);
 
 
 
@@ -394,23 +341,7 @@ export function MatchInbox({ open, onOpenChange, refreshTrigger }: MatchInboxPro
 
         <DialogHeader>
 
-          <div className="flex items-center justify-between">
-
-            <DialogTitle>Match Inbox</DialogTitle>
-
-            {hasNewMatch && open && (
-
-              <div className="relative flex items-center gap-2">
-
-                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-
-                <span className="text-xs text-red-600 font-medium">New</span>
-
-              </div>
-
-            )}
-
-          </div>
+          <DialogTitle>Match Inbox</DialogTitle>
 
         </DialogHeader>
 

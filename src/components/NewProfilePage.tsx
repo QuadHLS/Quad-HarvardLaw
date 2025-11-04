@@ -6,6 +6,9 @@ import { extractFilename, getStorageUrl } from '../utils/storage';
 import { MatchInbox } from './MatchInbox';
 import { MatchButton } from './MatchButton';
 
+// Temporary feature flag - set to true to re-enable match features
+const MATCH_FEATURE_ENABLED = false;
+
 // Utility function for class merging
 function cn(...inputs: any[]) {
   return inputs.filter(Boolean).join(' ');
@@ -1485,7 +1488,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                   {!isEditing ? (
                     <>
                       {/* Show Match button when viewing someone else's profile */}
-                      {studentName && profileData && profileData.email !== user?.email && (
+                      {MATCH_FEATURE_ENABLED && studentName && profileData && profileData.email !== user?.email && (
                         <MatchButton 
                           studentName={profileData.name}
                           receiverId={profileData.id}
@@ -1502,10 +1505,12 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                       {(!studentName && profileData && profileData.email === user?.email) && (
                         <div className="flex flex-col gap-2">
                           <div className="flex gap-2">
-                            <Button onClick={() => setMatchInboxOpen(true)} variant="outline" size="sm" className="gap-2 text-xs px-3 py-1 h-7">
-                              <Heart className="w-4 h-4" style={{ fill: '#ef4444', color: '#ef4444' }} />
-                              Match Inbox
-                            </Button>
+                            {MATCH_FEATURE_ENABLED && (
+                              <Button onClick={() => setMatchInboxOpen(true)} variant="outline" size="sm" className="gap-2 text-xs px-3 py-1 h-7">
+                                <Heart className="w-4 h-4" style={{ fill: '#ef4444', color: '#ef4444' }} />
+                                Match Inbox
+                              </Button>
+                            )}
                             <Button onClick={handleEdit} variant="outline" size="sm" className="gap-2 text-xs px-3 py-1 h-7" style={{ width: '120px' }}>
                               <Edit className="w-4 h-4" />
                               Edit Profile
@@ -2164,7 +2169,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
           </div>
         </div>
       )}
-      <MatchInbox open={matchInboxOpen} onOpenChange={setMatchInboxOpen} />
+      {MATCH_FEATURE_ENABLED && <MatchInbox open={matchInboxOpen} onOpenChange={setMatchInboxOpen} />}
     </div>
   );
 }

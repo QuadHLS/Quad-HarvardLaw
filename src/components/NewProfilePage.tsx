@@ -1,61 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MapPin, Edit, Save, X, Trophy, BookOpen, Clock, Upload, ArrowLeft, ChevronLeft, ChevronRight, Plus, RotateCcw } from 'lucide-react';
+import { MapPin, Edit, Save, X, Trophy, BookOpen, Clock, Upload, ArrowLeft, ChevronLeft, ChevronRight, Plus, RotateCcw, Heart } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { extractFilename, getStorageUrl } from '../utils/storage';
+import { MatchInbox } from './MatchInbox';
+import { MatchButton } from './MatchButton';
 
 // Utility function for class merging
 function cn(...inputs: any[]) {
   return inputs.filter(Boolean).join(' ');
 }
-
-const LAW_SCHOOL_CLUBS = [
-  'Harvard Law Review',
-  'Harvard Civil Rights-Civil Liberties Law Review',
-  'Harvard Environmental Law Review',
-  'Harvard International Law Journal',
-  'Harvard Journal of Law & Public Policy',
-  'Harvard Journal on Legislation',
-  'Harvard Latino Law Review',
-  'Harvard National Security Journal',
-  'Harvard Negotiation Law Review',
-  'HALB (Harvard Association for Law and Business)',
-  'HLEP (Harvard Law Entrepreneurship Project)',
-  'Ames Moot Court',
-  'Harvard Legal Aid Bureau',
-  'Student Government',
-  'Black Law Students Association',
-  'Lambda (LGBTQ+ Alliance)',
-  'Asian Pacific American Law Students Association',
-  'Jewish Law Students Association',
-  'American Constitution Society',
-  'Federalist Society',
-  'Environmental Law Society',
-  'International Law Society',
-  'Women\'s Law Association',
-  'Veterans Legal Clinic',
-  'Prison Legal Assistance Project',
-  'Harvard Defenders',
-  'Immigration Project',
-  'Tenant Advocacy Project',
-  'Harvard Journal of Sports & Entertainment Law',
-  'Harvard Business Law Review',
-  'Berkman Klein Center Student Fellows',
-  'Alternative Dispute Resolution Program',
-  'Harvard Law & International Development Society',
-  'Health Law Society',
-  'Intellectual Property Law Society',
-  'Entertainment & Media Law Society',
-  'Real Estate Law Society',
-  'Tax Law Society',
-  'Labor & Employment Law Society',
-  'National Lawyers Guild',
-  'Public Interest Law Society',
-  'Christian Legal Society',
-  'South Asian Law Students Association',
-  'Native American Law Students Association',
-  'Middle Eastern Law Students Association'
-].sort();
 
 interface ClubsAndActivitiesProps {
   selectedClubs: string[];
@@ -312,6 +266,7 @@ interface UserStats {
 }
 
 interface ProfileData {
+  id: string;
   name: string;
   email: string;
   phone: string;
@@ -354,6 +309,39 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
+  const [matchInboxOpen, setMatchInboxOpen] = useState(false);
+  const [matchSent, setMatchSent] = useState(false);
+
+  // Check if match already exists when viewing someone else's profile
+  useEffect(() => {
+    const checkExistingMatch = async () => {
+      if (!user?.id || !studentName || !profileData || profileData.email === user.email) {
+        setMatchSent(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('matches')
+          .select('id')
+          .eq('sender_id', user.id)
+          .eq('receiver_id', profileData.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+          console.error('Error checking existing match:', error);
+        } else {
+          setMatchSent(!!data);
+        }
+      } catch (error) {
+        console.error('Error checking existing match:', error);
+      }
+    };
+
+    if (profileData && studentName) {
+      checkExistingMatch();
+    }
+  }, [user?.id, studentName, profileData]);
   
   // Pick a consistent color for the default avatar (green, blue, yellow, red)
   const getDefaultAvatarColor = (seed: string | undefined): string => {
@@ -390,7 +378,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       try {
         let query = supabase
           .from('profiles')
-          .select('full_name, email, phone, class_year, section, classes, age, hometown, under_grad, summer_city, summer_firm, instagram, linkedin, avatar_url, photo_urls, bio, clubs_activities, clubs_visibility, courses_visibility, schedule_visibility');
+          .select('id, full_name, email, phone, class_year, section, classes, age, hometown, under_grad, summer_city, summer_firm, instagram, linkedin, avatar_url, photo_urls, bio, clubs_activities, clubs_visibility, courses_visibility, schedule_visibility');
 
         // If viewing another student's profile, fetch by name; otherwise fetch by user ID
         if (studentName && studentName !== user.email) {
@@ -410,6 +398,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
         if (profile) {
           // Convert Supabase profile data to ProfileData format
           const convertedProfile: ProfileData = {
+            id: profile.id,
             name: profile.full_name || 'User',
             email: profile.email || '',
             phone: profile.phone || '',
@@ -859,7 +848,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       const fileName = extractFilename(profileData.avatar_url);
 
       // Delete from storage
-      const { data: deleteData, error: deleteError } = await supabase.storage
+      const { error: deleteError } = await supabase.storage
         .from('Avatar')
         .remove([fileName]);
 
@@ -1055,7 +1044,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
           // Generate signed URL for new photo and add to state
           const signedUrl = await getStorageUrl(fileName, 'Photos');
           if (signedUrl) {
-            setPhotoUrls(prev => ({ ...prev, [profileData.photo_urls.length + newPhotoUrls.length - 1]: signedUrl }));
+            setPhotoUrls(prev => ({ ...prev, [(profileData.photo_urls?.length || 0) + newPhotoUrls.length - 1]: signedUrl }));
           }
         } catch (compressionError) {
           console.error(`Error compressing ${file.name}:`, compressionError);
@@ -1495,54 +1484,79 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
                 <div className="flex flex-wrap gap-2 justify-center sm:justify-end">
                   {!isEditing ? (
                     <>
+                      {/* Show Match button when viewing someone else's profile */}
+                      {studentName && profileData && profileData.email !== user?.email && (
+                        <MatchButton 
+                          studentName={profileData.name}
+                          receiverId={profileData.id}
+                          isMatchSent={matchSent}
+                          onMatchSent={() => {
+                            setMatchSent(true);
+                          }}
+                          onMatchUnsent={() => {
+                            setMatchSent(false);
+                          }}
+                        />
+                      )}
                       {/* Show Edit button only when directly accessing own profile (no studentName param) */}
                       {(!studentName && profileData && profileData.email === user?.email) && (
                         <div className="flex flex-col gap-2">
-                          <Button onClick={handleEdit} variant="outline" size="sm" className="gap-2 text-xs px-3 py-1 h-7">
-                            <Edit className="w-4 h-4" />
-                            Edit Profile
-                          </Button>
-                          {profileData.currentCourses.length === 0 ? (
+                          <div className="flex gap-2">
+                            <Button onClick={() => setMatchInboxOpen(true)} variant="outline" size="sm" className="gap-2 text-xs px-3 py-1 h-7">
+                              <Heart className="w-4 h-4" style={{ fill: '#ef4444', color: '#ef4444' }} />
+                              Match Inbox
+                            </Button>
+                            <Button onClick={handleEdit} variant="outline" size="sm" className="gap-2 text-xs px-3 py-1 h-7" style={{ width: '120px' }}>
+                              <Edit className="w-4 h-4" />
+                              Edit Profile
+                            </Button>
+                          </div>
+                          <div className="flex flex-col gap-2 items-end">
+                            {profileData.currentCourses.length === 0 ? (
+                              <Button 
+                                ref={setRedoButtonRef}
+                                onClick={completeOnboardingNoDecrement}
+                                variant="outline" 
+                                size="sm"
+                                className="gap-2 text-xs px-3 py-1 h-7"
+                                style={{ width: '120px' }}
+                              >
+                                Complete Onboarding
+                              </Button>
+                            ) : (
                             <Button 
                               ref={setRedoButtonRef}
-                              onClick={completeOnboardingNoDecrement}
+                              onClick={handleRedoOnboarding} 
+                              variant="outline" 
+                                size="sm"
+                                className="gap-2 text-blue-600 border-blue-600 text-xs px-3 py-1 h-7"
+                                style={{ 
+                                  backgroundColor: 'rgba(59, 130, 246, 0.4)',
+                                  borderColor: 'rgb(37, 99, 235)',
+                                  width: '120px'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.5)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.4)';
+                                }}
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                              Edit Courses
+                              </Button>
+                            )}
+                            {/* Sign out under redo/completion button */}
+                            <Button 
+                              onClick={() => signOut()} 
                               variant="outline" 
                               size="sm"
                               className="gap-2 text-xs px-3 py-1 h-7"
+                              style={{ width: '120px' }}
                             >
-                              Complete Onboarding
+                              Sign out
                             </Button>
-                          ) : (
-                          <Button 
-                            ref={setRedoButtonRef}
-                            onClick={handleRedoOnboarding} 
-                            variant="outline" 
-                              size="sm"
-                              className="gap-2 text-blue-600 border-blue-600 text-xs px-3 py-1 h-7"
-                              style={{ 
-                                backgroundColor: 'rgba(59, 130, 246, 0.4)',
-                                borderColor: 'rgb(37, 99, 235)',
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.5)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.4)';
-                              }}
-                          >
-                            <RotateCcw className="w-4 h-4" />
-                            Edit Courses
-                            </Button>
-                          )}
-                          {/* Sign out under redo/completion button */}
-                          <Button 
-                            onClick={() => signOut()} 
-                            variant="outline" 
-                            size="sm"
-                            className="gap-2 text-xs px-3 py-1 h-7"
-                          >
-                            Sign out
-                          </Button>
+                          </div>
                         </div>
                       )}
                     </>
@@ -2150,6 +2164,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
           </div>
         </div>
       )}
+      <MatchInbox open={matchInboxOpen} onOpenChange={setMatchInboxOpen} />
     </div>
   );
 }

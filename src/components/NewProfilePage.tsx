@@ -21,6 +21,11 @@ interface ClubsAndActivitiesProps {
   className?: string;
 }
 
+interface Club {
+  name: string;
+  acronym: string | null;
+}
+
 function ClubsAndActivities({ 
   selectedClubs, 
   onClubsChange, 
@@ -28,7 +33,7 @@ function ClubsAndActivities({
   className = ""
 }: ClubsAndActivitiesProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [clubsList, setClubsList] = useState<string[]>([]);
+  const [clubsList, setClubsList] = useState<Club[]>([]);
   const [loadingClubs, setLoadingClubs] = useState(false);
 
   useEffect(() => {
@@ -37,13 +42,16 @@ function ClubsAndActivities({
       try {
         const { data, error } = await supabase
           .from('clubs')
-          .select('name')
+          .select('name, acronym')
           .order('name');
         if (!error && Array.isArray(data)) {
-          const names = data
-            .map((row: any) => String(row?.name || '').trim())
-            .filter((n: string) => n.length > 0);
-          setClubsList(names);
+          const clubs = data
+            .map((row: any) => ({
+              name: String(row?.name || '').trim(),
+              acronym: row?.acronym ? String(row.acronym).trim() : null
+            }))
+            .filter((club: Club) => club.name.length > 0);
+          setClubsList(clubs);
         } else {
           setClubsList([]);
         }
@@ -106,23 +114,27 @@ function ClubsAndActivities({
         </div>
         <div className="max-h-[300px] overflow-y-auto">
           {clubsList
-            .filter(club => 
-              club.toLowerCase().includes(searchQuery.toLowerCase())
-            )
+            .filter(club => {
+              const query = searchQuery.toLowerCase();
+              const nameMatch = club.name.toLowerCase().includes(query);
+              const acronymMatch = club.acronym ? club.acronym.toLowerCase().includes(query) : false;
+              return nameMatch || acronymMatch;
+            })
             .map((club) => (
               <div
-                key={club}
-                onClick={() => toggleClub(club)}
+                key={club.name}
+                onClick={() => toggleClub(club.name)}
                 className="flex items-center gap-2 p-3 hover:bg-gray-50 cursor-pointer"
               >
                 <div
-                  className={`w-4 h-4 border rounded flex items-center justify-center ${
-                    selectedClubs.includes(club)
+                  className={`w-4 h-4 border border-solid rounded flex items-center justify-center flex-shrink-0 ${
+                    selectedClubs.includes(club.name)
                       ? 'bg-[#752432] border-[#752432]'
                       : 'border-gray-300'
                   }`}
+                  style={{ minWidth: '16px', minHeight: '16px' }}
                 >
-                  {selectedClubs.includes(club) && (
+                  {selectedClubs.includes(club.name) && (
                     <svg
                       className="w-3 h-3 text-white"
                       fill="none"
@@ -136,12 +148,15 @@ function ClubsAndActivities({
                     </svg>
                   )}
                 </div>
-                <span className="text-sm">{club}</span>
+                <span className="text-sm">{club.name}</span>
               </div>
             ))}
-          {(!loadingClubs && clubsList.filter(club => 
-            club.toLowerCase().includes(searchQuery.toLowerCase())
-          ).length === 0) && (
+          {(!loadingClubs && clubsList.filter(club => {
+            const query = searchQuery.toLowerCase();
+            const nameMatch = club.name.toLowerCase().includes(query);
+            const acronymMatch = club.acronym ? club.acronym.toLowerCase().includes(query) : false;
+            return nameMatch || acronymMatch;
+          }).length === 0) && (
             <div className="p-6 text-center text-sm text-gray-500">No clubs found.</div>
           )}
           {loadingClubs && (

@@ -47,8 +47,17 @@ export const AuthCallback: React.FC = () => {
         }
 
         if (data.session) {
-          // User is authenticated (validation handled by server-side hook), redirect to main app
-          window.history.pushState({}, '', '/');
+          // Check if user is a club account
+          const userMetadata = data.session.user?.app_metadata;
+          const isClubAccount = userMetadata?.user_type === 'club_account';
+          
+          // Redirect club accounts to their dedicated page
+          if (isClubAccount) {
+            window.history.pushState({}, '', '/club-account');
+          } else {
+            // Regular users go to main app
+            window.history.pushState({}, '', '/');
+          }
           window.dispatchEvent(new PopStateEvent('popstate'));
         } else {
           // No session, redirect to login

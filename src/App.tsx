@@ -19,6 +19,7 @@ import { AuthPage } from './components/auth/AuthPage';
 import { OnboardingFlow } from './components/onboarding/OnboardingFlow';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { AuthCallback } from './components/auth/AuthCallback';
+import { ClubAccountPage } from './components/ClubAccountPage';
 import { supabase } from './lib/supabase';
 import type { Outline } from './types';
 
@@ -43,10 +44,33 @@ function AppContent({ user }: { user: any }) {
           if (isMounted) {
             setAuthLoading(false);
             setHasCompletedOnboarding(false);
+            setIsClubAccount(false);
           }
           return;
         }
 
+        // Check if user is a club account
+        const userMetadata = currentUser.app_metadata;
+        const isClub = userMetadata?.user_type === 'club_account';
+        
+        if (isMounted) {
+          setIsClubAccount(isClub);
+        }
+
+        // If club account, skip profile check and onboarding
+        if (isClub) {
+          if (isMounted) {
+            setAuthLoading(false);
+            setHasCompletedOnboarding(true); // Set to true so they don't see onboarding
+            // Redirect to club account page if not already there
+            if (window.location.pathname !== '/club-account') {
+              navigate('/club-account', { replace: true });
+            }
+          }
+          return;
+        }
+
+        // For regular users, check profile and onboarding
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('classes_filled')
@@ -73,6 +97,7 @@ function AppContent({ user }: { user: any }) {
         if (isMounted) {
           setAuthLoading(false);
           setHasCompletedOnboarding(false);
+          setIsClubAccount(false);
         }
       }
     };
@@ -87,8 +112,9 @@ function AppContent({ user }: { user: any }) {
       isMounted = false;
       listener.subscription.unsubscribe();
     };
-  }, [user]);
+  }, [user, navigate]);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean | null>(null);
+  const [isClubAccount, setIsClubAccount] = useState<boolean>(false);
   const [showResetPassword, setShowResetPassword] = useState(() => {
     return window.location.pathname === '/reset-password';
   });
@@ -798,6 +824,11 @@ function AppContent({ user }: { user: any }) {
     return <AuthPage />;
   }
 
+  // Show club account page if user is a club account
+  if (user && isClubAccount) {
+    return <ClubAccountPage />;
+  }
+
   // Show loading spinner while checking onboarding status
   if (hasCompletedOnboarding === null && user) {
     return (
@@ -933,6 +964,7 @@ function AppContent({ user }: { user: any }) {
           <Route path="/directory" element={<DirectoryPage onNavigateToStudentProfile={handleNavigateToStudentProfile} />} />
           <Route path="/feedback" element={<FeedbackPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/club-account" element={<ClubAccountPage />} />
           <Route path="/course/:courseName" element={<CoursePageWrapper />} />
           <Route path="/student-profile/:studentName" element={<StudentProfileWrapper />} />
           <Route path="*" element={

@@ -1182,7 +1182,7 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
 
   if (loading) {
     return (
-      <div className="h-full style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} flex items-center justify-center">
+      <div className="h-full flex items-center justify-center" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-[#752432] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Loading your courses...</p>

@@ -56,7 +56,7 @@ export const AuthCallback: React.FC = () => {
             window.history.pushState({}, '', '/club-account');
           } else {
             // Regular users go to main app
-            window.history.pushState({}, '', '/');
+          window.history.pushState({}, '', '/');
           }
           window.dispatchEvent(new PopStateEvent('popstate'));
         } else {

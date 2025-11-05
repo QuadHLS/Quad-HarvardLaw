@@ -263,7 +263,7 @@ export function ClassSelector({
 
         {/* Display-only professor for all class years (1L, 2L, 3L, LLM) */}
         {true ? (
-          <div className="min-h-[40px] py-2 px-3 style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} border border-gray-200 rounded-md text-sm text-gray-500 leading-tight mt-1">
+          <div className="min-h-[40px] py-2 px-3 border border-gray-200 rounded-md text-sm text-gray-500 leading-tight mt-1" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
             {selectedProfessor?.name || (selectedClass ? 'Loading...' : (classYear === '1L' && index < 7 ? 'Choose section' : 'Select class first'))}
           </div>
         ) : (
@@ -326,7 +326,7 @@ export function ClassSelector({
                   e.stopPropagation();
                 }}
               >
-                <div className="p-2 text-xs text-gray-500 style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }} border-b">
+                <div className="p-2 text-xs text-gray-500 border-b" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
                   Professors for {formatDisplayCourseName(selectedClass?.name || '')}:
                 </div>
                 {selectedClass?.professors?.map((professor, profIndex) => (
@@ -361,8 +361,7 @@ export function ClassSelector({
                     >
                       {professor.name}
                     </button>
-                  );
-                })}
+                ))}
               </div>
             )}
             </>

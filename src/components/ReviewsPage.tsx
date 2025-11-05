@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import * as React from 'react';
-import { Star, Search, Calendar, Plus, Megaphone, FileText, Laptop } from 'lucide-react';
+import { Star, Search, Calendar, Plus, Megaphone, FileText, Laptop, Filter } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent } from './ui/card';
@@ -95,6 +95,7 @@ export function ReviewsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProfessor, setSelectedProfessor] = useState<string | null>(null);
   const [selectedCourse, setSelectedCourse] = useState('');
+  const [filterByRating, setFilterByRating] = useState(false);
   const reviewSortBy = 'Most Recent';
   
   // Scroll position retention
@@ -415,25 +416,38 @@ export function ReviewsPage() {
     prof.lastName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Group filtered professors alphabetically by last name
+  // Group filtered professors alphabetically by last name, or sort by rating if filter is active
   const groupedProfessors = React.useMemo(() => {
-    const groups: { [key: string]: typeof filteredProfessors } = {};
-    
-    filteredProfessors.forEach(prof => {
-      const firstLetter = prof.lastName.charAt(0).toUpperCase();
-      if (!groups[firstLetter]) {
-        groups[firstLetter] = [];
-      }
-      groups[firstLetter].push(prof);
-    });
+    if (filterByRating) {
+      // If rating filter is active, sort by rating (highest to lowest) and return as single group
+      const sortedByRating = [...filteredProfessors].sort((a, b) => {
+        // Sort by rating (highest first), then by name if ratings are equal
+        if (b.overallRating !== a.overallRating) {
+          return b.overallRating - a.overallRating;
+        }
+        return a.lastName.localeCompare(b.lastName);
+      });
+      return { 'All': sortedByRating };
+    } else {
+      // Default: Group alphabetically by last name
+      const groups: { [key: string]: typeof filteredProfessors } = {};
+      
+      filteredProfessors.forEach(prof => {
+        const firstLetter = prof.lastName.charAt(0).toUpperCase();
+        if (!groups[firstLetter]) {
+          groups[firstLetter] = [];
+        }
+        groups[firstLetter].push(prof);
+      });
 
-    // Sort each group by last name
-    Object.keys(groups).forEach(letter => {
-      groups[letter].sort((a, b) => a.lastName.localeCompare(b.lastName));
-    });
+      // Sort each group by last name
+      Object.keys(groups).forEach(letter => {
+        groups[letter].sort((a, b) => a.lastName.localeCompare(b.lastName));
+      });
 
-    return groups;
-  }, [filteredProfessors]);
+      return groups;
+    }
+  }, [filteredProfessors, filterByRating]);
 
   // Get all letters that have professors (for A-Z navigation)
   const availableLetters = Object.keys(groupedProfessors).sort();
@@ -483,8 +497,21 @@ export function ReviewsPage() {
     });
   };
 
-  // Consistent accent color based on professor's last name initial
+  // Consistent accent color based on professor's last name initial or rating (if filter is active)
   const getProfessorAccentColor = (professorName: string) => {
+    const prof = professorData.find(p => p.fullName === professorName);
+    
+    // When filtering by rating, use rating-based colors
+    if (filterByRating && prof) {
+      const rating = prof.overallRating / 2; // Convert to 0-5 scale
+      const colorPattern = ['#00962c', '#ffb100', '#0277c5', '#f71417'];
+      if (rating >= 4.0) return colorPattern[0]; // green
+      else if (rating >= 3.0) return colorPattern[2]; // blue
+      else if (rating >= 2.0) return colorPattern[1]; // yellow
+      else return colorPattern[3]; // red
+    }
+    
+    // Default: Use last name to determine color
     const colorPattern = ['#00962c', '#ffb100', '#0277c5', '#f71417'];
     const parts = professorName.trim().split(' ');
     const last = parts[parts.length - 1] || professorName;
@@ -678,10 +705,35 @@ export function ReviewsPage() {
           ) : (
             <>
               <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center">
-                  <h1 className="text-2xl font-medium text-white">Professor Reviews</h1>
-                </div>
-                <Dialog open={showReviewForm} onOpenChange={setShowReviewForm}>
+                <h1 className="text-2xl font-medium text-white">Professor Reviews</h1>
+                <div className="flex items-center gap-4">
+                  {/* A-Z Navigation - only show when not filtering by rating */}
+                  {!selectedProfessor && !filterByRating && (
+                    <div className="flex items-center gap-2 lg:gap-4">
+                      <span className="text-sm text-white whitespace-nowrap">Jump to:</span>
+                      <div className="flex flex-wrap items-center gap-1 lg:gap-2 max-w-full overflow-hidden">
+                        {Array.from({ length: 26 }, (_, i) => {
+                          const letter = String.fromCharCode(65 + i);
+                          const hasProfs = availableLetters.includes(letter);
+                          return (
+                            <button
+                              key={letter}
+                              onClick={() => hasProfs && scrollToLetter(letter)}
+                              disabled={!hasProfs}
+                              className={`px-1.5 lg:px-2 py-1 text-xs lg:text-sm font-medium transition-colors flex-shrink-0 ${
+                                hasProfs
+                                  ? 'text-white hover:text-gray-200 cursor-pointer'
+                                  : 'text-gray-400 cursor-not-allowed'
+                              }`}
+                            >
+                              {letter}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  <Dialog open={showReviewForm} onOpenChange={setShowReviewForm}>
                   <DialogTrigger asChild>
                     <Button 
                       className="bg-white hover:shadow-lg hover:scale-105 transition-all duration-200 ease-in-out rounded-xl font-medium shadow-md"
@@ -707,10 +759,11 @@ export function ReviewsPage() {
                       Write Review
                     </Button>
                   </DialogTrigger>
-                </Dialog>
+                  </Dialog>
+                </div>
               </div>
-              {/* Search and A-Z Navigation */}
-              <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-6">
+              {/* Search and Filter */}
+              <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-6 mb-4">
                 <div className="w-full lg:max-w-md lg:flex-1">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -722,32 +775,23 @@ export function ReviewsPage() {
                     />
                   </div>
                 </div>
-                {/* A-Z Navigation */}
                 {!selectedProfessor && (
-                  <div className="w-full lg:w-auto">
-                    <div className="flex flex-col lg:flex-row items-start lg:items-center gap-2 lg:gap-4">
-                      <span className="text-sm text-white whitespace-nowrap">Jump to:</span>
-                      <div className="flex flex-wrap items-center gap-1 lg:gap-2 max-w-full overflow-hidden">
-                        {Array.from({ length: 26 }, (_, i) => {
-                          const letter = String.fromCharCode(65 + i);
-                          const hasProfs = availableLetters.includes(letter);
-                          return (
-                            <button
-                              key={letter}
-                              onClick={() => hasProfs && scrollToLetter(letter)}
-                              disabled={!hasProfs}
-                              className={`px-1.5 lg:px-2 py-1 text-xs lg:text-sm font-medium transition-colors flex-shrink-0 ${
-                                hasProfs
-                                  ? 'text-white hover:text-gray-200 cursor-pointer'
-                                  : 'text-gray-400 cursor-not-allowed'
-                              }`}
-                            >
-                              {letter}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+                  <div className="relative bg-white/10 rounded-lg p-0.5 backdrop-blur-sm border border-white/20 h-9 flex items-center">
+                    <button
+                      onClick={() => setFilterByRating(!filterByRating)}
+                      className={`relative px-3 py-1 h-full text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-1.5 ${
+                        filterByRating
+                          ? 'text-[#752432] shadow-sm'
+                          : 'text-white/80 hover:text-white hover:bg-white/10'
+                      }`}
+                      style={filterByRating ? {
+                        backgroundColor: 'white',
+                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                      } : {}}
+                    >
+                      <Filter className="w-3 h-3" />
+                      <span className="whitespace-nowrap">Filter by Rating</span>
+                    </button>
                   </div>
                 )}
               </div>
@@ -760,7 +804,7 @@ export function ReviewsPage() {
       <div className="max-w-full mx-auto p-6">
         <div className="h-full flex flex-col">
 
-        <div className="flex-1 pt-6">
+        <div className="flex-1 pt-2">
           <div className="min-w-0">
             {filteredProfessors.length === 0 ? (
               <div className="text-center py-12">
@@ -982,33 +1026,43 @@ export function ReviewsPage() {
                 })()}
               </div>
             ) : (
-              /* Show alphabetically grouped professors */
+              /* Show alphabetically grouped professors or sorted by rating */
               <div className="space-y-8">
                 {availableLetters.map((letter) => {
                   // Color pattern: A=#00962c, B=#ffb100, C=#0277c5, D=#f71417, repeat
                   const colorPattern = ['#00962c', '#ffb100', '#0277c5', '#f71417'];
-                  const letterIndex = letter.charCodeAt(0) - 65; // A=0, B=1, C=2, D=3, etc.
+                  const letterIndex = letter === 'All' ? 0 : letter.charCodeAt(0) - 65; // A=0, B=1, C=2, D=3, etc.
                   
                   return (
-                    <div key={letter} id={`letter-${letter}`}>
-                      {/* Letter Divider */}
-                      <div className="flex items-center mb-4">
-                        <div 
-                          className="w-12 h-12 rounded-full flex items-center justify-center mr-4"
-                          style={{ backgroundColor: colorPattern[letterIndex % 4] }}
-                        >
-                          <span className="text-white text-lg font-medium">{letter}</span>
+                    <div key={letter} id={letter !== 'All' ? `letter-${letter}` : undefined}>
+                      {/* Letter Divider - only show when not filtering by rating */}
+                      {!filterByRating && (
+                        <div className="flex items-center mb-4">
+                          <div 
+                            className="w-12 h-12 rounded-full flex items-center justify-center mr-4"
+                            style={{ backgroundColor: colorPattern[letterIndex % 4] }}
+                          >
+                            <span className="text-white text-lg font-medium">{letter}</span>
+                          </div>
+                          <div className="flex-1 h-px bg-gray-300"></div>
                         </div>
-                        <div className="flex-1 h-px bg-gray-300"></div>
-                      </div>
+                      )}
                     
                     {/* Professors in this letter group */}
                     <div className="grid gap-4">
                       {groupedProfessors[letter].map((prof) => {
-                        // Color pattern: A=#00962c, B=#ffb100, C=#0277c5, D=#f71417, repeat
-                        const colorPattern = ['#00962c', '#ffb100', '#0277c5', '#f71417'];
-                        const letterIndex = letter.charCodeAt(0) - 65; // A=0, B=1, C=2, D=3, etc.
-                        const currentColor = colorPattern[letterIndex % 4];
+                        // When filtering by rating, use rating-based colors (all inclusive):
+                        // 4+ (>= 4.0): green, 3+ (>= 3.0): blue, 2+ (>= 2.0): yellow, 0+ (>= 0.0): red
+                        // Otherwise use the letter-based color
+                        const currentColor = filterByRating 
+                          ? (() => {
+                              const rating = prof.overallRating / 2; // Convert to 0-5 scale
+                              if (rating >= 4.0) return colorPattern[0]; // green #00962c (4.0, 4.1, ..., 5.0)
+                              else if (rating >= 3.0) return colorPattern[2]; // blue #0277c5 (3.0, 3.1, ..., 3.9)
+                              else if (rating >= 2.0) return colorPattern[1]; // yellow #ffb100 (2.0, 2.1, ..., 2.9)
+                              else return colorPattern[3]; // red #f71417 (0.0, 0.1, ..., 1.9)
+                            })()
+                          : colorPattern[letterIndex % 4];
                         return (
                           <Card 
                             key={prof.fullName}

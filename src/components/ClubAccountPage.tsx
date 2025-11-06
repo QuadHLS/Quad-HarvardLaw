@@ -1,4 +1,4 @@
-import React, { useState, ChangeEvent } from 'react';
+import React, { useState, ChangeEvent, useEffect, useMemo } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Button } from './ui/button';
 import { Toaster } from './ui/sonner';
@@ -9,19 +9,14 @@ import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Card } from './ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from './ui/dialog';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import { 
-  Upload, Mail, Globe, Calendar, Clock, MapPin, Plus, Trash2, Edit2, X, Check, 
-  Users, Search, ChevronDown, User, MessageSquare 
+  Upload, Mail, Calendar, Clock, MapPin, Plus, Trash2, Edit2, X, Check, 
+  Users, Search, User, MessageSquare, Target, ExternalLink, Globe, LogOut
 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { getStorageUrl, extractFilename } from '../utils/storage';
 
 // Types
-export interface RSVP {
-  id: string;
-  firstName: string;
-  lastName: string;
-}
-
 export interface Event {
   id: string;
   name: string;
@@ -30,7 +25,7 @@ export interface Event {
   location: string;
   shortDescription: string;
   fullDescription: string;
-  rsvps: RSVP[];
+  rsvps: string[]; // Array of user UUIDs who have RSVPed
 }
 
 export interface Member {
@@ -63,168 +58,448 @@ export interface ClubFormData {
 }
 
 // ClubBasicInfo Component
-function ClubBasicInfo({ formData, updateFormData }: { formData: ClubFormData; updateFormData: (field: keyof ClubFormData, value: any) => void }) {
-  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        updateFormData('picture', reader.result as string);
+function ClubBasicInfo({ formData, updateFormData, onSaveBasicInfo, onSaveMission, onSaveContact, savingBasicInfo, savingMission, savingContact, onAvatarUploaded, onAvatarDeleted, currentAvatarUrl, uploadingAvatar, setUploadingAvatar, hasBasicInfoChanges, hasMissionChanges, hasContactChanges }: { formData: ClubFormData; updateFormData: (field: keyof ClubFormData, value: any) => void; onSaveBasicInfo: () => void; onSaveMission: () => void; onSaveContact: () => void; savingBasicInfo: boolean; savingMission: boolean; savingContact: boolean; onAvatarUploaded: (fileName: string) => void; onAvatarDeleted: () => void; currentAvatarUrl: string | null; uploadingAvatar: boolean; setUploadingAvatar: (uploading: boolean) => void; hasBasicInfoChanges: boolean; hasMissionChanges: boolean; hasContactChanges: boolean }) {
+  const compressAvatarImage = (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      const timeout = setTimeout(() => {
+        reject(new Error('Avatar compression timeout - image too large or complex'));
+      }, 30000);
+      
+      img.onload = () => {
+        try {
+          const maxSize = 400;
+          let { width, height } = img;
+          
+          if (width > height) {
+            if (width > maxSize) {
+              height = (height * maxSize) / width;
+              width = maxSize;
+            }
+          } else {
+            if (height > maxSize) {
+              width = (width * maxSize) / height;
+              height = maxSize;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          const targetSize = 500 * 1024;
+          let quality = 0.8;
+          
+          const compressToTargetSize = (currentQuality: number): void => {
+            canvas.toBlob((blob) => {
+              if (blob) {
+                if (blob.size <= targetSize || currentQuality <= 0.1) {
+                  clearTimeout(timeout);
+                  const compressedFile = new File([blob], file.name, {
+                    type: 'image/jpeg',
+                    lastModified: Date.now(),
+                  });
+                  resolve(compressedFile);
+                } else {
+                  compressToTargetSize(currentQuality - 0.1);
+                }
+              } else {
+                clearTimeout(timeout);
+                reject(new Error('Failed to compress image'));
+              }
+            }, 'image/jpeg', currentQuality);
+          };
+          
+          compressToTargetSize(quality);
+        } catch (error) {
+          clearTimeout(timeout);
+          reject(error);
+        }
       };
-      reader.readAsDataURL(file);
+      
+      img.onerror = () => {
+        clearTimeout(timeout);
+        reject(new Error('Failed to load image'));
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 8MB before compression)
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error('File size must be less than 8MB');
+      return;
+    }
+
+    // Get current user first (like profile page)
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!file || !user?.id) return;
+
+    setUploadingAvatar(true);
+    try {
+      // Delete existing avatar if it exists (from database)
+      if (currentAvatarUrl) {
+        const oldFileName = extractFilename(currentAvatarUrl);
+        const { error: deleteError } = await supabase.storage
+          .from('Avatar')
+          .remove([oldFileName]);
+        
+        if (deleteError) {
+          console.error('Error deleting old avatar:', deleteError);
+          // Continue with upload even if delete fails
+        }
+      }
+
+      // Compress avatar image
+      const compressedFile = await compressAvatarImage(file);
+      
+      // Create unique filename
+      const fileExt = compressedFile.name.split('.').pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      
+      // Upload to Supabase Storage immediately
+      const { error: uploadError } = await supabase.storage
+        .from('Avatar')
+        .upload(fileName, compressedFile);
+
+      if (uploadError) {
+        console.error('Error uploading avatar:', uploadError);
+        console.error('Upload error details:', {
+          message: uploadError.message,
+          statusCode: uploadError.statusCode,
+          error: uploadError.error
+        });
+        toast.error(`Error uploading avatar: ${uploadError.message}. Please check the console for details.`);
+        return;
+      }
+
+      // Store just the filename (not full URL) since bucket is private
+      const avatarFileName = fileName;
+
+      // Update club account immediately
+      const { error: updateError } = await supabase
+        .from('club_accounts')
+        .update({ avatar_url: avatarFileName })
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Error updating avatar URL:', updateError);
+        console.error('Update error details:', {
+          message: updateError.message,
+          details: updateError.details,
+          hint: updateError.hint
+        });
+        toast.error(`Error updating club account: ${updateError.message}. Please check the console for details.`);
+        return;
+      }
+
+      // Update local state
+      onAvatarUploaded(avatarFileName);
+      
+      // Generate signed URL for new avatar
+      const signedUrl = await getStorageUrl(avatarFileName, 'Avatar');
+      if (signedUrl) {
+        updateFormData('picture', signedUrl);
+      }
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      if (error instanceof Error && error.message && error.message.includes('timeout')) {
+        toast.error('Error: Image is too large or complex to process. Please try a smaller image.');
+      } else {
+        toast.error('Error uploading avatar. Please try again.');
+      }
+    } finally {
+      setUploadingAvatar(false);
+      // Reset the file input
+      const fileInput = document.getElementById('club-picture') as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = '';
+      }
+    }
+  };
+
+  const handleDeleteAvatar = async () => {
+    if (!currentAvatarUrl) return;
+
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('User not authenticated');
+        return;
+      }
+
+      // Extract filename
+      const fileName = extractFilename(currentAvatarUrl);
+
+      // Delete from storage
+      const { error: deleteError } = await supabase.storage
+        .from('Avatar')
+        .remove([fileName]);
+
+      if (deleteError) {
+        console.error('Error deleting avatar from storage:', deleteError);
+        toast.error('Error deleting avatar from storage. Please try again.');
+        return;
+      }
+
+      // Update club account to remove avatar URL
+      const { error: updateError } = await supabase
+        .from('club_accounts')
+        .update({ avatar_url: null })
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Error updating club account:', updateError);
+        toast.error('Error updating club account. Please try again.');
+        return;
+      }
+
+      // Update local state
+      updateFormData('picture', '');
+      onAvatarDeleted();
+      
+      // Reset the file input
+      const fileInput = document.getElementById('club-picture') as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = '';
+      }
+
+      toast.success('Avatar deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting avatar:', error);
+      toast.error('Error deleting avatar. Please try again.');
     }
   };
 
   const handleDescriptionChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
-    const words = e.target.value.trim().split(/\s+/);
-    if (words.length <= 50 || e.target.value === '') {
+    if (e.target.value.length <= 200) {
       updateFormData('description', e.target.value);
     }
   };
 
-  const wordCount = formData.description.trim() ? formData.description.trim().split(/\s+/).length : 0;
+  const charCount = formData.description.length;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-gray-900 mb-1">Basic Information</h2>
-      </div>
-
-      <div className="space-y-4">
-        <div className="flex items-start gap-4">
-          <div>
-            <Label htmlFor="club-picture">Club Picture *</Label>
-            <div className="mt-2">
-              {formData.picture ? (
-                <div className="relative w-64 h-64 rounded-lg overflow-hidden border-2 border-gray-200">
-                  <img 
-                    src={formData.picture} 
-                    alt="Club" 
-                    className="w-full h-full object-cover"
-                  />
-                  <button
-                    onClick={() => updateFormData('picture', '')}
-                    className="absolute top-2 right-2 bg-red-500 text-white px-3 py-1.5 rounded text-sm hover:bg-red-600"
-                  >
-                    Remove
-                  </button>
+      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'stretch', gap: '24px', flexWrap: 'nowrap', width: '100%', maxWidth: '100%', overflowX: 'hidden', justifyContent: 'center' }}>
+        <div className="rounded-lg p-6 shadow-sm" style={{ backgroundColor: '#fefbf6', flex: '1 1 0', minWidth: 0, maxWidth: '570px' }}>
+          <div className="flex items-start gap-4">
+            <div>
+              <Label htmlFor="club-picture">Club Picture *</Label>
+              <div className="mt-2">
+                <div className="flex flex-col items-center">
+                  {formData.picture ? (
+                    <div 
+                      className="w-64 h-64 rounded-full border-2 overflow-hidden mb-4"
+                      style={{ borderColor: '#5a3136' }}
+                    >
+                      <img 
+                        src={formData.picture} 
+                        alt="Club" 
+                        className="w-full h-full"
+                        style={{ 
+                          objectFit: 'cover'
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-64 h-64 flex items-center justify-center mb-4 rounded-full border-2" style={{ borderColor: '#5a3136', backgroundColor: '#fefafb' }}>
+                      <Upload className="w-10 h-10 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      id="club-picture"
+                      disabled={savingBasicInfo || uploadingAvatar}
+                    />
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="text-xs px-3 py-1 h-7"
+                      disabled={savingBasicInfo || uploadingAvatar}
+                      onClick={() => document.getElementById('club-picture')?.click()}
+                    >
+                      {uploadingAvatar ? (
+                        <div className="flex items-center gap-1">
+                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600"></div>
+                          <span>Uploading...</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <Upload className="w-3 h-3" />
+                          <span>{formData.picture ? 'Change Avatar' : 'Add Avatar'}</span>
+                        </div>
+                      )}
+                    </Button>
+                    {formData.picture && (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="text-xs px-3 py-1 h-7 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                        onClick={handleDeleteAvatar}
+                        disabled={savingBasicInfo || uploadingAvatar}
+                      >
+                        <div className="flex items-center gap-1">
+                          <X className="w-3 h-3" />
+                          <span>Delete Avatar</span>
+                        </div>
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              ) : (
-                <label className="flex flex-col items-center justify-center w-64 h-64 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition-colors">
-                  <Upload className="w-10 h-10 text-gray-400 mb-2" />
-                  <span className="text-base text-gray-600">Upload Image</span>
-                  <input
-                    id="club-picture"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-4 flex-1 min-w-0">
+            <div className="w-full">
+              <Label htmlFor="club-name">Club Name *</Label>
+              <Input
+                id="club-name"
+                value={formData.name}
+                onChange={(e) => updateFormData('name', e.target.value)}
+                placeholder="Enter your club name"
+                className="mt-2 bg-white w-full"
+                style={{ fontSize: '14px' }}
+              />
+            </div>
+
+            <div className="w-full">
+              <Label htmlFor="club-tag">Club Tag *</Label>
+              <Select value={formData.tag} onValueChange={(value) => updateFormData('tag', value)}>
+                <SelectTrigger id="club-tag" className="mt-2 bg-white w-full">
+                  <SelectValue placeholder="Select a tag" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="student-practice">Student Practice Organization</SelectItem>
+                  <SelectItem value="student-org">Student Organization</SelectItem>
+                  <SelectItem value="journal">Journal</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="w-full">
+              <Label htmlFor="club-description">Club Description *</Label>
+              <Textarea
+                id="club-description"
+                value={formData.description}
+                onChange={handleDescriptionChange}
+                placeholder="Brief description of your club"
+                className="mt-2 bg-white w-full"
+                style={{ minHeight: '160px', fontSize: '14px' }}
+              />
+              <p className="text-sm text-gray-500 mt-1 text-right">
+                {charCount}/200 characters
+              </p>
+            </div>
+            </div>
+          </div>
+          <div className="flex justify-end mt-2">
+            <Button 
+              onClick={onSaveBasicInfo}
+              className={`${hasBasicInfoChanges ? 'bg-[#752432] hover:bg-[#5a3136] text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+              disabled={savingBasicInfo || uploadingAvatar || !hasBasicInfoChanges}
+            >
+              {savingBasicInfo ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', flex: '1 1 0', minWidth: 0, maxWidth: '450px' }}>
+          <div className="rounded-lg p-6 shadow-sm" style={{ backgroundColor: '#fefbf6', alignSelf: 'flex-start', width: '100%' }}>
+            <div className="flex items-center gap-2 mb-4">
+              <Target className="w-5 h-5" style={{ color: '#752432' }} />
+              <h3 className="text-lg font-semibold">Mission & Purpose</h3>
+            </div>
+            <div>
+              <Textarea
+                value={formData.missionPurpose}
+                onChange={(e) => {
+                  if (e.target.value.length <= 500) {
+                    updateFormData('missionPurpose', e.target.value);
+                  }
+                }}
+                placeholder="What is your club's mission and purpose? What goals do you hope to achieve?"
+                className="bg-white w-full"
+                style={{ fontSize: '14px', height: '200px', maxHeight: '200px', maxWidth: '100%', boxSizing: 'border-box', overflowY: 'auto' }}
+                maxLength={500}
+              />
+            </div>
+            <div className="flex justify-end mt-4">
+              <Button 
+                onClick={onSaveMission}
+                className={`${hasMissionChanges ? 'bg-[#752432] hover:bg-[#5a3136] text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+                disabled={savingMission || !hasMissionChanges}
+              >
+                {savingMission ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+          </div>
+
+          <div className="rounded-lg p-6 shadow-sm" style={{ backgroundColor: '#fefbf6', width: '100%' }}>
+            <div className="flex items-center gap-2 mb-4">
+              <Mail className="w-5 h-5" style={{ color: '#752432' }} />
+              <h3 className="text-lg font-semibold">Contact Information</h3>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="contact-email" className="text-sm font-medium text-gray-900">Email</Label>
+                <div className="mt-2 relative">
+                  <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Input
+                    id="contact-email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => updateFormData('email', e.target.value)}
+                    placeholder="club@university.edu"
+                    className="bg-white pl-10"
+                    style={{ fontSize: '14px' }}
                   />
-                </label>
-              )}
-            </div>
-          </div>
-
-          <div className="flex-1 flex flex-col gap-4">
-            <div className="flex items-center">
-              <div className="w-full">
-                <Label htmlFor="club-name">Club Name *</Label>
-                <Input
-                  id="club-name"
-                  value={formData.name}
-                  onChange={(e) => updateFormData('name', e.target.value)}
-                  placeholder="Enter your club name"
-                  className="mt-2 bg-white"
-                  style={{ fontSize: '14px' }}
-                />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="contact-website" className="text-sm font-medium text-gray-900">Website</Label>
+                <div className="mt-2 relative">
+                  <Globe className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Input
+                    id="contact-website"
+                    type="url"
+                    value={formData.website}
+                    onChange={(e) => updateFormData('website', e.target.value)}
+                    placeholder="https://yourclub.com"
+                    className="bg-white pl-10 pr-8"
+                    style={{ fontSize: '14px' }}
+                  />
+                  <ExternalLink className="w-3 h-3 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                </div>
               </div>
             </div>
-
-            <div className="flex items-start gap-4">
-              <div className="flex-1">
-                <Label htmlFor="club-description">Club Description *</Label>
-                <Textarea
-                  id="club-description"
-                  value={formData.description}
-                  onChange={handleDescriptionChange}
-                  placeholder="Brief description of your club"
-                  className="mt-2 bg-white"
-                  style={{ minHeight: '256px', fontSize: '14px' }}
-                />
-                <p className="text-sm text-gray-500 mt-1 text-right">
-                  {wordCount}/50 words
-                </p>
-              </div>
-
-              <div className="flex-1">
-                <Label htmlFor="club-tag">Club Tag *</Label>
-                <Select value={formData.tag} onValueChange={(value) => updateFormData('tag', value)}>
-                  <SelectTrigger id="club-tag" className="mt-2">
-                    <SelectValue placeholder="Select a tag" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="student-practice">Student Practice Organization</SelectItem>
-                    <SelectItem value="student-org">Student Organization</SelectItem>
-                    <SelectItem value="journal">Journal</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-6">
-          <Label htmlFor="mission-purpose">Mission & Purpose *</Label>
-          <Textarea
-            id="mission-purpose"
-            value={formData.missionPurpose}
-            onChange={(e) => {
-              const words = e.target.value.trim().split(/\s+/);
-              if (words.length <= 500 || e.target.value === '') {
-                updateFormData('missionPurpose', e.target.value);
-              }
-            }}
-            placeholder="What is your club's mission and purpose? What goals do you hope to achieve?"
-            className="mt-2 min-h-48 bg-white"
-            style={{ fontSize: '14px' }}
-          />
-          <div className="flex justify-end mt-1">
-            <p className="text-sm text-gray-500">
-              {formData.missionPurpose.trim() ? formData.missionPurpose.trim().split(/\s+/).length : 0}/500 words
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-6 space-y-4">
-          <div>
-            <Label htmlFor="email">Email *</Label>
-            <div className="relative mt-2">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => updateFormData('email', e.target.value)}
-                placeholder="club@university.edu"
-                className="pl-10 bg-white"
-                style={{ fontSize: '14px' }}
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="website">Website (Optional)</Label>
-            <div className="relative mt-2">
-              <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                id="website"
-                type="url"
-                value={formData.website}
-                onChange={(e) => updateFormData('website', e.target.value)}
-                placeholder="https://yourclub.com"
-                className="pl-10 bg-white"
-                style={{ fontSize: '14px' }}
-              />
+            <div className="flex justify-end mt-4">
+              <Button 
+                onClick={onSaveContact}
+                className={`${hasContactChanges ? 'bg-[#752432] hover:bg-[#5a3136] text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+                disabled={savingContact || !hasContactChanges}
+              >
+                {savingContact ? 'Saving...' : 'Save'}
+              </Button>
             </div>
           </div>
         </div>
@@ -237,11 +512,67 @@ function ClubBasicInfo({ formData, updateFormData }: { formData: ClubFormData; u
 function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; updateFormData: (field: keyof ClubFormData, value: any) => void }) {
   const [editingEvent, setEditingEvent] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Event | null>(null);
+  const [originalEventData, setOriginalEventData] = useState<Event | null>(null);
   const [rsvpDialogOpen, setRsvpDialogOpen] = useState<string | null>(null);
-  const [newRsvpFirstName, setNewRsvpFirstName] = useState('');
-  const [newRsvpLastName, setNewRsvpLastName] = useState('');
   const [rsvpSearchQuery, setRsvpSearchQuery] = useState('');
-  const [manualAddOpen, setManualAddOpen] = useState(false);
+  const [rsvpNames, setRsvpNames] = useState<Record<string, string>>({}); // Map of userId -> fullName
+
+  // Cleanup: Cancel editing when component unmounts (e.g., switching tabs)
+  useEffect(() => {
+    return () => {
+      if (editingEvent && editFormData) {
+        // Component is unmounting - discard unsaved changes
+        const existingEvent = formData.events.find(e => e.id === editFormData.id);
+        if (!existingEvent) {
+          // New event that wasn't saved - discard it
+          setEditingEvent(null);
+          setEditFormData(null);
+          setOriginalEventData(null);
+        }
+      }
+    };
+  }, []);
+
+  // Fetch RSVP user names when dialog opens
+  useEffect(() => {
+    const fetchRsvpNames = async () => {
+      if (!rsvpDialogOpen) {
+        setRsvpNames({});
+        return;
+      }
+
+      const event = formData.events.find(e => e.id === rsvpDialogOpen);
+      if (!event || event.rsvps.length === 0) {
+        setRsvpNames({});
+        return;
+      }
+
+      try {
+        // Fetch profiles for all RSVP user IDs
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', event.rsvps);
+
+        if (error) {
+          console.error('Error fetching RSVP names:', error);
+          return;
+        }
+
+        // Create a map of userId -> fullName
+        const namesMap: Record<string, string> = {};
+        data?.forEach((profile: { id: string; full_name: string | null }) => {
+          namesMap[profile.id] = profile.full_name || 'Unknown User';
+        });
+
+        setRsvpNames(namesMap);
+      } catch (err) {
+        console.error('Unexpected error fetching RSVP names:', err);
+      }
+    };
+
+    fetchRsvpNames();
+  }, [rsvpDialogOpen, formData.events]);
 
   const addEvent = () => {
     const newEvent: Event = {
@@ -252,42 +583,149 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
       location: '',
       shortDescription: '',
       fullDescription: '',
-      rsvps: []
+      rsvps: [] // Array of user UUIDs
     };
-    updateFormData('events', [...formData.events, newEvent]);
+    // Don't add to formData yet - only add when Save is clicked
     setEditingEvent(newEvent.id);
     setEditFormData(newEvent);
+    setOriginalEventData(null); // New event, no original
   };
 
-  const deleteEvent = (id: string) => {
-    updateFormData('events', formData.events.filter(event => event.id !== id));
-    if (editingEvent === id) {
-      setEditingEvent(null);
-      setEditFormData(null);
+  const deleteEvent = async (id: string) => {
+    try {
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        console.error('Error getting user:', userError);
+        toast.error('Failed to delete: User not authenticated');
+        return;
+      }
+
+      // Update local state first
+      const updatedEvents = formData.events.filter(event => event.id !== id);
+      updateFormData('events', updatedEvents);
+
+      // Save to database
+      const { error } = await supabase
+        .from('club_accounts')
+        .update({
+          events: updatedEvents,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error deleting event:', error);
+        toast.error('Failed to delete event');
+        // Revert local state on error
+        updateFormData('events', formData.events);
+        return;
+      }
+
+      toast.success('Event deleted successfully');
+      if (editingEvent === id) {
+        setEditingEvent(null);
+        setEditFormData(null);
+      }
+    } catch (err) {
+      console.error('Unexpected error deleting event:', err);
+      toast.error('An unexpected error occurred while deleting');
+      // Revert local state on error
+      updateFormData('events', formData.events);
     }
   };
 
   const startEditing = (event: Event) => {
+    // Normalize time to HH:MM format (remove seconds if present)
+    const normalizedEvent = {
+      ...event,
+      time: event.time ? event.time.split(':').slice(0, 2).join(':') : ''
+    };
     setEditingEvent(event.id);
-    setEditFormData({ ...event });
+    setEditFormData(normalizedEvent);
+    setOriginalEventData(normalizedEvent); // Store original for cancel
   };
 
-  const saveEditing = () => {
+  const saveEditing = async () => {
     if (editFormData) {
-      updateFormData('events', formData.events.map(event => 
-        event.id === editFormData.id ? editFormData : event
-      ));
-      setEditingEvent(null);
-      setEditFormData(null);
+      try {
+        // Get current user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) {
+          console.error('Error getting user:', userError);
+          toast.error('Failed to save: User not authenticated');
+          return;
+        }
+
+        // Normalize time to HH:MM format before saving
+        const normalizedEditFormData = {
+          ...editFormData,
+          time: editFormData.time ? editFormData.time.split(':').slice(0, 2).join(':') : ''
+        };
+
+        // Check if this is a new event (not in formData.events yet)
+        const existingEvent = formData.events.find(e => e.id === normalizedEditFormData.id);
+        let updatedEvents: Event[];
+        
+        if (existingEvent) {
+          // Update existing event
+          updatedEvents = formData.events.map(event => 
+            event.id === normalizedEditFormData.id ? normalizedEditFormData : event
+          );
+        } else {
+          // Add new event
+          updatedEvents = [...formData.events, normalizedEditFormData];
+        }
+
+        // Update local state first
+        updateFormData('events', updatedEvents);
+
+        // Save to database
+        const { error } = await supabase
+          .from('club_accounts')
+          .update({
+            events: updatedEvents,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user.id);
+
+        if (error) {
+          console.error('Error saving events:', error);
+          toast.error('Failed to save event');
+          // Revert local state on error
+          updateFormData('events', formData.events);
+          return;
+        }
+
+        toast.success('Event saved successfully!');
+        setEditingEvent(null);
+        setEditFormData(null);
+        setOriginalEventData(null);
+      } catch (err) {
+        console.error('Unexpected error saving event:', err);
+        toast.error('An unexpected error occurred while saving');
+        // Revert local state on error
+        updateFormData('events', formData.events);
+      }
     }
   };
 
   const cancelEditing = () => {
-    if (editFormData && !editFormData.name) {
-      deleteEvent(editFormData.id);
+    // If it's a new event (not saved yet), just discard it
+    const existingEvent = formData.events.find(e => editFormData?.id === e.id);
+    if (!existingEvent && editFormData) {
+      // New event that wasn't saved - just clear editing state
+      setEditingEvent(null);
+      setEditFormData(null);
+      setOriginalEventData(null);
+    } else if (editFormData && originalEventData) {
+      // Restore original data if editing existing event
+      // (This shouldn't happen since we're not modifying formData until save, but just in case)
+      setEditFormData({ ...originalEventData });
+      setEditingEvent(null);
+      setEditFormData(null);
+      setOriginalEventData(null);
     }
-    setEditingEvent(null);
-    setEditFormData(null);
   };
 
   const handleShortDescriptionChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
@@ -310,31 +748,48 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
     return text.trim() ? text.trim().split(/\s+/).length : 0;
   };
 
-  const addRsvp = (eventId: string) => {
-    if (!newRsvpFirstName.trim() || !newRsvpLastName.trim()) return;
-    
-    const newRsvp: RSVP = {
-      id: Date.now().toString(),
-      firstName: newRsvpFirstName.trim(),
-      lastName: newRsvpLastName.trim()
-    };
+  const deleteRsvp = async (eventId: string, rsvpUserId: string) => {
+    try {
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        console.error('Error getting user:', userError);
+        toast.error('Failed to delete RSVP: User not authenticated');
+        return;
+      }
 
-    updateFormData('events', formData.events.map(event => 
-      event.id === eventId 
-        ? { ...event, rsvps: [...event.rsvps, newRsvp] }
-        : event
-    ));
+      // Update local state first
+      const updatedEvents = formData.events.map(event => 
+        event.id === eventId 
+          ? { ...event, rsvps: event.rsvps.filter(userId => userId !== rsvpUserId) }
+          : event
+      );
+      updateFormData('events', updatedEvents);
 
-    setNewRsvpFirstName('');
-    setNewRsvpLastName('');
-  };
+      // Save to database
+      const { error } = await supabase
+        .from('club_accounts')
+        .update({
+          events: updatedEvents,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
 
-  const deleteRsvp = (eventId: string, rsvpId: string) => {
-    updateFormData('events', formData.events.map(event => 
-      event.id === eventId 
-        ? { ...event, rsvps: event.rsvps.filter(rsvp => rsvp.id !== rsvpId) }
-        : event
-    ));
+      if (error) {
+        console.error('Error deleting RSVP:', error);
+        toast.error('Failed to delete RSVP');
+        // Revert local state on error
+        updateFormData('events', formData.events);
+        return;
+      }
+
+      toast.success('RSVP removed successfully');
+    } catch (err) {
+      console.error('Unexpected error deleting RSVP:', err);
+      toast.error('An unexpected error occurred while deleting');
+      // Revert local state on error
+      updateFormData('events', formData.events);
+    }
   };
 
   return (
@@ -344,13 +799,19 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
           <h2 className="text-gray-900 mb-1">Events</h2>
           <p className="text-gray-600">Add upcoming events for your club</p>
         </div>
-        <Button onClick={addEvent} size="sm">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Event
-        </Button>
+         <Button 
+            onClick={addEvent} 
+            size="sm" 
+            style={{ backgroundColor: editingEvent ? '#9ca3af' : '#752532', color: 'white' }} 
+            className={editingEvent ? '' : 'hover:bg-[#5a3136]'}
+            disabled={!!editingEvent}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Event
+          </Button>
       </div>
 
-      {formData.events.length === 0 ? (
+      {formData.events.length === 0 && !editingEvent ? (
         <Card className="p-8 text-center border-dashed">
           <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-3" />
           <p className="text-gray-600 mb-4">No events added yet</p>
@@ -361,7 +822,11 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
         </Card>
       ) : (
         <div className="space-y-4">
-          {formData.events.map((event) => (
+          {/* Show saved events and currently editing event (if new) */}
+          {[
+            ...formData.events,
+            ...(editingEvent && editFormData && !formData.events.find(e => e.id === editingEvent) ? [editFormData] : [])
+          ].map((event) => (
             <Card key={event.id} className="p-4">
               {editingEvent === event.id && editFormData ? (
                 <div className="space-y-4">
@@ -395,16 +860,39 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
 
                     <div>
                       <Label htmlFor={`event-time-${event.id}`}>Time</Label>
-                      <div className="relative mt-2">
-                        <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <Input
-                          id={`event-time-${event.id}`}
-                          type="time"
-                          value={editFormData.time}
-                          onChange={(e) => setEditFormData({ ...editFormData, time: e.target.value })}
-                          className="pl-10 bg-white"
-                          style={{ fontSize: '14px' }}
-                        />
+                      <div className="relative mt-2 flex items-center gap-2">
+                        <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
+                        <div className="flex items-center gap-2 flex-1 pl-10">
+                          <Input
+                            type="number"
+                            min="0"
+                            max="23"
+                            value={editFormData.time ? editFormData.time.split(':')[0] || '' : ''}
+                            onChange={(e) => {
+                              const hour = e.target.value === '' ? '00' : Math.max(0, Math.min(23, parseInt(e.target.value) || 0)).toString().padStart(2, '0');
+                              const currentMinute = editFormData.time ? editFormData.time.split(':')[1] || '00' : '00';
+                              setEditFormData({ ...editFormData, time: `${hour}:${currentMinute}` });
+                            }}
+                            placeholder="HH"
+                            className="w-20 bg-white text-center"
+                            style={{ fontSize: '14px' }}
+                          />
+                          <span className="text-gray-500">:</span>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="59"
+                            value={editFormData.time ? editFormData.time.split(':')[1] || '' : ''}
+                            onChange={(e) => {
+                              const minute = e.target.value === '' ? '00' : Math.max(0, Math.min(59, parseInt(e.target.value) || 0)).toString().padStart(2, '0');
+                              const currentHour = editFormData.time ? editFormData.time.split(':')[0] || '12' : '12';
+                              setEditFormData({ ...editFormData, time: `${currentHour}:${minute}` });
+                            }}
+                            placeholder="MM"
+                            className="w-20 bg-white text-center"
+                            style={{ fontSize: '14px' }}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -556,24 +1044,24 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                                 
                                 <div className="space-y-2 max-h-64 overflow-y-auto">
                                   {event.rsvps
-                                    .filter((rsvp) => {
-                                      const fullName = `${rsvp.firstName} ${rsvp.lastName}`.toLowerCase();
+                                    .filter((userId) => {
+                                      const fullName = (rsvpNames[userId] || 'Unknown User').toLowerCase();
                                       return fullName.includes(rsvpSearchQuery.toLowerCase());
                                     })
-                                    .map((rsvp) => (
-                                      <div key={rsvp.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                                        <span className="text-sm">{rsvp.firstName} {rsvp.lastName}</span>
+                                    .map((userId) => (
+                                      <div key={userId} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                                        <span className="text-sm">{rsvpNames[userId] || 'Unknown User'}</span>
                                         <Button 
                                           variant="outline" 
                                           size="sm"
-                                          onClick={() => deleteRsvp(event.id, rsvp.id)}
+                                          onClick={() => deleteRsvp(event.id, userId)}
                                         >
                                           <Trash2 className="w-3 h-3 text-red-500" />
                                         </Button>
                                       </div>
                                     ))}
-                                  {event.rsvps.filter((rsvp) => {
-                                    const fullName = `${rsvp.firstName} ${rsvp.lastName}`.toLowerCase();
+                                  {event.rsvps.filter((userId) => {
+                                    const fullName = (rsvpNames[userId] || 'Unknown User').toLowerCase();
                                     return fullName.includes(rsvpSearchQuery.toLowerCase());
                                   }).length === 0 && rsvpSearchQuery && (
                                     <p className="text-sm text-gray-500 text-center py-4">No matching RSVPs found</p>
@@ -581,54 +1069,6 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                                 </div>
                               </div>
                             )}
-                          </div>
-
-                          <div className="border-t pt-4">
-                            <Collapsible open={manualAddOpen} onOpenChange={setManualAddOpen}>
-                              <CollapsibleTrigger asChild>
-                                <Button variant="ghost" size="sm" className="w-full justify-between text-gray-600">
-                                  <span className="text-sm">Manually add RSVP</span>
-                                  <ChevronDown className={`w-4 h-4 transition-transform ${manualAddOpen ? 'rotate-180' : ''}`} />
-                                </Button>
-                              </CollapsibleTrigger>
-                              <CollapsibleContent className="pt-3">
-                                <div className="space-y-3">
-                                  <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                      <Label htmlFor="rsvp-first-name">First Name</Label>
-                                      <Input
-                                        id="rsvp-first-name"
-                                        value={newRsvpFirstName}
-                                        onChange={(e) => setNewRsvpFirstName(e.target.value)}
-                                        placeholder="First name"
-                                        className="mt-1 bg-white"
-                                        style={{ fontSize: '14px' }}
-                                      />
-                                    </div>
-                                    <div>
-                                      <Label htmlFor="rsvp-last-name">Last Name</Label>
-                                      <Input
-                                        id="rsvp-last-name"
-                                        value={newRsvpLastName}
-                                        onChange={(e) => setNewRsvpLastName(e.target.value)}
-                                        placeholder="Last name"
-                                        className="mt-1 bg-white"
-                                        style={{ fontSize: '14px' }}
-                                      />
-                                    </div>
-                                  </div>
-                                  <Button 
-                                    onClick={() => addRsvp(event.id)}
-                                    disabled={!newRsvpFirstName.trim() || !newRsvpLastName.trim()}
-                                    className="w-full"
-                                    size="sm"
-                                  >
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Add RSVP
-                                  </Button>
-                                </div>
-                              </CollapsibleContent>
-                            </Collapsible>
                           </div>
                         </div>
                       </DialogContent>
@@ -648,6 +1088,23 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
 function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; updateFormData: (field: keyof ClubFormData, value: any) => void }) {
   const [editingMember, setEditingMember] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Member | null>(null);
+  const [originalMemberData, setOriginalMemberData] = useState<Member | null>(null);
+
+  // Cleanup: Cancel editing when component unmounts (e.g., switching tabs)
+  useEffect(() => {
+    return () => {
+      if (editingMember && editFormData) {
+        // Component is unmounting - discard unsaved changes
+        const existingMember = formData.members.find(m => m.id === editFormData.id);
+        if (!existingMember) {
+          // New member that wasn't saved - discard it
+          setEditingMember(null);
+          setEditFormData(null);
+          setOriginalMemberData(null);
+        }
+      }
+    };
+  }, []);
 
   const addMember = () => {
     const newMember: Member = {
@@ -658,50 +1115,508 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
       role: '',
       email: ''
     };
-    updateFormData('members', [...formData.members, newMember]);
+    // Don't add to formData yet - only add when Save is clicked
     setEditingMember(newMember.id);
     setEditFormData(newMember);
+    setOriginalMemberData(null); // New member, no original
   };
 
-  const deleteMember = (id: string) => {
-    updateFormData('members', formData.members.filter(member => member.id !== id));
-    if (editingMember === id) {
-      setEditingMember(null);
-      setEditFormData(null);
+  const deleteMember = async (id: string) => {
+    try {
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        console.error('Error getting user:', userError);
+        toast.error('Failed to delete: User not authenticated');
+        return;
+      }
+
+      // Find member to delete and get picture filename
+      const memberToDelete = formData.members.find(m => m.id === id);
+      if (memberToDelete?.picture && !memberToDelete.picture.startsWith('data:')) {
+        // Extract filename (same logic as avatar deletion)
+        // Handle both signed URL and direct filename
+        const fileName = extractFilename(memberToDelete.picture);
+        
+        if (fileName) {
+          console.log('Deleting member picture from storage:', fileName);
+          // Delete from storage (same logic as avatar deletion)
+          const { error: deleteError } = await supabase.storage
+            .from('Avatar')
+            .remove([fileName]);
+          
+          if (deleteError) {
+            console.error('Error deleting member picture from storage:', deleteError);
+            // Continue with member deletion even if picture delete fails
+          } else {
+            console.log('Successfully deleted member picture from storage:', fileName);
+          }
+        } else {
+          console.warn('Could not extract filename from member picture:', memberToDelete.picture);
+        }
+      }
+
+      // Update local state
+      const updatedMembers = formData.members.filter(member => member.id !== id);
+      updateFormData('members', updatedMembers);
+
+      // Save to database
+      const { error } = await supabase
+        .from('club_accounts')
+        .update({
+          members: updatedMembers,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error deleting member:', error);
+        toast.error('Failed to delete member');
+        // Revert local state on error
+        updateFormData('members', formData.members);
+        return;
+      }
+
+      toast.success('Member deleted successfully');
+      if (editingMember === id) {
+        setEditingMember(null);
+        setEditFormData(null);
+      }
+    } catch (err) {
+      console.error('Unexpected error deleting member:', err);
+      toast.error('An unexpected error occurred while deleting');
+      // Revert local state on error
+      updateFormData('members', formData.members);
     }
   };
 
-  const startEditing = (member: Member) => {
+  const startEditing = async (member: Member) => {
     setEditingMember(member.id);
-    setEditFormData({ ...member });
+    
+    // Convert picture filename to signed URL for display if it exists
+    let pictureUrl = member.picture || '';
+    let originalFilename: string | null = null;
+    
+    if (member.picture && !member.picture.startsWith('data:')) {
+      // Extract filename from signed URL or use directly if it's already a filename
+      originalFilename = extractFilename(member.picture);
+      
+      // If extraction resulted in a filename (not a URL), use it
+      // If it's still a URL, extractFilename should have gotten the filename part
+      if (originalFilename && originalFilename.includes('/')) {
+        // Still looks like a URL, extract the filename part
+        const parts = originalFilename.split('/');
+        originalFilename = parts[parts.length - 1];
+      }
+      
+      // Convert to signed URL for display if we have a filename
+      if (originalFilename && !member.picture.startsWith('http')) {
+        const signedUrl = await getStorageUrl(originalFilename, 'Avatar');
+        pictureUrl = signedUrl || '';
+      } else if (member.picture.startsWith('http')) {
+        // Already a signed URL, keep it for display
+        pictureUrl = member.picture;
+      }
+    }
+    
+    const memberWithPictureUrl = {
+      ...member,
+      picture: pictureUrl
+    };
+    
+    setEditFormData(memberWithPictureUrl);
+    setOriginalMemberData({ ...member }); // Store original for cancel
+    setCurrentMemberPictureUrl(originalFilename); // Store current picture filename (for deletion, like avatar)
   };
 
-  const saveEditing = () => {
+  const saveEditing = async () => {
     if (editFormData) {
-      updateFormData('members', formData.members.map(member => 
-        member.id === editFormData.id ? editFormData : member
-      ));
-      setEditingMember(null);
-      setEditFormData(null);
+      try {
+        // Get current user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) {
+          console.error('Error getting user:', userError);
+          toast.error('Failed to save: User not authenticated');
+          return;
+        }
+
+        // Get current picture filename from database (picture is already uploaded/deleted immediately)
+        // Extract filename from currentMemberPictureUrl or from editFormData.picture
+        let pictureFilename = '';
+        if (currentMemberPictureUrl) {
+          pictureFilename = currentMemberPictureUrl;
+        } else if (editFormData.picture && !editFormData.picture.startsWith('data:') && !editFormData.picture.startsWith('http')) {
+          // It's already a filename
+          pictureFilename = editFormData.picture;
+        } else if (editFormData.picture && editFormData.picture.startsWith('http')) {
+          // It's a signed URL, extract filename
+          pictureFilename = extractFilename(editFormData.picture);
+        }
+
+        // Create member object with only required fields (name, role, email, bio, picture filename)
+        const memberToSave = {
+          id: editFormData.id,
+          name: editFormData.name || '',
+          picture: pictureFilename || '', // Store filename from currentMemberPictureUrl
+          role: editFormData.role || '',
+          email: editFormData.email || '',
+          bio: editFormData.bio || ''
+        };
+
+        // Check if this is a new member (not in formData.members yet)
+        const existingMember = formData.members.find(m => m.id === memberToSave.id);
+        let updatedMembers: Member[];
+        
+        if (existingMember) {
+          // Update existing member
+          updatedMembers = formData.members.map(member => 
+            member.id === memberToSave.id ? memberToSave : member
+          );
+        } else {
+          // Add new member
+          updatedMembers = [...formData.members, memberToSave];
+        }
+
+        // Save to database (members JSONB column)
+        const { error } = await supabase
+          .from('club_accounts')
+          .update({
+            members: updatedMembers,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user.id);
+
+        if (error) {
+          console.error('Error saving members:', error);
+          toast.error('Failed to save member');
+          return;
+        }
+
+        // Convert picture filename to signed URL for display in local state
+        const updatedMembersWithUrls = await Promise.all(
+          updatedMembers.map(async (member) => {
+            if (member.picture && !member.picture.startsWith('data:') && !member.picture.startsWith('http')) {
+              // It's a filename, convert to signed URL
+              const signedUrl = await getStorageUrl(member.picture, 'Avatar');
+              return {
+                ...member,
+                picture: signedUrl || ''
+              };
+            }
+            return member;
+          })
+        );
+
+        // Update local state with signed URLs
+        updateFormData('members', updatedMembersWithUrls);
+        
+        toast.success('Member saved successfully!');
+        setEditingMember(null);
+        setEditFormData(null);
+        setOriginalMemberData(null);
+        setCurrentMemberPictureUrl(null);
+      } catch (err) {
+        console.error('Unexpected error saving member:', err);
+        toast.error('An unexpected error occurred while saving');
+      }
     }
   };
 
   const cancelEditing = () => {
-    if (editFormData && !editFormData.name) {
-      deleteMember(editFormData.id);
+    // If it's a new member (not saved yet), just discard it
+    const existingMember = formData.members.find(m => editFormData?.id === m.id);
+    if (!existingMember && editFormData) {
+      // New member that wasn't saved - just clear editing state
+      setEditingMember(null);
+      setEditFormData(null);
+      setOriginalMemberData(null);
+      setCurrentMemberPictureUrl(null);
+    } else if (editFormData && originalMemberData) {
+      // Restore original data if editing existing member
+      // (This shouldn't happen since we're not modifying formData until save, but just in case)
+      setEditFormData({ ...originalMemberData });
+      setEditingMember(null);
+      setEditFormData(null);
+      setOriginalMemberData(null);
+      setCurrentMemberPictureUrl(null);
     }
-    setEditingMember(null);
-    setEditFormData(null);
   };
 
-  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && editFormData) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setEditFormData({ ...editFormData, picture: reader.result as string });
+  // Compress member image (same logic as avatar)
+  const compressMemberImage = (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      const timeout = setTimeout(() => {
+        reject(new Error('Image compression timeout - image too large or complex'));
+      }, 30000);
+      
+      img.onload = () => {
+        try {
+          const maxSize = 400;
+          let { width, height } = img;
+          
+          if (width > height) {
+            if (width > maxSize) {
+              height = (height * maxSize) / width;
+              width = maxSize;
+            }
+          } else {
+            if (height > maxSize) {
+              width = (width * maxSize) / height;
+              height = maxSize;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          const targetSize = 500 * 1024;
+          let quality = 0.8;
+          
+          const compressToTargetSize = (currentQuality: number): void => {
+            canvas.toBlob((blob) => {
+              if (blob) {
+                if (blob.size <= targetSize || currentQuality <= 0.1) {
+                  clearTimeout(timeout);
+                  const compressedFile = new File([blob], file.name, {
+                    type: 'image/jpeg',
+                    lastModified: Date.now(),
+                  });
+                  resolve(compressedFile);
+                } else {
+                  compressToTargetSize(currentQuality - 0.1);
+                }
+              } else {
+                clearTimeout(timeout);
+                reject(new Error('Failed to compress image'));
+              }
+            }, 'image/jpeg', currentQuality);
+          };
+          
+          compressToTargetSize(quality);
+        } catch (error) {
+          clearTimeout(timeout);
+          reject(error);
+        }
       };
-      reader.readAsDataURL(file);
+      
+      img.onerror = () => {
+        clearTimeout(timeout);
+        reject(new Error('Failed to load image'));
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const [uploadingMemberPicture, setUploadingMemberPicture] = useState(false);
+  const [currentMemberPictureUrl, setCurrentMemberPictureUrl] = useState<string | null>(null);
+
+  const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editFormData) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 8MB before compression)
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error('File size must be less than 8MB');
+      return;
+    }
+
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!file || !user?.id) return;
+
+    setUploadingMemberPicture(true);
+    try {
+      // Delete existing picture if it exists (from database)
+      if (currentMemberPictureUrl) {
+        const oldFileName = extractFilename(currentMemberPictureUrl);
+        const { error: deleteError } = await supabase.storage
+          .from('Avatar')
+          .remove([oldFileName]);
+        
+        if (deleteError) {
+          console.error('Error deleting old member picture:', deleteError);
+          // Continue with upload even if delete fails
+        }
+      }
+
+      // Compress image
+      const compressedFile = await compressMemberImage(file);
+      
+      // Create unique filename
+      const fileExt = compressedFile.name.split('.').pop();
+      const fileName = `${user.id}-member-${Date.now()}.${fileExt}`;
+      
+      // Upload to Supabase Storage immediately (like avatar)
+      const { error: uploadError } = await supabase.storage
+        .from('Avatar')
+        .upload(fileName, compressedFile);
+
+      if (uploadError) {
+        console.error('Error uploading member picture:', uploadError);
+        toast.error(`Error uploading picture: ${uploadError.message}`);
+        setUploadingMemberPicture(false);
+        return;
+      }
+
+      // Update member picture in database immediately (only picture field, like avatar)
+      // Check if this is a new member (not in formData.members yet)
+      const existingMember = formData.members.find(m => m.id === editFormData.id);
+      let updatedMembers: Member[];
+      
+      if (existingMember) {
+        // Update existing member - only picture field
+        updatedMembers = formData.members.map(member => 
+          member.id === editFormData.id 
+            ? { ...member, picture: fileName } // Only update picture, keep other fields
+            : member
+        );
+      } else {
+        // Add new member with picture
+        updatedMembers = [...formData.members, {
+          ...editFormData,
+          picture: fileName // Store filename, not signed URL
+        }];
+      }
+
+      // Save to database immediately
+      const { error: updateError } = await supabase
+        .from('club_accounts')
+        .update({
+          members: updatedMembers,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Error updating member picture:', updateError);
+        toast.error('Error updating member picture. Please try again.');
+        setUploadingMemberPicture(false);
+        return;
+      }
+
+      // Update local state
+      setCurrentMemberPictureUrl(fileName);
+      
+      // Generate signed URL for display
+      const signedUrl = await getStorageUrl(fileName, 'Avatar');
+      if (signedUrl) {
+        setEditFormData({ ...editFormData, picture: signedUrl });
+        // Update formData.members with signed URL for display (only the edited member)
+        const updatedMembersWithUrls = updatedMembers.map(m => 
+          m.id === editFormData.id 
+            ? { ...m, picture: signedUrl }
+            : m
+        );
+        updateFormData('members', updatedMembersWithUrls);
+      }
+      
+      toast.success('Picture uploaded successfully!');
+    } catch (error) {
+      console.error('Error uploading member picture:', error);
+      if (error instanceof Error && error.message && error.message.includes('timeout')) {
+        toast.error('Error: Image is too large or complex to process. Please try a smaller image.');
+      } else {
+        toast.error('Error uploading picture. Please try again.');
+      }
+    } finally {
+      setUploadingMemberPicture(false);
+      // Reset the file input
+      const fileInput = document.getElementById(`member-picture-${editFormData.id}`) as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = '';
+      }
+    }
+  };
+
+  const handleDeleteMemberPicture = async () => {
+    if (!currentMemberPictureUrl || !editFormData) return;
+
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('User not authenticated');
+        return;
+      }
+
+      // Extract filename
+      const fileName = extractFilename(currentMemberPictureUrl);
+
+      // Delete from storage (like avatar)
+      const { error: deleteError } = await supabase.storage
+        .from('Avatar')
+        .remove([fileName]);
+
+      if (deleteError) {
+        console.error('Error deleting member picture from storage:', deleteError);
+        toast.error('Error deleting picture from storage. Please try again.');
+        return;
+      }
+
+      // Update member in database immediately (like avatar)
+      const memberWithoutPicture = {
+        ...editFormData,
+        picture: '' // Remove picture
+      };
+
+      // Check if this is a new member (not in formData.members yet)
+      const existingMember = formData.members.find(m => m.id === memberWithoutPicture.id);
+      let updatedMembers: Member[];
+      
+      if (existingMember) {
+        // Update existing member
+        updatedMembers = formData.members.map(member => 
+          member.id === memberWithoutPicture.id ? memberWithoutPicture : member
+        );
+      } else {
+        // Add new member (shouldn't happen, but handle it)
+        updatedMembers = [...formData.members, memberWithoutPicture];
+      }
+
+      // Save to database immediately
+      const { error: updateError } = await supabase
+        .from('club_accounts')
+        .update({
+          members: updatedMembers,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Error updating member:', updateError);
+        toast.error('Error updating member. Please try again.');
+        return;
+      }
+
+      // Update local state
+      setEditFormData({ ...editFormData, picture: '' });
+      setCurrentMemberPictureUrl(null);
+      
+      // Update formData.members
+      updateFormData('members', updatedMembers);
+      
+      // Reset the file input
+      const fileInput = document.getElementById(`member-picture-${editFormData.id}`) as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = '';
+      }
+
+      toast.success('Picture deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting member picture:', error);
+      toast.error('Error deleting picture. Please try again.');
     }
   };
 
@@ -712,13 +1627,19 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
           <h2 className="text-gray-900 mb-1">Board Members</h2>
           <p className="text-gray-600">Add your club's leadership team</p>
         </div>
-        <Button onClick={addMember} size="sm">
+        <Button 
+          onClick={addMember} 
+          size="sm" 
+          style={{ backgroundColor: editingMember ? '#9ca3af' : '#752532', color: 'white' }} 
+          className={editingMember ? '' : 'hover:bg-[#5a3136]'}
+          disabled={!!editingMember}
+        >
           <Plus className="w-4 h-4 mr-2" />
           Add Member
         </Button>
       </div>
 
-      {formData.members.length === 0 ? (
+      {formData.members.length === 0 && !editingMember ? (
         <Card className="p-8 text-center border-dashed">
           <User className="w-12 h-12 text-gray-400 mx-auto mb-3" />
           <p className="text-gray-600 mb-4">No board members added yet</p>
@@ -729,38 +1650,78 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {formData.members.map((member) => (
+          {/* Show saved members and currently editing member (if new) */}
+          {[
+            ...formData.members,
+            ...(editingMember && editFormData && !formData.members.find(m => m.id === editingMember) ? [editFormData] : [])
+          ].map((member) => (
             <Card key={member.id} className="p-4">
               {editingMember === member.id && editFormData ? (
                 <div className="space-y-4">
                   <div>
                     <Label>Member Picture</Label>
                     <div className="mt-2">
-                      {editFormData.picture ? (
-                        <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-gray-200">
-                          <img 
-                            src={editFormData.picture} 
-                            alt="Member" 
-                            className="w-full h-full object-cover"
-                          />
-                          <button
-                            onClick={() => setEditFormData({ ...editFormData, picture: '' })}
-                            className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
-                          >
-                            <X className="w-5 h-5 text-white" />
-                          </button>
-                        </div>
-                      ) : (
-                        <label className="flex flex-col items-center justify-center w-20 h-20 border-2 border-dashed border-gray-300 rounded-full cursor-pointer hover:border-gray-400 transition-colors">
-                          <Upload className="w-5 h-5 text-gray-400" />
+                      <div className="flex flex-col items-center">
+                        {editFormData.picture ? (
+                          <div className="w-20 h-20 rounded-full border-2 overflow-hidden mb-4" style={{ borderColor: '#5a3136' }}>
+                            <img 
+                              src={editFormData.picture} 
+                              alt="Member" 
+                              className="w-full h-full"
+                              style={{ 
+                                objectFit: 'cover'
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-20 h-20 flex items-center justify-center mb-4 rounded-full border-2" style={{ borderColor: '#5a3136', backgroundColor: '#fefafb' }}>
+                            <Upload className="w-5 h-5 text-gray-400" />
+                          </div>
+                        )}
+                        <div className="flex flex-col gap-2">
                           <input
                             type="file"
                             accept="image/*"
                             onChange={handleImageUpload}
                             className="hidden"
+                            id={`member-picture-${member.id}`}
+                            disabled={uploadingMemberPicture}
                           />
-                        </label>
-                      )}
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="text-xs px-3 py-1 h-7"
+                            disabled={uploadingMemberPicture}
+                            onClick={() => document.getElementById(`member-picture-${member.id}`)?.click()}
+                          >
+                            {uploadingMemberPicture ? (
+                              <div className="flex items-center gap-1">
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600"></div>
+                                <span>Processing...</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1">
+                                <Upload className="w-3 h-3" />
+                                <span>{editFormData.picture ? 'Change Picture' : 'Add Picture'}</span>
+                              </div>
+                            )}
+                          </Button>
+                          {editFormData.picture && (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              className="text-xs px-3 py-1 h-7 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                              onClick={handleDeleteMemberPicture}
+                              disabled={uploadingMemberPicture}
+                            >
+                              <div className="flex items-center gap-1">
+                                <X className="w-3 h-3" />
+                                <span>Delete Picture</span>
+                              </div>
+                            </Button>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -831,13 +1792,18 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
                 <div>
                   <div className="flex gap-4 mb-3">
                     {member.picture ? (
-                      <img 
-                        src={member.picture} 
-                        alt={member.name}
-                        className="w-14 h-14 rounded-full object-cover border-2 border-gray-200"
-                      />
+                      <div className="w-20 h-20 rounded-full border-2 overflow-hidden flex-shrink-0" style={{ borderColor: '#5a3136' }}>
+                        <img 
+                          src={member.picture} 
+                          alt={member.name}
+                          className="w-full h-full"
+                          style={{ 
+                            objectFit: 'cover'
+                          }}
+                        />
+                      </div>
                     ) : (
-                      <div className="w-14 h-14 rounded-full bg-gray-200 flex items-center justify-center">
+                      <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center border-2 flex-shrink-0" style={{ borderColor: '#5a3136' }}>
                         <User className="w-7 h-7 text-gray-400" />
                       </div>
                     )}
@@ -885,7 +1851,6 @@ function ClubFeedPost({ formData, updateFormData }: { formData: ClubFormData; up
   const [newPostTitle, setNewPostTitle] = useState('');
   const [newPostType, setNewPostType] = useState<'text' | 'poll' | 'youtube'>('text');
   const [pollOptions, setPollOptions] = useState(['', '']);
-  const [postPhotoFile, setPostPhotoFile] = useState<File | null>(null);
   const [postPhotoPreview, setPostPhotoPreview] = useState<string | null>(null);
   const [uploadingPostPhoto, setUploadingPostPhoto] = useState(false);
   const [isDragOverPhotoDrop, setIsDragOverPhotoDrop] = useState(false);
@@ -987,7 +1952,7 @@ function ClubFeedPost({ formData, updateFormData }: { formData: ClubFormData; up
     
     try {
       const compressedFile = await compressPostImage(file);
-      setPostPhotoFile(compressedFile);
+      // Store preview URL for display (feed page is not connected to backend)
       const previewUrl = URL.createObjectURL(compressedFile);
       setPostPhotoPreview(previewUrl);
     } catch (compressionError) {
@@ -1006,7 +1971,6 @@ function ClubFeedPost({ formData, updateFormData }: { formData: ClubFormData; up
     if (postPhotoPreview) {
       URL.revokeObjectURL(postPhotoPreview);
     }
-    setPostPhotoFile(null);
     setPostPhotoPreview(null);
     setIsDragOverPhotoDrop(false);
   };
@@ -1093,7 +2057,7 @@ function ClubFeedPost({ formData, updateFormData }: { formData: ClubFormData; up
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 flex-1 overflow-hidden" style={{ minHeight: 0 }}>
         {/* Left: Create Post Form - Matching Home Page Feed */}
         <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col overflow-hidden">
-        <div className="space-y-3 flex-1 overflow-y-auto">
+        <div className="space-y-3 flex-1 overflow-y-auto" style={{ marginTop: 0 }}>
           {/* Post Type Selection */}
           <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
             <button
@@ -1370,7 +2334,7 @@ function ClubFeedPost({ formData, updateFormData }: { formData: ClubFormData; up
                   }
                 }}
               >
-                Cancel
+                Clear
               </Button>
               <Button 
                 onClick={handleCreatePost}
@@ -1390,15 +2354,14 @@ function ClubFeedPost({ formData, updateFormData }: { formData: ClubFormData; up
         </div>
 
         {/* Right: Your Posts */}
-        <div className="flex flex-col overflow-hidden h-full">
-          <h3 className="text-gray-900 mb-3 flex-shrink-0">Your Posts ({formData.posts.length})</h3>
+        <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col overflow-hidden">
+          <h3 className="text-gray-900 mb-3 flex-shrink-0" style={{ marginTop: 0 }}>Your Posts ({formData.posts.length})</h3>
           
           <div className="flex-1 overflow-y-auto">
             {formData.posts.length === 0 ? (
-              <Card className="p-8 text-center border-dashed">
-                <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <div className="flex items-center justify-center h-full">
                 <p className="text-gray-600">No posts</p>
-              </Card>
+              </div>
             ) : (
               <div className="space-y-4">
             {formData.posts.map((post) => (
@@ -1418,7 +2381,7 @@ function ClubFeedPost({ formData, updateFormData }: { formData: ClubFormData; up
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-gray-900">{formData.name || 'Your Club'}</span>
+                        <span className="text-gray-900">{formData.name || ''}</span>
                         <span className="text-gray-400">•</span>
                         <div className="flex items-center gap-1 text-gray-500 text-sm">
                           <Clock className="w-3 h-3" />
@@ -1484,58 +2447,405 @@ export const ClubAccountPage: React.FC = () => {
   });
 
   const [activeTab, setActiveTab] = useState('basic');
+  const [loading, setLoading] = useState(true);
+  const [savingBasicInfo, setSavingBasicInfo] = useState(false);
+  const [savingMission, setSavingMission] = useState(false);
+  const [savingContact, setSavingContact] = useState(false);
+  const [currentAvatarUrl, setCurrentAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  
+  // Store original values to detect changes
+  const [originalValues, setOriginalValues] = useState<{
+    name: string;
+    tag: string;
+    description: string;
+    missionPurpose: string;
+    email: string;
+    website: string;
+  }>({
+    name: '',
+    tag: '',
+    description: '',
+    missionPurpose: '',
+    email: '',
+    website: ''
+  });
+
+  // Fetch club account data on mount
+  useEffect(() => {
+    const fetchClubAccountData = async () => {
+      try {
+        setLoading(true);
+        
+        // Get current user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) {
+          console.error('Error getting user:', userError);
+          toast.error('Failed to load user data');
+          setLoading(false);
+          return;
+        }
+
+        // Fetch club account data
+        const { data, error } = await supabase
+          .from('club_accounts')
+          .select('name, club_tag, description, mission, email, website, avatar_url, events, members')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error fetching club account:', error);
+          toast.error('Failed to load club data');
+          setLoading(false);
+          return;
+        }
+
+        // Populate form data if club account exists
+        if (data) {
+          // Get signed URL for avatar if it exists
+          let avatarUrl = '';
+          if (data.avatar_url) {
+            const signedUrl = await getStorageUrl(data.avatar_url, 'Avatar');
+            avatarUrl = signedUrl || '';
+          }
+
+          const loadedData = {
+            name: data.name || '',
+            tag: data.club_tag || '',
+            description: data.description || '',
+            missionPurpose: data.mission || '',
+            email: data.email || '',
+            website: data.website || ''
+          };
+
+          // Parse events from JSONB (default to empty array if null)
+          const events: Event[] = data.events && Array.isArray(data.events) 
+            ? data.events
+                .filter((event: any) => event && typeof event === 'object') // Filter out invalid entries
+                .map((event: any) => ({
+                  id: event.id || `event-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Generate unique ID if missing
+                  name: event.name || '',
+                  date: event.date || '',
+                  time: event.time ? event.time.split(':').slice(0, 2).join(':') : '', // Normalize to HH:MM format
+                  location: event.location || '',
+                  shortDescription: event.shortDescription || '',
+                  fullDescription: event.fullDescription || '',
+                  rsvps: event.rsvps && Array.isArray(event.rsvps) ? event.rsvps.filter((id: any) => typeof id === 'string') : [] // Ensure RSVPs are strings
+                }))
+            : [];
+
+          // Parse members from JSONB and convert picture filenames to signed URLs
+          const members: Member[] = data.members && Array.isArray(data.members)
+            ? await Promise.all(
+                data.members
+                  .filter((member: any) => member && typeof member === 'object')
+                  .map(async (member: any) => {
+                    let pictureUrl = member.picture || '';
+                    // Convert filename to signed URL if it exists
+                    if (member.picture && !member.picture.startsWith('data:')) {
+                      const signedUrl = await getStorageUrl(member.picture, 'Avatar');
+                      pictureUrl = signedUrl || '';
+                    }
+                    return {
+                      id: member.id || `member-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                      name: member.name || '',
+                      picture: pictureUrl, // Use signed URL for display
+                      bio: member.bio || '',
+                      role: member.role || '',
+                      email: member.email || ''
+                    };
+                  })
+              )
+            : [];
+
+          setFormData(prev => ({
+            ...prev,
+            ...loadedData,
+            picture: avatarUrl,
+            events: events,
+            members: members
+          }));
+          
+          // Store original values for change detection
+          setOriginalValues(loadedData);
+          
+          // Store the current avatar URL for deletion purposes
+          setCurrentAvatarUrl(data.avatar_url);
+        }
+      } catch (err) {
+        console.error('Unexpected error fetching club account:', err);
+        toast.error('An unexpected error occurred');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchClubAccountData();
+  }, []);
 
   const updateFormData = (field: keyof ClubFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = () => {
+  // Save function for Basic Info box (picture, name, tag, description)
+  const handleSaveBasicInfo = async () => {
     // Validate required fields
     if (!formData.name || !formData.description || !formData.tag) {
-      toast.error('Please fill out all required fields in Basic Information');
-      setActiveTab('basic');
-      return;
-    }
-    
-    if (!formData.missionPurpose) {
-      toast.error('Please fill out the Mission & Purpose');
-      setActiveTab('basic');
+      toast.error('Please fill out all required fields: Club Name, Club Tag, and Club Description');
       return;
     }
 
-    if (!formData.email) {
-      toast.error('Please provide contact email');
-      setActiveTab('basic');
-      return;
-    }
+    try {
+      setSavingBasicInfo(true);
 
-    toast.success('Club onboarding completed successfully!');
-    console.log('Form Data:', formData);
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        console.error('Error getting user:', userError);
+        toast.error('Failed to save: User not authenticated');
+        setSavingBasicInfo(false);
+        return;
+      }
+
+      // Get current avatar_url from database (avatar is uploaded immediately on selection, not during save)
+      let avatarUrl: string | null = null;
+      const { data: existingData } = await supabase
+        .from('club_accounts')
+        .select('avatar_url')
+        .eq('id', user.id)
+        .maybeSingle();
+      
+      if (existingData?.avatar_url) {
+        avatarUrl = existingData.avatar_url;
+      }
+
+      // Update only basic info fields
+      const { error } = await supabase
+        .from('club_accounts')
+        .update({
+          name: formData.name || null,
+          club_tag: formData.tag || null,
+          description: formData.description || null,
+          avatar_url: avatarUrl || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error updating club account:', error);
+        toast.error('Failed to save basic information');
+        setSavingBasicInfo(false);
+        return;
+      }
+
+      // Update original values after successful save
+      setOriginalValues({
+        ...originalValues,
+        name: formData.name || '',
+        tag: formData.tag || '',
+        description: formData.description || ''
+      });
+
+      toast.success('Basic information saved successfully!');
+    } catch (err) {
+      console.error('Unexpected error saving basic info:', err);
+      toast.error('An unexpected error occurred while saving');
+    } finally {
+      setSavingBasicInfo(false);
+    }
+  };
+
+  // Save function for Mission & Purpose box
+  const handleSaveMission = async () => {
+    try {
+      setSavingMission(true);
+
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        console.error('Error getting user:', userError);
+        toast.error('Failed to save: User not authenticated');
+        setSavingMission(false);
+        return;
+      }
+
+      // Update only mission field
+      const { error } = await supabase
+        .from('club_accounts')
+        .update({
+          mission: formData.missionPurpose || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error updating mission:', error);
+        toast.error('Failed to save mission and purpose');
+        setSavingMission(false);
+        return;
+      }
+
+      // Update original values after successful save
+      setOriginalValues({
+        ...originalValues,
+        missionPurpose: formData.missionPurpose || ''
+      });
+
+      toast.success('Mission and purpose saved successfully!');
+    } catch (err) {
+      console.error('Unexpected error saving mission:', err);
+      toast.error('An unexpected error occurred while saving');
+    } finally {
+      setSavingMission(false);
+    }
+  };
+
+  // Save function for Contact Information box
+  const handleSaveContact = async () => {
+    try {
+      setSavingContact(true);
+
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        console.error('Error getting user:', userError);
+        toast.error('Failed to save: User not authenticated');
+        setSavingContact(false);
+        return;
+      }
+
+      // Update only contact fields
+      const { error } = await supabase
+        .from('club_accounts')
+        .update({
+          email: formData.email || null,
+          website: formData.website || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error updating contact info:', error);
+        toast.error('Failed to save contact information');
+        setSavingContact(false);
+        return;
+      }
+
+      // Update original values after successful save
+      setOriginalValues({
+        ...originalValues,
+        email: formData.email || '',
+        website: formData.website || ''
+      });
+
+      toast.success('Contact information saved successfully!');
+    } catch (err) {
+      console.error('Unexpected error saving contact info:', err);
+      toast.error('An unexpected error occurred while saving');
+    } finally {
+      setSavingContact(false);
+    }
+  };
+
+  // Check if basic info has changes (excluding avatar)
+  const hasBasicInfoChanges = useMemo(() => {
+    return (
+      formData.name !== originalValues.name ||
+      formData.tag !== originalValues.tag ||
+      formData.description !== originalValues.description
+    );
+  }, [formData.name, formData.tag, formData.description, originalValues]);
+
+  // Check if mission has changes
+  const hasMissionChanges = useMemo(() => {
+    return formData.missionPurpose !== originalValues.missionPurpose;
+  }, [formData.missionPurpose, originalValues.missionPurpose]);
+
+  // Check if contact has changes
+  const hasContactChanges = useMemo(() => {
+    return (
+      formData.email !== originalValues.email ||
+      formData.website !== originalValues.website
+    );
+  }, [formData.email, formData.website, originalValues]);
+
+  // Handle sign out
+  const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Error signing out:', error);
+        toast.error('Failed to sign out');
+      } else {
+        toast.success('Signed out successfully');
+        // Redirect will be handled by auth state change in App.tsx
+        window.location.href = '/';
+      }
+    } catch (err) {
+      console.error('Unexpected error signing out:', err);
+      toast.error('An unexpected error occurred');
+    }
   };
 
   return (
-    <div className="w-full h-screen flex flex-col overflow-hidden" style={{ backgroundColor: '#f9f6f1' }}>
-      <div className="w-full h-full flex-1 overflow-y-auto px-4 py-4">
+    <div className="w-full h-screen flex flex-col overflow-hidden" style={{ backgroundColor: '#faf5ef', overflowX: 'hidden' }}>
+      <div className="w-full h-full flex-1 overflow-y-auto px-4 py-4" style={{ overflowX: 'hidden' }}>
         <div className="w-full mx-auto h-full flex flex-col" style={{ maxWidth: '95vw' }}>
           <div className="mb-4 flex items-center gap-4 relative flex-shrink-0">
             <img src="/QUAD.svg" alt="Quad Logo" className="w-12 h-12 object-contain" style={{ minWidth: '48px' }} />
-            <h1 className="text-xl font-semibold text-gray-900 absolute left-1/2 transform -translate-x-1/2">Club Control Center</h1>
+            <h1 className="text-3xl font-semibold absolute left-1/2 transform -translate-x-1/2" style={{ color: '#752532' }}>Club Console</h1>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSignOut}
+              className="ml-auto"
+              style={{ backgroundColor: '#fefbf6', borderColor: '#5a3136', color: '#752532' }}
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
+            </Button>
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col overflow-hidden">
-            <TabsList className="grid w-full grid-cols-4 mb-4 h-auto flex-shrink-0" style={{ minHeight: '36px' }}>
+            <div className="flex justify-center mb-4">
+              <TabsList className="grid grid-cols-4 h-auto flex-shrink-0 shadow-sm" style={{ minHeight: '36px', backgroundColor: '#fefbf6', width: '750px' }}>
               <TabsTrigger value="basic" className="text-xs h-full flex items-center justify-center py-1">Basic Info</TabsTrigger>
               <TabsTrigger value="events" className="text-xs h-full flex items-center justify-center py-1">Events</TabsTrigger>
               <TabsTrigger value="members" className="text-xs h-full flex items-center justify-center py-1">Members</TabsTrigger>
               <TabsTrigger value="feed" className="text-xs h-full flex items-center justify-center py-1">Feed</TabsTrigger>
             </TabsList>
+            </div>
 
             <div className="flex-1 overflow-y-auto pr-2" style={{ minHeight: 0 }}>
-              <TabsContent value="basic" className="space-y-4">
-                <ClubBasicInfo 
-                  formData={formData}
-                  updateFormData={updateFormData}
-                />
+              <TabsContent value="basic" className="space-y-4" style={{ width: '100%' }}>
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <p className="text-gray-600">Loading club data...</p>
+                  </div>
+                ) : (
+                  <ClubBasicInfo 
+                    formData={formData}
+                    updateFormData={updateFormData}
+                    onSaveBasicInfo={handleSaveBasicInfo}
+                    onSaveMission={handleSaveMission}
+                    onSaveContact={handleSaveContact}
+                    savingBasicInfo={savingBasicInfo}
+                    savingMission={savingMission}
+                    savingContact={savingContact}
+                    onAvatarUploaded={(fileName) => {
+                      setCurrentAvatarUrl(fileName);
+                    }}
+                    onAvatarDeleted={() => {
+                      setCurrentAvatarUrl(null);
+                    }}
+                    currentAvatarUrl={currentAvatarUrl}
+                    uploadingAvatar={uploadingAvatar}
+                    setUploadingAvatar={setUploadingAvatar}
+                    hasBasicInfoChanges={hasBasicInfoChanges}
+                    hasMissionChanges={hasMissionChanges}
+                    hasContactChanges={hasContactChanges}
+                  />
+                )}
               </TabsContent>
 
               <TabsContent value="events" className="space-y-4">
@@ -1564,17 +2874,9 @@ export const ClubAccountPage: React.FC = () => {
               </TabsContent>
             </div>
           </Tabs>
-
-          {activeTab !== 'events' && activeTab !== 'members' && activeTab !== 'feed' && (
-            <div className="mt-4 flex justify-end items-center pt-3 border-t border-gray-300 flex-shrink-0">
-              <Button onClick={handleSubmit} size="sm">
-                Save
-              </Button>
-            </div>
-          )}
         </div>
       </div>
-      <Toaster />
+      <Toaster position="top-right" />
     </div>
   );
 };

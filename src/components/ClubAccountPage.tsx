@@ -295,7 +295,7 @@ function ClubBasicInfo({ formData, updateFormData, onSaveBasicInfo, onSaveMissio
   const charCount = formData.description.length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 h-full">
       <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'stretch', gap: '24px', flexWrap: 'nowrap', width: '100%', maxWidth: '100%', overflowX: 'hidden', justifyContent: 'center' }}>
         <div className="rounded-lg p-6 shadow-sm" style={{ backgroundColor: '#fefbf6', flex: '1 1 0', minWidth: 0, maxWidth: '570px' }}>
           <div className="flex items-start gap-4">
@@ -2789,11 +2789,11 @@ export const ClubAccountPage: React.FC = () => {
 
   return (
     <div className="w-full h-screen flex flex-col overflow-hidden" style={{ backgroundColor: '#faf5ef', overflowX: 'hidden' }}>
-      <div className="w-full h-full flex-1 overflow-y-auto px-4 py-4" style={{ overflowX: 'hidden' }}>
+      <div className="w-full h-full flex-1 overflow-y-auto px-4 pt-4 pb-0" style={{ overflowX: 'hidden' }}>
         <div className="w-full mx-auto h-full flex flex-col" style={{ maxWidth: '95vw' }}>
           <div className="mb-4 flex items-center gap-4 relative flex-shrink-0">
             <img src="/QUAD.svg" alt="Quad Logo" className="w-12 h-12 object-contain" style={{ minWidth: '48px' }} />
-            <h1 className="text-3xl font-semibold absolute left-1/2 transform -translate-x-1/2" style={{ color: '#752532' }}>Club Console</h1>
+            <h1 className="text-3xl font-semibold absolute left-1/2 transform -translate-x-1/2" style={{ color: '#000000' }}>Club Console</h1>
             <Button
               variant="outline"
               size="sm"
@@ -2816,8 +2816,8 @@ export const ClubAccountPage: React.FC = () => {
             </TabsList>
             </div>
 
-            <div className="flex-1 overflow-y-auto pr-2" style={{ minHeight: 0 }}>
-              <TabsContent value="basic" className="space-y-4" style={{ width: '100%' }}>
+            <div className={`flex-1 pr-2 ${activeTab === 'basic' ? 'overflow-hidden' : 'overflow-y-auto'}`} style={{ minHeight: 0, paddingBottom: activeTab === 'basic' ? 0 : undefined }}>
+              <TabsContent value="basic" className="overflow-hidden h-full" style={{ width: '100%', paddingBottom: 0, marginBottom: 0 }}>
                 {loading ? (
                   <div className="flex items-center justify-center py-12">
                     <p className="text-gray-600">Loading club data...</p>

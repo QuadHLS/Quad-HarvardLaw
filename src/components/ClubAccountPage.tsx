@@ -1,4 +1,4 @@
-import React, { useState, ChangeEvent, useEffect, useMemo } from 'react';
+import React, { useState, ChangeEvent, useEffect, useMemo, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Button } from './ui/button';
 import { Toaster } from './ui/sonner';
@@ -11,10 +11,13 @@ import { Card } from './ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from './ui/dialog';
 import { 
   Upload, Mail, Calendar, Clock, MapPin, Plus, Trash2, Edit2, X, Check, 
-  Users, Search, User, MessageSquare, Target, ExternalLink, Globe, LogOut
+  Users, Search, User, MessageSquare, Target, ExternalLink, Globe, LogOut, Heart, MessageCircle, ChevronDown
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getStorageUrl, extractFilename } from '../utils/storage';
+import { ExpandableText } from './ui/expandable-text';
+import { ConfirmationPopup } from './ui/confirmation-popup';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 
 // Types
 export interface Event {
@@ -42,6 +45,55 @@ export interface Post {
   title: string;
   content: string;
   timestamp: Date;
+  author_id: string;
+  course_id?: string | null;
+  post_type: 'text' | 'poll' | 'youtube';
+  is_anonymous: boolean;
+  created_at: string;
+  edited_at?: string;
+  is_edited?: boolean;
+  likes_count: number;
+  comments_count: number;
+  photo_url?: string | null;
+  vid_link?: string | null;
+  author?: {
+    name: string;
+    year: string;
+  };
+  course?: {
+    name: string;
+  };
+  isLiked?: boolean;
+  poll?: {
+    id: string;
+    question: string;
+    options: Array<{
+      id: string;
+      text: string;
+      votes: number;
+    }>;
+    totalVotes: number;
+    userVotedOptionId?: string;
+  };
+}
+
+export interface Comment {
+  id: string;
+  post_id: string;
+  parent_comment_id?: string;
+  author_id: string;
+  content: string;
+  is_anonymous: boolean;
+  created_at: string;
+  edited_at?: string;
+  is_edited?: boolean;
+  likes_count: number;
+  author?: {
+    name: string;
+    year: string;
+  };
+  isLiked?: boolean;
+  replies?: Comment[];
 }
 
 export interface ClubFormData {
@@ -1846,15 +1898,187 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
 }
 
 // ClubFeedPost Component
-function ClubFeedPost({ formData, updateFormData }: { formData: ClubFormData; updateFormData: (field: keyof ClubFormData, value: any) => void }) {
+function ClubFeedPost({ formData }: { formData: ClubFormData; updateFormData?: (field: keyof ClubFormData, value: any) => void }) {
   const [newPost, setNewPost] = useState('');
   const [newPostTitle, setNewPostTitle] = useState('');
   const [newPostType, setNewPostType] = useState<'text' | 'poll' | 'youtube'>('text');
   const [pollOptions, setPollOptions] = useState(['', '']);
   const [postPhotoPreview, setPostPhotoPreview] = useState<string | null>(null);
+  const [postPhotoFile, setPostPhotoFile] = useState<File | null>(null);
   const [uploadingPostPhoto, setUploadingPostPhoto] = useState(false);
   const [isDragOverPhotoDrop, setIsDragOverPhotoDrop] = useState(false);
   const [newYoutubeLink, setNewYoutubeLink] = useState('');
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [likingPosts, setLikingPosts] = useState<Set<string>>(new Set());
+  const [newComment, setNewComment] = useState<Record<string, string>>({});
+  const [commentAnonymously, setCommentAnonymously] = useState<Record<string, boolean>>({});
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState<Record<string, string>>({});
+  const [replyAnonymously, setReplyAnonymously] = useState<Record<string, boolean>>({});
+  const [comments, setComments] = useState<Record<string, Comment[]>>({});
+  const [hoveredPostId, setHoveredPostId] = useState<string | null>(null);
+  const [selectedPostThread, setSelectedPostThread] = useState<string | null>(null);
+  const [editingPost, setEditingPost] = useState<string | null>(null);
+  const [editPostTitle, setEditPostTitle] = useState('');
+  const [editPostContent, setEditPostContent] = useState('');
+  const [postPhotoUrls, setPostPhotoUrls] = useState<Map<string, string>>(new Map());
+  const [confirmationPopup, setConfirmationPopup] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    position: { top: number; left: number };
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    position: { top: 0, left: 0 }
+  });
+
+  // Helper function to get club account UUID (same as auth user.id, but verified)
+  const getClubAccountId = async (): Promise<string | null> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      // Verify the user exists in club_accounts table and return the UUID
+      // Since club_accounts.id references auth.users.id, they're the same
+      const { data: clubAccount, error } = await supabase
+        .from('club_accounts')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (error || !clubAccount) {
+        console.error('Error verifying club account:', error);
+        return null;
+      }
+
+      return clubAccount.id;
+    } catch (error) {
+      console.error('Error getting club account ID:', error);
+      return null;
+    }
+  };
+
+  // Helper functions
+  const formatTimestamp = useCallback((timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} min ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hour${Math.floor(diffInSeconds / 3600) > 1 ? 's' : ''} ago`;
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} day${Math.floor(diffInSeconds / 86400) > 1 ? 's' : ''} ago`;
+    return date.toLocaleDateString();
+  }, []);
+
+  const getPostColor = useCallback((postId: string) => {
+    const colors = ['#0080BD', '#04913A', '#F22F21', '#FFBB06'];
+    let hash = 0;
+    for (let i = 0; i < postId.length; i++) {
+      hash = postId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+  }, []);
+
+  const getPostHoverColor = useCallback((postId: string) => {
+    const baseColor = getPostColor(postId);
+    return `${baseColor}15`;
+  }, [getPostColor]);
+
+  const getVideoEmbedUrl = (url: string | null | undefined): { embedUrl: string; platform: 'youtube' | 'tiktok' | 'instagram' } | null => {
+    if (!url || !url.trim()) return null;
+    
+    const trimmedUrl = url.trim();
+    
+    // YouTube (regular videos and shorts)
+    let watchMatch = trimmedUrl.match(/youtube\.com\/watch\?v=([^&\s]+)/);
+    if (watchMatch) {
+      return { embedUrl: `https://www.youtube.com/embed/${watchMatch[1]}`, platform: 'youtube' };
+    }
+    
+    let shortMatch = trimmedUrl.match(/youtube\.com\/shorts\/([^?\s]+)/);
+    if (shortMatch) {
+      return { embedUrl: `https://www.youtube.com/embed/${shortMatch[1]}`, platform: 'youtube' };
+    }
+    
+    let youtuBeMatch = trimmedUrl.match(/youtu\.be\/([^?\s]+)/);
+    if (youtuBeMatch) {
+      return { embedUrl: `https://www.youtube.com/embed/${youtuBeMatch[1]}`, platform: 'youtube' };
+    }
+    
+    // TikTok
+    let tiktokMatch = trimmedUrl.match(/tiktok\.com\/@[\w.-]+\/video\/(\d+)/);
+    if (tiktokMatch) {
+      return { embedUrl: `https://www.tiktok.com/embed/v2/${tiktokMatch[1]}`, platform: 'tiktok' };
+    }
+    
+    // Instagram
+    let instagramMatch = trimmedUrl.match(/instagram\.com\/(?:p|reel)\/([A-Za-z0-9_-]+)/);
+    if (instagramMatch) {
+      return { embedUrl: `https://www.instagram.com/p/${instagramMatch[1]}/embed/`, platform: 'instagram' };
+    }
+    
+    return null;
+  };
+
+  // ProfileBubble component
+  const ProfileBubble = ({ userName, size = "md", borderColor = "#752432", isAnonymous = false, userId, onProfileClick }: { 
+    userName: string; 
+    size?: "sm" | "md" | "lg"; 
+    borderColor?: string; 
+    isAnonymous?: boolean;
+    userId?: string;
+    onProfileClick?: (userId: string, userName: string) => void;
+  }) => {
+    const sizeClasses = {
+      sm: "w-6 h-6 text-xs",
+      md: "w-8 h-8 text-sm", 
+      lg: "w-10 h-10 text-base"
+    };
+    
+    const iconSizes = {
+      sm: "w-3 h-3",
+      md: "w-4 h-4",
+      lg: "w-5 h-5"
+    };
+    
+    const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase();
+    
+    const handleClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!isAnonymous && userId && onProfileClick) {
+        onProfileClick(userId, userName);
+      }
+    };
+    
+    return (
+      <div 
+        className={`${sizeClasses[size]} rounded-full flex items-center justify-center font-semibold text-white border-2 ${
+          !isAnonymous && userId && onProfileClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''
+        }`}
+        style={{ 
+          backgroundColor: borderColor,
+          borderColor: borderColor
+        }}
+        onClick={handleClick}
+      >
+        {isAnonymous ? (
+          <svg className={iconSizes[size]} fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+            <path d="M2 2l20 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+        ) : (
+          initials
+        )}
+      </div>
+    );
+  };
 
   // Image compression function
   const compressPostImage = (file: File): Promise<File> => {
@@ -1952,7 +2176,9 @@ function ClubFeedPost({ formData, updateFormData }: { formData: ClubFormData; up
     
     try {
       const compressedFile = await compressPostImage(file);
-      // Store preview URL for display (feed page is not connected to backend)
+      // Store the compressed file for upload
+      setPostPhotoFile(compressedFile);
+      // Store preview URL for display
       const previewUrl = URL.createObjectURL(compressedFile);
       setPostPhotoPreview(previewUrl);
     } catch (compressionError) {
@@ -1972,6 +2198,7 @@ function ClubFeedPost({ formData, updateFormData }: { formData: ClubFormData; up
       URL.revokeObjectURL(postPhotoPreview);
     }
     setPostPhotoPreview(null);
+    setPostPhotoFile(null);
     setIsDragOverPhotoDrop(false);
   };
 
@@ -1987,64 +2214,852 @@ function ClubFeedPost({ formData, updateFormData }: { formData: ClubFormData; up
     }
   };
 
-  const handleCreatePost = () => {
-    if (!newPostTitle.trim()) {
-      toast.error('Please enter a title');
-      return;
-    }
+  // Fetch posts for this club account with full data
+  const fetchPosts = async () => {
+    try {
+      setLoading(true);
+      const clubAccountId = await getClubAccountId();
+      if (!clubAccountId) {
+        setLoading(false);
+        return;
+      }
+      // Set user state for compatibility (club account ID is the same as auth user ID)
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser) {
+        setUser(currentUser);
+      }
 
-    if (newPostType === 'poll' && pollOptions.filter(opt => opt.trim()).length < 2) {
-      toast.error('Please add at least 2 poll options');
-      return;
-    }
+      // Fetch posts where author_id matches the club account UUID
+      const { data: fetchedPosts, error } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('author_id', clubAccountId)
+        .is('course_id', null) // Only get posts without course_id (club posts)
+        .order('created_at', { ascending: false });
 
-    if (newPostType === 'youtube' && !newYoutubeLink.trim()) {
-      toast.error('Please enter a video link');
-      return;
-    }
+      if (error) {
+        console.error('Error fetching posts:', error);
+        setLoading(false);
+        return;
+      }
 
-    const newPostItem: Post = {
-      id: Date.now().toString(),
-      title: newPostTitle,
-      content: newPost,
-      timestamp: new Date()
-    };
+      if (!fetchedPosts || fetchedPosts.length === 0) {
+        setPosts([]);
+        setLoading(false);
+        return;
+      }
 
-    updateFormData('posts', [newPostItem, ...formData.posts]);
-    
-    // Reset form
-    setNewPost('');
-    setNewPostTitle('');
-    setNewPostType('text');
-    setPollOptions(['', '']);
-    setNewYoutubeLink('');
-    if (postPhotoPreview) {
-      handleRemovePostPhoto();
+      const postIds = fetchedPosts.map((post: any) => post.id);
+      const authorIds = [...new Set(fetchedPosts.map((post: any) => post.author_id))];
+
+      // Fetch club account data for authors (club accounts, not profiles)
+      const { data: clubAccounts } = await supabase
+        .from('club_accounts')
+        .select('id, name')
+        .in('id', authorIds);
+
+      // Batch fetch all user likes for posts (using club account UUID)
+      const { data: userLikes } = await supabase
+        .from('likes')
+        .select('likeable_id')
+        .eq('user_id', clubAccountId)
+        .eq('likeable_type', 'post')
+        .in('likeable_id', postIds);
+
+      // Batch fetch all likes counts
+      const { data: likesCounts } = await supabase
+        .from('likes')
+        .select('likeable_id')
+        .eq('likeable_type', 'post')
+        .in('likeable_id', postIds);
+
+      // Batch fetch all comments counts
+      const { data: commentsCounts } = await supabase
+        .from('comments')
+        .select('post_id')
+        .in('post_id', postIds);
+
+      // Create lookup maps
+      const clubAccountsMap = new Map(clubAccounts?.map((ca: any) => [ca.id, ca]) || []);
+      const userLikesSet = new Set(userLikes?.map((l: any) => l.likeable_id) || []);
+      
+      // Count likes and comments
+      const likesCountMap = new Map();
+      const commentsCountMap = new Map();
+      
+      likesCounts?.forEach((like: any) => {
+        likesCountMap.set(like.likeable_id, (likesCountMap.get(like.likeable_id) || 0) + 1);
+      });
+      
+      commentsCounts?.forEach((comment: any) => {
+        commentsCountMap.set(comment.post_id, (commentsCountMap.get(comment.post_id) || 0) + 1);
+      });
+
+      // Get poll data for poll posts
+      const pollPostIds = fetchedPosts.filter((post: any) => post.post_type === 'poll').map((post: any) => post.id);
+      let pollsMap = new Map();
+      let pollOptionsMap = new Map();
+      let pollVotesMap = new Map();
+
+      if (pollPostIds.length > 0) {
+        const { data: polls } = await supabase
+          .from('polls')
+          .select('*')
+          .in('post_id', pollPostIds);
+
+        if (polls && polls.length > 0) {
+          const pollIds = polls.map((p: any) => p.id);
+          pollsMap = new Map(polls.map((p: any) => [p.post_id, p]));
+
+          const { data: pollOptions } = await supabase
+            .from('poll_options')
+            .select('*')
+            .in('poll_id', pollIds);
+
+          pollOptionsMap = new Map();
+          pollOptions?.forEach((option: any) => {
+            if (!pollOptionsMap.has(option.poll_id)) {
+              pollOptionsMap.set(option.poll_id, []);
+            }
+            pollOptionsMap.get(option.poll_id).push(option);
+          });
+
+          const { data: userPollVotes } = await supabase
+            .from('poll_votes')
+            .select('poll_id, option_id')
+            .eq('user_id', clubAccountId)
+            .in('poll_id', pollIds);
+
+          pollVotesMap = new Map(userPollVotes?.map((v: any) => [v.poll_id, v.option_id]) || []);
+
+          const { data: allPollVotes } = await supabase
+            .from('poll_votes')
+            .select('option_id')
+            .in('poll_id', pollIds);
+
+          const voteCounts = new Map();
+          allPollVotes?.forEach((vote: any) => {
+            voteCounts.set(vote.option_id, (voteCounts.get(vote.option_id) || 0) + 1);
+          });
+
+          pollOptionsMap.forEach((options) => {
+            options.forEach((option: any) => {
+              option.votes = voteCounts.get(option.id) || 0;
+            });
+          });
+        }
+      }
+
+      // Transform data to match UI interface
+      const transformedPosts: Post[] = fetchedPosts.map((post: any) => {
+        const clubAccount = clubAccountsMap.get(post.author_id);
+        const isLiked = userLikesSet.has(post.id);
+        const likesCount = likesCountMap.get(post.id) || 0;
+        const commentsCount = commentsCountMap.get(post.id) || 0;
+
+        // Handle poll data
+        let poll = undefined;
+        if (post.post_type === 'poll') {
+          const pollData = pollsMap.get(post.id);
+          if (pollData) {
+            const options = pollOptionsMap.get(pollData.id) || [];
+            const totalVotes = options.reduce((sum: number, opt: any) => sum + opt.votes, 0);
+            const userVotedOptionId = pollVotesMap.get(pollData.id);
+
+            poll = {
+              id: pollData.id,
+              question: pollData.question,
+              options: options,
+              totalVotes: totalVotes,
+              userVotedOptionId: userVotedOptionId
+            };
+          }
+        }
+
+        return {
+          id: post.id,
+          title: post.title,
+          content: post.content,
+          timestamp: new Date(post.created_at),
+          author_id: post.author_id,
+          course_id: post.course_id,
+          post_type: post.post_type,
+          is_anonymous: post.is_anonymous,
+          created_at: post.created_at,
+          edited_at: post.edited_at,
+          is_edited: post.is_edited,
+          likes_count: likesCount,
+          comments_count: commentsCount,
+          photo_url: post.photo_url || null,
+          vid_link: post.vid_link || null,
+          author: clubAccount ? {
+            name: post.is_anonymous ? 'Anonymous User' : ((clubAccount as any).name || 'Club'),
+            year: '' // Club accounts don't have year
+          } : undefined,
+          isLiked: isLiked,
+          poll
+        };
+      });
+
+      setPosts(transformedPosts);
+
+      // Load photo URLs for posts with photos
+      const postsWithPhotos = transformedPosts.filter(p => p.photo_url);
+      for (const post of postsWithPhotos) {
+        if (post.photo_url) {
+          const url = await getStorageUrl(post.photo_url, 'post_picture');
+          if (url) {
+            setPostPhotoUrls(prev => new Map(prev).set(post.id, url));
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+    } finally {
+      setLoading(false);
     }
-    
-    toast.success('Post added successfully!');
   };
 
-  const deletePost = (id: string) => {
-    updateFormData('posts', formData.posts.filter(post => post.id !== id));
-    toast.success('Post deleted');
-  };
+  useEffect(() => {
+    fetchPosts();
+  }, []);
 
-  const formatTimestamp = (timestamp: Date) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
-    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+  const handleCreatePost = async () => {
+    // Validate title is required
+    if (!newPostTitle.trim()) return;
     
-    return date.toLocaleDateString();
+    // Validate content based on post type
+    // Text posts can have empty content (optional), but polls need at least 2 options
+    if (newPostType === 'poll' && pollOptions.filter(opt => opt.trim()).length < 2) return;
+    
+    // Validate video link is required for YouTube posts
+    if (newPostType === 'youtube' && !newYoutubeLink.trim()) return;
+
+    try {
+      // Get current user (club account)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Upload photo if present (for text posts only)
+      let photoFileName: string | null = null;
+      if (postPhotoFile && newPostType === 'text') {
+        try {
+          const fileExt = postPhotoFile.name.split('.').pop() || 'jpg';
+          const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('post_picture')
+            .upload(fileName, postPhotoFile);
+
+          if (uploadError) {
+            console.error('Error uploading post photo:', uploadError);
+            toast.error('Error uploading photo. Please try again.');
+            return;
+          }
+
+          photoFileName = fileName;
+        } catch (uploadError) {
+          console.error('Error uploading post photo:', uploadError);
+          toast.error('Error uploading photo. Please try again.');
+          return;
+        }
+      }
+
+      // Create the post - club accounts: author_id is user.id, course_id is null, is_anonymous is false
+      const { data: createdPost, error: postError } = await supabase
+        .from('posts')
+        .insert({
+          title: newPostTitle.trim(),
+          content: newPost.trim(),
+          author_id: user.id, // Club account UUID
+          course_id: null, // Always null for club posts
+          post_type: newPostType,
+          is_anonymous: false, // Always false for club posts
+          photo_url: photoFileName,
+          vid_link: newPostType === 'youtube' ? newYoutubeLink.trim() : null
+        })
+        .select()
+        .single();
+
+      if (postError) {
+        console.error('Error creating post:', postError);
+        toast.error(`Error creating post: ${postError.message || 'Unknown error'}`);
+        // If post creation failed and we uploaded a photo, clean it up
+        if (photoFileName) {
+          try {
+            await supabase.storage.from('post_picture').remove([photoFileName]);
+          } catch (cleanupError) {
+            console.error('Error cleaning up uploaded photo:', cleanupError);
+          }
+        }
+        return;
+      }
+
+      // Create poll if it's a poll post
+      if (newPostType === 'poll' && pollOptions.filter(opt => opt.trim()).length >= 2) {
+        const { data: poll, error: pollError } = await supabase
+          .from('polls')
+          .insert({
+            post_id: createdPost.id,
+            question: newPost.trim()
+          })
+          .select()
+          .single();
+
+        if (pollError) {
+          console.error('Error creating poll:', pollError);
+          return;
+        }
+
+        // Create poll options
+        const pollOptionsData = pollOptions
+          .filter(opt => opt.trim())
+          .map(opt => ({
+            poll_id: poll.id,
+            text: opt.trim()
+          }));
+
+        const { error: optionsError } = await supabase
+          .from('poll_options')
+          .insert(pollOptionsData);
+
+        if (optionsError) {
+          console.error('Error creating poll options:', optionsError);
+          return;
+        }
+      }
+
+      // Reset form
+      setNewPost('');
+      setNewPostTitle('');
+      setNewPostType('text');
+      setPollOptions(['', '']);
+      setNewYoutubeLink('');
+      // Clear photo state
+      if (postPhotoPreview) {
+        URL.revokeObjectURL(postPhotoPreview);
+      }
+      setPostPhotoFile(null);
+      setPostPhotoPreview(null);
+
+      // Refresh posts
+      await fetchPosts();
+    } catch (error) {
+      console.error('Error in handleCreatePost:', error);
+    }
   };
+
+  const deletePost = async (id: string) => {
+    try {
+      // First, get the post to check if it has a photo
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('User not authenticated');
+        return;
+      }
+
+      const { data: postData } = await supabase
+        .from('posts')
+        .select('photo_url')
+        .eq('id', id)
+        .eq('author_id', user.id)
+        .single();
+
+      // Delete photo from post_picture bucket if it exists
+      if (postData?.photo_url) {
+        try {
+          const { error: photoError } = await supabase.storage
+            .from('post_picture')
+            .remove([postData.photo_url]);
+
+          if (photoError) {
+            console.error('Error deleting post photo from storage:', photoError);
+            // Continue with post deletion even if photo deletion fails
+          }
+        } catch (photoError) {
+          console.error('Error deleting post photo from storage:', photoError);
+          // Continue with post deletion even if photo deletion fails
+        }
+      }
+
+      // Then delete the post from the database
+      const { error } = await supabase
+        .from('posts')
+        .delete()
+        .eq('id', id)
+        .eq('author_id', user.id);
+
+      if (error) {
+        console.error('Error deleting post:', error);
+        toast.error('Error deleting post');
+        return;
+      }
+
+      // Refresh posts
+      await fetchPosts();
+      toast.success('Post deleted');
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      toast.error('Error deleting post');
+    }
+  };
+
+  const handleLike = async (postId: string) => {
+    if (likingPosts.has(postId)) return;
+    
+    try {
+      setLikingPosts(prev => new Set(prev).add(postId));
+      
+      const clubAccountId = await getClubAccountId();
+      if (!clubAccountId) return;
+
+      const post = posts.find(p => p.id === postId);
+      if (!post) return;
+
+      const { data: currentLike } = await supabase
+        .from('likes')
+        .select('id')
+        .eq('user_id', clubAccountId)
+        .eq('likeable_type', 'post')
+        .eq('likeable_id', postId)
+        .maybeSingle();
+
+      const isCurrentlyLiked = !!currentLike;
+
+      if (isCurrentlyLiked) {
+        await supabase
+          .from('likes')
+          .delete()
+          .eq('user_id', clubAccountId)
+          .eq('likeable_type', 'post')
+          .eq('likeable_id', postId);
+      } else {
+        await supabase
+          .from('likes')
+          .insert({
+            user_id: clubAccountId,
+            likeable_type: 'post',
+            likeable_id: postId
+          });
+      }
+
+      setPosts(prevPosts => 
+        prevPosts.map(p => 
+          p.id === postId 
+            ? { 
+                ...p, 
+                isLiked: !isCurrentlyLiked,
+                likes_count: isCurrentlyLiked ? p.likes_count - 1 : p.likes_count + 1
+              }
+            : p
+        )
+      );
+    } catch (error) {
+      console.error('Error in handleLike:', error);
+    } finally {
+      setLikingPosts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(postId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleEditPost = async (postId: string) => {
+    try {
+      const post = posts.find(p => p.id === postId);
+      if (!post) return;
+      
+      const updateData: any = {
+        title: editPostTitle,
+        edited_at: new Date().toISOString(),
+        is_edited: true
+      };
+      
+      if (post.post_type !== 'poll') {
+        updateData.content = editPostContent;
+      }
+      
+      const { error } = await supabase
+        .from('posts')
+        .update(updateData)
+        .eq('id', postId)
+        .eq('author_id', user?.id);
+
+      if (error) throw error;
+      
+      setEditingPost(null);
+      await fetchPosts();
+    } catch (error) {
+      console.error('Error editing post:', error);
+    }
+  };
+
+  const handleDeletePost = async (postId: string, event?: React.MouseEvent<HTMLButtonElement>) => {
+    const position = event ? { top: event.clientY, left: event.clientX } : { top: 0, left: 0 };
+    
+    setConfirmationPopup({
+      isOpen: true,
+      title: 'Delete Post',
+      message: 'Are you sure you want to delete this post? This action cannot be undone.',
+      position,
+      onConfirm: async () => {
+        try {
+          const { data: postData } = await supabase
+            .from('posts')
+            .select('photo_url')
+            .eq('id', postId)
+            .eq('author_id', user?.id)
+            .single();
+
+          if (postData?.photo_url) {
+            try {
+              await supabase.storage.from('post_picture').remove([postData.photo_url]);
+            } catch (photoError) {
+              console.error('Error deleting post photo from storage:', photoError);
+            }
+          }
+
+          await supabase
+            .from('likes')
+            .delete()
+            .eq('likeable_type', 'post')
+            .eq('likeable_id', postId);
+
+          await supabase
+            .from('posts')
+            .delete()
+            .eq('id', postId)
+            .eq('author_id', user?.id);
+          
+          await fetchPosts();
+          setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
+        } catch (error) {
+          console.error('Error deleting post:', error);
+          setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
+  };
+
+  const handleVotePoll = async (postId: string, optionId: string) => {
+    try {
+      const clubAccountId = await getClubAccountId();
+      if (!clubAccountId) return;
+
+      const post = posts.find(p => p.id === postId);
+      if (!post || !post.poll) return;
+
+      if (post.poll.userVotedOptionId) return;
+
+      const { error } = await supabase
+        .from('poll_votes')
+        .insert({
+          poll_id: post.poll.id,
+          option_id: optionId,
+          user_id: clubAccountId
+        });
+
+      if (error) {
+        console.error('Error voting on poll:', error);
+        return;
+      }
+
+      setPosts(prevPosts => 
+        prevPosts.map(p => 
+          p.id === postId 
+            ? { 
+                ...p, 
+                poll: p.poll ? {
+                  ...p.poll,
+                  userVotedOptionId: optionId,
+                  totalVotes: p.poll.totalVotes + 1,
+                  options: p.poll.options.map(opt => ({
+                    ...opt,
+                    votes: opt.id === optionId ? opt.votes + 1 : opt.votes
+                  }))
+                } : undefined
+              }
+            : p
+        )
+      );
+    } catch (error) {
+      console.error('Error in handleVotePoll:', error);
+    }
+  };
+
+  const fetchComments = async (postId: string) => {
+    try {
+      const clubAccountId = await getClubAccountId();
+      if (!clubAccountId) return;
+
+      const { data: commentsData, error } = await supabase
+        .from('comments')
+        .select('*')
+        .eq('post_id', postId)
+        .is('parent_comment_id', null)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching comments:', error);
+        return;
+      }
+
+      if (!commentsData || commentsData.length === 0) {
+        setComments(prev => ({ ...prev, [postId]: [] }));
+        return;
+      }
+
+      const commentIds = commentsData.map((c: any) => c.id);
+      const authorIds = [...new Set(commentsData.map((c: any) => c.author_id))];
+
+      const { data: clubAccounts } = await supabase
+        .from('club_accounts')
+        .select('id, name')
+        .in('id', authorIds);
+
+      const { data: userLikes } = await supabase
+        .from('likes')
+        .select('likeable_id')
+        .eq('user_id', clubAccountId)
+        .eq('likeable_type', 'comment')
+        .in('likeable_id', commentIds);
+
+      const { data: likesCounts } = await supabase
+        .from('likes')
+        .select('likeable_id')
+        .eq('likeable_type', 'comment')
+        .in('likeable_id', commentIds);
+
+      const { data: repliesData } = await supabase
+        .from('comments')
+        .select('*')
+        .eq('post_id', postId)
+        .not('parent_comment_id', 'is', null)
+        .order('created_at', { ascending: true });
+
+      const clubAccountsMap = new Map(clubAccounts?.map((ca: any) => [ca.id, ca]) || []);
+      const userLikesSet = new Set(userLikes?.map((l: any) => l.likeable_id) || []);
+      const likesCountMap = new Map();
+      likesCounts?.forEach((like: any) => {
+        likesCountMap.set(like.likeable_id, (likesCountMap.get(like.likeable_id) || 0) + 1);
+      });
+
+      const repliesMap = new Map<string, any[]>();
+      repliesData?.forEach((reply: any) => {
+        if (!repliesMap.has(reply.parent_comment_id)) {
+          repliesMap.set(reply.parent_comment_id, []);
+        }
+        repliesMap.get(reply.parent_comment_id)!.push(reply);
+      });
+
+      const transformedComments: Comment[] = commentsData.map((comment: any) => {
+        const clubAccount = clubAccountsMap.get(comment.author_id);
+        const replies = repliesMap.get(comment.id) || [];
+        
+        const transformedReplies: Comment[] = replies.map((reply: any) => {
+          const replyClubAccount = clubAccountsMap.get(reply.author_id);
+          const replyIsLiked = userLikesSet.has(reply.id);
+          const replyLikesCount = likesCountMap.get(reply.id) || 0;
+          
+          return {
+            id: reply.id,
+            post_id: reply.post_id,
+            parent_comment_id: reply.parent_comment_id,
+            author_id: reply.author_id,
+            content: reply.content,
+            is_anonymous: reply.is_anonymous,
+            created_at: reply.created_at,
+            edited_at: reply.edited_at,
+            is_edited: reply.is_edited,
+            likes_count: replyLikesCount,
+            author: replyClubAccount ? {
+              name: reply.is_anonymous ? 'Anonymous User' : ((replyClubAccount as any).name || 'Club'),
+              year: ''
+            } : undefined,
+            isLiked: replyIsLiked
+          };
+        });
+
+        const isLiked = userLikesSet.has(comment.id);
+        const likesCount = likesCountMap.get(comment.id) || 0;
+
+        return {
+          id: comment.id,
+          post_id: comment.post_id,
+          parent_comment_id: comment.parent_comment_id,
+          author_id: comment.author_id,
+          content: comment.content,
+          is_anonymous: comment.is_anonymous,
+          created_at: comment.created_at,
+          edited_at: comment.edited_at,
+          is_edited: comment.is_edited,
+          likes_count: likesCount,
+          author: clubAccount ? {
+            name: comment.is_anonymous ? 'Anonymous User' : ((clubAccount as any).name || 'Club'),
+            year: ''
+          } : undefined,
+          isLiked: isLiked,
+          replies: transformedReplies
+        };
+      });
+
+      setComments(prev => ({ ...prev, [postId]: transformedComments }));
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+    }
+  };
+
+  const addComment = async (postId: string) => {
+    const commentText = newComment[postId];
+    if (!commentText?.trim()) return;
+
+    try {
+      const clubAccountId = await getClubAccountId();
+      if (!clubAccountId) return;
+
+      const { error } = await supabase
+        .from('comments')
+        .insert({
+          post_id: postId,
+          author_id: clubAccountId,
+          content: commentText.trim(),
+          is_anonymous: commentAnonymously[postId] || false
+        });
+
+      if (error) {
+        console.error('Error adding comment:', error);
+        return;
+      }
+
+      setNewComment(prev => ({ ...prev, [postId]: '' }));
+      setCommentAnonymously(prev => ({ ...prev, [postId]: false }));
+
+      await fetchComments(postId);
+      await fetchPosts();
+    } catch (error) {
+      console.error('Error in addComment:', error);
+    }
+  };
+
+  const addReply = async (postId: string, commentId: string) => {
+    const key = `${postId}:${commentId}`;
+    const text = replyText[key];
+    if (!text?.trim()) return;
+
+    try {
+      const clubAccountId = await getClubAccountId();
+      if (!clubAccountId) return;
+
+      const { error } = await supabase
+        .from('comments')
+        .insert({
+          post_id: postId,
+          parent_comment_id: commentId,
+          author_id: clubAccountId,
+          content: text.trim(),
+          is_anonymous: replyAnonymously[key] || false
+        });
+
+      if (error) {
+        console.error('Error adding reply:', error);
+        return;
+      }
+
+      setReplyText(prev => ({ ...prev, [key]: '' }));
+      setReplyAnonymously(prev => ({ ...prev, [key]: false }));
+      setReplyingTo(null);
+
+      await fetchComments(postId);
+      await fetchPosts();
+    } catch (error) {
+      console.error('Error in addReply:', error);
+    }
+  };
+
+  const handlePostClick = (postId: string) => {
+    setSelectedPostThread(postId);
+    if (!comments[postId]) {
+      fetchComments(postId);
+    }
+  };
+
+  const handleBackToFeed = () => {
+    setSelectedPostThread(null);
+    setHoveredPostId(null);
+    setReplyingTo(null);
+  };
+
+  // Get selected post for thread view
+  const selectedPost = selectedPostThread ? posts.find(p => p.id === selectedPostThread) : null;
+
+  const toggleCommentLike = async (postId: string, commentId: string) => {
+    try {
+      const clubAccountId = await getClubAccountId();
+      if (!clubAccountId) return;
+
+      const comment = comments[postId]?.find(c => c.id === commentId);
+      if (!comment) return;
+
+      const { data: currentLike } = await supabase
+        .from('likes')
+        .select('id')
+        .eq('user_id', clubAccountId)
+        .eq('likeable_type', 'comment')
+        .eq('likeable_id', commentId)
+        .maybeSingle();
+
+      const isCurrentlyLiked = !!currentLike;
+
+      if (isCurrentlyLiked) {
+        await supabase
+          .from('likes')
+          .delete()
+          .eq('user_id', clubAccountId)
+          .eq('likeable_type', 'comment')
+          .eq('likeable_id', commentId);
+      } else {
+        await supabase
+          .from('likes')
+          .insert({
+            user_id: clubAccountId,
+            likeable_type: 'comment',
+            likeable_id: commentId
+          });
+      }
+
+      setComments(prev => ({
+        ...prev,
+        [postId]: (prev[postId] || []).map(c => {
+          if (c.id === commentId) {
+            return {
+              ...c,
+              isLiked: !isCurrentlyLiked,
+              likes_count: isCurrentlyLiked ? c.likes_count - 1 : c.likes_count + 1
+            };
+          }
+          if (c.replies) {
+            return {
+              ...c,
+              replies: c.replies.map(r => 
+                r.id === commentId
+                  ? {
+                      ...r,
+                      isLiked: !isCurrentlyLiked,
+                      likes_count: isCurrentlyLiked ? r.likes_count - 1 : r.likes_count + 1
+                    }
+                  : r
+              )
+            };
+          }
+          return c;
+        })
+      }));
+    } catch (error) {
+      console.error('Error in toggleCommentLike:', error);
+    }
+  };
+
 
   return (
     <div className="h-full flex flex-col overflow-hidden" style={{ minHeight: 0 }}>
@@ -2354,79 +3369,1062 @@ function ClubFeedPost({ formData, updateFormData }: { formData: ClubFormData; up
         </div>
 
         {/* Right: Your Posts */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col overflow-hidden">
-          <h3 className="text-gray-900 mb-3 flex-shrink-0" style={{ marginTop: 0 }}>Your Posts ({formData.posts.length})</h3>
-          
-          <div className="flex-1 overflow-y-auto">
-            {formData.posts.length === 0 ? (
+        <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col overflow-hidden" style={{ minHeight: 0 }}>
+          {selectedPostThread && selectedPost ? (
+            /* Thread View */
+            <div className="flex-1 flex flex-col overflow-hidden" style={{ minHeight: 0 }}>
+              <div className="flex items-center gap-3 mb-4 flex-shrink-0">
+                <button
+                  onClick={handleBackToFeed}
+                  className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  Back
+                </button>
+                <h3 className="text-gray-900 text-lg font-semibold">Post Thread</h3>
+              </div>
+              <div className="flex-1 overflow-y-auto" style={{ minHeight: 0 }}>
+                {/* Thread Post - Same as campus feed thread view with correct video sizes */}
+                <Card 
+                  className="overflow-hidden transition-all duration-200 border-l-4 mb-4"
+                  style={{ 
+                    backgroundColor: '#FEFBF6',
+                    borderLeftColor: getPostColor(selectedPost.id)
+                  }}
+                >
+                  <div className="p-4" style={{ backgroundColor: 'transparent' }}>
+                    {/* Post Header */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                          <ProfileBubble 
+                            userName={selectedPost.author?.name || 'Club'} 
+                            size="md" 
+                            borderColor={getPostColor(selectedPost.id)} 
+                            isAnonymous={selectedPost.is_anonymous}
+                            userId={selectedPost.author_id}
+                          />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-semibold text-gray-900 text-sm">
+                                {selectedPost.is_anonymous ? 'Anonymous' : (selectedPost.author?.name || 'Club')}
+                              </h4>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500">{formatTimestamp(selectedPost.created_at)}</span>
+                              {selectedPost.is_edited && (
+                                <span className="text-xs text-gray-400 italic">(edited)</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Post Title */}
+                    <div className="mb-3">
+                      <h2 className="text-lg font-semibold text-gray-900 leading-tight">{selectedPost.title}</h2>
+                    </div>
+
+                    {/* Post Content */}
+                    <div className="mb-4">
+                      <ExpandableText 
+                        text={selectedPost.content ? selectedPost.content.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '') : ''}
+                        maxLines={10}
+                        className="text-gray-800 leading-relaxed whitespace-pre-wrap"
+                        buttonColor={getPostColor(selectedPost.id)}
+                      />
+                    </div>
+
+                    {/* Post Photo */}
+                    {selectedPost.photo_url && postPhotoUrls.has(selectedPost.id) && (
+                      <div className="mb-4 mt-4">
+                        <img
+                          src={postPhotoUrls.get(selectedPost.id) || ''}
+                          alt="Post"
+                          className="rounded-lg"
+                          style={{
+                            maxWidth: '100%',
+                            maxHeight: '450px',
+                            width: 'auto',
+                            height: 'auto',
+                            objectFit: 'contain',
+                            display: 'block'
+                          }}
+                          onError={(e) => {
+                            if (selectedPost.photo_url) {
+                              getStorageUrl(selectedPost.photo_url, 'post_picture').then(url => {
+                                if (url) {
+                                  setPostPhotoUrls(prev => {
+                                    const newMap = new Map(prev);
+                                    newMap.set(selectedPost.id, url);
+                                    return newMap;
+                                  });
+                                }
+                              });
+                            }
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Video Embed in Thread View - Same sizes as campus feed thread view */}
+                    {selectedPost.vid_link && (
+                      <div className="mb-4 mt-4">
+                        {(() => {
+                          const embedData = getVideoEmbedUrl(selectedPost.vid_link);
+                          if (!embedData) {
+                            return null;
+                          }
+                          const isVertical = embedData.platform === 'tiktok' || embedData.platform === 'instagram';
+                          const isInstagram = embedData.platform === 'instagram';
+                          const scale = isInstagram ? 0.65 : 0.90;
+                          const width = isInstagram ? '153.85%' : '111.11%';
+                          const height = isInstagram ? '153.85%' : '111.11%';
+                          return (
+                            <div 
+                              className="relative overflow-hidden rounded-lg" 
+                              style={isVertical 
+                                ? { 
+                                    maxHeight: '600px', 
+                                    maxWidth: '45%',
+                                    width: '45%',
+                                    aspectRatio: '9/16',
+                                    margin: '0 auto'
+                                  } 
+                                : { paddingBottom: '56.25%', minHeight: '200px', width: '100%' }
+                              }
+                            >
+                              <iframe
+                                src={embedData.embedUrl}
+                                title={`${embedData.platform} video player`}
+                                frameBorder="0"
+                                scrolling="no"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                allowFullScreen
+                                className={isVertical ? "rounded-lg" : "absolute top-0 left-0 w-full h-full rounded-lg"}
+                                style={isVertical 
+                                  ? { 
+                                      border: 'none', 
+                                      overflow: 'hidden',
+                                      transform: `translate(-50%, -50%) scale(${scale})`,
+                                      transformOrigin: 'center center',
+                                      width: width,
+                                      height: height,
+                                      position: 'absolute',
+                                      left: '50%',
+                                      top: '50%'
+                                    }
+                                  : { border: 'none', overflow: 'hidden' }
+                                }
+                              />
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+
+                    {/* Poll Component */}
+                    {selectedPost.poll && (
+                      <div className="mb-4 p-4 rounded-lg">
+                        <h4 className="font-medium text-gray-900 mb-3">{selectedPost.poll.question}</h4>
+                        <div className="space-y-2">
+                          {selectedPost.poll.options.map((option) => {
+                            const hasVoted = selectedPost.poll!.userVotedOptionId !== undefined;
+                            const percentage = hasVoted && selectedPost.poll!.totalVotes > 0 
+                              ? (option.votes / selectedPost.poll!.totalVotes * 100) 
+                              : 0;
+                            const isSelected = selectedPost.poll!.userVotedOptionId === option.id;
+                            
+                            return (
+                              <button
+                                key={option.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleVotePoll(selectedPost.id, option.id);
+                                }}
+                                className={`w-full text-left p-3 rounded-lg border transition-all relative overflow-hidden ${
+                                  isSelected 
+                                    ? 'bg-gray-50'
+                                    : hasVoted
+                                    ? 'border-gray-200 bg-gray-50'
+                                    : 'border-gray-200 hover:border-gray-300 bg-white'
+                                }`}
+                                style={{
+                                  borderColor: isSelected ? getPostColor(selectedPost.id) : undefined,
+                                  backgroundColor: isSelected ? `${getPostColor(selectedPost.id)}0D` : undefined
+                                }}
+                              >
+                                {hasVoted && (
+                                  <div 
+                                    className="absolute inset-0 transition-all duration-300"
+                                    style={{ 
+                                      width: `${percentage}%`,
+                                      backgroundColor: `${getPostColor(selectedPost.id)}33`
+                                    }}
+                                  />
+                                )}
+                                <div className="relative flex items-center justify-between">
+                                  <span className="text-sm font-medium">{option.text}</span>
+                                  {hasVoted && (
+                                    <span className="text-xs text-gray-600">
+                                      {option.votes} votes ({percentage.toFixed(1)}%)
+                                    </span>
+                                  )}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <div className="mt-3 text-xs text-gray-500">{`${selectedPost.poll.totalVotes} total votes`}</div>
+                      </div>
+                    )}
+
+                    {/* Post Actions */}
+                    <div className="flex items-center justify-start pt-4 mt-1 border-t border-gray-200">
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleLike(selectedPost.id);
+                          }}
+                          disabled={likingPosts.has(selectedPost.id)}
+                          className={`flex items-center gap-1.5 text-xs font-medium transition-colors px-3 py-2 rounded-md hover:bg-gray-100 ${likingPosts.has(selectedPost.id) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          style={{
+                            color: selectedPost.isLiked ? getPostColor(selectedPost.id) : '#6B7280'
+                          }}
+                        >
+                          <Heart className={`w-5 h-5 ${selectedPost.isLiked ? 'fill-current' : ''}`} />
+                          {selectedPost.likes_count}
+                        </button>
+                        <span className="flex items-center gap-1.5 text-xs font-medium text-gray-600">
+                          <MessageCircle className="w-5 h-5" />
+                          {selectedPost.comments_count}
+                        </span>
+                        
+                        {selectedPost.author_id === user?.id && (
+                          <div className="flex items-center gap-2">
+                            {selectedPost.post_type !== 'poll' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (editingPost === selectedPost.id) {
+                                    setEditingPost(null);
+                                  } else {
+                                    setEditingPost(selectedPost.id);
+                                    setEditPostTitle(selectedPost.title);
+                                    setEditPostContent(selectedPost.content || '');
+                                  }
+                                }}
+                                className="flex items-center gap-1.5 text-xs font-medium transition-colors px-3 py-2 rounded-md"
+                                style={{ color: '#6B7280' }}
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                                Edit
+                              </button>
+                            )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeletePost(selectedPost.id, e);
+                              }}
+                              className="flex items-center gap-1.5 text-xs font-medium transition-colors px-3 py-2 rounded-md"
+                              style={{ color: '#6B7280' }}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Comments Section in Thread View */}
+                <div className="space-y-4">
+                  {/* Comment Input */}
+                  <div className="mb-4 space-y-2">
+                    <Textarea
+                      value={newComment[selectedPost.id] || ''}
+                      onChange={(e) => setNewComment(prev => ({ ...prev, [selectedPost.id]: e.target.value }))}
+                      placeholder="Add a comment..."
+                      rows={3}
+                      className="text-sm"
+                    />
+                    <div className="flex items-center justify-between">
+                      <label className="flex items-center gap-2 text-xs text-gray-600">
+                        <input
+                          type="checkbox"
+                          checked={commentAnonymously[selectedPost.id] || false}
+                          onChange={(e) => setCommentAnonymously(prev => ({ ...prev, [selectedPost.id]: e.target.checked }))}
+                          className="w-3 h-3"
+                        />
+                        Post anonymously
+                      </label>
+                      <Button
+                        size="sm"
+                        onClick={() => addComment(selectedPost.id)}
+                        disabled={!newComment[selectedPost.id]?.trim()}
+                        style={{ backgroundColor: getPostColor(selectedPost.id) }}
+                      >
+                        Comment
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Comments List */}
+                  {comments[selectedPost.id] && comments[selectedPost.id].length > 0 && (
+                    <div className="space-y-4">
+                      {comments[selectedPost.id].map((comment) => (
+                        <div key={comment.id} className="space-y-2">
+                          <div className="flex items-start gap-2">
+                            <ProfileBubble
+                              userName={comment.author?.name || 'Anonymous'}
+                              size="sm"
+                              borderColor={getPostColor(selectedPost.id)}
+                              isAnonymous={comment.is_anonymous}
+                              userId={comment.author_id}
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-sm font-semibold text-gray-900">
+                                  {comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Club')}
+                                </span>
+                                <span className="text-xs text-gray-500">{formatTimestamp(comment.created_at)}</span>
+                                {comment.is_edited && (
+                                  <span className="text-xs text-gray-400 italic">(edited)</span>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-700 whitespace-pre-wrap">{comment.content}</p>
+                              <div className="flex items-center gap-3 mt-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleCommentLike(selectedPost.id, comment.id);
+                                  }}
+                                  className={`flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900 ${
+                                    comment.isLiked ? 'text-red-500' : ''
+                                  }`}
+                                >
+                                  <Heart className={`w-4 h-4 ${comment.isLiked ? 'fill-current' : ''}`} />
+                                  {comment.likes_count}
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setReplyingTo(`${selectedPost.id}:${comment.id}`);
+                                    setReplyText(prev => ({ ...prev, [`${selectedPost.id}:${comment.id}`]: '' }));
+                                  }}
+                                  className="text-xs text-gray-600 hover:text-gray-900"
+                                >
+                                  Reply
+                                </button>
+                              </div>
+
+                              {/* Reply Input */}
+                              {replyingTo === `${selectedPost.id}:${comment.id}` && (
+                                <div className="mt-2 ml-4 space-y-2">
+                                  <Textarea
+                                    value={replyText[`${selectedPost.id}:${comment.id}`] || ''}
+                                    onChange={(e) => setReplyText(prev => ({ ...prev, [`${selectedPost.id}:${comment.id}`]: e.target.value }))}
+                                    placeholder="Write a reply..."
+                                    rows={2}
+                                    className="text-sm"
+                                  />
+                                  <div className="flex items-center justify-between">
+                                    <label className="flex items-center gap-2 text-xs text-gray-600">
+                                      <input
+                                        type="checkbox"
+                                        checked={replyAnonymously[`${selectedPost.id}:${comment.id}`] || false}
+                                        onChange={(e) => setReplyAnonymously(prev => ({ ...prev, [`${selectedPost.id}:${comment.id}`]: e.target.checked }))}
+                                        className="w-3 h-3"
+                                      />
+                                      Post anonymously
+                                    </label>
+                                    <div className="flex gap-2">
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => setReplyingTo(null)}
+                                      >
+                                        Cancel
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        onClick={() => addReply(selectedPost.id, comment.id)}
+                                        disabled={!replyText[`${selectedPost.id}:${comment.id}`]?.trim()}
+                                        style={{ backgroundColor: getPostColor(selectedPost.id) }}
+                                      >
+                                        Reply
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Replies */}
+                              {comment.replies && comment.replies.length > 0 && (
+                                <div className="mt-2 ml-4 space-y-2">
+                                  {comment.replies.map((reply) => (
+                                    <div key={reply.id} className="flex items-start gap-2">
+                                      <ProfileBubble
+                                        userName={reply.author?.name || 'Anonymous'}
+                                        size="sm"
+                                        borderColor={getPostColor(selectedPost.id)}
+                                        isAnonymous={reply.is_anonymous}
+                                        userId={reply.author_id}
+                                      />
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <span className="text-sm font-semibold text-gray-900">
+                                            {reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Club')}
+                                          </span>
+                                          <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>
+                                          {reply.is_edited && (
+                                            <span className="text-xs text-gray-400 italic">(edited)</span>
+                                          )}
+                                        </div>
+                                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{reply.content}</p>
+                                        <div className="flex items-center gap-3 mt-2">
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              toggleCommentLike(selectedPost.id, reply.id);
+                                            }}
+                                            className={`flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900 ${
+                                              reply.isLiked ? 'text-red-500' : ''
+                                            }`}
+                                          >
+                                            <Heart className={`w-4 h-4 ${reply.isLiked ? 'fill-current' : ''}`} />
+                                            {reply.likes_count}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Feed View */
+            <>
+              <h3 className="text-gray-900 mb-3 flex-shrink-0" style={{ marginTop: 0 }}>Your Posts ({posts.length})</h3>
+              
+              <div className="flex-1 overflow-y-auto" style={{ minHeight: 0 }}>
+            {loading ? (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-gray-600">Loading posts...</p>
+              </div>
+            ) : posts.length === 0 ? (
               <div className="flex items-center justify-center h-full">
                 <p className="text-gray-600">No posts</p>
               </div>
             ) : (
               <div className="space-y-4">
-            {formData.posts.map((post) => (
-              <Card key={post.id} className="p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-start gap-3 flex-1">
-                    <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                      {formData.picture ? (
-                        <img 
-                          src={formData.picture} 
-                          alt="Club"
-                          className="w-full h-full rounded-full object-cover"
-                        />
-                      ) : (
-                        <User className="w-4 h-4 text-gray-400" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-gray-900">{formData.name || ''}</span>
-                        <span className="text-gray-400">•</span>
-                        <div className="flex items-center gap-1 text-gray-500 text-sm">
-                          <Clock className="w-3 h-3" />
-                          <span>{formatTimestamp(post.timestamp)}</span>
+                {posts.map((post) => (
+                  <Card 
+                    key={post.id} 
+                    className="overflow-hidden transition-all duration-200 border-l-4 cursor-pointer"
+                    style={{ 
+                      backgroundColor: hoveredPostId === post.id ? getPostHoverColor(post.id) : '#FEFBF6',
+                      borderLeftColor: getPostColor(post.id)
+                    }}
+                    onClick={() => handlePostClick(post.id)}
+                    onMouseEnter={() => setHoveredPostId(post.id)}
+                    onMouseLeave={() => setHoveredPostId(prev => (prev === post.id ? null : prev))}
+                  >
+                    <div className="p-4" style={{ backgroundColor: 'transparent' }}>
+                      {/* Post Header */}
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3">
+                            <ProfileBubble 
+                              userName={post.author?.name || 'Club'} 
+                              size="md" 
+                              borderColor={getPostColor(post.id)} 
+                              isAnonymous={post.is_anonymous}
+                              userId={post.author_id}
+                            />
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-semibold text-gray-900 text-sm">
+                                  {post.is_anonymous ? 'Anonymous' : (post.author?.name || 'Club')}
+                                </h4>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-500">{formatTimestamp(post.created_at)}</span>
+                                {post.is_edited && (
+                                  <span className="text-xs text-gray-400 italic">(edited)</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <h4 className="text-gray-900 mb-2">{post.title}</h4>
-                      <p className="text-gray-600 whitespace-pre-wrap">{post.content}</p>
-                    </div>
-                  </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => deletePost(post.id)}
-                    className="flex-shrink-0 ml-2"
-                  >
-                    <Trash2 className="w-4 h-4 text-red-500" />
-                  </Button>
-                </div>
 
-                <div className="flex items-center gap-6 pt-4 border-t border-gray-100">
-                  <button className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm transition-colors">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                    </svg>
-                    <span>Upvote</span>
-                  </button>
-                  <button className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm transition-colors">
-                    <MessageSquare className="w-5 h-5" />
-                    <span>Comment</span>
-                  </button>
-                  <button className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm transition-colors">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                    </svg>
-                    <span>Share</span>
-                  </button>
-                </div>
-              </Card>
-              ))}
+                      {/* Post Title */}
+                      {editingPost !== post.id && (
+                        <div className="mb-3">
+                          <h2 className="text-lg font-semibold text-gray-900 leading-tight">{post.title}</h2>
+                        </div>
+                      )}
+
+                      {/* Post Content */}
+                      <div className="mb-3">
+                        {editingPost === post.id ? (
+                          <div className="space-y-3">
+                            <input
+                              type="text"
+                              value={editPostTitle}
+                              onChange={(e) => setEditPostTitle(e.target.value)}
+                              onClick={(e) => e.stopPropagation()}
+                              maxLength={100}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder="Post title..."
+                            />
+                            {post.post_type !== 'poll' && (
+                              <textarea
+                                value={editPostContent}
+                                onChange={(e) => setEditPostContent(e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                maxLength={1000}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-24 resize-none"
+                                placeholder="Post content..."
+                              />
+                            )}
+                            <div className="flex gap-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditPost(post.id);
+                                }}
+                                className="px-2 py-1 text-white rounded-md transition-colors text-xs"
+                                style={{ backgroundColor: getPostColor(post.id) }}
+                                onMouseEnter={(e: React.MouseEvent) => {
+                                  (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(post.id)}90`;
+                                }}
+                                onMouseLeave={(e: React.MouseEvent) => {
+                                  (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(post.id);
+                                }}
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingPost(null);
+                                }}
+                                className="px-2 py-1 text-white rounded-md transition-colors text-xs"
+                                style={{ backgroundColor: getPostColor(post.id) }}
+                                onMouseEnter={(e: React.MouseEvent) => {
+                                  (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(post.id)}90`;
+                                }}
+                                onMouseLeave={(e: React.MouseEvent) => {
+                                  (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(post.id);
+                                }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <ExpandableText 
+                            text={post.content ? post.content.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '') : ''}
+                            maxLines={10}
+                            className="text-gray-800 leading-relaxed text-sm whitespace-pre-wrap"
+                            buttonColor={getPostColor(post.id)}
+                          />
+                        )}
+                      </div>
+
+                      {/* Post Photo */}
+                      {post.photo_url && postPhotoUrls.has(post.id) && (
+                        <div className="mb-3 mt-3">
+                          <img
+                            src={postPhotoUrls.get(post.id) || ''}
+                            alt="Post"
+                            className="rounded-lg"
+                            style={{
+                              maxWidth: '100%',
+                              maxHeight: '450px',
+                              width: 'auto',
+                              height: 'auto',
+                              objectFit: 'contain'
+                            }}
+                            onError={(e) => {
+                              if (post.photo_url) {
+                                getStorageUrl(post.photo_url, 'post_picture').then(url => {
+                                  if (url) {
+                                    setPostPhotoUrls(prev => {
+                                      const newMap = new Map(prev);
+                                      newMap.set(post.id, url);
+                                      return newMap;
+                                    });
+                                  }
+                                });
+                              }
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Video Embed */}
+                      {post.vid_link && (
+                        <div className="mb-3 mt-3">
+                          {(() => {
+                            const embedData = getVideoEmbedUrl(post.vid_link);
+                            if (!embedData) {
+                              return (
+                                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                  <p className="text-sm text-yellow-800">
+                                    Invalid video URL: {post.vid_link}
+                                  </p>
+                                </div>
+                              );
+                            }
+                            const isVertical = embedData.platform === 'tiktok' || embedData.platform === 'instagram';
+                            const isInstagram = embedData.platform === 'instagram';
+                            const scale = isInstagram ? 0.75 : 0.85;
+                            const width = isInstagram ? '133.33%' : '117.65%';
+                            const height = isInstagram ? '133.33%' : '117.65%';
+                            return (
+                              <div 
+                                className="relative overflow-hidden rounded-lg" 
+                                style={isVertical 
+                                  ? { 
+                                      maxHeight: '600px', 
+                                      maxWidth: isInstagram ? '75%' : '65%',
+                                      width: isInstagram ? '75%' : '65%',
+                                      aspectRatio: '9/16',
+                                      margin: '0 auto'
+                                    } 
+                                  : { paddingBottom: '56.25%', minHeight: '200px', width: '100%' }
+                                }
+                              >
+                                <iframe
+                                  src={embedData.embedUrl}
+                                  title={`${embedData.platform} video player`}
+                                  frameBorder="0"
+                                  scrolling="no"
+                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                  allowFullScreen
+                                  className={isVertical ? "rounded-lg" : "absolute top-0 left-0 w-full h-full rounded-lg"}
+                                  style={isVertical 
+                                    ? { 
+                                        border: 'none', 
+                                        overflow: 'hidden',
+                                        transform: `translate(-50%, -50%) scale(${scale})`,
+                                        transformOrigin: 'center center',
+                                        width: width,
+                                        height: height,
+                                        position: 'absolute',
+                                        left: '50%',
+                                        top: '50%'
+                                      }
+                                    : { border: 'none', overflow: 'hidden' }
+                                  }
+                                />
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+
+                      {/* Poll Component */}
+                      {post.poll && (
+                        <div className="mb-4 p-4 rounded-lg">
+                          <h4 className="font-medium text-gray-900 mb-3">{post.poll.question}</h4>
+                          <div className="space-y-2">
+                            {post.poll.options.map((option) => {
+                              const hasVoted = post.poll!.userVotedOptionId !== undefined;
+                              const percentage = hasVoted && post.poll!.totalVotes > 0 
+                                ? (option.votes / post.poll!.totalVotes * 100) 
+                                : 0;
+                              const isSelected = post.poll!.userVotedOptionId === option.id;
+                              
+                              return (
+                                <button
+                                  key={option.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleVotePoll(post.id, option.id);
+                                  }}
+                                  className={`w-full text-left p-3 rounded-lg border transition-all relative overflow-hidden ${
+                                    isSelected 
+                                      ? 'bg-gray-50'
+                                      : hasVoted
+                                      ? 'border-gray-200 bg-gray-50'
+                                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                                  }`}
+                                  style={{
+                                    borderColor: isSelected ? getPostColor(post.id) : undefined,
+                                    backgroundColor: isSelected ? `${getPostColor(post.id)}0D` : undefined
+                                  }}
+                                >
+                                  {hasVoted && (
+                                    <div 
+                                      className="absolute inset-0 transition-all duration-300"
+                                      style={{ 
+                                        width: `${percentage}%`,
+                                        backgroundColor: `${getPostColor(post.id)}33`
+                                      }}
+                                    />
+                                  )}
+                                  <div className="relative flex items-center justify-between">
+                                    <span className="text-sm font-medium">{option.text}</span>
+                                    {hasVoted && (
+                                      <span className="text-xs text-gray-600">
+                                        {option.votes} votes ({percentage.toFixed(1)}%)
+                                      </span>
+                                    )}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <div className="mt-3 text-xs text-gray-500">{`${post.poll.totalVotes} total votes`}</div>
+                        </div>
+                      )}
+
+                      {/* Post Actions */}
+                      <div className="flex items-center justify-start pt-4 mt-1 border-t border-gray-200" onMouseEnter={(e) => e.stopPropagation()} onMouseLeave={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-4">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleLike(post.id);
+                            }}
+                            disabled={likingPosts.has(post.id)}
+                            className={`flex items-center gap-1.5 text-xs font-medium transition-colors px-3 py-2 rounded-md hover:bg-gray-100 ${likingPosts.has(post.id) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            style={{
+                              color: post.isLiked ? getPostColor(post.id) : '#6B7280'
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!post.isLiked) {
+                                (e.currentTarget as HTMLElement).style.color = getPostColor(post.id);
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!post.isLiked) {
+                                (e.currentTarget as HTMLElement).style.color = '#6B7280';
+                              }
+                            }}
+                          >
+                            <Heart className={`w-5 h-5 ${post.isLiked ? 'fill-current' : ''}`} />
+                            {post.likes_count}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!comments[post.id]) {
+                                fetchComments(post.id);
+                              }
+                            }}
+                            className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 transition-colors px-3 py-2 rounded-md hover:bg-gray-100"
+                          >
+                            <MessageCircle className="w-5 h-5" />
+                            {post.comments_count}
+                          </button>
+                          
+                          {/* Edit/Delete buttons for post author */}
+                          {post.author_id === user?.id && (
+                            <div className="flex items-center gap-2 relative z-10">
+                              {post.post_type !== 'poll' && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    if (editingPost === post.id) {
+                                      setEditingPost(null);
+                                    } else {
+                                      setEditingPost(post.id);
+                                      setEditPostTitle(post.title);
+                                      setEditPostContent(post.content || '');
+                                    }
+                                  }}
+                                  className="flex items-center gap-1.5 text-xs font-medium transition-colors px-3 py-2 rounded-md relative z-10"
+                                  style={{ 
+                                    pointerEvents: 'auto',
+                                    color: '#6B7280'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.color = getPostColor(post.id);
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.color = '#6B7280';
+                                  }}
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                  Edit
+                                </button>
+                              )}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  handleDeletePost(post.id, e);
+                                }}
+                                className="flex items-center gap-1.5 text-xs font-medium transition-colors px-3 py-2 rounded-md relative z-10"
+                                style={{ 
+                                  pointerEvents: 'auto',
+                                  color: '#6B7280'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.color = '#DC2626';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.color = '#6B7280';
+                                }}
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Comments Section */}
+                      {comments[post.id] !== undefined && (
+                        <Collapsible>
+                          <CollapsibleTrigger
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!comments[post.id] || comments[post.id].length === 0) {
+                                fetchComments(post.id);
+                              }
+                            }}
+                            className="w-full text-left pt-3 border-t border-gray-200 mt-2"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-gray-700">
+                                {post.comments_count} {post.comments_count === 1 ? 'comment' : 'comments'}
+                              </span>
+                              <ChevronDown className="w-4 h-4 text-gray-500" />
+                            </div>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="pt-3">
+                            {/* Comment Input */}
+                            <div className="mb-4 space-y-2">
+                              <Textarea
+                                value={newComment[post.id] || ''}
+                                onChange={(e) => setNewComment(prev => ({ ...prev, [post.id]: e.target.value }))}
+                                placeholder="Add a comment..."
+                                rows={2}
+                                className="text-sm"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                              <div className="flex items-center justify-between">
+                                <label className="flex items-center gap-2 text-xs text-gray-600">
+                                  <input
+                                    type="checkbox"
+                                    checked={commentAnonymously[post.id] || false}
+                                    onChange={(e) => setCommentAnonymously(prev => ({ ...prev, [post.id]: e.target.checked }))}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="w-3 h-3"
+                                  />
+                                  Post anonymously
+                                </label>
+                                <Button
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    addComment(post.id);
+                                  }}
+                                  disabled={!newComment[post.id]?.trim()}
+                                  style={{ backgroundColor: getPostColor(post.id) }}
+                                >
+                                  Comment
+                                </Button>
+                              </div>
+                            </div>
+
+                            {/* Comments List */}
+                            <div className="space-y-4">
+                              {comments[post.id]?.map((comment) => (
+                                <div key={comment.id} className="space-y-2">
+                                  <div className="flex items-start gap-2">
+                                    <ProfileBubble
+                                      userName={comment.author?.name || 'Anonymous'}
+                                      size="sm"
+                                      borderColor={getPostColor(post.id)}
+                                      isAnonymous={comment.is_anonymous}
+                                      userId={comment.author_id}
+                                    />
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-sm font-semibold text-gray-900">
+                                          {comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Club')}
+                                        </span>
+                                        <span className="text-xs text-gray-500">{formatTimestamp(comment.created_at)}</span>
+                                        {comment.is_edited && (
+                                          <span className="text-xs text-gray-400 italic">(edited)</span>
+                                        )}
+                                      </div>
+                                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{comment.content}</p>
+                                      <div className="flex items-center gap-3 mt-2">
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            toggleCommentLike(post.id, comment.id);
+                                          }}
+                                          className={`flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900 ${
+                                            comment.isLiked ? 'text-red-500' : ''
+                                          }`}
+                                        >
+                                          <Heart className={`w-4 h-4 ${comment.isLiked ? 'fill-current' : ''}`} />
+                                          {comment.likes_count}
+                                        </button>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setReplyingTo(`${post.id}:${comment.id}`);
+                                            setReplyText(prev => ({ ...prev, [`${post.id}:${comment.id}`]: '' }));
+                                          }}
+                                          className="text-xs text-gray-600 hover:text-gray-900"
+                                        >
+                                          Reply
+                                        </button>
+                                      </div>
+
+                                      {/* Reply Input */}
+                                      {replyingTo === `${post.id}:${comment.id}` && (
+                                        <div className="mt-2 ml-4 space-y-2">
+                                          <Textarea
+                                            value={replyText[`${post.id}:${comment.id}`] || ''}
+                                            onChange={(e) => setReplyText(prev => ({ ...prev, [`${post.id}:${comment.id}`]: e.target.value }))}
+                                            placeholder="Write a reply..."
+                                            rows={2}
+                                            className="text-sm"
+                                            onClick={(e) => e.stopPropagation()}
+                                          />
+                                          <div className="flex items-center justify-between">
+                                            <label className="flex items-center gap-2 text-xs text-gray-600">
+                                              <input
+                                                type="checkbox"
+                                                checked={replyAnonymously[`${post.id}:${comment.id}`] || false}
+                                                onChange={(e) => setReplyAnonymously(prev => ({ ...prev, [`${post.id}:${comment.id}`]: e.target.checked }))}
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="w-3 h-3"
+                                              />
+                                              Post anonymously
+                                            </label>
+                                            <div className="flex gap-2">
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setReplyingTo(null);
+                                                }}
+                                              >
+                                                Cancel
+                                              </Button>
+                                              <Button
+                                                size="sm"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  addReply(post.id, comment.id);
+                                                }}
+                                                disabled={!replyText[`${post.id}:${comment.id}`]?.trim()}
+                                                style={{ backgroundColor: getPostColor(post.id) }}
+                                              >
+                                                Reply
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* Replies */}
+                                      {comment.replies && comment.replies.length > 0 && (
+                                        <div className="mt-2 ml-4 space-y-2">
+                                          {comment.replies.map((reply) => (
+                                            <div key={reply.id} className="flex items-start gap-2">
+                                              <ProfileBubble
+                                                userName={reply.author?.name || 'Anonymous'}
+                                                size="sm"
+                                                borderColor={getPostColor(post.id)}
+                                                isAnonymous={reply.is_anonymous}
+                                                userId={reply.author_id}
+                                              />
+                                              <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                  <span className="text-sm font-semibold text-gray-900">
+                                                    {reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Club')}
+                                                  </span>
+                                                  <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>
+                                                  {reply.is_edited && (
+                                                    <span className="text-xs text-gray-400 italic">(edited)</span>
+                                                  )}
+                                                </div>
+                                                <p className="text-sm text-gray-700 whitespace-pre-wrap">{reply.content}</p>
+                                                <div className="flex items-center gap-3 mt-2">
+                                                  <button
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      toggleCommentLike(post.id, reply.id);
+                                                    }}
+                                                    className={`flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900 ${
+                                                      reply.isLiked ? 'text-red-500' : ''
+                                                    }`}
+                                                  >
+                                                    <Heart className={`w-4 h-4 ${reply.isLiked ? 'fill-current' : ''}`} />
+                                                    {reply.likes_count}
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      )}
+                    </div>
+                  </Card>
+                ))}
               </div>
             )}
-          </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
+      <ConfirmationPopup
+        isOpen={confirmationPopup.isOpen}
+        title={confirmationPopup.title}
+        message={confirmationPopup.message}
+        position={confirmationPopup.position}
+        onConfirm={confirmationPopup.onConfirm}
+        onCancel={() => setConfirmationPopup(prev => ({ ...prev, isOpen: false }))}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
     </div>
   );
 }

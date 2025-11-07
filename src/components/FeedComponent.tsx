@@ -48,6 +48,7 @@ interface Post {
   };
   isLiked?: boolean;
   poll?: Poll;
+  isClubAccount?: boolean; // Flag to indicate if author is a club account (no profile page)
 }
 
 interface Comment {
@@ -68,6 +69,7 @@ interface Comment {
   };
   isLiked?: boolean;
   replies?: Comment[];
+  isClubAccount?: boolean; // Flag to indicate if author is a club account (no profile page)
 }
 
 // Course interface matching the structure from profiles.classes
@@ -784,10 +786,16 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       const courseIds = [...new Set((data || []).map((post: any) => post.course_id).filter(Boolean))];
       const postIds = (data || []).map((post: any) => post.id);
 
-      // Batch fetch all author profiles
+      // Batch fetch all author profiles (regular users)
       const { data: authors } = await supabase
         .from('profiles')
         .select('id, full_name, class_year')
+        .in('id', authorIds);
+
+      // Batch fetch all club accounts (for club posts)
+      const { data: clubAccounts } = await supabase
+        .from('club_accounts')
+        .select('id, name')
         .in('id', authorIds);
 
       // Batch fetch all course data from Courses table
@@ -819,6 +827,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
       // Create lookup maps for faster access
       const authorsMap = new Map(authors?.map((a: any) => [a.id, a]) || []);
+      const clubAccountsMap = new Map(clubAccounts?.map((ca: any) => [ca.id, ca]) || []);
       const coursesMap = new Map(courses?.map((c: any) => [c.id, c]) || []);
       const userLikesSet = new Set(userLikes?.map((l: any) => l.likeable_id) || []);
       
@@ -922,6 +931,10 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           }
         }
 
+        // Check if author is a club account or regular user
+        const clubAccount = clubAccountsMap.get(post.author_id);
+        const isClubAccount = !!clubAccount;
+
         return {
           id: post.id,
           title: post.title,
@@ -937,13 +950,19 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           comments_count: commentsCount,
           photo_url: post.photo_url || null,
           vid_link: post.vid_link || null,
-          author: author && (author as any).full_name ? {
-            name: post.is_anonymous ? `Anonymous User` : (author as any).full_name,
-            year: (author as any).class_year || ''
-          } : undefined,
+          author: isClubAccount 
+            ? (clubAccount && (clubAccount as any).name ? {
+                name: post.is_anonymous ? `Anonymous User` : (clubAccount as any).name,
+                year: '' // Club accounts don't have year
+              } : undefined)
+            : (author && (author as any).full_name ? {
+                name: post.is_anonymous ? `Anonymous User` : (author as any).full_name,
+                year: (author as any).class_year || ''
+              } : undefined),
           course: course && (course as any).course_name ? { name: (course as any).course_name } : undefined,
           isLiked: isLiked,
-          poll
+          poll,
+          isClubAccount // Store flag to disable profile clicks for club accounts
         };
       });
 
@@ -1022,10 +1041,16 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       const authorIds = [...new Set(data.map((comment: any) => comment.author_id))];
       const commentIds = data.map((comment: any) => comment.id);
 
-      // Batch fetch all author profiles
+      // Batch fetch all author profiles (regular users)
       const { data: authors } = await supabase
         .from('profiles')
         .select('id, full_name, class_year')
+        .in('id', authorIds);
+
+      // Batch fetch all club accounts (for club account comments)
+      const { data: clubAccounts } = await supabase
+        .from('club_accounts')
+        .select('id, name')
         .in('id', authorIds);
 
       // Batch fetch all user likes for comments
@@ -1045,6 +1070,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
       // Create lookup maps
       const authorsMap = new Map(authors?.map((a: any) => [a.id, a]) || []);
+      const clubAccountsMap = new Map(clubAccounts?.map((ca: any) => [ca.id, ca]) || []);
       const userLikesSet = new Set(userLikes?.map((l: any) => l.likeable_id) || []);
       
       // Count likes per comment
@@ -1065,12 +1091,16 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       // Transform top-level comments
       const transformedComments: Comment[] = topLevelComments.map((comment: any) => {
         const author = authorsMap.get(comment.author_id);
+        const clubAccount = clubAccountsMap.get(comment.author_id);
+        const isClubAccount = !!clubAccount;
         const isLiked = userLikesSet.has(comment.id);
         const likesCount = likesCountMap.get(comment.id) || 0;
 
         // Transform replies for this comment
         const commentReplies = (repliesMap.get(comment.id) || []).map((reply: any) => {
           const replyAuthor = authorsMap.get(reply.author_id);
+          const replyClubAccount = clubAccountsMap.get(reply.author_id);
+          const replyIsClubAccount = !!replyClubAccount;
           const replyIsLiked = userLikesSet.has(reply.id);
           const replyLikesCount = likesCountMap.get(reply.id) || 0;
 
@@ -1085,11 +1115,17 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             edited_at: reply.edited_at,
             is_edited: reply.is_edited,
             likes_count: replyLikesCount,
-            author: replyAuthor && (replyAuthor as any).full_name ? {
-              name: reply.is_anonymous ? `Anonymous User` : (replyAuthor as any).full_name,
-              year: (replyAuthor as any).class_year || ''
-            } : undefined,
-            isLiked: replyIsLiked
+            author: replyIsClubAccount
+              ? (replyClubAccount && (replyClubAccount as any).name ? {
+                  name: reply.is_anonymous ? `Anonymous User` : (replyClubAccount as any).name,
+                  year: '' // Club accounts don't have year
+                } : undefined)
+              : (replyAuthor && (replyAuthor as any).full_name ? {
+                  name: reply.is_anonymous ? `Anonymous User` : (replyAuthor as any).full_name,
+                  year: (replyAuthor as any).class_year || ''
+                } : undefined),
+            isLiked: replyIsLiked,
+            isClubAccount: replyIsClubAccount // Store flag to disable profile clicks for club accounts
           };
         });
 
@@ -1104,12 +1140,18 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           edited_at: comment.edited_at,
           is_edited: comment.is_edited,
           likes_count: likesCount,
-          author: author && (author as any).full_name ? {
-            name: comment.is_anonymous ? `Anonymous User` : (author as any).full_name,
-            year: (author as any).class_year || ''
-          } : undefined,
+            author: isClubAccount
+            ? (clubAccount && (clubAccount as any).name ? {
+                name: comment.is_anonymous ? `Anonymous User` : (clubAccount as any).name,
+                year: '' // Club accounts don't have year
+              } : undefined)
+            : (author && (author as any).full_name ? {
+                name: comment.is_anonymous ? `Anonymous User` : (author as any).full_name,
+                year: (author as any).class_year || ''
+              } : undefined),
           isLiked: isLiked,
-          replies: commentReplies
+          replies: commentReplies,
+          isClubAccount // Store flag to disable profile clicks for club accounts
         };
       });
 
@@ -2405,15 +2447,15 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                   borderColor={getPostColor(selectedPost.id)} 
                   isAnonymous={selectedPost.is_anonymous}
                   userId={selectedPost.author_id}
-                  onProfileClick={handleProfileClick}
+                  onProfileClick={selectedPost.isClubAccount ? undefined : handleProfileClick}
                 />
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <div 
-                      className={`${!selectedPost.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                      className={`${!selectedPost.is_anonymous && !selectedPost.isClubAccount ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
                         onClick={(e) => {
                           e.stopPropagation();
-                          !selectedPost.is_anonymous && handleProfileClick(selectedPost.author_id, selectedPost.author?.name || 'Anonymous');
+                          !selectedPost.is_anonymous && !selectedPost.isClubAccount && handleProfileClick(selectedPost.author_id, selectedPost.author?.name || 'Anonymous');
                         }}
                     >
                       <h4 className="font-semibold text-gray-900">{selectedPost.is_anonymous ? 'Anonymous' : (selectedPost.author?.name || 'Anonymous')}</h4>
@@ -2835,15 +2877,15 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       borderColor={getPostColor(selectedPost.id)} 
                       isAnonymous={comment.is_anonymous}
                       userId={comment.author_id}
-                      onProfileClick={handleProfileClick}
+                      onProfileClick={comment.isClubAccount ? undefined : handleProfileClick}
                     />
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <div 
-                          className={`${!comment.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                          className={`${!comment.is_anonymous && !comment.isClubAccount ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
                             onClick={(e) => {
                               e.stopPropagation();
-                              !comment.is_anonymous && handleProfileClick(comment.author_id, comment.author?.name || 'Anonymous');
+                              !comment.is_anonymous && !comment.isClubAccount && handleProfileClick(comment.author_id, comment.author?.name || 'Anonymous');
                             }}
                         >
                           <h5 className="font-medium text-gray-900 text-sm">{comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Anonymous')}</h5>
@@ -3019,15 +3061,15 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                     borderColor={getPostColor(selectedPost.id)} 
                                     isAnonymous={reply.is_anonymous}
                                     userId={reply.author_id}
-                                    onProfileClick={handleProfileClick}
+                                    onProfileClick={reply.isClubAccount ? undefined : handleProfileClick}
                                   />
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
                                   <div 
-                                    className={`${!reply.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                                    className={`${!reply.is_anonymous && !reply.isClubAccount ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      !reply.is_anonymous && handleProfileClick(reply.author_id, reply.author?.name || 'Anonymous');
+                                      !reply.is_anonymous && !reply.isClubAccount && handleProfileClick(reply.author_id, reply.author?.name || 'Anonymous');
                                     }}
                                   >
                                     <h6 className="font-medium text-gray-900 text-sm">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
@@ -3399,15 +3441,15 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                         borderColor={getPostColor(post.id)} 
                         isAnonymous={post.is_anonymous}
                         userId={post.author_id}
-                        onProfileClick={handleProfileClick}
+                        onProfileClick={post.isClubAccount ? undefined : handleProfileClick}
                       />
                       <div>
                         <div className="flex items-center gap-2">
                           <h4 
-                            className={`font-semibold text-gray-900 text-sm ${!post.is_anonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                            className={`font-semibold text-gray-900 text-sm ${!post.is_anonymous && !post.isClubAccount ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
                             onClick={(e) => {
                               e.stopPropagation();
-                              !post.is_anonymous && handleProfileClick(post.author_id, post.author?.name || 'Anonymous');
+                              !post.is_anonymous && !post.isClubAccount && handleProfileClick(post.author_id, post.author?.name || 'Anonymous');
                             }}
                           >
                             {post.is_anonymous ? 'Anonymous' : (post.author?.name || 'Anonymous')}

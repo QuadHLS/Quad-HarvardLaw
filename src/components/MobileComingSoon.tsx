@@ -21,7 +21,7 @@ export const MobileComingSoon: React.FC = () => {
         <img 
           src="/QUAD.svg" 
           alt="Quad Logo" 
-          className="w-auto h-32 object-contain"
+          className="w-auto h-25 object-contain"
         />
       </div>
       

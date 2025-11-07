@@ -17,11 +17,11 @@ export const MobileComingSoon: React.FC = () => {
       }}
     >
       {/* Logo at the top - moved down with margin */}
-      <div className="flex-shrink-0" style={{ marginTop: '100px', marginBottom: '32px' }}>
+      <div className="flex-shrink-0" style={{ paddingTop: '120px', paddingBottom: '32px' }}>
         <img 
           src="/QUAD.svg" 
           alt="Quad Logo" 
-          className="w-auto h-20 object-contain"
+          className="w-auto h-32 object-contain"
         />
       </div>
       

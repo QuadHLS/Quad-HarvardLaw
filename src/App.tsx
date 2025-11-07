@@ -20,6 +20,8 @@ import { OnboardingFlow } from './components/onboarding/OnboardingFlow';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { AuthCallback } from './components/auth/AuthCallback';
 import { ClubAccountPage } from './components/ClubAccountPage';
+import { MobileComingSoon } from './components/MobileComingSoon';
+import { isPhone } from './components/ui/use-mobile';
 import { supabase } from './lib/supabase';
 import type { Outline } from './types';
 
@@ -827,6 +829,11 @@ function AppContent({ user }: { user: any }) {
   // Show club account page if user is a club account
   if (user && isClubAccount) {
     return <ClubAccountPage />;
+  }
+
+  // Show mobile coming soon message if user is on a phone (after login)
+  if (user && isPhone()) {
+    return <MobileComingSoon />;
   }
 
   // Show loading spinner while checking onboarding status

@@ -1227,6 +1227,12 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
         dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
       />
       
+      {/* SEO: H1 and descriptive first paragraph for Google snippets */}
+      <div className="sr-only" style={{ position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', borderWidth: 0 }}>
+        <h1>Quad – Your All-in-One HLS Platform</h1>
+        <p>Quad is Harvard Law's go-to platform for course outlines, exam banks, social feeds, club chats, course reviews, and study planning. Connect with classmates, share resources, and ace your classes—all in one place!</p>
+      </div>
+      
       <div className="max-w-full mx-auto p-6 pb-0">
         <style>{`
           @media (min-width: 900px) {

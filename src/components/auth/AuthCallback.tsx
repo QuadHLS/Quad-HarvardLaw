@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Loader2 } from 'lucide-react';
 
 export const AuthCallback: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -77,10 +76,14 @@ export const AuthCallback: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="fixed inset-0 flex items-center justify-center z-50 fade-in-overlay" style={{ backgroundColor: '#faf3ef' }}>
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Completing sign in...</p>
+          <img
+            src="/QUAD.svg"
+            alt="Quad Logo"
+            className="w-24 h-24 mx-auto"
+          />
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-700 mx-auto mt-4"></div>
         </div>
       </div>
     );

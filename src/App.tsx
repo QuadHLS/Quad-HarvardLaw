@@ -839,10 +839,14 @@ function AppContent({ user }: { user: any }) {
   // Show loading spinner while checking onboarding status
   if (hasCompletedOnboarding === null && user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="fixed inset-0 flex items-center justify-center z-50 fade-in-overlay" style={{ backgroundColor: '#faf3ef' }}>
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-700 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <img
+            src="/QUAD.svg"
+            alt="Quad Logo"
+            className="w-24 h-24 mx-auto"
+          />
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-700 mx-auto mt-4"></div>
         </div>
       </div>
     );

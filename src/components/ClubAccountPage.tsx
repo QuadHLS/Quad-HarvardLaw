@@ -11,13 +11,12 @@ import { Card } from './ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from './ui/dialog';
 import { 
   Upload, Mail, Calendar, Clock, MapPin, Plus, Trash2, Edit2, X, Check, 
-  Users, Search, User, MessageSquare, Target, ExternalLink, Globe, LogOut, Heart, MessageCircle, ChevronDown, ArrowLeft
+  Users, Search, User, Target, ExternalLink, Globe, LogOut, Heart, MessageCircle, ArrowLeft
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getStorageUrl, extractFilename } from '../utils/storage';
 import { ExpandableText } from './ui/expandable-text';
 import { ConfirmationPopup } from './ui/confirmation-popup';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 
 // Types
 export interface Event {
@@ -1899,7 +1898,7 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
 }
 
 // ClubFeedPost Component
-function ClubFeedPost({ formData }: { formData: ClubFormData; updateFormData?: (field: keyof ClubFormData, value: any) => void }) {
+function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateFormData?: (field: keyof ClubFormData, value: any) => void }) {
   const [newPost, setNewPost] = useState('');
   const [newPostTitle, setNewPostTitle] = useState('');
   const [newPostType, setNewPostType] = useState<'text' | 'poll' | 'youtube'>('text');
@@ -1984,12 +1983,12 @@ function ClubFeedPost({ formData }: { formData: ClubFormData; updateFormData?: (
     return date.toLocaleDateString();
   }, []);
 
-  const getPostColor = useCallback((postId: string) => {
+  const getPostColor = useCallback((_postId: string) => {
     // All club posts use the maroon color
     return '#752432';
   }, []);
 
-  const getPostHoverColor = useCallback((postId: string) => {
+  const getPostHoverColor = useCallback((_postId: string) => {
     // Hover color for club posts
     return 'rgba(117, 36, 50, 0.05)';
   }, []);
@@ -2559,61 +2558,6 @@ function ClubFeedPost({ formData }: { formData: ClubFormData; updateFormData?: (
     }
   };
 
-  const deletePost = async (id: string) => {
-    try {
-      // First, get the post to check if it has a photo
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error('User not authenticated');
-        return;
-      }
-
-      const { data: postData } = await supabase
-        .from('posts')
-        .select('photo_url')
-        .eq('id', id)
-        .eq('author_id', user.id)
-        .single();
-
-      // Delete photo from post_picture bucket if it exists
-      if (postData?.photo_url) {
-        try {
-          const { error: photoError } = await supabase.storage
-            .from('post_picture')
-            .remove([postData.photo_url]);
-
-          if (photoError) {
-            console.error('Error deleting post photo from storage:', photoError);
-            // Continue with post deletion even if photo deletion fails
-          }
-        } catch (photoError) {
-          console.error('Error deleting post photo from storage:', photoError);
-          // Continue with post deletion even if photo deletion fails
-        }
-      }
-
-      // Then delete the post from the database
-      const { error } = await supabase
-        .from('posts')
-        .delete()
-        .eq('id', id)
-        .eq('author_id', user.id);
-
-      if (error) {
-        console.error('Error deleting post:', error);
-        toast.error('Error deleting post');
-        return;
-      }
-
-      // Refresh posts
-      await fetchPosts();
-    toast.success('Post deleted');
-    } catch (error) {
-      console.error('Error deleting post:', error);
-      toast.error('Error deleting post');
-    }
-  };
-
   const handleLike = async (postId: string) => {
     if (likingPosts.has(postId)) return;
     
@@ -2744,6 +2688,13 @@ function ClubFeedPost({ formData }: { formData: ClubFormData; updateFormData?: (
           
           await fetchPosts();
           setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
+          
+          // If we're in thread view and the deleted post is the selected one, go back to feed
+          if (selectedPostThread === postId) {
+            setSelectedPostThread(null);
+            setHoveredPostId(null);
+            setReplyingTo(null);
+          }
         } catch (error) {
           console.error('Error deleting post:', error);
           setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
@@ -2802,7 +2753,15 @@ function ClubFeedPost({ formData }: { formData: ClubFormData; updateFormData?: (
     try {
       setLoadingComments(prev => new Set(prev).add(postId));
       const clubAccountId = await getClubAccountId();
-      if (!clubAccountId) return;
+      if (!clubAccountId) {
+        setComments(prev => ({ ...prev, [postId]: [] }));
+        setLoadingComments(prev => {
+          const next = new Set(prev);
+          next.delete(postId);
+          return next;
+        });
+        return;
+      }
 
       const { data: commentsData, error } = await supabase
         .from('comments')
@@ -2813,11 +2772,22 @@ function ClubFeedPost({ formData }: { formData: ClubFormData; updateFormData?: (
 
       if (error) {
         console.error('Error fetching comments:', error);
+        setComments(prev => ({ ...prev, [postId]: [] }));
+        setLoadingComments(prev => {
+          const next = new Set(prev);
+          next.delete(postId);
+          return next;
+        });
         return;
       }
 
       if (!commentsData || commentsData.length === 0) {
         setComments(prev => ({ ...prev, [postId]: [] }));
+        setLoadingComments(prev => {
+          const next = new Set(prev);
+          next.delete(postId);
+          return next;
+        });
         return;
       }
 
@@ -3029,6 +2999,26 @@ function ClubFeedPost({ formData }: { formData: ClubFormData; updateFormData?: (
     fetchComments(postId);
   };
 
+  // Load comments when thread view opens
+  useEffect(() => {
+    if (selectedPostThread && !comments[selectedPostThread]) {
+      setLoadingComments(prev => new Set(prev).add(selectedPostThread));
+      fetchComments(selectedPostThread).then(() => {
+        setLoadingComments(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(selectedPostThread);
+          return newSet;
+        });
+      }).catch(() => {
+        setLoadingComments(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(selectedPostThread);
+          return newSet;
+        });
+      });
+    }
+  }, [selectedPostThread]);
+
   const handleBackToFeed = () => {
     setSelectedPostThread(null);
     setHoveredPostId(null);
@@ -3052,11 +3042,12 @@ function ClubFeedPost({ formData }: { formData: ClubFormData; updateFormData?: (
 
     return (
       <>
-      <div className="w-full h-full overflow-y-auto scrollbar-hide" style={{ 
+      <div className="w-full h-full overflow-y-auto scrollbar-hide flex justify-center" style={{ 
         scrollbarWidth: 'none',
-        msOverflowStyle: 'none'
+        msOverflowStyle: 'none',
+        paddingBottom: '30px'
       }}>
-        <div className="p-6" style={{ paddingBottom: '80px' }}>
+        <div className="w-full max-w-4xl p-6">
           <div className="mb-4">
             <Button
               variant="ghost"
@@ -3205,7 +3196,7 @@ function ClubFeedPost({ formData }: { formData: ClubFormData; updateFormData?: (
                       objectFit: 'contain',
                       display: 'block'
                     }}
-                    onError={(e) => {
+                    onError={(_e) => {
                       // If signed URL expires, regenerate it
                       if (selectedPost.photo_url) {
                         getStorageUrl(selectedPost.photo_url, 'post_picture').then(url => {
@@ -3436,7 +3427,7 @@ function ClubFeedPost({ formData }: { formData: ClubFormData; updateFormData?: (
                       placeholder="Write a comment..."
                       value={newComment[selectedPost.id] || ''}
                       onChange={(e) => setNewComment(prev => ({ ...prev, [selectedPost.id]: e.target.value }))}
-                      className="min-h-[60px] text-sm resize-none"
+                      className="min-h-[60px] text-sm resize-none bg-white border border-gray-300 shadow-sm"
                     />
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center gap-2">
@@ -3521,7 +3512,9 @@ function ClubFeedPost({ formData }: { formData: ClubFormData; updateFormData?: (
                         >
                           <h5 className="font-medium text-gray-900 text-sm">{comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Anonymous')}</h5>
                         </div>
-                        {!comment.is_anonymous && <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>}
+                        {!comment.is_anonymous && !comment.isClubAccount && comment.author?.year && (
+                          <span className="text-xs text-gray-500">{comment.author.year}</span>
+                        )}
                         <span className="text-xs text-gray-500">•</span>
                         {/* verified badge removed */}
                         <span className="text-xs text-gray-500">{formatTimestamp(comment.created_at)}</span>
@@ -3535,7 +3528,7 @@ function ClubFeedPost({ formData }: { formData: ClubFormData; updateFormData?: (
                             value={editCommentContent}
                             onChange={(e) => setEditCommentContent(e.target.value)}
                             onClick={(e) => e.stopPropagation()}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-20 resize-none text-sm"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-20 resize-none text-sm bg-white shadow-sm"
                             placeholder="Comment content..."
                           />
                           <div className="flex gap-2">
@@ -3702,9 +3695,11 @@ function ClubFeedPost({ formData }: { formData: ClubFormData; updateFormData?: (
                                   >
                                     <h6 className="font-medium text-gray-900 text-sm">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
                                   </div>
-                                  {!reply.is_anonymous && <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>}
-                                  {/* verified badge removed */}
+                                  {!reply.is_anonymous && !reply.isClubAccount && reply.author?.year && (
+                                    <span className="text-xs text-gray-500">{reply.author.year}</span>
+                                  )}
                                   <span className="text-xs text-gray-500">•</span>
+                                  {/* verified badge removed */}
                                   <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>
                                   {reply.is_edited && (
                                     <span className="text-xs text-gray-400 italic">(edited)</span>
@@ -3716,7 +3711,7 @@ function ClubFeedPost({ formData }: { formData: ClubFormData; updateFormData?: (
                                       value={editCommentContent}
                                       onChange={(e) => setEditCommentContent(e.target.value)}
                                       onClick={(e) => e.stopPropagation()}
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-16 resize-none text-xs"
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-16 resize-none text-xs bg-white shadow-sm"
                                       placeholder="Reply content..."
                                     />
                                     <div className="flex gap-2">
@@ -3855,7 +3850,7 @@ function ClubFeedPost({ formData }: { formData: ClubFormData; updateFormData?: (
                             value={replyText[`${selectedPost.id}:${comment.id}`] || ''}
                             onChange={(e) => setReplyText(prev => ({ ...prev, [`${selectedPost.id}:${comment.id}`]: e.target.value }))}
                             placeholder="Write a reply..."
-                            className="min-h-[40px] text-xs"
+                            className="min-h-[40px] text-xs bg-white border border-gray-300 shadow-sm"
                           />
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -3912,8 +3907,19 @@ function ClubFeedPost({ formData }: { formData: ClubFormData; updateFormData?: (
               ))}
             </div>
           )}
+          <div style={{ height: '30px' }}></div>
         </div>
       </div>
+      <ConfirmationPopup
+        isOpen={confirmationPopup.isOpen}
+        title={confirmationPopup.title}
+        message={confirmationPopup.message}
+        position={confirmationPopup.position}
+        onConfirm={confirmationPopup.onConfirm}
+        onCancel={() => setConfirmationPopup(prev => ({ ...prev, isOpen: false }))}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
       </>
     );
   };
@@ -4111,14 +4117,17 @@ function ClubFeedPost({ formData }: { formData: ClubFormData; updateFormData?: (
   }
 
   return (
-    <div className="h-full flex flex-col overflow-hidden" style={{ minHeight: 0 }}>
+    <div className="h-full flex flex-col overflow-hidden pb-4" style={{ minHeight: 0 }}>
       <div className="flex-shrink-0 mb-3">
         <h2 className="text-gray-900 mb-1 text-lg">Club Feed</h2>
-        <p className="text-gray-600 text-sm">Create posts to share with your community</p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <p className="text-gray-600 text-sm">Create posts to share with your community</p>
+          <h3 className="text-gray-900 text-sm">Your Posts ({posts.length})</h3>
+        </div>
       </div>
 
       {/* Split Layout: Create Post (Left) and Your Posts (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 flex-1 overflow-hidden" style={{ minHeight: 0 }}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 flex-1 overflow-hidden mb-4" style={{ minHeight: 0 }}>
         {/* Left: Create Post Form - Matching Home Page Feed */}
         <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col overflow-hidden">
         <div className="space-y-3 flex-1 overflow-y-auto" style={{ marginTop: 0 }}>
@@ -4418,12 +4427,11 @@ function ClubFeedPost({ formData }: { formData: ClubFormData; updateFormData?: (
         </div>
 
         {/* Right: Your Posts */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col overflow-hidden" style={{ minHeight: 0 }}>
-          {/* Feed View */}
-          <>
-            <h3 className="text-gray-900 mb-3 flex-shrink-0" style={{ marginTop: 0 }}>Your Posts ({posts.length})</h3>
-            
-            <div className="flex-1 overflow-y-auto" style={{ minHeight: 0 }}>
+        <div className="flex flex-col overflow-hidden" style={{ minHeight: 0 }}>
+          <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col overflow-hidden flex-1" style={{ minHeight: 0 }}>
+            {/* Feed View */}
+            <>
+            <div className="flex-1 overflow-y-auto" style={{ minHeight: 0, paddingBottom: '30px' }}>
               {loading ? (
                 <div className="flex items-center justify-center h-full">
                   <p className="text-gray-600">Loading posts...</p>
@@ -4572,7 +4580,7 @@ function ClubFeedPost({ formData }: { formData: ClubFormData; updateFormData?: (
                               height: 'auto',
                               objectFit: 'contain'
                             }}
-                            onError={(e) => {
+                            onError={(_e) => {
                               if (post.photo_url) {
                                 getStorageUrl(post.photo_url, 'post_picture').then(url => {
                                   if (url) {
@@ -4734,18 +4742,10 @@ function ClubFeedPost({ formData }: { formData: ClubFormData; updateFormData?: (
                             <Heart className={`w-5 h-5 ${post.isLiked ? 'fill-current' : ''}`} />
                             {post.likes_count}
                           </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (!comments[post.id]) {
-                                fetchComments(post.id);
-                              }
-                            }}
-                            className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 transition-colors px-3 py-2 rounded-md hover:bg-gray-100"
-                          >
+                          <span className="flex items-center gap-1.5 text-xs font-medium text-gray-600">
                             <MessageCircle className="w-5 h-5" />
                             {post.comments_count}
-                          </button>
+                          </span>
                           
                           {/* Edit/Delete buttons for post author */}
                           {post.author_id === user?.id && (
@@ -4808,216 +4808,15 @@ function ClubFeedPost({ formData }: { formData: ClubFormData; updateFormData?: (
                           )}
                         </div>
                       </div>
-
-                      {/* Comments Section */}
-                      {comments[post.id] !== undefined && (
-                        <Collapsible>
-                          <CollapsibleTrigger
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (!comments[post.id] || comments[post.id].length === 0) {
-                                fetchComments(post.id);
-                              }
-                            }}
-                            className="w-full text-left pt-3 border-t border-gray-200 mt-2"
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-gray-700">
-                                {post.comments_count} {post.comments_count === 1 ? 'comment' : 'comments'}
-                              </span>
-                              <ChevronDown className="w-4 h-4 text-gray-500" />
-                            </div>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent className="pt-3">
-                            {/* Comment Input */}
-                            <div className="mb-4 space-y-2">
-                              <Textarea
-                                value={newComment[post.id] || ''}
-                                onChange={(e) => setNewComment(prev => ({ ...prev, [post.id]: e.target.value }))}
-                                placeholder="Add a comment..."
-                                rows={2}
-                                className="text-sm"
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                              <div className="flex items-center justify-between">
-                                <label className="flex items-center gap-2 text-xs text-gray-600">
-                                  <input
-                                    type="checkbox"
-                                    checked={commentAnonymously[post.id] || false}
-                                    onChange={(e) => setCommentAnonymously(prev => ({ ...prev, [post.id]: e.target.checked }))}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="w-3 h-3"
-                                  />
-                                  Post anonymously
-                                </label>
-                  <Button 
-                    size="sm" 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    addComment(post.id);
-                                  }}
-                                  disabled={!newComment[post.id]?.trim()}
-                                  style={{ backgroundColor: getPostColor(post.id) }}
-                                >
-                                  Comment
-                  </Button>
-                              </div>
-                </div>
-
-                            {/* Comments List */}
-                            <div className="space-y-4">
-                              {comments[post.id]?.map((comment) => (
-                                <div key={comment.id} className="space-y-2">
-                                  <div className="flex items-start gap-2">
-                                    <ProfileBubble
-                                      userName={comment.author?.name || 'Anonymous'}
-                                      size="sm"
-                                      borderColor={getPostColor(post.id)}
-                                      isAnonymous={comment.is_anonymous}
-                                      userId={comment.author_id}
-                                    />
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <span className="text-sm font-semibold text-gray-900">
-                                          {comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Club')}
-                                        </span>
-                                        <span className="text-xs text-gray-500">{formatTimestamp(comment.created_at)}</span>
-                                        {comment.is_edited && (
-                                          <span className="text-xs text-gray-400 italic">(edited)</span>
-                                        )}
-                                      </div>
-                                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{comment.content}</p>
-                                      <div className="flex items-center gap-3 mt-2">
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            toggleCommentLike(post.id, comment.id);
-                                          }}
-                                          className={`flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900 ${
-                                            comment.isLiked ? 'text-red-500' : ''
-                                          }`}
-                                        >
-                                          <Heart className={`w-4 h-4 ${comment.isLiked ? 'fill-current' : ''}`} />
-                                          {comment.likes_count}
-                  </button>
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setReplyingTo(`${post.id}:${comment.id}`);
-                                            setReplyText(prev => ({ ...prev, [`${post.id}:${comment.id}`]: '' }));
-                                          }}
-                                          className="text-xs text-gray-600 hover:text-gray-900"
-                                        >
-                                          Reply
-                  </button>
-                                      </div>
-
-                                      {/* Reply Input */}
-                                      {replyingTo === `${post.id}:${comment.id}` && (
-                                        <div className="mt-2 ml-4 space-y-2">
-                                          <Textarea
-                                            value={replyText[`${post.id}:${comment.id}`] || ''}
-                                            onChange={(e) => setReplyText(prev => ({ ...prev, [`${post.id}:${comment.id}`]: e.target.value }))}
-                                            placeholder="Write a reply..."
-                                            rows={2}
-                                            className="text-sm"
-                                            onClick={(e) => e.stopPropagation()}
-                                          />
-                                          <div className="flex items-center justify-between">
-                                            <label className="flex items-center gap-2 text-xs text-gray-600">
-                                              <input
-                                                type="checkbox"
-                                                checked={replyAnonymously[`${post.id}:${comment.id}`] || false}
-                                                onChange={(e) => setReplyAnonymously(prev => ({ ...prev, [`${post.id}:${comment.id}`]: e.target.checked }))}
-                                                onClick={(e) => e.stopPropagation()}
-                                                className="w-3 h-3"
-                                              />
-                                              Post anonymously
-                                            </label>
-                                            <div className="flex gap-2">
-                                              <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  setReplyingTo(null);
-                                                }}
-                                              >
-                                                Cancel
-                                              </Button>
-                                              <Button
-                                                size="sm"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  addReply(post.id, comment.id);
-                                                }}
-                                                disabled={!replyText[`${post.id}:${comment.id}`]?.trim()}
-                                                style={{ backgroundColor: getPostColor(post.id) }}
-                                              >
-                                                Reply
-                                              </Button>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      )}
-
-                                      {/* Replies */}
-                                      {comment.replies && comment.replies.length > 0 && (
-                                        <div className="mt-2 ml-4 space-y-2">
-                                          {comment.replies.map((reply) => (
-                                            <div key={reply.id} className="flex items-start gap-2">
-                                              <ProfileBubble
-                                                userName={reply.author?.name || 'Anonymous'}
-                                                size="sm"
-                                                borderColor={getPostColor(post.id)}
-                                                isAnonymous={reply.is_anonymous}
-                                                userId={reply.author_id}
-                                              />
-                                              <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                  <span className="text-sm font-semibold text-gray-900">
-                                                    {reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Club')}
-                                                  </span>
-                                                  <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>
-                                                  {reply.is_edited && (
-                                                    <span className="text-xs text-gray-400 italic">(edited)</span>
-                                                  )}
-                                                </div>
-                                                <p className="text-sm text-gray-700 whitespace-pre-wrap">{reply.content}</p>
-                                                <div className="flex items-center gap-3 mt-2">
-                                                  <button
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      toggleCommentLike(post.id, reply.id);
-                                                    }}
-                                                    className={`flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900 ${
-                                                      reply.isLiked ? 'text-red-500' : ''
-                                                    }`}
-                                                  >
-                                                    <Heart className={`w-4 h-4 ${reply.isLiked ? 'fill-current' : ''}`} />
-                                                    {reply.likes_count}
-                  </button>
-                                                </div>
-                                              </div>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </CollapsibleContent>
-                        </Collapsible>
-                      )}
                 </div>
               </Card>
               ))}
+              <div style={{ height: '30px' }}></div>
               </div>
             )}
           </div>
           </>
+          </div>
         </div>
       </div>
       <ConfirmationPopup
@@ -5410,7 +5209,7 @@ export const ClubAccountPage: React.FC = () => {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col overflow-hidden">
-            <div className="flex justify-center mb-4">
+            <div className="flex justify-center mb-2">
               <TabsList className="grid grid-cols-4 h-auto flex-shrink-0 shadow-sm" style={{ minHeight: '36px', backgroundColor: '#fefbf6', width: '750px' }}>
               <TabsTrigger value="basic" className="text-xs h-full flex items-center justify-center py-1">Basic Info</TabsTrigger>
               <TabsTrigger value="events" className="text-xs h-full flex items-center justify-center py-1">Events</TabsTrigger>

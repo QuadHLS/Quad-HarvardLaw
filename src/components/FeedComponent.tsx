@@ -2910,7 +2910,9 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                         >
                           <h5 className="font-medium text-gray-900 text-sm">{comment.isClubAccount ? (comment.author?.name || 'Club') : (comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Anonymous'))}</h5>
                         </div>
-                        {!comment.is_anonymous && <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>}
+                        {!comment.is_anonymous && !comment.isClubAccount && comment.author?.year && (
+                          <span className="text-xs text-gray-500">{comment.author.year}</span>
+                        )}
                         <span className="text-xs text-gray-500">•</span>
                         {/* verified badge removed */}
                         <span className="text-xs text-gray-500">{formatTimestamp(comment.created_at)}</span>
@@ -3094,9 +3096,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                   >
                                     <h6 className="font-medium text-gray-900 text-sm">{reply.isClubAccount ? (reply.author?.name || 'Club') : (reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous'))}</h6>
                                   </div>
-                                  {!reply.is_anonymous && <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>}
-                                  {/* verified badge removed */}
+                                  {!reply.is_anonymous && !reply.isClubAccount && reply.author?.year && (
+                                    <span className="text-xs text-gray-500">{reply.author.year}</span>
+                                  )}
                                   <span className="text-xs text-gray-500">•</span>
+                                  {/* verified badge removed */}
                                   <span className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</span>
                                   {reply.is_edited && (
                                     <span className="text-xs text-gray-400 italic">(edited)</span>

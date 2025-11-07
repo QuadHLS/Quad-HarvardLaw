@@ -1198,6 +1198,7 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
     "url": "https://www.quadhls.com/",
     "name": "Quad",
     "alternateName": ["Quad HLS", "Quad for Harvard Law"],
+    "description": "Harvard Law's all-in-one platform for course outlines, exam banks, social feeds, club chats, course reviews, and study planning.",
     "potentialAction": {
       "@type": "SearchAction",
       "target": "https://www.quadhls.com/search?q={search_term_string}",
@@ -1210,7 +1211,8 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
     "@type": "Organization",
     "name": "Quad",
     "url": "https://www.quadhls.com/",
-    "logo": "https://www.quadhls.com/QUAD.svg"
+    "logo": "https://www.quadhls.com/QUAD.svg",
+    "description": "Harvard Law's go-to platform connecting students with course outlines, exam banks, social feeds, club chats, course reviews, and study planning tools."
   };
 
   return (

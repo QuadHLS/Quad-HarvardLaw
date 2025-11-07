@@ -940,8 +940,9 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         }
 
         // Check if author is a club account or regular user
+        // A post is a club post if: 1) author_id is found in club_accounts, OR 2) course_id is null (club posts don't have course_id)
         const clubAccount = clubAccountsMap.get(post.author_id);
-        const isClubAccount = !!clubAccount;
+        const isClubAccount = !!clubAccount || (!post.course_id && !author); // If no course_id and no regular author found, likely a club post
 
         return {
           id: post.id,
@@ -959,10 +960,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           photo_url: post.photo_url || null,
           vid_link: post.vid_link || null,
           author: isClubAccount 
-            ? (clubAccount && (clubAccount as any).name ? {
-                name: post.is_anonymous ? `Anonymous User` : (clubAccount as any).name,
+            ? {
+                // Club posts should never be anonymous, always show club name
+                name: (clubAccount && (clubAccount as any).name) ? (clubAccount as any).name : 'Club',
                 year: '' // Club accounts don't have year
-              } : undefined)
+              }
             : (author && (author as any).full_name ? {
                 name: post.is_anonymous ? `Anonymous User` : (author as any).full_name,
                 year: (author as any).class_year || ''
@@ -1124,10 +1126,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             is_edited: reply.is_edited,
             likes_count: replyLikesCount,
             author: replyIsClubAccount
-              ? (replyClubAccount && (replyClubAccount as any).name ? {
-                  name: reply.is_anonymous ? `Anonymous User` : (replyClubAccount as any).name,
+              ? {
+                  // Club replies should never be anonymous, always show club name
+                  name: (replyClubAccount && (replyClubAccount as any).name) ? (replyClubAccount as any).name : 'Club',
                   year: '' // Club accounts don't have year
-                } : undefined)
+                }
               : (replyAuthor && (replyAuthor as any).full_name ? {
                   name: reply.is_anonymous ? `Anonymous User` : (replyAuthor as any).full_name,
                   year: (replyAuthor as any).class_year || ''
@@ -1149,10 +1152,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           is_edited: comment.is_edited,
           likes_count: likesCount,
             author: isClubAccount
-            ? (clubAccount && (clubAccount as any).name ? {
-                name: comment.is_anonymous ? `Anonymous User` : (clubAccount as any).name,
+            ? {
+                // Club comments should never be anonymous, always show club name
+                name: (clubAccount && (clubAccount as any).name) ? (clubAccount as any).name : 'Club',
                 year: '' // Club accounts don't have year
-              } : undefined)
+              }
             : (author && (author as any).full_name ? {
                 name: comment.is_anonymous ? `Anonymous User` : (author as any).full_name,
                 year: (author as any).class_year || ''
@@ -2450,9 +2454,9 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             <div className="p-6">
               <div className="flex items-start gap-3 mb-4">
                 <ProfileBubble 
-                  userName={selectedPost.author?.name || 'Anonymous'} 
+                  userName={selectedPost.author?.name || (selectedPost.isClubAccount ? 'Club' : 'Anonymous')} 
                   size="lg" 
-                  borderColor={getPostColor(selectedPost.id, selectedPost.isClubAccount)} 
+                  borderColor={getPostColor(selectedPost.id, selectedPost.isClubAccount)}
                   isAnonymous={selectedPost.is_anonymous}
                   userId={selectedPost.author_id}
                   onProfileClick={selectedPost.isClubAccount ? undefined : handleProfileClick}
@@ -2466,7 +2470,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                           !selectedPost.is_anonymous && !selectedPost.isClubAccount && handleProfileClick(selectedPost.author_id, selectedPost.author?.name || 'Anonymous');
                         }}
                     >
-                      <h4 className="font-semibold text-gray-900">{selectedPost.is_anonymous ? 'Anonymous' : (selectedPost.author?.name || 'Anonymous')}</h4>
+                      <h4 className="font-semibold text-gray-900">{selectedPost.isClubAccount ? (selectedPost.author?.name || 'Club') : (selectedPost.is_anonymous ? 'Anonymous' : (selectedPost.author?.name || 'Anonymous'))}</h4>
                     </div>
                     {!selectedPost.is_anonymous && selectedPost.isClubAccount && (
                       <span 
@@ -2888,7 +2892,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
               <div key={comment.id} className="mb-4 ml-8">
                   <div className="flex items-start gap-3">
                     <ProfileBubble 
-                      userName={comment.author?.name || 'Anonymous'} 
+                      userName={comment.author?.name || (comment.isClubAccount ? 'Club' : 'Anonymous')} 
                       size="md" 
                       borderColor={getPostColor(selectedPost.id, selectedPost.isClubAccount)} 
                       isAnonymous={comment.is_anonymous}
@@ -2904,7 +2908,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                               !comment.is_anonymous && !comment.isClubAccount && handleProfileClick(comment.author_id, comment.author?.name || 'Anonymous');
                             }}
                         >
-                          <h5 className="font-medium text-gray-900 text-sm">{comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Anonymous')}</h5>
+                          <h5 className="font-medium text-gray-900 text-sm">{comment.isClubAccount ? (comment.author?.name || 'Club') : (comment.is_anonymous ? 'Anonymous' : (comment.author?.name || 'Anonymous'))}</h5>
                         </div>
                         {!comment.is_anonymous && <span className="text-xs text-gray-500">{comment.author?.year || ''}</span>}
                         <span className="text-xs text-gray-500">•</span>
@@ -3072,7 +3076,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                           {comment.replies.map((reply) => (
                             <div key={reply.id} className="flex items-start gap-2">
                                   <ProfileBubble 
-                                    userName={reply.author?.name || 'Anonymous'} 
+                                    userName={reply.author?.name || (reply.isClubAccount ? 'Club' : 'Anonymous')} 
                                     size="sm" 
                                     borderColor={getPostColor(selectedPost.id, selectedPost.isClubAccount)} 
                                     isAnonymous={reply.is_anonymous}
@@ -3088,7 +3092,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                       !reply.is_anonymous && !reply.isClubAccount && handleProfileClick(reply.author_id, reply.author?.name || 'Anonymous');
                                     }}
                                   >
-                                    <h6 className="font-medium text-gray-900 text-sm">{reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous')}</h6>
+                                    <h6 className="font-medium text-gray-900 text-sm">{reply.isClubAccount ? (reply.author?.name || 'Club') : (reply.is_anonymous ? 'Anonymous' : (reply.author?.name || 'Anonymous'))}</h6>
                                   </div>
                                   {!reply.is_anonymous && <span className="text-xs text-gray-500">{reply.author?.year || ''}</span>}
                                   {/* verified badge removed */}
@@ -3452,9 +3456,9 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
                       <ProfileBubble 
-                        userName={post.author?.name || 'Anonymous'} 
+                        userName={post.author?.name || (post.isClubAccount ? 'Club' : 'Anonymous')} 
                         size="md" 
-                        borderColor={getPostColor(post.id, post.isClubAccount)} 
+                        borderColor={getPostColor(post.id, post.isClubAccount)}
                         isAnonymous={post.is_anonymous}
                         userId={post.author_id}
                         onProfileClick={post.isClubAccount ? undefined : handleProfileClick}
@@ -3468,7 +3472,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                               !post.is_anonymous && !post.isClubAccount && handleProfileClick(post.author_id, post.author?.name || 'Anonymous');
                             }}
                           >
-                            {post.is_anonymous ? 'Anonymous' : (post.author?.name || 'Anonymous')}
+                            {post.isClubAccount ? (post.author?.name || 'Club') : (post.is_anonymous ? 'Anonymous' : (post.author?.name || 'Anonymous'))}
                           </h4>
                           {!post.is_anonymous && post.isClubAccount && (
                             <span 

@@ -1191,8 +1191,40 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
     );
   }
 
+  // JSON-LD structured data for SEO
+  const siteJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "url": "https://www.quadhls.com/",
+    "name": "Quad",
+    "alternateName": ["Quad HLS", "Quad for Harvard Law"],
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://www.quadhls.com/search?q={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }
+  };
+
+  const orgJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Quad",
+    "url": "https://www.quadhls.com/",
+    "logo": "https://www.quadhls.com/QUAD.svg"
+  };
+
   return (
     <div className="h-full overflow-hidden" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
+      {/* JSON-LD Structured Data for SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(siteJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
+      />
+      
       <div className="max-w-full mx-auto p-6 pb-0">
         <style>{`
           @media (min-width: 900px) {

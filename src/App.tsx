@@ -826,14 +826,14 @@ function AppContent({ user }: { user: any }) {
     return <AuthPage />;
   }
 
+  // Show mobile coming soon message if user is on a phone (after login) - applies to all users including club accounts
+  if (user && isPhone()) {
+    return <MobileComingSoon />;
+  }
+
   // Show club account page if user is a club account
   if (user && isClubAccount) {
     return <ClubAccountPage />;
-  }
-
-  // Show mobile coming soon message if user is on a phone (after login)
-  if (user && isPhone()) {
-    return <MobileComingSoon />;
   }
 
   // Show loading spinner while checking onboarding status

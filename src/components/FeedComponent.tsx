@@ -694,7 +694,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   }, []);
 
   // Helper functions - memoized for performance
-  const getPostColor = useCallback((postId: string) => {
+  const getPostColor = useCallback((postId: string, isClubAccount?: boolean) => {
+    // Club posts always use maroon color
+    if (isClubAccount) {
+      return '#752432';
+    }
     const colors = ['#0080BD', '#04913A', '#F22F21', '#FFBB06']; // Blue, Green, Red, Yellow
     // Use postId to generate a consistent but random color
     let hash = 0;
@@ -704,7 +708,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     return colors[Math.abs(hash) % 4];
   }, []);
 
-  const getPostHoverColor = useCallback((postId: string) => {
+  const getPostHoverColor = useCallback((postId: string, isClubAccount?: boolean) => {
+    // Club posts always use maroon hover color
+    if (isClubAccount) {
+      return 'rgba(117, 36, 50, 0.05)';
+    }
     const hoverColors = ['rgba(0, 128, 189, 0.05)', 'rgba(4, 145, 58, 0.05)', 'rgba(242, 47, 33, 0.05)', 'rgba(255, 187, 6, 0.05)'];
     // Use postId to generate a consistent but random color
     let hash = 0;
@@ -2432,8 +2440,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             className="mb-6 border-l-4 cursor-pointer" 
             style={{ 
               backgroundColor: '#FEFBF6',
-              borderLeftColor: getPostColor(selectedPost.id),
-              boxShadow: isThreadPostHovered ? `0 0 0 2px ${getPostHoverColor(selectedPost.id)}` : undefined
+              borderLeftColor: getPostColor(selectedPost.id, selectedPost.isClubAccount),
+              boxShadow: isThreadPostHovered ? `0 0 0 2px ${getPostHoverColor(selectedPost.id, selectedPost.isClubAccount)}` : undefined
             }}
             onMouseEnter={() => setIsThreadPostHovered(true)}
             onMouseLeave={() => setIsThreadPostHovered(false)}
@@ -2444,7 +2452,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 <ProfileBubble 
                   userName={selectedPost.author?.name || 'Anonymous'} 
                   size="lg" 
-                  borderColor={getPostColor(selectedPost.id)} 
+                  borderColor={getPostColor(selectedPost.id, selectedPost.isClubAccount)} 
                   isAnonymous={selectedPost.is_anonymous}
                   userId={selectedPost.author_id}
                   onProfileClick={selectedPost.isClubAccount ? undefined : handleProfileClick}
@@ -2460,6 +2468,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                     >
                       <h4 className="font-semibold text-gray-900">{selectedPost.is_anonymous ? 'Anonymous' : (selectedPost.author?.name || 'Anonymous')}</h4>
                     </div>
+                    {!selectedPost.is_anonymous && selectedPost.isClubAccount && (
+                      <span 
+                        className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium text-white"
+                        style={{ backgroundColor: '#752532' }}
+                      >
+                        Club
+                      </span>
+                    )}
                     {!selectedPost.is_anonymous && <span className="text-sm text-gray-500">{selectedPost.author?.year || ''}</span>}
                     {/* verified badge removed */}
                   </div>
@@ -2481,7 +2497,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
               {selectedPost.course && (
                 <span 
                   className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold text-white mb-3"
-                  style={{ backgroundColor: getPostColor(selectedPost.id) }}
+                  style={{ backgroundColor: getPostColor(selectedPost.id, selectedPost.isClubAccount) }}
                 >
                   {selectedPost.course.name}
                 </span>
@@ -2515,34 +2531,34 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                         e.stopPropagation();
                         handleEditPost(selectedPost.id);
                       }}
-                      className="px-2 py-1 text-white rounded-md transition-colors text-xs"
-                      style={{ 
-                        backgroundColor: getPostColor(selectedPost.id)
-                      }}
-                      onMouseEnter={(e: React.MouseEvent) => {
-                        (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(selectedPost.id)}90`;
-                      }}
-                      onMouseLeave={(e: React.MouseEvent) => {
-                        (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(selectedPost.id);
-                      }}
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingPost(null);
-                      }}
-                      className="px-2 py-1 text-white rounded-md transition-colors text-xs"
-                      style={{ 
-                        backgroundColor: getPostColor(selectedPost.id)
-                      }}
-                      onMouseEnter={(e: React.MouseEvent) => {
-                        (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(selectedPost.id)}90`;
-                      }}
-                      onMouseLeave={(e: React.MouseEvent) => {
-                        (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(selectedPost.id);
-                      }}
+                    className="px-2 py-1 text-white rounded-md transition-colors text-xs"
+                    style={{ 
+                      backgroundColor: getPostColor(selectedPost.id, selectedPost.isClubAccount)
+                    }}
+                    onMouseEnter={(e: React.MouseEvent) => {
+                      (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(selectedPost.id, selectedPost.isClubAccount)}90`;
+                    }}
+                    onMouseLeave={(e: React.MouseEvent) => {
+                      (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(selectedPost.id, selectedPost.isClubAccount);
+                    }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingPost(null);
+                    }}
+                    className="px-2 py-1 text-white rounded-md transition-colors text-xs"
+                    style={{ 
+                      backgroundColor: getPostColor(selectedPost.id, selectedPost.isClubAccount)
+                    }}
+                    onMouseEnter={(e: React.MouseEvent) => {
+                      (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(selectedPost.id, selectedPost.isClubAccount)}90`;
+                    }}
+                    onMouseLeave={(e: React.MouseEvent) => {
+                      (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(selectedPost.id, selectedPost.isClubAccount);
+                    }}
                     >
                       Cancel
                     </button>
@@ -2554,7 +2570,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                     text={selectedPost.content.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')}
                     maxLines={10}
                     className="text-gray-800 leading-relaxed whitespace-pre-wrap"
-                    buttonColor={getPostColor(selectedPost.id)}
+                    buttonColor={getPostColor(selectedPost.id, selectedPost.isClubAccount)}
                   />
                 </div>
               )}
@@ -2673,8 +2689,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                               : 'border-gray-200 hover:border-gray-300 bg-white'
                           }`}
                           style={{
-                            borderColor: isSelected ? getPostColor(selectedPost.id) : undefined,
-                            backgroundColor: isSelected ? `${getPostColor(selectedPost.id)}0D` : undefined
+                            borderColor: isSelected ? getPostColor(selectedPost.id, selectedPost.isClubAccount) : undefined,
+                            backgroundColor: isSelected ? `${getPostColor(selectedPost.id, selectedPost.isClubAccount)}0D` : undefined
                           }}
                         >
                           {hasVoted && (
@@ -2682,7 +2698,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                             className="absolute inset-0 transition-all duration-300"
                             style={{ 
                               width: `${percentage}%`,
-                              backgroundColor: `${getPostColor(selectedPost.id)}33`
+                              backgroundColor: `${getPostColor(selectedPost.id, selectedPost.isClubAccount)}33`
                             }}
                           />
                           )}
@@ -2711,11 +2727,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       selectedPost.isLiked ? '' : 'text-gray-600'
                     }`}
                     style={{
-                      color: selectedPost.isLiked ? getPostColor(selectedPost.id) : undefined
+                      color: selectedPost.isLiked ? getPostColor(selectedPost.id, selectedPost.isClubAccount) : undefined
                     }}
                     onMouseEnter={(e) => {
                       if (!selectedPost.isLiked) {
-                        (e.currentTarget as HTMLElement).style.color = getPostColor(selectedPost.id);
+                        (e.currentTarget as HTMLElement).style.color = getPostColor(selectedPost.id, selectedPost.isClubAccount);
                       }
                     }}
                     onMouseLeave={(e) => {
@@ -2756,7 +2772,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                             color: '#6B7280'
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.color = getPostColor(selectedPost.id);
+                            e.currentTarget.style.color = getPostColor(selectedPost.id, selectedPost.isClubAccount);
                           }}
                           onMouseLeave={(e) => {
                             e.currentTarget.style.color = '#6B7280';
@@ -2799,7 +2815,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
               {/* Add top-level reply (comment) to post */}
               <div className="mt-4">
                 <div className="flex gap-3">
-                  <ProfileBubble userName={userProfile?.full_name || 'User'} size="md" borderColor={getPostColor(selectedPost.id)} />
+                  <ProfileBubble userName={userProfile?.full_name || 'User'} size="md" borderColor={getPostColor(selectedPost.id, selectedPost.isClubAccount)} />
                   <div className="flex-1">
                     <Textarea
                       placeholder="Write a comment..."
@@ -2820,8 +2836,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                           <div 
                             className="w-3 h-3 rounded border-2 flex items-center justify-center cursor-pointer transition-colors"
                             style={{ 
-                              backgroundColor: commentAnonymously[selectedPost.id] ? getPostColor(selectedPost.id) : 'white',
-                              borderColor: commentAnonymously[selectedPost.id] ? getPostColor(selectedPost.id) : '#d1d5db'
+                              backgroundColor: commentAnonymously[selectedPost.id] ? getPostColor(selectedPost.id, selectedPost.isClubAccount) : 'white',
+                              borderColor: commentAnonymously[selectedPost.id] ? getPostColor(selectedPost.id, selectedPost.isClubAccount) : '#d1d5db'
                             }}
                             onClick={() => setCommentAnonymously(prev => ({ ...prev, [selectedPost.id]: !prev[selectedPost.id] }))}
                           >
@@ -2842,13 +2858,13 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                         disabled={!newComment[selectedPost.id]?.trim()}
                         className="text-white"
                         style={{ 
-                            backgroundColor: getPostColor(selectedPost.id)
+                            backgroundColor: getPostColor(selectedPost.id, selectedPost.isClubAccount)
                         }}
                         onMouseEnter={(e: React.MouseEvent) => {
-                          (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(selectedPost.id)}90`;
+                          (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(selectedPost.id, selectedPost.isClubAccount)}90`;
                         }}
                         onMouseLeave={(e: React.MouseEvent) => {
-                          (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(selectedPost.id);
+                          (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(selectedPost.id, selectedPost.isClubAccount);
                         }}
                       >
                         Comment
@@ -2874,7 +2890,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                     <ProfileBubble 
                       userName={comment.author?.name || 'Anonymous'} 
                       size="md" 
-                      borderColor={getPostColor(selectedPost.id)} 
+                      borderColor={getPostColor(selectedPost.id, selectedPost.isClubAccount)} 
                       isAnonymous={comment.is_anonymous}
                       userId={comment.author_id}
                       onProfileClick={comment.isClubAccount ? undefined : handleProfileClick}
@@ -2915,13 +2931,13 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                               }}
                               className="px-2 py-1 text-white rounded-md transition-colors text-xs"
                           style={{ 
-                            backgroundColor: getPostColor(selectedPost.id)
+                            backgroundColor: getPostColor(selectedPost.id, selectedPost.isClubAccount)
                           }}
                               onMouseEnter={(e: React.MouseEvent) => {
-                                (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(selectedPost.id)}90`;
+                                (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(selectedPost.id, selectedPost.isClubAccount)}90`;
                               }}
                               onMouseLeave={(e: React.MouseEvent) => {
-                                (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(selectedPost.id);
+                                (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(selectedPost.id, selectedPost.isClubAccount);
                               }}
                             >
                               Save
@@ -2933,13 +2949,13 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                               }}
                               className="px-2 py-1 text-white rounded-md transition-colors text-xs"
                           style={{ 
-                            backgroundColor: getPostColor(selectedPost.id)
+                            backgroundColor: getPostColor(selectedPost.id, selectedPost.isClubAccount)
                           }}
                               onMouseEnter={(e: React.MouseEvent) => {
-                                (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(selectedPost.id)}90`;
+                                (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(selectedPost.id, selectedPost.isClubAccount)}90`;
                               }}
                               onMouseLeave={(e: React.MouseEvent) => {
-                                (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(selectedPost.id);
+                                (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(selectedPost.id, selectedPost.isClubAccount);
                               }}
                             >
                               Cancel
@@ -2951,7 +2967,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                           text={comment.content}
                           maxLines={10}
                           className="text-gray-800 text-base mb-2 whitespace-pre-wrap"
-                          buttonColor={getPostColor(selectedPost.id)}
+                                    buttonColor={getPostColor(selectedPost.id, selectedPost.isClubAccount)}
                         />
                       )}
                       <div className="flex items-center gap-3">
@@ -2959,14 +2975,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                           className={`flex items-center gap-1 text-xs font-medium transition-colors px-2 py-1 rounded-md ${
                             comment.isLiked ? '' : 'text-gray-600'
                           }`}
-                          style={{
-                            color: comment.isLiked ? getPostColor(selectedPost.id) : undefined
-                          }}
-                          onMouseEnter={(e: React.MouseEvent) => {
-                            if (!comment.isLiked) {
-                              (e.currentTarget as HTMLElement).style.color = getPostColor(selectedPost.id);
-                            }
-                          }}
+                                    style={{
+                                      color: comment.isLiked ? getPostColor(selectedPost.id, selectedPost.isClubAccount) : undefined
+                                    }}
+                                    onMouseEnter={(e: React.MouseEvent) => {
+                                      if (!comment.isLiked) {
+                                        (e.currentTarget as HTMLElement).style.color = getPostColor(selectedPost.id, selectedPost.isClubAccount);
+                                      }
+                                    }}
                           onMouseLeave={(e: React.MouseEvent) => {
                             if (!comment.isLiked) {
                               (e.currentTarget as HTMLElement).style.color = '';
@@ -2983,7 +2999,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                             color: '#6B7280'
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.color = getPostColor(selectedPost.id);
+                            e.currentTarget.style.color = getPostColor(selectedPost.id, selectedPost.isClubAccount);
                           }}
                           onMouseLeave={(e) => {
                             e.currentTarget.style.color = '#6B7280';
@@ -3018,7 +3034,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                 color: '#6B7280'
                               }}
                               onMouseEnter={(e) => {
-                                e.currentTarget.style.color = getPostColor(selectedPost.id);
+                                e.currentTarget.style.color = getPostColor(selectedPost.id, selectedPost.isClubAccount);
                               }}
                               onMouseLeave={(e) => {
                                 e.currentTarget.style.color = '#6B7280';
@@ -3058,7 +3074,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                   <ProfileBubble 
                                     userName={reply.author?.name || 'Anonymous'} 
                                     size="sm" 
-                                    borderColor={getPostColor(selectedPost.id)} 
+                                    borderColor={getPostColor(selectedPost.id, selectedPost.isClubAccount)} 
                                     isAnonymous={reply.is_anonymous}
                                     userId={reply.author_id}
                                     onProfileClick={reply.isClubAccount ? undefined : handleProfileClick}
@@ -3099,13 +3115,13 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                         }}
                                         className="px-2 py-1 text-white rounded-md transition-colors text-xs"
                           style={{ 
-                            backgroundColor: getPostColor(selectedPost.id)
+                            backgroundColor: getPostColor(selectedPost.id, selectedPost.isClubAccount)
                           }}
                                         onMouseEnter={(e: React.MouseEvent) => {
-                                          (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(selectedPost.id)}90`;
+                                          (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(selectedPost.id, selectedPost.isClubAccount)}90`;
                                         }}
                                         onMouseLeave={(e: React.MouseEvent) => {
-                                          (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(selectedPost.id);
+                                          (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(selectedPost.id, selectedPost.isClubAccount);
                                         }}
                                       >
                                         Save
@@ -3117,13 +3133,13 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                         }}
                                         className="px-2 py-1 text-white rounded-md transition-colors text-xs"
                           style={{ 
-                            backgroundColor: getPostColor(selectedPost.id)
+                            backgroundColor: getPostColor(selectedPost.id, selectedPost.isClubAccount)
                           }}
                                         onMouseEnter={(e: React.MouseEvent) => {
-                                          (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(selectedPost.id)}90`;
+                                          (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(selectedPost.id, selectedPost.isClubAccount)}90`;
                                         }}
                                         onMouseLeave={(e: React.MouseEvent) => {
-                                          (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(selectedPost.id);
+                                          (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(selectedPost.id, selectedPost.isClubAccount);
                                         }}
                                       >
                                         Cancel
@@ -3135,7 +3151,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                     text={reply.content.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')}
                                     maxLines={10}
                                     className="text-gray-800 text-sm mb-2 whitespace-pre-wrap"
-                                    buttonColor={getPostColor(selectedPost.id)}
+                                    buttonColor={getPostColor(selectedPost.id, selectedPost.isClubAccount)}
                                   />
                                 )}
                                 <div className="flex items-center gap-3">
@@ -3143,14 +3159,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                     className={`flex items-center gap-1 text-xs font-medium transition-colors px-2 py-1 rounded-md ${
                                       reply.isLiked ? '' : 'text-gray-600'
                                     }`}
-                                    style={{
-                                      color: reply.isLiked ? getPostColor(selectedPost.id) : undefined
-                                    }}
-                                    onMouseEnter={(e: React.MouseEvent) => {
-                                      if (!reply.isLiked) {
-                                        (e.currentTarget as HTMLElement).style.color = getPostColor(selectedPost.id);
-                                      }
-                                    }}
+                                        style={{
+                                          color: reply.isLiked ? getPostColor(selectedPost.id, selectedPost.isClubAccount) : undefined
+                                        }}
+                                        onMouseEnter={(e: React.MouseEvent) => {
+                                          if (!reply.isLiked) {
+                                            (e.currentTarget as HTMLElement).style.color = getPostColor(selectedPost.id, selectedPost.isClubAccount);
+                                          }
+                                        }}
                                     onMouseLeave={(e: React.MouseEvent) => {
                                       if (!reply.isLiked) {
                                         (e.currentTarget as HTMLElement).style.color = '';
@@ -3183,7 +3199,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                           color: '#6B7280'
                                         }}
                                         onMouseEnter={(e) => {
-                                          e.currentTarget.style.color = getPostColor(selectedPost.id);
+                                          e.currentTarget.style.color = getPostColor(selectedPost.id, selectedPost.isClubAccount);
                                         }}
                                         onMouseLeave={(e) => {
                                           e.currentTarget.style.color = '#6B7280';
@@ -3241,10 +3257,10 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                 />
                                 <div 
                                   className="w-3 h-3 rounded border-2 flex items-center justify-center cursor-pointer transition-colors"
-                                  style={{ 
-                                    backgroundColor: replyAnonymously[`${selectedPost.id}:${comment.id}`] ? getPostColor(selectedPost.id) : 'white',
-                                    borderColor: replyAnonymously[`${selectedPost.id}:${comment.id}`] ? getPostColor(selectedPost.id) : '#d1d5db'
-                                  }}
+                                    style={{ 
+                                      backgroundColor: replyAnonymously[`${selectedPost.id}:${comment.id}`] ? getPostColor(selectedPost.id, selectedPost.isClubAccount) : 'white',
+                                      borderColor: replyAnonymously[`${selectedPost.id}:${comment.id}`] ? getPostColor(selectedPost.id, selectedPost.isClubAccount) : '#d1d5db'
+                                    }}
                                   onClick={() => setReplyAnonymously(prev => ({ ...prev, [`${selectedPost.id}:${comment.id}`]: !prev[`${selectedPost.id}:${comment.id}`] }))}
                                 >
                                   {replyAnonymously[`${selectedPost.id}:${comment.id}`] && (
@@ -3264,13 +3280,13 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                               disabled={!replyText[`${selectedPost.id}:${comment.id}`]?.trim()}
                               className="text-white"
                               style={{ 
-                            backgroundColor: getPostColor(selectedPost.id)
+                            backgroundColor: getPostColor(selectedPost.id, selectedPost.isClubAccount)
                               }}
                               onMouseEnter={(e: React.MouseEvent) => {
-                                (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(selectedPost.id)}90`;
+                                (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(selectedPost.id, selectedPost.isClubAccount)}90`;
                               }}
                               onMouseLeave={(e: React.MouseEvent) => {
-                                (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(selectedPost.id);
+                                (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(selectedPost.id, selectedPost.isClubAccount);
                               }}
                             >
                               Reply
@@ -3418,8 +3434,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
               key={post.id} 
               className="overflow-hidden transition-all duration-200 border-l-4 cursor-pointer"
               style={{ 
-                backgroundColor: hoveredPostId === post.id ? getPostHoverColor(post.id) : '#FEFBF6',
-                borderLeftColor: getPostColor(post.id)
+                backgroundColor: hoveredPostId === post.id ? getPostHoverColor(post.id, post.isClubAccount) : '#FEFBF6',
+                borderLeftColor: getPostColor(post.id, post.isClubAccount)
               }}
               onClick={() => handlePostClick(post.id)}
               onMouseEnter={() => setHoveredPostId(post.id)}
@@ -3438,7 +3454,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       <ProfileBubble 
                         userName={post.author?.name || 'Anonymous'} 
                         size="md" 
-                        borderColor={getPostColor(post.id)} 
+                        borderColor={getPostColor(post.id, post.isClubAccount)} 
                         isAnonymous={post.is_anonymous}
                         userId={post.author_id}
                         onProfileClick={post.isClubAccount ? undefined : handleProfileClick}
@@ -3454,6 +3470,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                           >
                             {post.is_anonymous ? 'Anonymous' : (post.author?.name || 'Anonymous')}
                           </h4>
+                          {!post.is_anonymous && post.isClubAccount && (
+                            <span 
+                              className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium text-white"
+                              style={{ backgroundColor: '#752432' }}
+                            >
+                              Club
+                            </span>
+                          )}
                           {!post.is_anonymous && <span className="text-xs text-gray-500">{post.author?.year || ''}</span>}
                           {/* verified badge removed */}
                         </div>
@@ -3480,7 +3504,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                   <div className="flex items-center gap-2 mb-3">
                     <span 
                       className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold text-white"
-                      style={{ backgroundColor: getPostColor(post.id) }}
+                      style={{ backgroundColor: getPostColor(post.id, post.isClubAccount) }}
                     >
                       {post.course.name}
                     </span>
@@ -3518,13 +3542,13 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                           }}
                           className="px-2 py-1 text-white rounded-md transition-colors text-xs"
                         style={{ 
-                          backgroundColor: getPostColor(post.id)
+                          backgroundColor: getPostColor(post.id, post.isClubAccount)
                         }}
                           onMouseEnter={(e: React.MouseEvent) => {
-                            (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(post.id)}90`;
+                            (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(post.id, post.isClubAccount)}90`;
                           }}
                           onMouseLeave={(e: React.MouseEvent) => {
-                            (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(post.id);
+                            (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(post.id, post.isClubAccount);
                           }}
                         >
                           Save
@@ -3536,13 +3560,13 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                           }}
                           className="px-2 py-1 text-white rounded-md transition-colors text-xs"
                         style={{ 
-                          backgroundColor: getPostColor(post.id)
+                          backgroundColor: getPostColor(post.id, post.isClubAccount)
                         }}
                           onMouseEnter={(e: React.MouseEvent) => {
-                            (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(post.id)}90`;
+                            (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(post.id, post.isClubAccount)}90`;
                           }}
                           onMouseLeave={(e: React.MouseEvent) => {
-                            (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(post.id);
+                            (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(post.id, post.isClubAccount);
                           }}
                         >
                           Cancel
@@ -3554,7 +3578,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       text={post.content.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')}
                       maxLines={10}
                       className="text-gray-800 leading-relaxed text-sm whitespace-pre-wrap"
-                      buttonColor={getPostColor(post.id)}
+                      buttonColor={getPostColor(post.id, post.isClubAccount)}
                     />
                   )}
                 </div>
@@ -3680,8 +3704,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                 : 'border-gray-200 hover:border-gray-300 bg-white'
                             }`}
                             style={{
-                              borderColor: isSelected ? getPostColor(post.id) : undefined,
-                              backgroundColor: isSelected ? `${getPostColor(post.id)}0D` : undefined
+                              borderColor: isSelected ? getPostColor(post.id, post.isClubAccount) : undefined,
+                              backgroundColor: isSelected ? `${getPostColor(post.id, post.isClubAccount)}0D` : undefined
                             }}
                           >
                             {hasVoted && (
@@ -3689,7 +3713,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                                 className="absolute inset-0 transition-all duration-300"
                                 style={{ 
                                   width: `${percentage}%`,
-                                  backgroundColor: `${getPostColor(post.id)}33`
+                                  backgroundColor: `${getPostColor(post.id, post.isClubAccount)}33`
                                 }}
                               />
                             )}
@@ -3721,11 +3745,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       disabled={likingPosts.has(post.id)}
                       className={`flex items-center gap-1.5 text-xs font-medium transition-colors px-3 py-2 rounded-md hover:bg-gray-100 ${likingPosts.has(post.id) ? 'opacity-50 cursor-not-allowed' : ''}`}
                       style={{
-                        color: post.isLiked ? getPostColor(post.id) : '#6B7280'
+                        color: post.isLiked ? getPostColor(post.id, post.isClubAccount) : '#6B7280'
                       }}
                       onMouseEnter={(e) => {
                         if (!post.isLiked) {
-                          (e.currentTarget as HTMLElement).style.color = getPostColor(post.id);
+                          (e.currentTarget as HTMLElement).style.color = getPostColor(post.id, post.isClubAccount);
                         }
                       }}
                       onMouseLeave={(e) => {
@@ -3766,7 +3790,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                               color: '#6B7280'
                             }}
                             onMouseEnter={(e) => {
-                              e.currentTarget.style.color = getPostColor(post.id);
+                              e.currentTarget.style.color = getPostColor(post.id, post.isClubAccount);
                             }}
                             onMouseLeave={(e) => {
                               e.currentTarget.style.color = '#6B7280';

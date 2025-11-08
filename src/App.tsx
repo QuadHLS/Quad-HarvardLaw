@@ -13,6 +13,7 @@ import { BarReviewPage } from './components/BarReviewPage';
 import { ProfilePage } from './components/NewProfilePage';
 import { FeedbackPage } from './components/FeedbackPage';
 import { DirectoryPage } from './components/DirectoryPage';
+import { ClubsPage } from './components/ClubsPage';
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/auth/AuthPage';
@@ -267,6 +268,8 @@ function AppContent({ user }: { user: any }) {
     if (path.startsWith('/exams')) return 'exams';
     if (path.startsWith('/reviews')) return 'reviews';
     if (path.startsWith('/planner')) return 'planner';
+    if (path.startsWith('/directory')) return 'directory';
+    if (path.startsWith('/clubs')) return 'clubs';
     if (path.startsWith('/barreview')) return 'barreview';
     if (path.startsWith('/profile')) return 'profile';
     if (path.startsWith('/course')) return 'course';
@@ -973,6 +976,7 @@ function AppContent({ user }: { user: any }) {
           <Route path="/planner" element={<PlannerPage />} />
           <Route path="/barreview" element={<BarReviewPage onNavigateToStudentProfile={handleNavigateToStudentProfile} />} />
           <Route path="/directory" element={<DirectoryPage onNavigateToStudentProfile={handleNavigateToStudentProfile} />} />
+          <Route path="/clubs" element={<ClubsPage />} />
           <Route path="/feedback" element={<FeedbackPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/club-account" element={<ClubAccountPage />} />

@@ -689,7 +689,7 @@ export function ClubsPage({ onNavigateToClub }: ClubsPageProps) {
                 <img 
                   src={avatarUrl} 
                   alt={club.name}
-                  className="w-full h-full object-cover rounded-xl"
+                  className="w-full h-full object-contain rounded-xl"
                 />
               ) : (
                 <Users className="w-9 h-9 relative z-10" style={{ color: accentColor }} />

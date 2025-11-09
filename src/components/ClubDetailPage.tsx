@@ -2377,7 +2377,7 @@ export function ClubDetailPage({ clubId, onBack }: ClubDetailPageProps) {
                   <img 
                     src={avatarUrl} 
                     alt={club.name}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                   />
                 ) : (
                   <Users className="w-10 h-10" style={{ color: '#752432' }} />
@@ -2911,7 +2911,8 @@ export function ClubDetailPage({ clubId, onBack }: ClubDetailPageProps) {
                           <img 
                             src={memberPictureUrl} 
                             alt={member.name}
-                            className="w-full h-full object-cover"
+                            className="max-w-full max-h-full object-contain"
+                            style={{ width: 'auto', height: 'auto' }}
                           />
                         ) : (
                           <Users className="w-10 h-10 text-gray-400" />

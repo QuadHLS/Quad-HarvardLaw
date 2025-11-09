@@ -1830,13 +1830,15 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
                 <div>
                   <div className="flex gap-4 mb-3">
                     {member.picture ? (
-                      <div className="w-20 h-20 rounded-full border-2 overflow-hidden flex-shrink-0" style={{ borderColor: '#5a3136' }}>
+                      <div className="w-20 h-20 rounded-full border-2 overflow-hidden flex-shrink-0 flex items-center justify-center" style={{ borderColor: '#5a3136' }}>
                         <img 
                           src={member.picture} 
                           alt={member.name}
-                          className="w-full h-full"
+                          className="max-w-full max-h-full"
                           style={{ 
-                            objectFit: 'cover'
+                            objectFit: 'contain',
+                            width: 'auto',
+                            height: 'auto'
                           }}
                         />
                       </div>

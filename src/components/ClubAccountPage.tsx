@@ -329,7 +329,7 @@ function ClubBasicInfo({ formData, updateFormData, onSaveBasicInfo, onSaveMissio
   };
 
   const handleDescriptionChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
-    if (e.target.value.length <= 200) {
+    if (e.target.value.length <= 500) {
       updateFormData('description', e.target.value);
     }
   };
@@ -447,9 +447,10 @@ function ClubBasicInfo({ formData, updateFormData, onSaveBasicInfo, onSaveMissio
                 placeholder="Brief description of your club"
                 className="mt-2 bg-white w-full"
                 style={{ minHeight: '160px', fontSize: '14px' }}
+                maxLength={500}
               />
               <p className="text-sm text-gray-500 mt-1 text-right">
-                {charCount}/200 characters
+                {charCount}/500 characters
               </p>
             </div>
             </div>

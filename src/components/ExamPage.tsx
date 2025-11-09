@@ -200,13 +200,13 @@ export function ExamPage({
         .single();
       
       if (error) {
-        console.error('Error fetching random file name:', error);
+        console.error('Error fetching random file name:', error?.message || "Unknown error");
         return 'Default Title';
       }
       
       return data?.name || 'Default Title';
     } catch (error) {
-      console.error('Error in getRandomFileName:', error);
+      console.error('Error in getRandomFileName:', error?.message || "Unknown error");
       return 'Default Title';
     }
   };
@@ -279,7 +279,7 @@ export function ExamPage({
           .upload(`${gradePath}.gitkeep`, new Blob([''], { type: 'text/plain' }));
       }
     } catch (error) {
-      console.error('Error ensuring folder structure:', error);
+      console.error('Error ensuring folder structure:', error?.message || "Unknown error");
       // Don't throw error here, let the upload continue
       // The upload will create the folders if they don't exist
     }
@@ -549,7 +549,7 @@ export function ExamPage({
       }, 5000);
 
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error('Upload error:', error?.message || "Unknown error");
       setUploadError(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setUploading(false);
@@ -627,7 +627,7 @@ export function ExamPage({
 
       console.error('All download path attempts failed for exam:', exam.title);
     } catch (error) {
-      console.error('Error downloading exam:', error);
+      console.error('Error downloading exam:', error?.message || "Unknown error");
     }
   };
 
@@ -848,7 +848,7 @@ export function ExamPage({
             );
           }
         } catch (err) {
-          console.error('Error checking limit:', err);
+          console.error('Error checking limit:', err instanceof Error ? err.message : "Unknown error");
         } finally {
           setHasCheckedLimit(true);
         }

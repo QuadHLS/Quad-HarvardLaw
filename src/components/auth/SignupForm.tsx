@@ -73,7 +73,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
       }
       
     } catch (err) {
-      console.error('Email validation error:', err);
+      console.error('Email validation error:', err instanceof Error ? err.message : "Unknown error");
       setError('Unable to validate email. Please try again.');
       setLoading(false);
       return;
@@ -90,7 +90,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
       });
 
       if (error) {
-        console.error('Supabase signup error:', error);
+        console.error('Supabase signup error:', error?.message || "Unknown error");
         setError(error.message);
         setLoading(false);
         return;
@@ -99,7 +99,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
       setSuccess(true);
       
     } catch (err) {
-      console.error('Account creation error:', err);
+      console.error('Account creation error:', err instanceof Error ? err.message : "Unknown error");
       setError('Unable to create account. Please try again.');
       setLoading(false);
       return;
@@ -116,13 +116,13 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
       const { error } = await signInWithGoogle();
 
       if (error) {
-        console.error('Google sign-in error:', error);
+        console.error('Google sign-in error:', error?.message || "Unknown error");
         setError(error.message);
         setLoading(false);
       }
       // Note: If successful, user will be redirected, so we don't need to set loading to false
     } catch (err) {
-      console.error('Google sign-in exception:', err);
+      console.error('Google sign-in exception:', err instanceof Error ? err.message : "Unknown error");
       setError('An unexpected error occurred during Google login. Please try again.');
       setLoading(false);
     }

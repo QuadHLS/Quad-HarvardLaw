@@ -210,7 +210,7 @@ export function DirectoryPage({ onNavigateToStudentProfile }: DirectoryPageProps
           .order('full_name');
 
         if (error) {
-          console.error('Error fetching users:', error);
+          console.error('Error fetching users:', error?.message || "Unknown error");
           setLoading(false);
           return;
         }
@@ -246,7 +246,7 @@ export function DirectoryPage({ onNavigateToStudentProfile }: DirectoryPageProps
           setUsers(directoryUsers);
         }
       } catch (error) {
-        console.error('Error fetching users:', error);
+        console.error('Error fetching users:', error?.message || "Unknown error");
       } finally {
         setLoading(false);
       }

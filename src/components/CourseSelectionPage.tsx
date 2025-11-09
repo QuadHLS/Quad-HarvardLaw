@@ -88,7 +88,7 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
           .single();
 
         if (error) {
-          console.error('Error fetching user profile:', error);
+          console.error('Error fetching user profile:', error?.message || "Unknown error");
           return;
         }
 
@@ -130,7 +130,7 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
           }
         }
       } catch (error) {
-        console.error('Error fetching user profile:', error);
+        console.error('Error fetching user profile:', error?.message || "Unknown error");
       }
     };
 
@@ -152,7 +152,7 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
             .order('course_name');
 
           if (error) {
-            console.error('Supabase error:', error);
+            console.error('Supabase error:', error?.message || "Unknown error");
             throw error;
           }
 
@@ -191,7 +191,7 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
           const transformedCourses = Array.from(courseMap.values());
           setApiCourses(transformedCourses);
         } catch (error) {
-          console.error('Error fetching courses:', error);
+          console.error('Error fetching courses:', error?.message || "Unknown error");
           setApiCourses([]);
           setAllCourseData([]);
         } finally {
@@ -396,7 +396,7 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
 
       return scheduleOptions;
     } catch (error) {
-      console.error('Error getting course details:', error);
+      console.error('Error getting course details:', error?.message || "Unknown error");
       setScheduleOptionsBySlot((prev) => ({ ...prev, [slotIndex]: [] }));
       return [];
     } finally {
@@ -560,7 +560,7 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
       // Complete course selection
       onComplete();
     } catch (error) {
-      console.error('Error updating course selection:', error);
+      console.error('Error updating course selection:', error?.message || "Unknown error");
       alert(
         `Error updating your courses: ${
           error instanceof Error ? error.message : 'Unknown error'

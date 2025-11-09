@@ -57,7 +57,7 @@ export function FeedbackPage() {
         });
 
       if (error) {
-        console.error('Error submitting feedback:', error);
+        console.error('Error submitting feedback:', error?.message || "Unknown error");
         toast.error('Failed to submit feedback. Please try again.');
         return;
       }
@@ -70,7 +70,7 @@ export function FeedbackPage() {
       setCategory('');
       setFeedback('');
     } catch (error) {
-      console.error('Error submitting feedback:', error);
+      console.error('Error submitting feedback:', error?.message || "Unknown error");
       toast.error('Failed to submit feedback. Please try again.');
     } finally {
       setIsSubmitting(false);

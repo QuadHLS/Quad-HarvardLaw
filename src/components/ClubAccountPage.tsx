@@ -229,12 +229,7 @@ function ClubBasicInfo({ formData, updateFormData, onSaveBasicInfo, onSaveMissio
         .upload(fileName, compressedFile);
 
       if (uploadError) {
-        console.error('Error uploading avatar:', uploadError);
-        console.error('Upload error details:', {
-          message: uploadError.message,
-          statusCode: uploadError.statusCode,
-          error: uploadError.error
-        });
+        console.error('Error uploading avatar:', uploadError.message || 'Unknown error');
         toast.error(`Error uploading avatar: ${uploadError.message}. Please check the console for details.`);
         return;
       }
@@ -249,12 +244,7 @@ function ClubBasicInfo({ formData, updateFormData, onSaveBasicInfo, onSaveMissio
         .eq('id', user.id);
 
       if (updateError) {
-        console.error('Error updating avatar URL:', updateError);
-        console.error('Update error details:', {
-          message: updateError.message,
-          details: updateError.details,
-          hint: updateError.hint
-        });
+        console.error('Error updating avatar URL:', updateError.message || 'Unknown error');
         toast.error(`Error updating club account: ${updateError.message}. Please check the console for details.`);
         return;
       }
@@ -268,7 +258,7 @@ function ClubBasicInfo({ formData, updateFormData, onSaveBasicInfo, onSaveMissio
         updateFormData('picture', signedUrl);
       }
     } catch (error) {
-      console.error('Error uploading avatar:', error);
+      console.error('Error uploading avatar:', error instanceof Error ? error.message : 'Unknown error');
       if (error instanceof Error && error.message && error.message.includes('timeout')) {
         toast.error('Error: Image is too large or complex to process. Please try a smaller image.');
       } else {
@@ -333,7 +323,7 @@ function ClubBasicInfo({ formData, updateFormData, onSaveBasicInfo, onSaveMissio
 
       toast.success('Avatar deleted successfully!');
     } catch (error) {
-      console.error('Error deleting avatar:', error);
+      console.error('Error deleting avatar:', error instanceof Error ? error.message : 'Unknown error');
       toast.error('Error deleting avatar. Please try again.');
     }
   };
@@ -607,7 +597,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
           .in('id', event.rsvps);
 
         if (error) {
-          console.error('Error fetching RSVP names:', error);
+          console.error('Error fetching RSVP names:', error?.message || "Unknown error");
           return;
         }
 
@@ -619,7 +609,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
 
         setRsvpNames(namesMap);
       } catch (err) {
-        console.error('Unexpected error fetching RSVP names:', err);
+        console.error('Unexpected error fetching RSVP names:', err instanceof Error ? err.message : "Unknown error");
       }
     };
 
@@ -667,7 +657,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
         .eq('id', user.id);
 
       if (error) {
-        console.error('Error deleting event:', error);
+        console.error('Error deleting event:', error?.message || "Unknown error");
         toast.error('Failed to delete event');
         // Revert local state on error
         updateFormData('events', formData.events);
@@ -680,7 +670,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
         setEditFormData(null);
       }
     } catch (err) {
-      console.error('Unexpected error deleting event:', err);
+      console.error('Unexpected error deleting event:', err instanceof Error ? err.message : "Unknown error");
       toast.error('An unexpected error occurred while deleting');
       // Revert local state on error
       updateFormData('events', formData.events);
@@ -742,7 +732,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
           .eq('id', user.id);
 
         if (error) {
-          console.error('Error saving events:', error);
+          console.error('Error saving events:', error?.message || "Unknown error");
           toast.error('Failed to save event');
           // Revert local state on error
           updateFormData('events', formData.events);
@@ -754,7 +744,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
         setEditFormData(null);
         setOriginalEventData(null);
       } catch (err) {
-        console.error('Unexpected error saving event:', err);
+        console.error('Unexpected error saving event:', err instanceof Error ? err.message : "Unknown error");
         toast.error('An unexpected error occurred while saving');
         // Revert local state on error
         updateFormData('events', formData.events);
@@ -828,7 +818,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
         .eq('id', user.id);
 
       if (error) {
-        console.error('Error deleting RSVP:', error);
+        console.error('Error deleting RSVP:', error?.message || "Unknown error");
         toast.error('Failed to delete RSVP');
         // Revert local state on error
         updateFormData('events', formData.events);
@@ -837,7 +827,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
 
       toast.success('RSVP removed successfully');
     } catch (err) {
-      console.error('Unexpected error deleting RSVP:', err);
+      console.error('Unexpected error deleting RSVP:', err instanceof Error ? err.message : "Unknown error");
       toast.error('An unexpected error occurred while deleting');
       // Revert local state on error
       updateFormData('events', formData.events);
@@ -1191,20 +1181,15 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
         const fileName = extractFilename(memberToDelete.picture);
         
         if (fileName) {
-          console.log('Deleting member picture from storage:', fileName);
           // Delete from storage (same logic as avatar deletion)
           const { error: deleteError } = await supabase.storage
             .from('Avatar')
             .remove([fileName]);
           
           if (deleteError) {
-            console.error('Error deleting member picture from storage:', deleteError);
+            console.error('Error deleting member picture from storage');
             // Continue with member deletion even if picture delete fails
-          } else {
-            console.log('Successfully deleted member picture from storage:', fileName);
           }
-        } else {
-          console.warn('Could not extract filename from member picture:', memberToDelete.picture);
         }
       }
 
@@ -1222,7 +1207,7 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
         .eq('id', user.id);
 
       if (error) {
-        console.error('Error deleting member:', error);
+        console.error('Error deleting member:', error?.message || "Unknown error");
         toast.error('Failed to delete member');
         // Revert local state on error
         updateFormData('members', formData.members);
@@ -1235,7 +1220,7 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
         setEditFormData(null);
       }
     } catch (err) {
-      console.error('Unexpected error deleting member:', err);
+      console.error('Unexpected error deleting member:', err instanceof Error ? err.message : "Unknown error");
       toast.error('An unexpected error occurred while deleting');
       // Revert local state on error
       updateFormData('members', formData.members);
@@ -1339,7 +1324,7 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
           .eq('id', user.id);
 
         if (error) {
-          console.error('Error saving members:', error);
+          console.error('Error saving members:', error?.message || "Unknown error");
           toast.error('Failed to save member');
           return;
         }
@@ -1368,7 +1353,7 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
         setOriginalMemberData(null);
         setCurrentMemberPictureUrl(null);
       } catch (err) {
-        console.error('Unexpected error saving member:', err);
+        console.error('Unexpected error saving member:', err instanceof Error ? err.message : "Unknown error");
         toast.error('An unexpected error occurred while saving');
       }
     }
@@ -1576,7 +1561,7 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
       
       toast.success('Picture uploaded successfully!');
     } catch (error) {
-      console.error('Error uploading member picture:', error);
+      console.error('Error uploading member picture:', error?.message || "Unknown error");
       if (error instanceof Error && error.message && error.message.includes('timeout')) {
         toast.error('Error: Image is too large or complex to process. Please try a smaller image.');
       } else {
@@ -1667,7 +1652,7 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
 
       toast.success('Picture deleted successfully!');
     } catch (error) {
-      console.error('Error deleting member picture:', error);
+      console.error('Error deleting member picture:', error?.message || "Unknown error");
       toast.error('Error deleting picture. Please try again.');
     }
   };
@@ -1959,13 +1944,13 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
         .maybeSingle();
 
       if (error || !clubAccount) {
-        console.error('Error verifying club account:', error);
+        console.error('Error verifying club account:', error?.message || "Unknown error");
         return null;
       }
 
       return clubAccount.id;
     } catch (error) {
-      console.error('Error getting club account ID:', error);
+      console.error('Error getting club account ID:', error?.message || "Unknown error");
       return null;
     }
   };
@@ -2240,7 +2225,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching posts:', error);
+        console.error('Error fetching posts:', error?.message || "Unknown error");
         setLoading(false);
       return;
     }
@@ -2423,7 +2408,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
         }
       }
     } catch (error) {
-      console.error('Error fetching posts:', error);
+      console.error('Error fetching posts:', error?.message || "Unknown error");
     } finally {
       setLoading(false);
     }
@@ -2554,7 +2539,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
       // Refresh posts
       await fetchPosts();
     } catch (error) {
-      console.error('Error in handleCreatePost:', error);
+      console.error('Error in handleCreatePost:', error?.message || "Unknown error");
     }
   };
 
@@ -2609,7 +2594,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
         )
       );
     } catch (error) {
-      console.error('Error in handleLike:', error);
+      console.error('Error in handleLike:', error?.message || "Unknown error");
     } finally {
       setLikingPosts(prev => {
         const newSet = new Set(prev);
@@ -2645,7 +2630,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
       setEditingPost(null);
       await fetchPosts();
     } catch (error) {
-      console.error('Error editing post:', error);
+      console.error('Error editing post:', error?.message || "Unknown error");
     }
   };
 
@@ -2696,7 +2681,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
             setReplyingTo(null);
           }
         } catch (error) {
-          console.error('Error deleting post:', error);
+          console.error('Error deleting post:', error?.message || "Unknown error");
           setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
         }
       }
@@ -2722,7 +2707,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
         });
 
       if (error) {
-        console.error('Error voting on poll:', error);
+        console.error('Error voting on poll:', error?.message || "Unknown error");
         return;
       }
 
@@ -2745,7 +2730,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
         )
       );
     } catch (error) {
-      console.error('Error in handleVotePoll:', error);
+      console.error('Error in handleVotePoll:', error?.message || "Unknown error");
     }
   };
 
@@ -2771,7 +2756,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
         .order('created_at', { ascending: true });
 
       if (error) {
-        console.error('Error fetching comments:', error);
+        console.error('Error fetching comments:', error?.message || "Unknown error");
         setComments(prev => ({ ...prev, [postId]: [] }));
         setLoadingComments(prev => {
           const next = new Set(prev);
@@ -2917,7 +2902,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
         return next;
       });
     } catch (error) {
-      console.error('Error fetching comments:', error);
+      console.error('Error fetching comments:', error?.message || "Unknown error");
       setLoadingComments(prev => {
         const next = new Set(prev);
         next.delete(postId);
@@ -2944,7 +2929,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
         });
 
       if (error) {
-        console.error('Error adding comment:', error);
+        console.error('Error adding comment:', error?.message || "Unknown error");
         return;
       }
 
@@ -2954,7 +2939,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
       await fetchComments(postId);
       await fetchPosts();
     } catch (error) {
-      console.error('Error in addComment:', error);
+      console.error('Error in addComment:', error?.message || "Unknown error");
     }
   };
 
@@ -2978,7 +2963,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
         });
 
       if (error) {
-        console.error('Error adding reply:', error);
+        console.error('Error adding reply:', error?.message || "Unknown error");
         return;
       }
 
@@ -2989,7 +2974,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
       await fetchComments(postId);
       await fetchPosts();
     } catch (error) {
-      console.error('Error in addReply:', error);
+      console.error('Error in addReply:', error?.message || "Unknown error");
     }
   };
 
@@ -3942,7 +3927,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
         .eq('author_id', clubAccountId);
 
       if (error) {
-        console.error('Error editing comment:', error);
+        console.error('Error editing comment:', error?.message || "Unknown error");
         return;
       }
 
@@ -3973,7 +3958,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
       setEditingComment(null);
       setEditCommentContent('');
     } catch (error) {
-      console.error('Error in handleEditComment:', error);
+      console.error('Error in handleEditComment:', error?.message || "Unknown error");
     }
   };
 
@@ -4009,7 +3994,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
         .eq('author_id', clubAccountId);
 
       if (error) {
-        console.error('Error deleting comment:', error);
+        console.error('Error deleting comment:', error?.message || "Unknown error");
         return;
       }
 
@@ -4040,7 +4025,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
         return p;
       }));
     } catch (error) {
-      console.error('Error in handleDeleteComment:', error);
+      console.error('Error in handleDeleteComment:', error?.message || "Unknown error");
     }
   };
 
@@ -4107,7 +4092,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
         })
       }));
     } catch (error) {
-      console.error('Error in toggleCommentLike:', error);
+      console.error('Error in toggleCommentLike:', error?.message || "Unknown error");
     }
   };
 
@@ -4896,7 +4881,7 @@ export const ClubAccountPage: React.FC = () => {
           .maybeSingle();
 
         if (error) {
-          console.error('Error fetching club account:', error);
+          console.error('Error fetching club account:', error?.message || "Unknown error");
           toast.error('Failed to load club data');
           setLoading(false);
           return;
@@ -4975,7 +4960,7 @@ export const ClubAccountPage: React.FC = () => {
           setCurrentAvatarUrl(data.avatar_url);
         }
       } catch (err) {
-        console.error('Unexpected error fetching club account:', err);
+        console.error('Unexpected error fetching club account:', err instanceof Error ? err.message : "Unknown error");
         toast.error('An unexpected error occurred');
       } finally {
         setLoading(false);
@@ -5034,7 +5019,7 @@ export const ClubAccountPage: React.FC = () => {
         .eq('id', user.id);
 
       if (error) {
-        console.error('Error updating club account:', error);
+        console.error('Error updating club account:', error?.message || "Unknown error");
         toast.error('Failed to save basic information');
         setSavingBasicInfo(false);
         return;
@@ -5050,7 +5035,7 @@ export const ClubAccountPage: React.FC = () => {
 
       toast.success('Basic information saved successfully!');
     } catch (err) {
-      console.error('Unexpected error saving basic info:', err);
+      console.error('Unexpected error saving basic info:', err instanceof Error ? err.message : "Unknown error");
       toast.error('An unexpected error occurred while saving');
     } finally {
       setSavingBasicInfo(false);
@@ -5081,7 +5066,7 @@ export const ClubAccountPage: React.FC = () => {
         .eq('id', user.id);
 
       if (error) {
-        console.error('Error updating mission:', error);
+        console.error('Error updating mission:', error?.message || "Unknown error");
         toast.error('Failed to save mission and purpose');
         setSavingMission(false);
         return;
@@ -5095,7 +5080,7 @@ export const ClubAccountPage: React.FC = () => {
 
       toast.success('Mission and purpose saved successfully!');
     } catch (err) {
-      console.error('Unexpected error saving mission:', err);
+      console.error('Unexpected error saving mission:', err instanceof Error ? err.message : "Unknown error");
       toast.error('An unexpected error occurred while saving');
     } finally {
       setSavingMission(false);
@@ -5127,7 +5112,7 @@ export const ClubAccountPage: React.FC = () => {
         .eq('id', user.id);
 
       if (error) {
-        console.error('Error updating contact info:', error);
+        console.error('Error updating contact info:', error?.message || "Unknown error");
         toast.error('Failed to save contact information');
         setSavingContact(false);
         return;
@@ -5142,7 +5127,7 @@ export const ClubAccountPage: React.FC = () => {
 
       toast.success('Contact information saved successfully!');
     } catch (err) {
-      console.error('Unexpected error saving contact info:', err);
+      console.error('Unexpected error saving contact info:', err instanceof Error ? err.message : "Unknown error");
       toast.error('An unexpected error occurred while saving');
     } finally {
       setSavingContact(false);
@@ -5176,7 +5161,7 @@ export const ClubAccountPage: React.FC = () => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {
-        console.error('Error signing out:', error);
+        console.error('Error signing out:', error?.message || "Unknown error");
         toast.error('Failed to sign out');
       } else {
         toast.success('Signed out successfully');
@@ -5184,7 +5169,7 @@ export const ClubAccountPage: React.FC = () => {
         window.location.href = '/';
       }
     } catch (err) {
-      console.error('Unexpected error signing out:', err);
+      console.error('Unexpected error signing out:', err instanceof Error ? err.message : "Unknown error");
       toast.error('An unexpected error occurred');
     }
   };

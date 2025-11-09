@@ -53,7 +53,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     const { error } = await signInWithGoogle();
 
     if (error) {
-      console.error('Google sign in error:', error);
+      console.error('Google sign in error:', error?.message || "Unknown error");
       setError(error.message);
       setLoading(false);
     }

@@ -255,7 +255,7 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
             setTodos([...todayTodos, ...thisWeekTodos]);
           }
         } catch (error) {
-          console.error('Error fetching todos:', error);
+          console.error('Error fetching todos:', error?.message || "Unknown error");
         }
       };
 
@@ -280,10 +280,10 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
         .eq('id', user.id);
       
       if (error) {
-        console.error('Error saving todos:', error);
+        console.error('Error saving todos:', error?.message || "Unknown error");
       }
     } catch (error) {
-      console.error('Error saving todos:', error);
+      console.error('Error saving todos:', error?.message || "Unknown error");
     }
   };
 
@@ -844,7 +844,7 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
           .single();
 
         if (error) {
-          console.error('Error fetching profile:', error);
+          console.error('Error fetching profile:', error?.message || "Unknown error");
           setLoading(false);
           return;
         }
@@ -857,7 +857,7 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
 
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching user profile:', error);
+        console.error('Error fetching user profile:', error?.message || "Unknown error");
         setLoading(false);
       }
     };

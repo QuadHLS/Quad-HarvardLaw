@@ -305,14 +305,14 @@ export function OnboardingPage(props: OnboardingPageProps) {
           .upsert(profileData);
 
         if (error) {
-          console.error('Error saving profile:', error);
+          console.error('Error saving profile:', error?.message || "Unknown error");
           alert('Error saving your information. Please try again.');
           return;
         }
 
         onComplete();
         } catch (error) {
-        console.error('Error saving profile:', error);
+        console.error('Error saving profile:', error?.message || "Unknown error");
         alert('Error saving your information. Please try again.');
         } finally {
         setLoading(false);
@@ -610,7 +610,7 @@ export function OnboardingPage(props: OnboardingPageProps) {
             .order('course_name');
 
           if (error) {
-            console.error('Error fetching courses:', error);
+            console.error('Error fetching courses:', error?.message || "Unknown error");
             setAllCourseData([]);
             return;
           }
@@ -635,7 +635,7 @@ export function OnboardingPage(props: OnboardingPageProps) {
           setAllCourseData(transformedCourses);
           setAvailableCourses(allCourses); // Set available courses for the new interface
         } catch (error) {
-          console.error('Error fetching courses:', error);
+          console.error('Error fetching courses:', error?.message || "Unknown error");
           setAllCourseData([]);
         } finally {
           setCoursesLoading(false);

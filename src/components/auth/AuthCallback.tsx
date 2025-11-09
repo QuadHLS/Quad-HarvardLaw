@@ -64,7 +64,7 @@ export const AuthCallback: React.FC = () => {
           window.dispatchEvent(new PopStateEvent('popstate'));
         }
       } catch (err) {
-        console.error('AuthCallback: Error processing callback:', err);
+        console.error('AuthCallback: Error processing callback:', err instanceof Error ? err.message : "Unknown error");
         setError('An unexpected error occurred');
       } finally {
         setLoading(false);

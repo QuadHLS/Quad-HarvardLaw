@@ -242,7 +242,7 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
           .maybeSingle();
 
         if (error) {
-          console.error('Error fetching profile:', error);
+          console.error('Error fetching profile:', error?.message || "Unknown error");
           return;
         }
 
@@ -295,7 +295,7 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
           }
         }
       } catch (error) {
-        console.error('Error fetching profile data:', error);
+        console.error('Error fetching profile data:', error?.message || "Unknown error");
       }
     };
 
@@ -413,7 +413,7 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
       // Clear any previous warnings
       setAvatarWarning('');
     } catch (error) {
-      console.error('Error processing avatar:', error);
+      console.error('Error processing avatar:', error?.message || "Unknown error");
       if (error instanceof Error && error.message && error.message.includes('timeout')) {
         setAvatarWarning('Image is too big. Please try a smaller file.');
       } else {
@@ -541,7 +541,7 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
                                        }
                                      }
                                    } catch (error) {
-                                     console.error('Error deleting avatar:', error);
+                                     console.error('Error deleting avatar:', error?.message || "Unknown error");
                                      alert('Error deleting avatar. Please try again.');
                                      return;
                                    }
@@ -839,7 +839,7 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
                            .eq('id', user.id);
 
                          if (error) {
-                           console.error('Error saving profile:', error);
+                           console.error('Error saving profile:', error?.message || "Unknown error");
                            alert('Error saving your profile. Please try again.');
                           setSubmitting(false);
                            return;
@@ -847,7 +847,7 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
                          
                         // Saved successfully
                        } catch (error) {
-                         console.error('Error saving profile:', error);
+                         console.error('Error saving profile:', error?.message || "Unknown error");
                          alert('Error saving your profile. Please try again.');
                          setSubmitting(false);
                          return;

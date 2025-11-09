@@ -114,7 +114,7 @@ export function BarReviewPage({ onNavigateToStudentProfile }: BarReviewPageProps
         }
 
       } catch (err) {
-        console.error('Error fetching bar review events:', err);
+        console.error('Error fetching bar review events:', err instanceof Error ? err.message : "Unknown error");
         setError('Failed to load bar review events. Please try again later.');
       } finally {
         setLoading(false);
@@ -145,7 +145,7 @@ export function BarReviewPage({ onNavigateToStudentProfile }: BarReviewPageProps
         setRsvpCount(0);
       }
     } catch (error) {
-      console.error('Error fetching RSVP count:', error);
+      console.error('Error fetching RSVP count:', error?.message || "Unknown error");
       setRsvpCount(0);
     }
   };
@@ -203,7 +203,7 @@ export function BarReviewPage({ onNavigateToStudentProfile }: BarReviewPageProps
         setAttendees([]);
       }
     } catch (error) {
-      console.error('Error fetching attendees:', error);
+      console.error('Error fetching attendees:', error?.message || "Unknown error");
       setAttendees([]);
     }
   };
@@ -301,7 +301,7 @@ export function BarReviewPage({ onNavigateToStudentProfile }: BarReviewPageProps
         await fetchRsvpCount();
       }
     } catch (error: any) {
-      console.error('Error updating RSVP:', error);
+      console.error('Error updating RSVP:', error?.message || "Unknown error");
       alert(`Failed to update RSVP: ${error.message || 'Unknown error'}. Please check the console for details.`);
     } finally {
       setRsvpLoading(false);

@@ -17,8 +17,7 @@ export async function getDocxPageCount(file: File): Promise<number | null> {
     let JSZip;
     try {
       JSZip = (await import('jszip')).default;
-    } catch (error) {
-      console.warn('JSZip not available, cannot extract DOCX page count:', error);
+    } catch {
       return null;
     }
 
@@ -59,8 +58,7 @@ export async function getDocxPageCount(file: File): Promise<number | null> {
     }
 
     return null;
-  } catch (error) {
-    console.error('Error extracting DOCX page count:', error);
+  } catch {
     return null;
   }
 }
@@ -77,8 +75,7 @@ export async function getPdfPageCount(file: File): Promise<number | null> {
     let pdfjsLib;
     try {
       pdfjsLib = await import('pdfjs-dist');
-    } catch (error) {
-      console.warn('pdfjs-dist not available, cannot extract PDF page count:', error);
+    } catch {
       return null;
     }
     
@@ -99,8 +96,7 @@ export async function getPdfPageCount(file: File): Promise<number | null> {
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     return pdf.numPages;
-  } catch (error) {
-    console.error('Error extracting PDF page count:', error);
+  } catch {
     return null;
   }
 }
@@ -120,8 +116,7 @@ export async function extractPageCount(file: File): Promise<number | null> {
     }
     
     return null;
-  } catch (error) {
-    console.error('Error in extractPageCount:', error);
+  } catch {
     return null;
   }
 }

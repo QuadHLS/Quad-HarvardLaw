@@ -83,7 +83,7 @@ export function CourseSelectionStep({ onNext, onBack, basicInfo }: CourseSelecti
             .order('course_name');
 
           if (error) {
-            console.error('Supabase error:', error);
+            console.error('Supabase error:', error?.message || "Unknown error");
             throw error;
           }
 
@@ -119,7 +119,7 @@ export function CourseSelectionStep({ onNext, onBack, basicInfo }: CourseSelecti
           const transformedCourses = Array.from(courseMap.values());
           setApiCourses(transformedCourses);
         } catch (error) {
-          console.error('Error fetching courses:', error);
+          console.error('Error fetching courses:', error?.message || "Unknown error");
           setApiCourses([]);
           setAllCourseData([]);
         } finally {
@@ -399,7 +399,7 @@ export function CourseSelectionStep({ onNext, onBack, basicInfo }: CourseSelecti
 
       onNext(selectedClasses);
     } catch (error) {
-      console.error('Error saving course selection:', error);
+      console.error('Error saving course selection:', error?.message || "Unknown error");
       alert(`Error saving your courses: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);

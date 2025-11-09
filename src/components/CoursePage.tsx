@@ -500,7 +500,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
         .order('created_at', { ascending: true });
 
       if (error) {
-        console.error('Error fetching comments:', error);
+        console.error('Error fetching comments:', error?.message || "Unknown error");
         // Clear loading state on error
         setLoadingComments(prev => {
           const newSet = new Set(prev);
@@ -619,7 +619,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
         return newSet;
       });
     } catch (error) {
-      console.error('Error in fetchComments:', error);
+      console.error('Error in fetchComments:', error?.message || "Unknown error");
       // Clear loading state on error too
       setLoadingComments(prev => {
         const newSet = new Set(prev);
@@ -645,7 +645,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
         });
 
       if (error) {
-        console.error('Error adding comment:', error);
+        console.error('Error adding comment:', error?.message || "Unknown error");
         return;
       }
 
@@ -656,7 +656,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
       // Refresh comments
       await fetchComments(postId);
     } catch (error) {
-      console.error('Error adding comment:', error);
+      console.error('Error adding comment:', error?.message || "Unknown error");
     }
   };
 
@@ -677,7 +677,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
         });
 
       if (error) {
-        console.error('Error adding reply:', error);
+        console.error('Error adding reply:', error?.message || "Unknown error");
         return;
       }
 
@@ -689,7 +689,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
       // Refresh comments
       await fetchComments(postId);
     } catch (error) {
-      console.error('Error adding reply:', error);
+      console.error('Error adding reply:', error?.message || "Unknown error");
     }
   };
 
@@ -719,7 +719,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
           .eq('likeable_id', commentId);
 
         if (error) {
-          console.error('Error unliking comment:', error);
+          console.error('Error unliking comment:', error?.message || "Unknown error");
           return;
         }
       } else {
@@ -733,7 +733,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
           });
 
         if (error) {
-          console.error('Error liking comment:', error);
+          console.error('Error liking comment:', error?.message || "Unknown error");
           return;
         }
       }
@@ -741,7 +741,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
       // Refresh comments to get updated like counts
       await fetchComments(postId);
     } catch (error) {
-      console.error('Error toggling comment like:', error);
+      console.error('Error toggling comment like:', error?.message || "Unknown error");
     }
   };
 
@@ -771,7 +771,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
           .eq('likeable_id', replyId);
 
         if (error) {
-          console.error('Error unliking reply:', error);
+          console.error('Error unliking reply:', error?.message || "Unknown error");
           return;
         }
       } else {
@@ -785,7 +785,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
           });
 
         if (error) {
-          console.error('Error liking reply:', error);
+          console.error('Error liking reply:', error?.message || "Unknown error");
           return;
         }
       }
@@ -793,7 +793,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
       // Refresh comments to get updated like counts
       await fetchComments(postId);
     } catch (error) {
-      console.error('Error toggling reply like:', error);
+      console.error('Error toggling reply like:', error?.message || "Unknown error");
     }
   };
 
@@ -823,7 +823,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
         });
 
       if (error) {
-        console.error('Error voting on poll:', error);
+        console.error('Error voting on poll:', error?.message || "Unknown error");
         return;
       }
 
@@ -847,7 +847,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
         )
       );
     } catch (error) {
-      console.error('Error handling poll vote:', error);
+      console.error('Error handling poll vote:', error?.message || "Unknown error");
     }
   };
 
@@ -880,7 +880,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
       setEditingPost(null);
       await fetchCoursePosts(); // Refresh posts
     } catch (error) {
-      console.error('Error editing post:', error);
+      console.error('Error editing post:', error?.message || "Unknown error");
     }
   };
 
@@ -955,7 +955,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
           
           setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
         } catch (error) {
-          console.error('CoursePage error deleting post:', error);
+          console.error('CoursePage error deleting post:', error?.message || "Unknown error");
           setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
         }
       }
@@ -987,7 +987,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
       );
       if (postId) await fetchComments(postId);
     } catch (error) {
-      console.error('Error editing comment:', error);
+      console.error('Error editing comment:', error?.message || "Unknown error");
     }
   };
 
@@ -1059,7 +1059,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
             .eq('author_id', user?.id);
 
           if (error) {
-            console.error('CoursePage delete error:', error);
+            console.error('CoursePage delete error:', error?.message || "Unknown error");
             throw error;
           }
           
@@ -1076,7 +1076,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
           }
           setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
         } catch (error) {
-          console.error('CoursePage error deleting comment:', error);
+          console.error('CoursePage error deleting comment:', error?.message || "Unknown error");
           setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
         }
       }
@@ -1116,7 +1116,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
           .single();
 
         if (error) {
-          console.error('Error fetching profile:', error);
+          console.error('Error fetching profile:', error?.message || "Unknown error");
           setLoading(false);
           return;
         }
@@ -1145,7 +1145,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
 
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching course data:', error);
+        console.error('Error fetching course data:', error?.message || "Unknown error");
         setLoading(false);
       }
     };
@@ -1371,7 +1371,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
         setPostPhotoUrls(new Map());
       }
     } catch (error) {
-      console.error('Error fetching course posts:', error);
+      console.error('Error fetching course posts:', error?.message || "Unknown error");
     } finally {
       setPostsLoading(false);
     }
@@ -1482,7 +1482,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
         )
         .subscribe((status: any, err: any) => {
           if (err) {
-            console.error('Posts channel error:', err);
+            console.error('Posts channel error:', err instanceof Error ? err.message : "Unknown error");
             // Don't immediately set disconnected - let it retry
           } else if (status === 'SUBSCRIBED') {
             clearTimeout(connectionTimeout);
@@ -1530,7 +1530,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
         )
         .subscribe((_status: any, err: any) => {
           if (err) {
-            console.error('Likes channel error:', err);
+            console.error('Likes channel error:', err instanceof Error ? err.message : "Unknown error");
             // Don't set disconnected status for likes channel errors - they're not critical
           }
         });
@@ -1589,7 +1589,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
         )
         .subscribe((_status: any, err: any) => {
           if (err) {
-            console.error('Comments channel error:', err);
+            console.error('Comments channel error:', err instanceof Error ? err.message : "Unknown error");
             // Don't set disconnected status for comments channel errors - they're not critical
           }
         });
@@ -1630,7 +1630,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
         )
         .subscribe((_status: any, err: any) => {
           if (err) {
-            console.error('Poll votes channel error:', err);
+            console.error('Poll votes channel error:', err instanceof Error ? err.message : "Unknown error");
             // Don't set disconnected status for poll votes channel errors - they're not critical
           }
         });
@@ -1643,7 +1643,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
           pollVotesChannel
         };
       } catch (error) {
-        console.error('Error setting up realtime channels:', error);
+        console.error('Error setting up realtime channels:', error?.message || "Unknown error");
         setRealtimeStatus('disconnected');
       }
     };
@@ -1807,7 +1807,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
       // Refresh posts
       await fetchCoursePosts();
     } catch (error) {
-      console.error('Error creating course post:', error);
+      console.error('Error creating course post:', error?.message || "Unknown error");
     }
   };
 
@@ -1982,7 +1982,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
           .eq('likeable_id', postId);
 
         if (error) {
-          console.error('Error unliking post:', error);
+          console.error('Error unliking post:', error?.message || "Unknown error");
           return;
         }
       } else {
@@ -1996,7 +1996,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
           });
 
         if (error) {
-          console.error('Error liking post:', error);
+          console.error('Error liking post:', error?.message || "Unknown error");
           return;
         }
       }
@@ -2016,7 +2016,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
         )
       );
     } catch (error) {
-      console.error('Error toggling post like:', error);
+      console.error('Error toggling post like:', error?.message || "Unknown error");
     } finally {
       setLikingPosts(prev => {
         const newSet = new Set(prev);
@@ -3087,7 +3087,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
 
       setCourseStudents(studentList);
     } catch (error) {
-      console.error('Error fetching course students:', error);
+      console.error('Error fetching course students:', error?.message || "Unknown error");
     }
   };
   const darkerCourseColor = getDarkerShade(courseColor);

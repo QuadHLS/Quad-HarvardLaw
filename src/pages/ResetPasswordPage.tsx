@@ -45,7 +45,7 @@ export function ResetPasswordPage() {
           });
           
           if (error) {
-            console.error('ResetPasswordPage: Error setting session from tokens:', error);
+            console.error('ResetPasswordPage: Error setting session from tokens:', error?.message || 'Unknown error');
             setError('Failed to process password reset link. Please try again.');
             setCheckingSession(false);
             return;
@@ -59,14 +59,14 @@ export function ResetPasswordPage() {
             });
             
             if (error) {
-              console.error('ResetPasswordPage: Error verifying OTP with token hash:', error);
+              console.error('ResetPasswordPage: Error verifying OTP with token hash:', error?.message || 'Unknown error');
               setError('Invalid or expired password reset link. Please request a new one.');
               setCheckingSession(false);
               return;
             }
             // The session should now be established
           } catch (err) {
-            console.error('ResetPasswordPage: Exception verifying OTP with token hash:', err);
+            console.error('ResetPasswordPage: Exception verifying OTP with token hash:', err instanceof Error ? err.message : 'Unknown error');
             setError('Failed to process password reset link. Please try again.');
             setCheckingSession(false);
             return;
@@ -82,14 +82,14 @@ export function ResetPasswordPage() {
             });
             
             if (error) {
-              console.error('ResetPasswordPage: Error verifying OTP token:', error);
+              console.error('ResetPasswordPage: Error verifying OTP token:', error?.message || 'Unknown error');
               setError('Invalid or expired password reset link. Please request a new one.');
               setCheckingSession(false);
               return;
             }
             // The session should now be established
           } catch (err) {
-            console.error('ResetPasswordPage: Exception verifying OTP token:', err);
+            console.error('ResetPasswordPage: Exception verifying OTP token:', err instanceof Error ? err.message : 'Unknown error');
             setError('Failed to process password reset link. Please try again.');
             setCheckingSession(false);
             return;
@@ -107,7 +107,7 @@ export function ResetPasswordPage() {
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Session check error:', error);
+          console.error('Session check error:', error?.message || 'Unknown error');
           setError('Failed to verify session. Please try the password reset link again.');
           setCheckingSession(false);
           return;
@@ -123,7 +123,7 @@ export function ResetPasswordPage() {
         setSessionValid(true);
         setCheckingSession(false);
       } catch (err) {
-        console.error('Unexpected error checking session:', err);
+        console.error('Unexpected error checking session:', err instanceof Error ? err.message : 'Unknown error');
         setError('An unexpected error occurred. Please try again.');
         setCheckingSession(false);
       }

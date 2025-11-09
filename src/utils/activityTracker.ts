@@ -35,10 +35,10 @@ export const trackUserActivity = async (activityData: ActivityData): Promise<voi
       });
 
     if (error) {
-      console.error('Error tracking user activity:', error);
+      console.error('Error tracking user activity:', error?.message || "Unknown error");
     }
   } catch (error) {
-    console.error('Failed to track user activity:', error);
+    console.error('Failed to track user activity:', error?.message || "Unknown error");
   }
 };
 
@@ -116,13 +116,13 @@ export const getUserActivitySummary = async (
       .single();
 
     if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-      console.error('Error fetching user activity summary:', error);
+      console.error('Error fetching user activity summary:', error?.message || "Unknown error");
       return null;
     }
 
     return data;
   } catch (error) {
-    console.error('Failed to fetch user activity summary:', error);
+    console.error('Failed to fetch user activity summary:', error?.message || "Unknown error");
     return null;
   }
 };
@@ -138,13 +138,13 @@ export const getResourcePopularity = async (limit: number = 10) => {
       .limit(limit);
 
     if (error) {
-      console.error('Error fetching resource popularity:', error);
+      console.error('Error fetching resource popularity:', error?.message || "Unknown error");
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error('Failed to fetch resource popularity:', error);
+    console.error('Failed to fetch resource popularity:', error?.message || "Unknown error");
     return [];
   }
 };
@@ -170,7 +170,7 @@ export const checkUserMonthlyLimit = async (userId: string, additionalFileSize: 
       .single();
 
     if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-      console.error('Error checking user monthly limit:', error);
+      console.error('Error checking user monthly limit:', error?.message || "Unknown error");
       return {
         allowed: true, // Allow access on error
         currentUsage: 0,
@@ -203,7 +203,7 @@ export const checkUserMonthlyLimit = async (userId: string, additionalFileSize: 
     };
 
   } catch (error) {
-    console.error('Failed to check user monthly limit:', error);
+    console.error('Failed to check user monthly limit:', error?.message || "Unknown error");
     return {
       allowed: true, // Allow access on error
       currentUsage: 0,

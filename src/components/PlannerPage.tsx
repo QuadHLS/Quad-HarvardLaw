@@ -193,7 +193,7 @@ const fetchCourses = async (): Promise<PlannerCourse[]> => {
       .order('name', { ascending: true });
 
     if (error) {
-      console.error('Error fetching courses:', error);
+      console.error('Error fetching courses:', error?.message || "Unknown error");
       return [];
     }
 
@@ -222,7 +222,7 @@ const fetchCourses = async (): Promise<PlannerCourse[]> => {
 
     return transformedData;
   } catch (error) {
-    console.error('Error fetching courses:', error);
+    console.error('Error fetching courses:', error?.message || "Unknown error");
     return [];
   }
 };
@@ -383,7 +383,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
       const savedSchedules: SavedSchedule[] = profileData?.saved_schedules || [];
       setSavedSchedules(savedSchedules);
     } catch (error) {
-      console.error('Error loading saved schedules:', error);
+      console.error('Error loading saved schedules:', error?.message || "Unknown error");
     }
   };
 
@@ -398,7 +398,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
         // Load saved schedules
         await loadSavedSchedules();
       } catch (error) {
-        console.error('Error loading data:', error);
+        console.error('Error loading data:', error?.message || "Unknown error");
         toast.error('Failed to load data');
       }
     };
@@ -973,7 +973,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
       
       toast.success(`Schedule "${newSavedSchedule.name}" saved successfully`, { duration: 2000 });
     } catch (error) {
-      console.error('Error saving schedule:', error);
+      console.error('Error saving schedule:', error?.message || "Unknown error");
       toast.error('Error saving schedule');
     }
   };
@@ -1021,7 +1021,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
 
       toast.success('Schedule deleted', { duration: 2000 });
     } catch (error) {
-      console.error('Error deleting schedule:', error);
+      console.error('Error deleting schedule:', error?.message || "Unknown error");
       toast.error('Error deleting schedule');
       // Revert local state on error
       setSavedSchedules(savedSchedules);

@@ -14,6 +14,7 @@ import { ProfilePage } from './components/NewProfilePage';
 import { FeedbackPage } from './components/FeedbackPage';
 import { DirectoryPage } from './components/DirectoryPage';
 import { ClubsPage } from './components/ClubsPage';
+import { ClubPage } from './components/ClubPage';
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/auth/AuthPage';
@@ -81,7 +82,7 @@ function AppContent({ user }: { user: any }) {
           .maybeSingle();
 
         if (error) {
-          console.error('Error fetching profile:', error);
+          console.error('Error fetching profile:', error?.message || "Unknown error");
           if (isMounted) {
             setHasCompletedOnboarding(false);
             setAuthLoading(false);
@@ -246,7 +247,7 @@ function AppContent({ user }: { user: any }) {
 
         setSavedOutlines(outlines || []);
       } catch (error) {
-        console.error('Error loading saved outlines:', error);
+        console.error('Error loading saved outlines:', error?.message || "Unknown error");
       }
     };
 
@@ -308,6 +309,19 @@ function AppContent({ user }: { user: any }) {
     );
   };
 
+  const ClubPageWrapper = () => {
+    const { clubId } = useParams<{ clubId: string }>();
+    const handleBackFromClub = () => {
+      navigate('/clubs', { replace: false });
+    };
+    return (
+      <ClubPage
+        clubId={clubId || ''}
+        onBack={handleBackFromClub}
+      />
+    );
+  };
+
 
   // Fetch outlines from Supabase with pagination (only after login)
   useEffect(() => {
@@ -336,7 +350,7 @@ function AppContent({ user }: { user: any }) {
             .range(from, from + batchSize - 1);
 
           if (error) {
-            console.error('Error fetching outlines batch:', error);
+            console.error('Error fetching outlines batch:', error?.message || "Unknown error");
             break;
           }
 
@@ -375,7 +389,7 @@ function AppContent({ user }: { user: any }) {
         setOutlines(transformedOutlines);
         fetchedOutlinesOnceRef.current = true;
       } catch (error) {
-        console.error('Error fetching outlines:', error);
+        console.error('Error fetching outlines:', error?.message || "Unknown error");
       }
     };
 
@@ -409,7 +423,7 @@ function AppContent({ user }: { user: any }) {
             .range(from, from + batchSize - 1);
 
           if (error) {
-            console.error('Error fetching exams batch:', error);
+            console.error('Error fetching exams batch:', error?.message || "Unknown error");
             break;
           }
 
@@ -430,7 +444,7 @@ function AppContent({ user }: { user: any }) {
         setExams(allExams);
         fetchedExamsOnceRef.current = true;
       } catch (error) {
-        console.error('Error fetching exams:', error);
+        console.error('Error fetching exams:', error?.message || "Unknown error");
       }
     };
 
@@ -450,7 +464,7 @@ function AppContent({ user }: { user: any }) {
           .single();
 
         if (error) {
-          console.error('Error fetching saved exams:', error);
+          console.error('Error fetching saved exams:', error?.message || "Unknown error");
           return;
         }
 
@@ -473,7 +487,7 @@ function AppContent({ user }: { user: any }) {
 
         setSavedExams(savedExamObjects || []);
       } catch (error) {
-        console.error('Error loading saved exams:', error);
+        console.error('Error loading saved exams:', error?.message || "Unknown error");
       }
     };
 
@@ -618,7 +632,7 @@ function AppContent({ user }: { user: any }) {
       // Update local state
       setSavedOutlines((prev) => [...prev, outline]);
     } catch (error) {
-      console.error('Error saving outline:', error);
+      console.error('Error saving outline:', error?.message || "Unknown error");
     }
   };
 
@@ -659,7 +673,7 @@ function AppContent({ user }: { user: any }) {
         prev.filter((outline) => outline.id !== outlineId)
       );
     } catch (error) {
-      console.error('Error removing saved outline:', error);
+      console.error('Error removing saved outline:', error?.message || "Unknown error");
     }
   };
 
@@ -718,7 +732,7 @@ function AppContent({ user }: { user: any }) {
       // Update local state
       setSavedExams((prev) => [...prev, exam]);
     } catch (error) {
-      console.error('Error saving exam:', error);
+      console.error('Error saving exam:', error?.message || "Unknown error");
     }
   };
 
@@ -759,7 +773,7 @@ function AppContent({ user }: { user: any }) {
         prev.filter((exam) => exam.id !== examId)
       );
     } catch (error) {
-      console.error('Error removing saved exam:', error);
+      console.error('Error removing saved exam:', error?.message || "Unknown error");
     }
   };
 
@@ -869,7 +883,7 @@ function AppContent({ user }: { user: any }) {
             .eq('id', currentUser.id);
           
           if (error) {
-            console.error('Error updating classes_filled:', error);
+            console.error('Error updating classes_filled:', error?.message || "Unknown error");
           }
         }
         
@@ -976,7 +990,8 @@ function AppContent({ user }: { user: any }) {
           <Route path="/planner" element={<PlannerPage />} />
           <Route path="/barreview" element={<BarReviewPage onNavigateToStudentProfile={handleNavigateToStudentProfile} />} />
           <Route path="/directory" element={<DirectoryPage onNavigateToStudentProfile={handleNavigateToStudentProfile} />} />
-          <Route path="/clubs" element={<ClubsPage />} />
+          <Route path="/clubs" element={<ClubsPage onNavigateToClub={(clubId) => navigate(`/club/${clubId}`)} />} />
+          <Route path="/club/:clubId" element={<ClubPageWrapper />} />
           <Route path="/feedback" element={<FeedbackPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/club-account" element={<ClubAccountPage />} />

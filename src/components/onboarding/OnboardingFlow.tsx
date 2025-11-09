@@ -59,7 +59,7 @@ export function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
           .maybeSingle();
 
         if (error) {
-          console.error('Error fetching profile:', error);
+          console.error('Error fetching profile:', error?.message || "Unknown error");
           return;
         }
 
@@ -87,7 +87,7 @@ export function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
           }
         }
       } catch (error) {
-        console.error('Error fetching profile data:', error);
+        console.error('Error fetching profile data:', error?.message || "Unknown error");
       }
     };
 

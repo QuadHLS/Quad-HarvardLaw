@@ -347,12 +347,12 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
           .single();
 
         if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-          console.error('Error checking existing match:', error);
+          console.error('Error checking existing match:', error?.message || "Unknown error");
         } else {
           setMatchSent(!!data);
         }
       } catch (error) {
-        console.error('Error checking existing match:', error);
+        console.error('Error checking existing match:', error?.message || "Unknown error");
       }
     };
 
@@ -408,7 +408,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
         const { data: profile, error } = await query.single();
 
         if (error) {
-          console.error('Error fetching profile:', error);
+          console.error('Error fetching profile:', error?.message || "Unknown error");
           setLoading(false);
           return;
         }
@@ -535,7 +535,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
           }
         }
       } catch (error) {
-        console.error('Error fetching profile:', error);
+        console.error('Error fetching profile:', error?.message || "Unknown error");
       } finally {
         setLoading(false);
       }
@@ -756,7 +756,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
     setProfileData(editedData);
     setIsEditing(false);
     } catch (error) {
-      console.error('Error saving profile:', error);
+      console.error('Error saving profile:', error?.message || "Unknown error");
       alert('Error saving profile. Please try again.');
     }
   };
@@ -777,7 +777,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
         .eq('id', user.id);
 
       if (error) {
-        console.error('Error updating visibility:', error);
+        console.error('Error updating visibility:', error?.message || "Unknown error");
         return;
       }
 
@@ -789,7 +789,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
         setProfileData({ ...profileData, [field]: value });
       }
     } catch (error) {
-      console.error('Error updating visibility:', error);
+      console.error('Error updating visibility:', error?.message || "Unknown error");
     }
   };
 
@@ -820,7 +820,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
         .eq('id', user.id);
 
       if (error) {
-        console.error('Error resetting onboarding:', error);
+        console.error('Error resetting onboarding:', error?.message || "Unknown error");
         alert('Error resetting onboarding. Please try again.');
         return;
       }
@@ -828,7 +828,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       // Reload the page to trigger onboarding flow
       window.location.reload();
     } catch (error) {
-      console.error('Error resetting onboarding:', error);
+      console.error('Error resetting onboarding:', error?.message || "Unknown error");
       alert('Error resetting onboarding. Please try again.');
     }
   };
@@ -842,13 +842,13 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
         .update({ classes_filled: false })
         .eq('id', user.id);
       if (error) {
-        console.error('Error resetting onboarding:', error);
+        console.error('Error resetting onboarding:', error?.message || "Unknown error");
         alert('Error resetting onboarding. Please try again.');
         return;
       }
       window.location.reload();
     } catch (error) {
-      console.error('Error resetting onboarding:', error);
+      console.error('Error resetting onboarding:', error?.message || "Unknown error");
       alert('Error resetting onboarding. Please try again.');
     }
   };
@@ -898,7 +898,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
         fileInput.value = '';
       }
     } catch (error) {
-      console.error('Error deleting avatar:', error);
+      console.error('Error deleting avatar:', error?.message || "Unknown error");
       alert('Error deleting avatar. Please try again.');
     }
   };
@@ -986,7 +986,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       const signedUrl = await getStorageUrl(avatarFileName, 'Avatar');
       setAvatarUrl(signedUrl);
     } catch (error) {
-      console.error('Error uploading avatar:', error);
+      console.error('Error uploading avatar:', error?.message || "Unknown error");
       if (error instanceof Error && error.message && error.message.includes('timeout')) {
         alert('Error: Image is too large or complex to process. Please try a smaller image.');
       } else {
@@ -1090,7 +1090,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
         setProfileData(prev => prev ? { ...prev, photo_urls: updatedPhotoUrls } : null);
       }
     } catch (error) {
-      console.error('Error uploading photos:', error);
+      console.error('Error uploading photos:', error?.message || "Unknown error");
       alert('Error uploading photos. Please try again.');
     } finally {
       setUploadingPhotos(false);
@@ -1158,7 +1158,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
       // Update local state
       setProfileData(prev => prev ? { ...prev, photo_urls: updatedPhotoUrls } : null);
     } catch (error) {
-      console.error('Error deleting photo:', error);
+      console.error('Error deleting photo:', error?.message || "Unknown error");
       alert('Error deleting photo. Please try again.');
     }
   };

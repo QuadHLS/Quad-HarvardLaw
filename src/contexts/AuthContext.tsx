@@ -46,7 +46,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(session?.user ?? null);
         setLoading(false);
       } catch (err) {
-        console.error('AuthContext: Error getting initial session:', err);
+        console.error('AuthContext: Error getting initial session:', err instanceof Error ? err.message : 'Unknown error');
         setLoading(false);
       }
     };
@@ -117,7 +117,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       })
       
       if (error) {
-        console.error('Google OAuth error:', error);
+        console.error('Google OAuth error:', error?.message || 'Unknown error');
         // Provide more specific error messages
         if (error.message.includes('access_denied')) {
           return { error: { ...error, message: 'Google login was cancelled or denied. Please try again.' } };
@@ -132,7 +132,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       return { error: null }
     } catch (err) {
-      console.error('Google OAuth exception:', err);
+      console.error('Google OAuth exception:', err instanceof Error ? err.message : 'Unknown error');
       return { error: { message: 'An unexpected error occurred during Google login. Please try again.' } }
     }
   }
@@ -147,7 +147,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       })
       
       if (error) {
-        console.error('Microsoft OAuth error:', error);
+        console.error('Microsoft OAuth error:', error?.message || 'Unknown error');
         // Provide more specific error messages
         if (error.message.includes('access_denied')) {
           return { error: { ...error, message: 'Microsoft login was cancelled or denied. Please try again.' } };
@@ -162,7 +162,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       return { error: null }
     } catch (err) {
-      console.error('Microsoft OAuth exception:', err);
+      console.error('Microsoft OAuth exception:', err instanceof Error ? err.message : 'Unknown error');
       return { error: { message: 'An unexpected error occurred during Microsoft login. Please try again.' } }
     }
   }

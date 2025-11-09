@@ -340,7 +340,7 @@ export function ClassSelector({
                           onProfessorChange(professor);
                           setShowProfessorDropdown(false);
                         } catch (error) {
-                          console.error('Error in professor selection:', error);
+                          console.error('Error in professor selection:', error?.message || "Unknown error");
                         }
                       }}
                       onClick={(e) => {

@@ -112,7 +112,7 @@ export function NavigationSidebar({ isCollapsed, onToggleCollapsed }: Navigation
           .single();
 
         if (error) {
-          console.error('Error fetching user name:', error);
+          console.error('Error fetching user name:', error?.message || "Unknown error");
           return;
         }
 
@@ -124,7 +124,7 @@ export function NavigationSidebar({ isCollapsed, onToggleCollapsed }: Navigation
           setUserName(`${firstName} ${lastInitial}.`);
         }
       } catch (error) {
-        console.error('Error fetching user name:', error);
+        console.error('Error fetching user name:', error?.message || "Unknown error");
       }
     };
 

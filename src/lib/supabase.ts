@@ -6,7 +6,6 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 let supabase: any
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase environment variables missing, using mock client');
   supabase = {
     auth: {
       getSession: () => Promise.resolve({ data: { session: null }, error: null }),

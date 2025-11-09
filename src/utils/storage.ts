@@ -55,7 +55,7 @@ export async function getStorageUrl(
       .createSignedUrl(filename, 3600);
 
     if (error || !data?.signedUrl) {
-      console.error(`Error creating signed URL for ${bucket}/${filename}:`, error);
+      console.error(`Error creating signed URL for ${bucket}/${filename}`);
       return null;
     }
 
@@ -67,7 +67,7 @@ export async function getStorageUrl(
 
     return data.signedUrl;
   } catch (error) {
-    console.error(`Error generating signed URL for ${bucket}/${filename}:`, error);
+    console.error(`Error generating signed URL for ${bucket}/${filename}`);
     return null;
   }
 }

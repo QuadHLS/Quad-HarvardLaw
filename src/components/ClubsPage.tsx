@@ -760,17 +760,6 @@ export function ClubsPage({ onNavigateToClub }: ClubsPageProps) {
     );
   }
 
-  // Coming soon flag - set to false to show full page
-  const showComingSoon = true;
-
-  if (showComingSoon) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#FEFBF6', height: '100vh' }}>
-        <p className="text-xl text-gray-600 text-center">Coming Soon</p>
-      </div>
-    );
-  }
-
   return (
     <div className="flex h-full" style={{ backgroundColor: '#FAF5EF' }}>
       <div className="flex-1 overflow-y-auto">

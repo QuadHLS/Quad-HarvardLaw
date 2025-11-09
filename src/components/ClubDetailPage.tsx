@@ -9,12 +9,12 @@ import { supabase } from '../lib/supabase';
 import { getStorageUrl } from '../utils/storage';
 
 
-interface ClubPageProps {
+interface ClubDetailPageProps {
   clubId: string;
   onBack: () => void;
 }
 
-export function ClubPage({ clubId, onBack }: ClubPageProps) {
+export function ClubDetailPage({ clubId, onBack }: ClubDetailPageProps) {
   const [activeTab, setActiveTab] = useState('home');
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [club, setClub] = useState<any>(null);

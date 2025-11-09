@@ -14,7 +14,7 @@ import { ProfilePage } from './components/NewProfilePage';
 import { FeedbackPage } from './components/FeedbackPage';
 import { DirectoryPage } from './components/DirectoryPage';
 import { ClubsPage } from './components/ClubsPage';
-import { ClubPage } from './components/ClubPage';
+import { ClubDetailPage } from './components/ClubDetailPage';
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/auth/AuthPage';
@@ -305,17 +305,18 @@ function AppContent({ user }: { user: any }) {
         studentName={decodedStudentName}
         onBack={handleBackFromStudentProfile}
         fromBarReview={previousSection === 'barreview'}
+        fromDirectory={previousSection === 'directory'}
       />
     );
   };
 
-  const ClubPageWrapper = () => {
+  const ClubDetailPageWrapper = () => {
     const { clubId } = useParams<{ clubId: string }>();
     const handleBackFromClub = () => {
       navigate('/clubs', { replace: false });
     };
     return (
-      <ClubPage
+      <ClubDetailPage
         clubId={clubId || ''}
         onBack={handleBackFromClub}
       />
@@ -991,7 +992,7 @@ function AppContent({ user }: { user: any }) {
           <Route path="/barreview" element={<BarReviewPage onNavigateToStudentProfile={handleNavigateToStudentProfile} />} />
           <Route path="/directory" element={<DirectoryPage onNavigateToStudentProfile={handleNavigateToStudentProfile} />} />
           <Route path="/clubs" element={<ClubsPage onNavigateToClub={(clubId) => navigate(`/club/${clubId}`)} />} />
-          <Route path="/club/:clubId" element={<ClubPageWrapper />} />
+          <Route path="/club/:clubId" element={<ClubDetailPageWrapper />} />
           <Route path="/feedback" element={<FeedbackPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/club-account" element={<ClubAccountPage />} />

@@ -315,9 +315,10 @@ interface ProfilePageProps {
   studentName?: string;
   onBack?: () => void;
   fromBarReview?: boolean;
+  fromDirectory?: boolean;
 }
 
-export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
+export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory }: ProfilePageProps) {
   const { user, signOut } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [showRedoConfirm, setShowRedoConfirm] = useState(false);
@@ -1407,7 +1408,7 @@ export function ProfilePage({ studentName, onBack }: ProfilePageProps) {
             className="mb-2 text-gray-600 hover:text-gray-800 bg-white hover:bg-gray-100"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Course
+            {fromDirectory ? 'Back to Directory' : fromBarReview ? 'Back to Bar Review' : 'Back to Course'}
           </Button>
         )}
         

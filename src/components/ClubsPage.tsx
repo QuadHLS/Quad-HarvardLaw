@@ -21,7 +21,7 @@
  * - clsx (via ./ui/utils)
  * - tailwind-merge (via ./ui/utils)
  * 
- * Note: ClubPage component (separate file) also uses:
+ * Note: ClubDetailPage component (separate file) also uses:
  * - Dialog components (./ui/dialog) - depends on: @radix-ui/react-dialog@1.1.6
  * - Textarea (./ui/textarea) - depends on: cn utility
  */
@@ -756,6 +756,17 @@ export function ClubsPage({ onNavigateToClub }: ClubsPageProps) {
     return (
       <div className="flex h-full items-center justify-center" style={{ backgroundColor: '#FAF5EF' }}>
         <div className="text-gray-600">Loading clubs...</div>
+      </div>
+    );
+  }
+
+  // Coming soon flag - set to false to show full page
+  const showComingSoon = true;
+
+  if (showComingSoon) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#FEFBF6', height: '100vh' }}>
+        <p className="text-xl text-gray-600 text-center">Coming Soon</p>
       </div>
     );
   }

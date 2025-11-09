@@ -255,7 +255,7 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
             setTodos([...todayTodos, ...thisWeekTodos]);
           }
         } catch (error) {
-          console.error('Error fetching todos:', error?.message || "Unknown error");
+          console.error('Error fetching todos:', error instanceof Error ? error.message : "Unknown error");
         }
       };
 
@@ -283,7 +283,7 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
         console.error('Error saving todos:', error?.message || "Unknown error");
       }
     } catch (error) {
-      console.error('Error saving todos:', error?.message || "Unknown error");
+      console.error('Error saving todos:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -622,7 +622,6 @@ interface Course {
 interface MyCoursesProps {
   onNavigateToCourse?: (courseName: string) => void;
   courses?: Course[];
-  allUserCourses?: UserCourse[];
   selectedSemester?: string;
   onSemesterChange?: (semester: string) => void;
 }
@@ -631,7 +630,6 @@ interface MyCoursesProps {
 function MyCourses({ 
   onNavigateToCourse, 
   courses,
-  allUserCourses,
   selectedSemester,
   onSemesterChange
 }: MyCoursesProps) {
@@ -857,7 +855,7 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
 
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching user profile:', error?.message || "Unknown error");
+        console.error('Error fetching user profile:', error instanceof Error ? error.message : "Unknown error");
         setLoading(false);
       }
     };
@@ -1274,7 +1272,6 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
                 <MyCourses 
                   onNavigateToCourse={onNavigateToCourse}
                   courses={transformedCourses}
-                  allUserCourses={userCourses}
                   selectedSemester={selectedSemester}
                   onSemesterChange={setSelectedSemester}
                 />

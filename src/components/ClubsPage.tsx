@@ -553,7 +553,7 @@ export function ClubsPage({ onNavigateToClub }: ClubsPageProps) {
             let category = 'Other';
             if (tag === 'student practice organization') {
               category = 'SPOs';
-            } else if (tag === 'student organization') {
+            } else if (tag === 'student organization' || tag === 'student-org') {
               category = 'Orgs';
             } else if (tag === 'journal') {
               category = 'Journals';
@@ -621,30 +621,49 @@ export function ClubsPage({ onNavigateToClub }: ClubsPageProps) {
   });
 
   // Get top clubs by member count (all clubs sorted by members)
-  const topClubs = [...filteredClubs]
+  const allTopClubs = [...filteredClubs]
     .sort((a, b) => b.members - a.members);
+  
+  // Top 8 clubs for the "Top" section
+  const top8Clubs = allTopClubs.slice(0, 8);
+  const top8ClubIds = new Set(top8Clubs.map(club => club.id));
 
   // Get all SPOs - using club_tag directly (case-insensitive)
-  const getSPOs = () => {
+  // Exclude top 8 clubs when used in "All Groups" tab
+  const getSPOs = (excludeTop8: boolean = false) => {
     return filteredClubs.filter(club => {
       const tag = club.club_tag?.toLowerCase().trim();
-      return tag === 'student practice organization';
+      const matchesTag = tag === 'student practice organization';
+      if (excludeTop8 && top8ClubIds.has(club.id)) {
+        return false;
+      }
+      return matchesTag;
     });
   };
   
   // Get all Orgs - using club_tag directly (case-insensitive)
-  const getAllOrgs = () => {
+  // Exclude top 8 clubs when used in "All Groups" tab
+  const getAllOrgs = (excludeTop8: boolean = false) => {
     return filteredClubs.filter(club => {
       const tag = club.club_tag?.toLowerCase().trim();
-      return tag === 'student organization';
+      const matchesTag = tag === 'student organization' || tag === 'student-org';
+      if (excludeTop8 && top8ClubIds.has(club.id)) {
+        return false;
+      }
+      return matchesTag;
     });
   };
   
   // Get all Journals - using club_tag directly (case-insensitive)
-  const getAllJournals = () => {
+  // Exclude top 8 clubs when used in "All Groups" tab
+  const getAllJournals = (excludeTop8: boolean = false) => {
     return filteredClubs.filter(club => {
       const tag = club.club_tag?.toLowerCase().trim();
-      return tag === 'journal';
+      const matchesTag = tag === 'journal';
+      if (excludeTop8 && top8ClubIds.has(club.id)) {
+        return false;
+      }
+      return matchesTag;
     });
   };
 
@@ -788,7 +807,7 @@ export function ClubsPage({ onNavigateToClub }: ClubsPageProps) {
                       <p className="text-sm text-gray-600 mb-1">Student Organizations</p>
                       <p className="text-2xl font-medium text-gray-900">{clubs.filter(c => {
                         const tag = c.club_tag?.toLowerCase().trim();
-                        return tag === 'student organization';
+                        return tag === 'student organization' || tag === 'student-org';
                       }).length}</p>
                     </div>
                     <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#0080BD15', borderRadius: '0.75rem' }}>
@@ -919,35 +938,35 @@ export function ClubsPage({ onNavigateToClub }: ClubsPageProps) {
           {activeTab === 'All Groups' && (
             <div className="mt-0">
               <div>
-                {/* Top Clubs */}
-                {topClubs.length > 0 && renderSectionWithPagination('Top', topClubs, 0)}
+                {/* Top 8 Clubs */}
+                {top8Clubs.length > 0 && renderSectionWithPagination('Top', top8Clubs, 0)}
                 
-                {/* Orgs */}
+                {/* Orgs (excluding top 8) */}
                 {(() => {
-                  const orgs = getAllOrgs();
+                  const orgs = getAllOrgs(true);
                   if (orgs.length > 0) {
-                    return renderSectionWithPagination('Orgs', orgs, topClubs.length);
+                    return renderSectionWithPagination('Orgs', orgs, top8Clubs.length);
                   }
                   return null;
                 })()}
                 
-                {/* SPOs */}
+                {/* SPOs (excluding top 8) */}
                 {(() => {
-                  const spos = getSPOs();
+                  const spos = getSPOs(true);
                   if (spos.length > 0) {
-                    const orgs = getAllOrgs();
-                    return renderSectionWithPagination('SPOs', spos, topClubs.length + orgs.length);
+                    const orgs = getAllOrgs(true);
+                    return renderSectionWithPagination('SPOs', spos, top8Clubs.length + orgs.length);
                   }
                   return null;
                 })()}
                 
-                {/* Journals */}
+                {/* Journals (excluding top 8) */}
                 {(() => {
-                  const journals = getAllJournals();
+                  const journals = getAllJournals(true);
                   if (journals.length > 0) {
-                    const orgs = getAllOrgs();
-                    const spos = getSPOs();
-                    return renderSectionWithPagination('Journals', journals, topClubs.length + orgs.length + spos.length);
+                    const orgs = getAllOrgs(true);
+                    const spos = getSPOs(true);
+                    return renderSectionWithPagination('Journals', journals, top8Clubs.length + orgs.length + spos.length);
                   }
                   return null;
                 })()}

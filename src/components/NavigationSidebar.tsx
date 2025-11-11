@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, FileText, Star, Beer, User, Archive, BookOpen, CalendarDays, Mail, Users, Briefcase } from 'lucide-react';
+import { Home, FileText, Star, Beer, User, Archive, BookOpen, CalendarDays, Mail, Users } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 
@@ -260,8 +260,8 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
             </div>
           )}
 
-          {/* Big Law Guide */}
-          <Link
+          {/* Big Law Guide - Hidden for now */}
+          {/* <Link
             to="/biglaw-guide"
             className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
               activeSection === 'biglaw-guide' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
@@ -270,7 +270,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
           >
             <Briefcase className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
             {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Big Law Guide</span>}
-          </Link>
+          </Link> */}
 
           {/* Bar Review */}
           <Link

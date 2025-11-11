@@ -22,7 +22,7 @@ export function NavigationSidebar({ isCollapsed, onToggleCollapsed }: Navigation
     if (path.startsWith('/reviews')) return 'reviews';
     if (path.startsWith('/planner')) return 'planner';
     if (path.startsWith('/directory')) return 'directory';
-    if (path.startsWith('/clubs')) return 'clubs';
+    if (path.startsWith('/club/') || path.startsWith('/clubs')) return 'clubs';
     if (path.startsWith('/barreview')) return 'barreview';
     if (path.startsWith('/feedback')) return 'feedback';
     if (path.startsWith('/profile')) return 'profile';
@@ -224,8 +224,8 @@ export function NavigationSidebar({ isCollapsed, onToggleCollapsed }: Navigation
             {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Directory</span>}
           </Link>
 
-          {/* Clubs */}
-          <Link
+          {/* Clubs - Hidden for now */}
+          {/* <Link
             to="/clubs"
             className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
               activeSection === 'clubs' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
@@ -234,7 +234,7 @@ export function NavigationSidebar({ isCollapsed, onToggleCollapsed }: Navigation
           >
             <span className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5 flex items-center justify-center text-2xl leading-none`} style={{ color: '#752432', WebkitTextStroke: '1.5px #752432', WebkitTextFillColor: 'transparent' }}>♣</span>
             {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Clubs</span>}
-          </Link>
+          </Link> */}
 
           {/* Resources - not clickable, only sub-items are */}
           <div

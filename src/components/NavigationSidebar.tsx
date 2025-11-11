@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, FileText, Star, Beer, Menu, User, Archive, ChevronDown, ChevronRight, BookOpen, MessageSquare, CalendarDays, Mail, Users } from 'lucide-react';
-import { Button } from './ui/button';
+import { Home, FileText, Star, Beer, User, Archive, BookOpen, CalendarDays, Mail, Users, Briefcase } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 
@@ -10,7 +9,7 @@ interface NavigationSidebarProps {
   onToggleCollapsed: () => void;
 }
 
-export function NavigationSidebar({ isCollapsed, onToggleCollapsed }: NavigationSidebarProps) {
+export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed: _onToggleCollapsed }: NavigationSidebarProps) {
   const location = useLocation();
   
   // Get current section from URL path
@@ -24,6 +23,7 @@ export function NavigationSidebar({ isCollapsed, onToggleCollapsed }: Navigation
     if (path.startsWith('/directory')) return 'directory';
     if (path.startsWith('/club/') || path.startsWith('/clubs')) return 'clubs';
     if (path.startsWith('/barreview')) return 'barreview';
+    if (path.startsWith('/biglaw-guide')) return 'biglaw-guide';
     if (path.startsWith('/feedback')) return 'feedback';
     if (path.startsWith('/profile')) return 'profile';
     if (path.startsWith('/course')) return 'course';
@@ -46,15 +46,8 @@ export function NavigationSidebar({ isCollapsed, onToggleCollapsed }: Navigation
   
   const isCollapsedOverride = !isAutoExpanded;
   const { user } = useAuth();
-  const [isResourcesExpanded, setIsResourcesExpanded] = useState(false);
-  const [isResourcesCollapsedExpanded, setIsResourcesCollapsedExpanded] = useState(false);
+  const [, setIsResourcesExpanded] = useState(false);
   const [userName, setUserName] = useState('User');
-  const [showMenuButton, setShowMenuButton] = useState(false);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  // MVP: Temporarily disable unfinished sections
-
-  // Remove menu button entirely (no 3-line hamburger)
-  useEffect(() => { setShowMenuButton(false); }, []);
 
   // Track collapse/expand transition to avoid overlapping UIs
   const [showText, setShowText] = useState(false);
@@ -62,7 +55,6 @@ export function NavigationSidebar({ isCollapsed, onToggleCollapsed }: Navigation
   const [barReviewOffset, setBarReviewOffset] = useState(0);
   
   useEffect(() => {
-    setIsTransitioning(true);
     if (isCollapsedOverride) {
       setShowText(false); // Hide text immediately when collapsing
       setShowSubItems([false, false, false]); // Hide all sub-items
@@ -95,8 +87,6 @@ export function NavigationSidebar({ isCollapsed, onToggleCollapsed }: Navigation
         clearTimeout(barReviewStart);
       };
     }
-    const timer = setTimeout(() => setIsTransitioning(false), 300);
-    return () => clearTimeout(timer);
   }, [isCollapsedOverride]);
 
   // Fetch user's name from profiles table
@@ -124,7 +114,7 @@ export function NavigationSidebar({ isCollapsed, onToggleCollapsed }: Navigation
           setUserName(`${firstName} ${lastInitial}.`);
         }
       } catch (error) {
-        console.error('Error fetching user name:', error?.message || "Unknown error");
+        console.error('Error fetching user name:', error instanceof Error ? error.message : "Unknown error");
       }
     };
 
@@ -140,12 +130,7 @@ export function NavigationSidebar({ isCollapsed, onToggleCollapsed }: Navigation
     if (['outlines', 'reviews', 'exams'].includes(activeSection)) {
       setIsResourcesExpanded(true);
     }
-  }, [activeSection]);
-
-  const menuItems = [
-    { id: 'home', label: 'Home', icon: Home },
-    { id: 'planner', label: 'Planner', icon: CalendarDays },
-  ];
+  }, [activeSection, setIsResourcesExpanded]);
 
   const resourceItems = [
     { id: 'outlines', label: 'Outlines', icon: FileText },
@@ -274,6 +259,18 @@ export function NavigationSidebar({ isCollapsed, onToggleCollapsed }: Navigation
               })}
             </div>
           )}
+
+          {/* Big Law Guide */}
+          <Link
+            to="/biglaw-guide"
+            className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
+              activeSection === 'biglaw-guide' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
+            }`}
+            style={{ borderRightColor: activeSection === 'biglaw-guide' ? '#752432' : 'transparent' }}
+          >
+            <Briefcase className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
+            {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Big Law Guide</span>}
+          </Link>
 
           {/* Bar Review */}
           <Link

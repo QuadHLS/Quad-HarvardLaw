@@ -358,15 +358,8 @@ export function BarReviewPage({ onNavigateToStudentProfile }: BarReviewPageProps
         scrollbarColor: '#752531 transparent'
       }}>
         <div className="max-w-6xl mx-auto p-6">
-          <div className="mb-8">
-            <h1 className="text-3xl font-medium text-gray-900 mb-2">Bar Review</h1>
-            <p className="text-gray-600">Weekly Thursday night social for law students</p>
-          </div>
           <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#752432] mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading bar review events...</p>
-            </div>
+            <p className="text-gray-600">Loading</p>
           </div>
         </div>
       </div>

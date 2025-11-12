@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Card } from './ui/card';
 
 // Main BigLawGuidePage Component
+// Deployment trigger comment
 export function BigLawGuidePage() {
   const [activeTab, setActiveTab] = React.useState('intro');
   

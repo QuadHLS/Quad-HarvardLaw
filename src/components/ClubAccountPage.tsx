@@ -1562,7 +1562,7 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
       
       toast.success('Picture uploaded successfully!');
     } catch (error) {
-      console.error('Error uploading member picture:', error?.message || "Unknown error");
+      console.error('Error uploading member picture:', error instanceof Error ? error.message : "Unknown error");
       if (error instanceof Error && error.message && error.message.includes('timeout')) {
         toast.error('Error: Image is too large or complex to process. Please try a smaller image.');
       } else {
@@ -1653,7 +1653,7 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
 
       toast.success('Picture deleted successfully!');
     } catch (error) {
-      console.error('Error deleting member picture:', error?.message || "Unknown error");
+      console.error('Error deleting member picture:', error instanceof Error ? error.message : "Unknown error");
       toast.error('Error deleting picture. Please try again.');
     }
   };
@@ -1953,7 +1953,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
 
       return clubAccount.id;
     } catch (error) {
-      console.error('Error getting club account ID:', error?.message || "Unknown error");
+      console.error('Error getting club account ID:', error instanceof Error ? error.message : "Unknown error");
       return null;
     }
   };
@@ -1969,6 +1969,24 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hour${Math.floor(diffInSeconds / 3600) > 1 ? 's' : ''} ago`;
     if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} day${Math.floor(diffInSeconds / 86400) > 1 ? 's' : ''} ago`;
     return date.toLocaleDateString();
+  }, []);
+
+  // Helper function to count words in text
+  const countWords = useCallback((text: string): number => {
+    if (!text.trim()) return 0;
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+  }, []);
+
+  // Helper function to enforce word limit on text input
+  const handleTextChangeWithWordLimit = useCallback((value: string, maxWords: number, setter: (value: string) => void) => {
+    const words = value.trim().split(/\s+/).filter(word => word.length > 0);
+    if (words.length <= maxWords) {
+      setter(value);
+    } else {
+      // If exceeding limit, truncate to maxWords
+      const truncated = value.trim().split(/\s+/).slice(0, maxWords).join(' ');
+      setter(truncated);
+    }
   }, []);
 
   const getPostColor = useCallback((_postId: string) => {
@@ -2411,7 +2429,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
         }
       }
     } catch (error) {
-      console.error('Error fetching posts:', error?.message || "Unknown error");
+      console.error('Error fetching posts:', error instanceof Error ? error.message : "Unknown error");
     } finally {
       setLoading(false);
     }
@@ -2542,7 +2560,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
       // Refresh posts
       await fetchPosts();
     } catch (error) {
-      console.error('Error in handleCreatePost:', error?.message || "Unknown error");
+      console.error('Error in handleCreatePost:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -2597,7 +2615,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
         )
       );
     } catch (error) {
-      console.error('Error in handleLike:', error?.message || "Unknown error");
+      console.error('Error in handleLike:', error instanceof Error ? error.message : "Unknown error");
     } finally {
       setLikingPosts(prev => {
         const newSet = new Set(prev);
@@ -2633,7 +2651,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
       setEditingPost(null);
       await fetchPosts();
     } catch (error) {
-      console.error('Error editing post:', error?.message || "Unknown error");
+      console.error('Error editing post:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -2684,7 +2702,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
             setReplyingTo(null);
           }
         } catch (error) {
-          console.error('Error deleting post:', error?.message || "Unknown error");
+          console.error('Error deleting post:', error instanceof Error ? error.message : "Unknown error");
           setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
         }
       }
@@ -2733,7 +2751,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
         )
       );
     } catch (error) {
-      console.error('Error in handleVotePoll:', error?.message || "Unknown error");
+      console.error('Error in handleVotePoll:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -2905,7 +2923,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
         return next;
       });
     } catch (error) {
-      console.error('Error fetching comments:', error?.message || "Unknown error");
+      console.error('Error fetching comments:', error instanceof Error ? error.message : "Unknown error");
       setLoadingComments(prev => {
         const next = new Set(prev);
         next.delete(postId);
@@ -2942,7 +2960,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
       await fetchComments(postId);
       await fetchPosts();
     } catch (error) {
-      console.error('Error in addComment:', error?.message || "Unknown error");
+      console.error('Error in addComment:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -2977,7 +2995,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
       await fetchComments(postId);
       await fetchPosts();
     } catch (error) {
-      console.error('Error in addReply:', error?.message || "Unknown error");
+      console.error('Error in addReply:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -3961,7 +3979,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
       setEditingComment(null);
       setEditCommentContent('');
     } catch (error) {
-      console.error('Error in handleEditComment:', error?.message || "Unknown error");
+      console.error('Error in handleEditComment:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -4028,7 +4046,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
         return p;
       }));
     } catch (error) {
-      console.error('Error in handleDeleteComment:', error?.message || "Unknown error");
+      console.error('Error in handleDeleteComment:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -4095,7 +4113,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
         })
       }));
     } catch (error) {
-      console.error('Error in toggleCommentLike:', error?.message || "Unknown error");
+      console.error('Error in toggleCommentLike:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -4193,14 +4211,13 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
               <div>
                 <Textarea
                   value={newPost}
-                  onChange={(e) => setNewPost(e.target.value)}
+                  onChange={(e) => handleTextChangeWithWordLimit(e.target.value, 1000, setNewPost)}
                   placeholder="What are your thoughts?"
-                  maxLength={1000}
                   className="border-gray-300 focus:border-[#752432] focus:ring-[#752432] resize-none overflow-y-auto bg-white"
                   style={{ height: '120px', minHeight: '120px', maxHeight: '120px', fontSize: '14px' }}
                 />
                 <div className="text-xs text-gray-500 mt-1">
-                  {newPost.length}/1000
+                  {countWords(newPost)}/1000 words
                 </div>
               </div>
 
@@ -4304,14 +4321,13 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
               <div>
                 <Textarea
                   value={newPost}
-                  onChange={(e) => setNewPost(e.target.value)}
+                  onChange={(e) => handleTextChangeWithWordLimit(e.target.value, 1000, setNewPost)}
                   placeholder="What are your thoughts?"
-                  maxLength={1000}
                   className="border-gray-300 focus:border-[#752432] focus:ring-[#752432] resize-none overflow-y-auto bg-white"
                   style={{ height: '120px', minHeight: '120px', maxHeight: '120px', fontSize: '14px' }}
                 />
                 <div className="text-xs text-gray-500 mt-1">
-                  {newPost.length}/1000
+                  {countWords(newPost)}/1000 words
                 </div>
               </div>
 

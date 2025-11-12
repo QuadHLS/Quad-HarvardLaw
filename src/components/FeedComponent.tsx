@@ -693,6 +693,24 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     return date.toLocaleDateString();
   }, []);
 
+  // Helper function to count words in text
+  const countWords = useCallback((text: string): number => {
+    if (!text.trim()) return 0;
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+  }, []);
+
+  // Helper function to enforce word limit on text input
+  const handleTextChangeWithWordLimit = useCallback((value: string, maxWords: number, setter: (value: string) => void) => {
+    const words = value.trim().split(/\s+/).filter(word => word.length > 0);
+    if (words.length <= maxWords) {
+      setter(value);
+    } else {
+      // If exceeding limit, truncate to maxWords
+      const truncated = value.trim().split(/\s+/).slice(0, maxWords).join(' ');
+      setter(truncated);
+    }
+  }, []);
+
   // Helper functions - memoized for performance
   const getPostColor = useCallback((postId: string, isClubAccount?: boolean) => {
     // Club posts always use maroon color
@@ -3990,14 +4008,13 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 <div>
                   <Textarea
                     value={newPost}
-                    onChange={(e) => setNewPost(e.target.value)}
+                    onChange={(e) => handleTextChangeWithWordLimit(e.target.value, 1000, setNewPost)}
                     placeholder="What are your thoughts?"
-                    maxLength={1000}
                     className="border-gray-300 focus:border-[#752432] focus:ring-[#752432] min-h-[120px] resize-none"
                     rows={5}
                   />
                   <div className="text-xs text-gray-500 mt-1">
-                    {newPost.length}/1000
+                    {countWords(newPost)}/1000 words
                   </div>
                 </div>
 
@@ -4103,14 +4120,13 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 <div>
                   <Textarea
                     value={newPost}
-                    onChange={(e) => setNewPost(e.target.value)}
+                    onChange={(e) => handleTextChangeWithWordLimit(e.target.value, 1000, setNewPost)}
                     placeholder="What are your thoughts?"
-                    maxLength={1000}
                     className="border-gray-300 focus:border-[#752432] focus:ring-[#752432] min-h-[120px] resize-none"
                     rows={5}
                   />
                   <div className="text-xs text-gray-500 mt-1">
-                    {newPost.length}/1000
+                    {countWords(newPost)}/1000 words
                   </div>
                 </div>
 

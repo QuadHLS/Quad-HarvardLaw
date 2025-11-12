@@ -467,6 +467,24 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
     }
   };
 
+  // Helper function to count words in text
+  const countWords = useCallback((text: string): number => {
+    if (!text.trim()) return 0;
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+  }, []);
+
+  // Helper function to enforce word limit on text input
+  const handleTextChangeWithWordLimit = useCallback((value: string, maxWords: number, setter: (value: string) => void) => {
+    const words = value.trim().split(/\s+/).filter(word => word.length > 0);
+    if (words.length <= maxWords) {
+      setter(value);
+    } else {
+      // If exceeding limit, truncate to maxWords
+      const truncated = value.trim().split(/\s+/).slice(0, maxWords).join(' ');
+      setter(truncated);
+    }
+  }, []);
+
   // Handle post click to open thread view (matching FeedComponent)
   const handlePostClick = (postId: string) => {
     setSelectedPostThread(postId);
@@ -619,7 +637,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
         return newSet;
       });
     } catch (error) {
-      console.error('Error in fetchComments:', error?.message || "Unknown error");
+      console.error('Error in fetchComments:', error instanceof Error ? error.message : "Unknown error");
       // Clear loading state on error too
       setLoadingComments(prev => {
         const newSet = new Set(prev);
@@ -656,7 +674,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
       // Refresh comments
       await fetchComments(postId);
     } catch (error) {
-      console.error('Error adding comment:', error?.message || "Unknown error");
+      console.error('Error adding comment:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -689,7 +707,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
       // Refresh comments
       await fetchComments(postId);
     } catch (error) {
-      console.error('Error adding reply:', error?.message || "Unknown error");
+      console.error('Error adding reply:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -741,7 +759,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
       // Refresh comments to get updated like counts
       await fetchComments(postId);
     } catch (error) {
-      console.error('Error toggling comment like:', error?.message || "Unknown error");
+      console.error('Error toggling comment like:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -793,7 +811,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
       // Refresh comments to get updated like counts
       await fetchComments(postId);
     } catch (error) {
-      console.error('Error toggling reply like:', error?.message || "Unknown error");
+      console.error('Error toggling reply like:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -847,7 +865,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
         )
       );
     } catch (error) {
-      console.error('Error handling poll vote:', error?.message || "Unknown error");
+      console.error('Error handling poll vote:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -880,7 +898,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
       setEditingPost(null);
       await fetchCoursePosts(); // Refresh posts
     } catch (error) {
-      console.error('Error editing post:', error?.message || "Unknown error");
+      console.error('Error editing post:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -955,7 +973,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
           
           setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
         } catch (error) {
-          console.error('CoursePage error deleting post:', error?.message || "Unknown error");
+          console.error('CoursePage error deleting post:', error instanceof Error ? error.message : "Unknown error");
           setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
         }
       }
@@ -987,7 +1005,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
       );
       if (postId) await fetchComments(postId);
     } catch (error) {
-      console.error('Error editing comment:', error?.message || "Unknown error");
+      console.error('Error editing comment:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -1076,7 +1094,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
           }
           setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
         } catch (error) {
-          console.error('CoursePage error deleting comment:', error?.message || "Unknown error");
+          console.error('CoursePage error deleting comment:', error instanceof Error ? error.message : "Unknown error");
           setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
         }
       }
@@ -1145,7 +1163,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
 
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching course data:', error?.message || "Unknown error");
+        console.error('Error fetching course data:', error instanceof Error ? error.message : "Unknown error");
         setLoading(false);
       }
     };
@@ -1371,7 +1389,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
         setPostPhotoUrls(new Map());
       }
     } catch (error) {
-      console.error('Error fetching course posts:', error?.message || "Unknown error");
+      console.error('Error fetching course posts:', error instanceof Error ? error.message : "Unknown error");
     } finally {
       setPostsLoading(false);
     }
@@ -1643,7 +1661,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
           pollVotesChannel
         };
       } catch (error) {
-        console.error('Error setting up realtime channels:', error?.message || "Unknown error");
+        console.error('Error setting up realtime channels:', error instanceof Error ? error.message : "Unknown error");
         setRealtimeStatus('disconnected');
       }
     };
@@ -1807,7 +1825,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
       // Refresh posts
       await fetchCoursePosts();
     } catch (error) {
-      console.error('Error creating course post:', error?.message || "Unknown error");
+      console.error('Error creating course post:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -2016,7 +2034,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
         )
       );
     } catch (error) {
-      console.error('Error toggling post like:', error?.message || "Unknown error");
+      console.error('Error toggling post like:', error instanceof Error ? error.message : "Unknown error");
     } finally {
       setLikingPosts(prev => {
         const newSet = new Set(prev);
@@ -3087,7 +3105,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
 
       setCourseStudents(studentList);
     } catch (error) {
-      console.error('Error fetching course students:', error?.message || "Unknown error");
+      console.error('Error fetching course students:', error instanceof Error ? error.message : "Unknown error");
     }
   };
   const darkerCourseColor = getDarkerShade(courseColor);
@@ -3817,14 +3835,13 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                 <div>
                   <Textarea
                     value={newPostContent}
-                    onChange={(e) => setNewPostContent(e.target.value)}
+                    onChange={(e) => handleTextChangeWithWordLimit(e.target.value, 1000, setNewPostContent)}
                     placeholder="What are your thoughts?"
-                    maxLength={1000}
                     className="border-gray-300 focus:border-[#752432] focus:ring-[#752432] min-h-[120px] resize-none"
                     rows={5}
                   />
                   <div className="text-xs text-gray-500 mt-1">
-                    {newPostContent.length}/1000
+                    {countWords(newPostContent)}/1000 words
                   </div>
                 </div>
 
@@ -3930,14 +3947,13 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                 <div>
                   <Textarea
                     value={newPostContent}
-                    onChange={(e) => setNewPostContent(e.target.value)}
+                    onChange={(e) => handleTextChangeWithWordLimit(e.target.value, 1000, setNewPostContent)}
                     placeholder="What are your thoughts?"
-                    maxLength={1000}
                     className="border-gray-300 focus:border-[#752432] focus:ring-[#752432] min-h-[120px] resize-none"
                     rows={5}
                   />
                   <div className="text-xs text-gray-500 mt-1">
-                    {newPostContent.length}/1000
+                    {countWords(newPostContent)}/1000 words
                   </div>
                 </div>
 

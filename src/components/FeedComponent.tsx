@@ -140,7 +140,7 @@ function Leaderboard() {
           setSectionData(sections);
         }
       } catch (error) {
-        console.error('Error fetching leaderboard data:', error?.message || "Unknown error");
+        console.error('Error fetching leaderboard data:', error instanceof Error ? error.message : "Unknown error");
         // Initialize with empty data
         setSectionData(Array.from({ length: 7 }, (_, i) => ({
           section: `Section ${i + 1}`,
@@ -997,7 +997,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         setPostPhotoUrls(new Map());
       }
     } catch (error) {
-      console.error('Error in fetchPosts:', error?.message || "Unknown error");
+      console.error('Error in fetchPosts:', error instanceof Error ? error.message : "Unknown error");
     } finally {
       setLoading(false);
     }
@@ -1172,7 +1172,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         [postId]: transformedComments
       }));
     } catch (error) {
-      console.error('Error in fetchComments:', error?.message || "Unknown error");
+      console.error('Error in fetchComments:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -1231,7 +1231,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           setUserProfile(profile);
         }
       } catch (error) {
-        console.error('Error fetching user profile:', error?.message || "Unknown error");
+        console.error('Error fetching user profile:', error instanceof Error ? error.message : "Unknown error");
       }
     };
 
@@ -1662,7 +1662,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       // Refresh posts
       await fetchPosts();
     } catch (error) {
-      console.error('Error in handleCreatePost:', error?.message || "Unknown error");
+      console.error('Error in handleCreatePost:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -1880,7 +1880,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         )
       );
     } catch (error) {
-      console.error('Error in handleLike:', error?.message || "Unknown error");
+      console.error('Error in handleLike:', error instanceof Error ? error.message : "Unknown error");
     } finally {
       setLikingPosts(prev => {
         const newSet = new Set(prev);
@@ -1941,7 +1941,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       
       // Note: Comment count is automatically updated via realtime subscription
     } catch (error) {
-      console.error('Error in addComment:', error?.message || "Unknown error");
+      console.error('Error in addComment:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -1978,7 +1978,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       
       // Note: Comment count is automatically updated via realtime subscription
     } catch (error) {
-      console.error('Error in addReply:', error?.message || "Unknown error");
+      console.error('Error in addReply:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -2044,7 +2044,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         )
       }));
     } catch (error) {
-      console.error('Error in toggleCommentLike:', error?.message || "Unknown error");
+      console.error('Error in toggleCommentLike:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -2118,7 +2118,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         )
       }));
     } catch (error) {
-      console.error('Error in toggleReplyLike:', error?.message || "Unknown error");
+      console.error('Error in toggleReplyLike:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -2171,7 +2171,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         )
       );
     } catch (error) {
-      console.error('Error in handleVotePoll:', error?.message || "Unknown error");
+      console.error('Error in handleVotePoll:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -2204,7 +2204,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       setEditingPost(null);
       await fetchPosts(); // Refresh posts
     } catch (error) {
-      console.error('Error editing post:', error?.message || "Unknown error");
+      console.error('Error editing post:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -2273,7 +2273,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           
           setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
         } catch (error) {
-          console.error('Error deleting post:', error?.message || "Unknown error");
+          console.error('Error deleting post:', error instanceof Error ? error.message : "Unknown error");
           setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
         }
       }
@@ -2305,7 +2305,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       );
       if (postId) await fetchComments(postId);
     } catch (error) {
-      console.error('Error editing comment:', error?.message || "Unknown error");
+      console.error('Error editing comment:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -2390,7 +2390,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           }
           setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
         } catch (error) {
-          console.error('Error deleting comment:', error?.message || "Unknown error");
+          console.error('Error deleting comment:', error instanceof Error ? error.message : "Unknown error");
           setConfirmationPopup(prev => ({ ...prev, isOpen: false }));
         }
       }
@@ -2594,7 +2594,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       objectFit: 'contain',
                       display: 'block'
                     }}
-                    onError={(e) => {
+                    onError={() => {
                       // If signed URL expires, regenerate it
                       if (selectedPost.photo_url) {
                         getStorageUrl(selectedPost.photo_url, 'post_picture').then(url => {
@@ -3605,7 +3605,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                         height: 'auto',
                         objectFit: 'contain'
                       }}
-                      onError={(e) => {
+                      onError={() => {
                         // If signed URL expires, regenerate it
                         if (post.photo_url) {
                           getStorageUrl(post.photo_url, 'post_picture').then(url => {

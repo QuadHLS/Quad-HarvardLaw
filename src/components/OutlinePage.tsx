@@ -197,15 +197,19 @@ export function OutlinePage({
         .from('file_names')
         .select('name')
         .order('random()')
-        .limit(1)
-        .single();
+        .limit(1);
       
       if (error) {
         console.error('Error fetching random file name:', error?.message || "Unknown error");
         return 'Default Title';
       }
       
-      return data?.name || 'Default Title';
+      // Get the first row from the array
+      if (data && data.length > 0 && data[0]?.name) {
+        return data[0].name;
+      }
+      
+      return 'Default Title';
     } catch (error) {
       console.error('Error in getRandomFileName:', error?.message || "Unknown error");
       return 'Default Title';

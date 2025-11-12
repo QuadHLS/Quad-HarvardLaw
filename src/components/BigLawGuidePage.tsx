@@ -107,6 +107,11 @@ export function BigLawGuidePage() {
     }
   ];
 
+  // Split firms into two rows for zig-zag layout
+  const midpoint = Math.ceil(lawFirms.length / 2);
+  const firstRow = lawFirms.slice(0, midpoint);
+  const secondRow = lawFirms.slice(midpoint);
+
   return (
     <div className="h-full overflow-auto" style={{ backgroundColor: '#FAF5EF' }}>
       <div className="max-w-6xl mx-auto p-6">
@@ -120,25 +125,49 @@ export function BigLawGuidePage() {
         <Card className="overflow-hidden" style={{ backgroundColor: '#FEFBF6' }}>
           <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="intro" className="w-full">
             <div className="border-b" style={{ backgroundColor: '#F8F4ED' }}>
-              <TabsList className="w-full justify-start h-auto flex-wrap bg-transparent p-2 gap-1">
-                {lawFirms.map((firm) => (
-                  <TabsTrigger
-                    key={firm.id}
-                    value={firm.id}
-                    className={`text-gray-700 hover:text-gray-900 hover:bg-white/50 rounded px-3 py-2 transition-all font-medium border-0 ${
-                      activeTab === firm.id 
-                        ? 'bg-[#752432] text-white' 
-                        : ''
-                    }`}
-                    style={
-                      activeTab === firm.id
-                        ? { backgroundColor: '#752432', color: 'white' }
-                        : undefined
-                    }
-                  >
-                    {firm.name}
-                  </TabsTrigger>
-                ))}
+              <TabsList className="w-full h-auto bg-transparent p-2 gap-1 flex flex-col">
+                {/* First row - aligned to left */}
+                <div className="flex flex-wrap gap-1 justify-start w-full">
+                  {firstRow.map((firm) => (
+                    <TabsTrigger
+                      key={firm.id}
+                      value={firm.id}
+                      className={`text-gray-700 hover:text-gray-900 hover:bg-white/50 rounded px-3 py-2 transition-all font-medium border-0 ${
+                        activeTab === firm.id 
+                          ? 'bg-[#752432] text-white' 
+                          : ''
+                      }`}
+                      style={
+                        activeTab === firm.id
+                          ? { backgroundColor: '#752432', color: 'white' }
+                          : undefined
+                      }
+                    >
+                      {firm.name}
+                    </TabsTrigger>
+                  ))}
+                </div>
+                {/* Second row - aligned to right */}
+                <div className="flex flex-wrap gap-1 justify-end w-full">
+                  {secondRow.map((firm) => (
+                    <TabsTrigger
+                      key={firm.id}
+                      value={firm.id}
+                      className={`text-gray-700 hover:text-gray-900 hover:bg-white/50 rounded px-3 py-2 transition-all font-medium border-0 ${
+                        activeTab === firm.id 
+                          ? 'bg-[#752432] text-white' 
+                          : ''
+                      }`}
+                      style={
+                        activeTab === firm.id
+                          ? { backgroundColor: '#752432', color: 'white' }
+                          : undefined
+                      }
+                    >
+                      {firm.name}
+                    </TabsTrigger>
+                  ))}
+                </div>
               </TabsList>
             </div>
 

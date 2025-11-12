@@ -193,14 +193,28 @@ export function OutlinePage({
   // Upload functions
   const getRandomFileName = async (): Promise<string> => {
     try {
+      // First, get the total count of file names
+      const { count, error: countError } = await supabase
+        .from('file_names')
+        .select('*', { count: 'exact', head: true });
+      
+      if (countError || count === null || count === 0) {
+        console.error('Error getting file_names count:', countError);
+        return 'Default Title';
+      }
+      
+      // Generate a random offset
+      const randomOffset = Math.floor(Math.random() * count);
+      
+      // Fetch the row at that random offset
       const { data, error } = await supabase
         .from('file_names')
         .select('name')
-        .order('random()')
+        .range(randomOffset, randomOffset)
         .limit(1);
       
       if (error) {
-        console.error('Error fetching random file name:', error?.message || "Unknown error");
+        console.error('Error fetching random file name:', error);
         return 'Default Title';
       }
       
@@ -211,7 +225,7 @@ export function OutlinePage({
       
       return 'Default Title';
     } catch (error) {
-      console.error('Error in getRandomFileName:', error?.message || "Unknown error");
+      console.error('Error in getRandomFileName:', error);
       return 'Default Title';
     }
   };

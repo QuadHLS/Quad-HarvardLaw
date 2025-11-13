@@ -922,7 +922,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                     onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
                     placeholder="Event name"
                     className="mt-2 bg-white"
-                    style={{ fontSize: '14px' }}
+                    style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
                   />
                 </div>
 
@@ -937,7 +937,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                         value={editFormData.date}
                         onChange={(e) => setEditFormData({ ...editFormData, date: e.target.value })}
                         className="pl-10 bg-white"
-                        style={{ fontSize: '14px' }}
+                        style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
                       />
                     </div>
                   </div>
@@ -959,7 +959,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                           }}
                           placeholder="HH"
                           className="w-20 bg-white text-center"
-                          style={{ fontSize: '14px' }}
+                          style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
                         />
                         <span className="text-gray-500">:</span>
                         <Input
@@ -974,7 +974,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                           }}
                           placeholder="MM"
                           className="w-20 bg-white text-center"
-                          style={{ fontSize: '14px' }}
+                          style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
                         />
                       </div>
                     </div>
@@ -991,7 +991,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                       onChange={(e) => setEditFormData({ ...editFormData, location: e.target.value })}
                       placeholder="Event location"
                       className="pl-10 bg-white"
-                      style={{ fontSize: '14px' }}
+                      style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
                     />
                   </div>
                 </div>
@@ -1004,7 +1004,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                     onChange={handleShortDescriptionChange}
                     placeholder="Brief event description"
                     className="mt-2 bg-white"
-                    style={{ fontSize: '14px' }}
+                    style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
                   />
                   <div className="flex justify-end mt-1">
                     <p className="text-sm text-gray-500">
@@ -1021,7 +1021,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                     onChange={handleFullDescriptionChange}
                     placeholder="Detailed event description (optional)"
                     className="mt-2 min-h-32 bg-white"
-                    style={{ fontSize: '14px' }}
+                    style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
                   />
                   <div className="flex justify-end mt-1">
                     <p className="text-sm text-gray-500">
@@ -1057,7 +1057,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                       onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
                       placeholder="Event name"
                       className="mt-2 bg-white"
-                      style={{ fontSize: '14px' }}
+                      style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
                     />
                   </div>
 
@@ -1072,7 +1072,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                           value={editFormData.date}
                           onChange={(e) => setEditFormData({ ...editFormData, date: e.target.value })}
                           className="pl-10 bg-white"
-                          style={{ fontSize: '14px' }}
+                          style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
                         />
                       </div>
                     </div>
@@ -1094,7 +1094,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                             }}
                             placeholder="HH"
                             className="w-20 bg-white text-center"
-                            style={{ fontSize: '14px' }}
+                            style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
                           />
                           <span className="text-gray-500">:</span>
                           <Input
@@ -1109,7 +1109,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                             }}
                             placeholder="MM"
                             className="w-20 bg-white text-center"
-                            style={{ fontSize: '14px' }}
+                            style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
                           />
                         </div>
                       </div>
@@ -1126,7 +1126,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                         onChange={(e) => setEditFormData({ ...editFormData, location: e.target.value })}
                         placeholder="Event location"
                         className="pl-10 bg-white"
-                        style={{ fontSize: '14px' }}
+                        style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
                       />
                     </div>
                   </div>
@@ -1139,7 +1139,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                       onChange={handleShortDescriptionChange}
                       placeholder="Brief event description"
                       className="mt-2 bg-white"
-                      style={{ fontSize: '14px' }}
+                      style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
                     />
                     <div className="flex justify-end mt-1">
                       <p className="text-sm text-gray-500">
@@ -1156,7 +1156,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                       onChange={handleFullDescriptionChange}
                       placeholder="Detailed event description (optional)"
                       className="mt-2 min-h-32 bg-white"
-                      style={{ fontSize: '14px' }}
+                      style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
                     />
                     <div className="flex justify-end mt-1">
                       <p className="text-sm text-gray-500">
@@ -1959,7 +1959,7 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
                     onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
                     placeholder="Member name"
                     className="mt-2 bg-white"
-                    style={{ fontSize: '14px' }}
+                    style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
                   />
                 </div>
 
@@ -1971,7 +1971,7 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
                     onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
                     placeholder="e.g., President, Vice President"
                     className="mt-2 bg-white"
-                    style={{ fontSize: '14px' }}
+                    style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
                   />
                 </div>
 
@@ -1986,7 +1986,7 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
                       onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
                       placeholder="member@university.edu"
                       className="pl-10 bg-white"
-                      style={{ fontSize: '14px' }}
+                      style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
                     />
                   </div>
                 </div>
@@ -1999,7 +1999,7 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
                     onChange={(e) => setEditFormData({ ...editFormData, bio: e.target.value })}
                     placeholder="Brief bio about the member"
                     className="mt-2 bg-white"
-                    style={{ fontSize: '14px' }}
+                    style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
                   />
                 </div>
 
@@ -2098,7 +2098,7 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
                       onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
                       placeholder="Member name"
                       className="mt-2 bg-white"
-                      style={{ fontSize: '14px' }}
+                      style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
                     />
                   </div>
 
@@ -2110,7 +2110,7 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
                       onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
                       placeholder="e.g., President, Vice President"
                       className="mt-2 bg-white"
-                      style={{ fontSize: '14px' }}
+                      style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
                     />
                   </div>
 
@@ -2125,7 +2125,7 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
                         onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
                         placeholder="member@university.edu"
                         className="pl-10 bg-white"
-                        style={{ fontSize: '14px' }}
+                        style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
                       />
                     </div>
                   </div>
@@ -2138,7 +2138,7 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
                       onChange={(e) => setEditFormData({ ...editFormData, bio: e.target.value })}
                       placeholder="Brief bio about the member"
                       className="mt-2 bg-white"
-                      style={{ fontSize: '14px' }}
+                      style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
                     />
                   </div>
 

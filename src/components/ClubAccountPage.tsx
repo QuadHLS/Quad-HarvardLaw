@@ -23,7 +23,9 @@ export interface Event {
   id: string;
   name: string;
   date: string;
-  time: string;
+  time: string; // Keep for backward compatibility, but will store as "9:00 AM - 5:00 PM"
+  startTime?: string; // Format: "9:00 AM"
+  endTime?: string; // Format: "5:00 PM"
   location: string;
   shortDescription: string;
   fullDescription: string;
@@ -668,6 +670,8 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
       name: '',
       date: '',
       time: '',
+      startTime: '',
+      endTime: '',
       location: '',
       shortDescription: '',
       fullDescription: '',
@@ -724,10 +728,43 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
   };
 
   const startEditing = (event: Event) => {
-    // Normalize time to HH:MM format (remove seconds if present)
+    // Convert old time format to new startTime/endTime format if needed
+    let startTime = event.startTime || '';
+    let endTime = event.endTime || '';
+    
+    // If old time format exists but no startTime/endTime, try to parse it
+    if (event.time && !event.startTime && !event.endTime) {
+      // Try to parse old format (could be "HH:MM" or "HH:MM - HH:MM")
+      const timeParts = event.time.split(' - ');
+      if (timeParts.length === 2) {
+        // Already has start and end
+        startTime = timeParts[0].includes('AM') || timeParts[0].includes('PM') ? timeParts[0] : `${timeParts[0]} AM`;
+        endTime = timeParts[1].includes('AM') || timeParts[1].includes('PM') ? timeParts[1] : `${timeParts[1]} PM`;
+      } else if (event.time.includes('AM') || event.time.includes('PM')) {
+        // Single time with AM/PM
+        startTime = event.time;
+        endTime = event.time;
+      } else {
+        // Old HH:MM format, convert to 12-hour with AM/PM
+        const [hour, minute] = event.time.split(':');
+        const hourNum = parseInt(hour, 10);
+        if (hourNum >= 12) {
+          const displayHour = hourNum === 12 ? 12 : hourNum - 12;
+          startTime = `${displayHour}:${minute || '00'} PM`;
+          endTime = `${displayHour}:${minute || '00'} PM`;
+        } else {
+          const displayHour = hourNum === 0 ? 12 : hourNum;
+          startTime = `${displayHour}:${minute || '00'} AM`;
+          endTime = `${displayHour}:${minute || '00'} AM`;
+        }
+      }
+    }
+    
     const normalizedEvent = {
       ...event,
-      time: event.time ? event.time.split(':').slice(0, 2).join(':') : ''
+      startTime,
+      endTime,
+      time: formatTimeRange(startTime, endTime)
     };
     setEditingEvent(event.id);
     setEditFormData(normalizedEvent);
@@ -745,10 +782,12 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
           return;
         }
 
-        // Normalize time to HH:MM format before saving
+        // Ensure time field is set from startTime and endTime
         const normalizedEditFormData = {
           ...editFormData,
-          time: editFormData.time ? editFormData.time.split(':').slice(0, 2).join(':') : ''
+          time: editFormData.startTime && editFormData.endTime 
+            ? formatTimeRange(editFormData.startTime, editFormData.endTime)
+            : editFormData.time || ''
         };
 
         // Check if this is a new event (not in formData.events yet)
@@ -816,10 +855,46 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
     }
   };
 
+  // Helper functions to parse and format time with AM/PM
+  const parseTime = (timeStr: string | undefined): { hour: number; minute: number; ampm: 'AM' | 'PM' } => {
+    if (!timeStr) return { hour: 12, minute: 0, ampm: 'AM' };
+    const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (match) {
+      const hour = parseInt(match[1], 10);
+      const minute = parseInt(match[2], 10);
+      const ampm = match[3].toUpperCase() as 'AM' | 'PM';
+      return { hour, minute, ampm };
+    }
+    return { hour: 12, minute: 0, ampm: 'AM' };
+  };
+
+  const formatTime = (hour: number, minute: number, ampm: 'AM' | 'PM'): string => {
+    return `${hour}:${minute.toString().padStart(2, '0')} ${ampm}`;
+  };
+
+  // Format time range: if both times have same AM/PM, only show it once at the end
+  const formatTimeRange = (startTime: string | undefined, endTime: string | undefined): string => {
+    if (!startTime || !endTime) return '';
+    
+    const startParsed = parseTime(startTime);
+    const endParsed = parseTime(endTime);
+    
+    const startFormatted = `${startParsed.hour}:${startParsed.minute.toString().padStart(2, '0')}`;
+    const endFormatted = `${endParsed.hour}:${endParsed.minute.toString().padStart(2, '0')}`;
+    
+    // If both have the same AM/PM, only show it once at the end
+    if (startParsed.ampm === endParsed.ampm) {
+      return `${startFormatted} - ${endFormatted} ${endParsed.ampm}`;
+    } else {
+      // Different AM/PM, show both
+      return `${startFormatted} ${startParsed.ampm} - ${endFormatted} ${endParsed.ampm}`;
+    }
+  };
+
   const handleShortDescriptionChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     if (!editFormData) return;
     const words = e.target.value.trim().split(/\s+/);
-    if (words.length <= 30 || e.target.value === '') {
+    if (words.length <= 50 || e.target.value === '') {
       setEditFormData({ ...editFormData, shortDescription: e.target.value });
     }
   };
@@ -827,7 +902,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
   const handleFullDescriptionChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     if (!editFormData) return;
     const words = e.target.value.trim().split(/\s+/);
-    if (words.length <= 250 || e.target.value === '') {
+    if (words.length <= 750 || e.target.value === '') {
       setEditFormData({ ...editFormData, fullDescription: e.target.value });
     }
   };
@@ -926,7 +1001,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-end gap-4">
                   <div>
                     <Label htmlFor={`event-date-${editFormData.id}`}>Date</Label>
                     <div className="relative mt-2">
@@ -937,45 +1012,154 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                         value={editFormData.date}
                         onChange={(e) => setEditFormData({ ...editFormData, date: e.target.value })}
                         className="pl-10 bg-white"
-                        style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
+                        style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d', maxWidth: '180px' }}
                       />
                     </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor={`event-time-${editFormData.id}`}>Time</Label>
-                    <div className="relative mt-2 flex items-center gap-2">
-                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
-                      <div className="flex items-center gap-2 flex-1 pl-10">
+                  <div className="flex-1">
+                    <Label>Time</Label>
+                    <div className="mt-2 flex items-center gap-2">
+                      {/* Start Time */}
+                      <div className="flex items-center gap-1.5">
                         <Input
-                          type="number"
-                          min="0"
-                          max="23"
-                          value={editFormData.time ? editFormData.time.split(':')[0] || '' : ''}
+                          type="text"
+                          inputMode="numeric"
+                          value={editFormData.startTime ? parseTime(editFormData.startTime).hour.toString().replace(/^0+/, '') || '' : ''}
                           onChange={(e) => {
-                            const hour = e.target.value === '' ? '00' : Math.max(0, Math.min(23, parseInt(e.target.value) || 0)).toString().padStart(2, '0');
-                            const currentMinute = editFormData.time ? editFormData.time.split(':')[1] || '00' : '00';
-                            setEditFormData({ ...editFormData, time: `${hour}:${currentMinute}` });
+                            const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 2); // Only allow numbers, max 2 digits
+                            if (value === '') {
+                              setEditFormData({ ...editFormData, startTime: '', time: formatTimeRange('', editFormData.endTime) });
+                              return;
+                            }
+                            const hour = parseInt(value.replace(/^0+/, ''), 10) || 0; // Remove leading zeros
+                            const parsed = parseTime(editFormData.startTime);
+                            const newTime = formatTime(hour || 12, parsed.minute, parsed.ampm);
+                            setEditFormData({ ...editFormData, startTime: newTime, time: formatTimeRange(newTime, editFormData.endTime) });
                           }}
-                          placeholder="HH"
-                          className="w-20 bg-white text-center"
-                          style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
+                          placeholder="H"
+                          maxLength={2}
+                          className="w-12 bg-white text-center"
+                          style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d', padding: '6px 4px', borderWidth: '1px' }}
                         />
-                        <span className="text-gray-500">:</span>
+                        <span className="text-gray-500 text-sm">:</span>
                         <Input
-                          type="number"
-                          min="0"
-                          max="59"
-                          value={editFormData.time ? editFormData.time.split(':')[1] || '' : ''}
+                          type="text"
+                          inputMode="numeric"
+                          value={editFormData.startTime ? parseTime(editFormData.startTime).minute.toString().replace(/^0+/, '') || '' : ''}
                           onChange={(e) => {
-                            const minute = e.target.value === '' ? '00' : Math.max(0, Math.min(59, parseInt(e.target.value) || 0)).toString().padStart(2, '0');
-                            const currentHour = editFormData.time ? editFormData.time.split(':')[0] || '12' : '12';
-                            setEditFormData({ ...editFormData, time: `${currentHour}:${minute}` });
+                            const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 2); // Only allow numbers, max 2 digits
+                            if (value === '') {
+                              const parsed = parseTime(editFormData.startTime);
+                              if (parsed.hour) {
+                                const newTime = formatTime(parsed.hour, 0, parsed.ampm);
+                                setEditFormData({ ...editFormData, startTime: newTime, time: formatTimeRange(newTime, editFormData.endTime) });
+                              }
+                              return;
+                            }
+                            const minute = parseInt(value.replace(/^0+/, ''), 10) || 0; // Remove leading zeros
+                            const parsed = parseTime(editFormData.startTime);
+                            const newTime = formatTime(parsed.hour, minute, parsed.ampm);
+                            setEditFormData({ ...editFormData, startTime: newTime, time: formatTimeRange(newTime, editFormData.endTime) });
                           }}
                           placeholder="MM"
-                          className="w-20 bg-white text-center"
-                          style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
+                          maxLength={2}
+                          className="w-12 bg-white text-center"
+                          style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d', padding: '6px 4px', borderWidth: '1px' }}
                         />
+                        <Select
+                          value={editFormData.startTime ? parseTime(editFormData.startTime).ampm : 'AM'}
+                          onValueChange={(value: 'AM' | 'PM') => {
+                            const parsed = parseTime(editFormData.startTime);
+                            if (parsed.hour) {
+                              const newTime = formatTime(parsed.hour, parsed.minute, value);
+                              setEditFormData({ ...editFormData, startTime: newTime, time: formatTimeRange(newTime, editFormData.endTime) });
+                            } else {
+                              const newTime = formatTime(12, 0, value);
+                              setEditFormData({ ...editFormData, startTime: newTime, time: formatTimeRange(newTime, editFormData.endTime) });
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="w-16 bg-white" style={{ borderColor: '#60363d', outlineColor: '#60363d', padding: '6px 8px', borderWidth: '1px', minHeight: 'auto' }}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="AM">AM</SelectItem>
+                            <SelectItem value="PM">PM</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <span className="text-gray-500 text-lg mx-1">-</span>
+
+                      {/* End Time */}
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          value={editFormData.endTime ? parseTime(editFormData.endTime).hour.toString().replace(/^0+/, '') || '' : ''}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 2); // Only allow numbers, max 2 digits
+                            if (value === '') {
+                              setEditFormData({ ...editFormData, endTime: '', time: formatTimeRange(editFormData.startTime, '') });
+                              return;
+                            }
+                            const hour = parseInt(value.replace(/^0+/, ''), 10) || 0; // Remove leading zeros
+                            const parsed = parseTime(editFormData.endTime);
+                            const newTime = formatTime(hour || 12, parsed.minute, parsed.ampm);
+                            setEditFormData({ ...editFormData, endTime: newTime, time: formatTimeRange(editFormData.startTime, newTime) });
+                          }}
+                          placeholder="H"
+                          maxLength={2}
+                          className="w-12 bg-white text-center"
+                          style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d', padding: '6px 4px', borderWidth: '1px' }}
+                        />
+                        <span className="text-gray-500 text-sm">:</span>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          value={editFormData.endTime ? parseTime(editFormData.endTime).minute.toString().replace(/^0+/, '') || '' : ''}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 2); // Only allow numbers, max 2 digits
+                            if (value === '') {
+                              const parsed = parseTime(editFormData.endTime);
+                              if (parsed.hour) {
+                                const newTime = formatTime(parsed.hour, 0, parsed.ampm);
+                                setEditFormData({ ...editFormData, endTime: newTime, time: formatTimeRange(editFormData.startTime, newTime) });
+                              }
+                              return;
+                            }
+                            const minute = parseInt(value.replace(/^0+/, ''), 10) || 0; // Remove leading zeros
+                            const parsed = parseTime(editFormData.endTime);
+                            const newTime = formatTime(parsed.hour, minute, parsed.ampm);
+                            setEditFormData({ ...editFormData, endTime: newTime, time: formatTimeRange(editFormData.startTime, newTime) });
+                          }}
+                          placeholder="MM"
+                          maxLength={2}
+                          className="w-12 bg-white text-center"
+                          style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d', padding: '6px 4px', borderWidth: '1px' }}
+                        />
+                        <Select
+                          value={editFormData.endTime ? parseTime(editFormData.endTime).ampm : 'AM'}
+                          onValueChange={(value: 'AM' | 'PM') => {
+                            const parsed = parseTime(editFormData.endTime);
+                            if (parsed.hour) {
+                              const newTime = formatTime(parsed.hour, parsed.minute, value);
+                              setEditFormData({ ...editFormData, endTime: newTime, time: formatTimeRange(editFormData.startTime, newTime) });
+                            } else {
+                              const newTime = formatTime(12, 0, value);
+                              setEditFormData({ ...editFormData, endTime: newTime, time: formatTimeRange(editFormData.startTime, newTime) });
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="w-16 bg-white" style={{ borderColor: '#60363d', outlineColor: '#60363d', padding: '6px 8px', borderWidth: '1px', minHeight: 'auto' }}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="AM">AM</SelectItem>
+                            <SelectItem value="PM">PM</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                   </div>
@@ -1008,7 +1192,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                   />
                   <div className="flex justify-end mt-1">
                     <p className="text-sm text-gray-500">
-                      {getWordCount(editFormData.shortDescription)}/30 words
+                      {getWordCount(editFormData.shortDescription)}/50 words
                     </p>
                   </div>
                 </div>
@@ -1025,7 +1209,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                   />
                   <div className="flex justify-end mt-1">
                     <p className="text-sm text-gray-500">
-                      {getWordCount(editFormData.fullDescription)}/250 words
+                      {getWordCount(editFormData.fullDescription)}/750 words
                     </p>
                   </div>
                 </div>
@@ -1061,7 +1245,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-end gap-4">
                     <div>
                       <Label htmlFor={`event-date-${event.id}`}>Date</Label>
                       <div className="relative mt-2">
@@ -1072,45 +1256,154 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                           value={editFormData.date}
                           onChange={(e) => setEditFormData({ ...editFormData, date: e.target.value })}
                           className="pl-10 bg-white"
-                          style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
+                          style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d', maxWidth: '180px' }}
                         />
                       </div>
                     </div>
 
-                    <div>
-                      <Label htmlFor={`event-time-${event.id}`}>Time</Label>
-                      <div className="relative mt-2 flex items-center gap-2">
-                        <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
-                        <div className="flex items-center gap-2 flex-1 pl-10">
+                    <div className="flex-1">
+                      <Label>Time</Label>
+                      <div className="mt-2 flex items-center gap-2">
+                        {/* Start Time */}
+                        <div className="flex items-center gap-1.5">
                           <Input
-                            type="number"
-                            min="0"
-                            max="23"
-                            value={editFormData.time ? editFormData.time.split(':')[0] || '' : ''}
+                            type="text"
+                            inputMode="numeric"
+                            value={editFormData.startTime ? parseTime(editFormData.startTime).hour.toString().replace(/^0+/, '') || '' : ''}
                             onChange={(e) => {
-                              const hour = e.target.value === '' ? '00' : Math.max(0, Math.min(23, parseInt(e.target.value) || 0)).toString().padStart(2, '0');
-                              const currentMinute = editFormData.time ? editFormData.time.split(':')[1] || '00' : '00';
-                              setEditFormData({ ...editFormData, time: `${hour}:${currentMinute}` });
+                              const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 2); // Only allow numbers, max 2 digits
+                              if (value === '') {
+                                setEditFormData({ ...editFormData, startTime: '', time: formatTimeRange('', editFormData.endTime) });
+                                return;
+                              }
+                              const hour = parseInt(value.replace(/^0+/, ''), 10) || 0; // Remove leading zeros
+                              const parsed = parseTime(editFormData.startTime);
+                              const newTime = formatTime(hour || 12, parsed.minute, parsed.ampm);
+                              setEditFormData({ ...editFormData, startTime: newTime, time: formatTimeRange(newTime, editFormData.endTime) });
                             }}
-                            placeholder="HH"
-                            className="w-20 bg-white text-center"
-                            style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
+                            placeholder="H"
+                            maxLength={2}
+                            className="w-12 bg-white text-center"
+                            style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d', padding: '6px 4px', borderWidth: '1px' }}
                           />
-                          <span className="text-gray-500">:</span>
+                          <span className="text-gray-500 text-sm">:</span>
                           <Input
-                            type="number"
-                            min="0"
-                            max="59"
-                            value={editFormData.time ? editFormData.time.split(':')[1] || '' : ''}
+                            type="text"
+                            inputMode="numeric"
+                            value={editFormData.startTime ? parseTime(editFormData.startTime).minute.toString().replace(/^0+/, '') || '' : ''}
                             onChange={(e) => {
-                              const minute = e.target.value === '' ? '00' : Math.max(0, Math.min(59, parseInt(e.target.value) || 0)).toString().padStart(2, '0');
-                              const currentHour = editFormData.time ? editFormData.time.split(':')[0] || '12' : '12';
-                              setEditFormData({ ...editFormData, time: `${currentHour}:${minute}` });
+                              const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 2); // Only allow numbers, max 2 digits
+                              if (value === '') {
+                                const parsed = parseTime(editFormData.startTime);
+                                if (parsed.hour) {
+                                  const newTime = formatTime(parsed.hour, 0, parsed.ampm);
+                                  setEditFormData({ ...editFormData, startTime: newTime, time: formatTimeRange(newTime, editFormData.endTime) });
+                                }
+                                return;
+                              }
+                              const minute = parseInt(value.replace(/^0+/, ''), 10) || 0; // Remove leading zeros
+                              const parsed = parseTime(editFormData.startTime);
+                              const newTime = formatTime(parsed.hour, minute, parsed.ampm);
+                              setEditFormData({ ...editFormData, startTime: newTime, time: formatTimeRange(newTime, editFormData.endTime) });
                             }}
                             placeholder="MM"
-                            className="w-20 bg-white text-center"
-                            style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d' }}
+                            maxLength={2}
+                            className="w-12 bg-white text-center"
+                            style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d', padding: '6px 4px', borderWidth: '1px' }}
                           />
+                          <Select
+                            value={editFormData.startTime ? parseTime(editFormData.startTime).ampm : 'AM'}
+                            onValueChange={(value: 'AM' | 'PM') => {
+                              const parsed = parseTime(editFormData.startTime);
+                              if (parsed.hour) {
+                                const newTime = formatTime(parsed.hour, parsed.minute, value);
+                                setEditFormData({ ...editFormData, startTime: newTime, time: formatTimeRange(newTime, editFormData.endTime) });
+                              } else {
+                                const newTime = formatTime(12, 0, value);
+                                setEditFormData({ ...editFormData, startTime: newTime, time: formatTimeRange(newTime, editFormData.endTime) });
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="w-16 bg-white" style={{ borderColor: '#60363d', outlineColor: '#60363d', padding: '6px 8px', borderWidth: '1px', minHeight: 'auto' }}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="AM">AM</SelectItem>
+                              <SelectItem value="PM">PM</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <span className="text-gray-500 text-lg mx-1">-</span>
+
+                        {/* End Time */}
+                        <div className="flex items-center gap-1.5">
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            value={editFormData.endTime ? parseTime(editFormData.endTime).hour.toString().replace(/^0+/, '') || '' : ''}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 2); // Only allow numbers, max 2 digits
+                              if (value === '') {
+                                setEditFormData({ ...editFormData, endTime: '', time: formatTimeRange(editFormData.startTime, '') });
+                                return;
+                              }
+                              const hour = parseInt(value.replace(/^0+/, ''), 10) || 0; // Remove leading zeros
+                              const parsed = parseTime(editFormData.endTime);
+                              const newTime = formatTime(hour || 12, parsed.minute, parsed.ampm);
+                              setEditFormData({ ...editFormData, endTime: newTime, time: formatTimeRange(editFormData.startTime, newTime) });
+                            }}
+                            placeholder="H"
+                            maxLength={2}
+                            className="w-12 bg-white text-center"
+                            style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d', padding: '6px 4px', borderWidth: '1px' }}
+                          />
+                          <span className="text-gray-500 text-sm">:</span>
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            value={editFormData.endTime ? parseTime(editFormData.endTime).minute.toString().replace(/^0+/, '') || '' : ''}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 2); // Only allow numbers, max 2 digits
+                              if (value === '') {
+                                const parsed = parseTime(editFormData.endTime);
+                                if (parsed.hour) {
+                                  const newTime = formatTime(parsed.hour, 0, parsed.ampm);
+                                  setEditFormData({ ...editFormData, endTime: newTime, time: formatTimeRange(editFormData.startTime, newTime) });
+                                }
+                                return;
+                              }
+                              const minute = parseInt(value.replace(/^0+/, ''), 10) || 0; // Remove leading zeros
+                              const parsed = parseTime(editFormData.endTime);
+                              const newTime = formatTime(parsed.hour, minute, parsed.ampm);
+                              setEditFormData({ ...editFormData, endTime: newTime, time: formatTimeRange(editFormData.startTime, newTime) });
+                            }}
+                            placeholder="MM"
+                            maxLength={2}
+                            className="w-12 bg-white text-center"
+                            style={{ fontSize: '14px', borderColor: '#60363d', outlineColor: '#60363d', padding: '6px 4px', borderWidth: '1px' }}
+                          />
+                          <Select
+                            value={editFormData.endTime ? parseTime(editFormData.endTime).ampm : 'AM'}
+                            onValueChange={(value: 'AM' | 'PM') => {
+                              const parsed = parseTime(editFormData.endTime);
+                              if (parsed.hour) {
+                                const newTime = formatTime(parsed.hour, parsed.minute, value);
+                                setEditFormData({ ...editFormData, endTime: newTime, time: formatTimeRange(editFormData.startTime, newTime) });
+                              } else {
+                                const newTime = formatTime(12, 0, value);
+                                setEditFormData({ ...editFormData, endTime: newTime, time: formatTimeRange(editFormData.startTime, newTime) });
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="w-16 bg-white" style={{ borderColor: '#60363d', outlineColor: '#60363d', padding: '6px 8px', borderWidth: '1px', minHeight: 'auto' }}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="AM">AM</SelectItem>
+                              <SelectItem value="PM">PM</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
                     </div>
@@ -1143,7 +1436,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                     />
                     <div className="flex justify-end mt-1">
                       <p className="text-sm text-gray-500">
-                        {getWordCount(editFormData.shortDescription)}/30 words
+                        {getWordCount(editFormData.shortDescription)}/50 words
                       </p>
                     </div>
                   </div>
@@ -1160,7 +1453,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                     />
                     <div className="flex justify-end mt-1">
                       <p className="text-sm text-gray-500">
-                        {getWordCount(editFormData.fullDescription)}/250 words
+                        {getWordCount(editFormData.fullDescription)}/750 words
                       </p>
                     </div>
                   </div>
@@ -5260,7 +5553,9 @@ export const ClubAccountPage: React.FC = () => {
                   id: event.id || `event-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Generate unique ID if missing
                   name: event.name || '',
                   date: event.date || '',
-                  time: event.time ? event.time.split(':').slice(0, 2).join(':') : '', // Normalize to HH:MM format
+                  time: event.time || '', // Keep time as stored (could be "9:00 AM - 5:00 PM" or old format)
+                  startTime: event.startTime || undefined,
+                  endTime: event.endTime || undefined,
                   location: event.location || '',
                   shortDescription: event.shortDescription || '',
                   fullDescription: event.fullDescription || '',

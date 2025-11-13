@@ -160,7 +160,7 @@ function Leaderboard() {
           <div className="px-4 pt-3 pb-2 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <BarChart3 className="w-5 h-5" style={{ color: '#752432' }} />
-              <h3 className="font-semibold text-gray-900">1L Leaderboard</h3>
+              <h3 className="font-semibold text-gray-900">Leaderboard: First Section with 80 1Ls wins $500</h3>
             </div>
             {leaderboardOpen ? (
               <ChevronUp className="w-4 h-4 text-gray-600" />

@@ -329,7 +329,7 @@ function ClubBasicInfo({ formData, updateFormData, onSaveBasicInfo, onSaveMissio
   };
 
   const handleDescriptionChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
-    if (e.target.value.length <= 500) {
+    if (e.target.value.length <= 1000) {
       updateFormData('description', e.target.value);
     }
   };
@@ -447,10 +447,10 @@ function ClubBasicInfo({ formData, updateFormData, onSaveBasicInfo, onSaveMissio
                 placeholder="Brief description of your club"
                 className="mt-2 bg-white w-full"
                 style={{ minHeight: '160px', fontSize: '14px' }}
-                maxLength={500}
+                maxLength={1000}
               />
               <p className="text-sm text-gray-500 mt-1 text-right">
-                {charCount}/500 characters
+                {charCount}/1000 characters
               </p>
             </div>
             </div>
@@ -559,6 +559,51 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
   const [rsvpDialogOpen, setRsvpDialogOpen] = useState<string | null>(null);
   const [rsvpSearchQuery, setRsvpSearchQuery] = useState('');
   const [rsvpNames, setRsvpNames] = useState<Record<string, string>>({}); // Map of userId -> fullName
+
+  // Format date string (YYYY-MM-DD) to display format without timezone conversion
+  // This ensures the date is displayed exactly as the user entered it
+  const formatDateString = (dateString: string): string => {
+    if (!dateString) return '';
+    // Parse YYYY-MM-DD directly without timezone conversion
+    const parts = dateString.split('-');
+    if (parts.length !== 3) return dateString;
+    
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+    const day = parseInt(parts[2], 10);
+    
+    // Create date in local timezone but use the exact values entered
+    const date = new Date(year, month, day);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  };
+
+  // Sort events by date and time (earliest first - soonest upcoming events at top)
+  const sortedEvents = useMemo(() => {
+    return [...formData.events].sort((a, b) => {
+      // First compare by date (YYYY-MM-DD format, so string comparison works)
+      if (a.date && b.date) {
+        const dateCompare = a.date.localeCompare(b.date); // Ascending (earliest first)
+        if (dateCompare !== 0) return dateCompare;
+        
+        // If dates are the same, compare by time (HH:MM format)
+        if (a.time && b.time) {
+          return a.time.localeCompare(b.time); // Ascending (earliest first)
+        }
+        // If one has time and other doesn't, prioritize the one with time
+        if (a.time && !b.time) return -1;
+        if (!a.time && b.time) return 1;
+      }
+      // If one has date and other doesn't, prioritize the one with date
+      if (a.date && !b.date) return -1;
+      if (!a.date && b.date) return 1;
+      // If neither has date, maintain original order
+      return 0;
+    });
+  }, [formData.events]);
 
   // Cleanup: Cancel editing when component unmounts (e.g., switching tabs)
   useEffect(() => {
@@ -865,11 +910,142 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
         </Card>
       ) : (
         <div className="space-y-4">
-          {/* Show saved events and currently editing event (if new) */}
-          {[
-            ...formData.events,
-            ...(editingEvent && editFormData && !formData.events.find(e => e.id === editingEvent) ? [editFormData] : [])
-          ].map((event) => (
+          {/* Show editing event form at the top if it's a new event */}
+          {editingEvent && editFormData && !formData.events.find(e => e.id === editingEvent) && (
+            <Card className="p-4">
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor={`event-name-${editFormData.id}`}>Event Name</Label>
+                  <Input
+                    id={`event-name-${editFormData.id}`}
+                    value={editFormData.name}
+                    onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                    placeholder="Event name"
+                    className="mt-2 bg-white"
+                    style={{ fontSize: '14px' }}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor={`event-date-${editFormData.id}`}>Date</Label>
+                    <div className="relative mt-2">
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        id={`event-date-${editFormData.id}`}
+                        type="date"
+                        value={editFormData.date}
+                        onChange={(e) => setEditFormData({ ...editFormData, date: e.target.value })}
+                        className="pl-10 bg-white"
+                        style={{ fontSize: '14px' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor={`event-time-${editFormData.id}`}>Time</Label>
+                    <div className="relative mt-2 flex items-center gap-2">
+                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
+                      <div className="flex items-center gap-2 flex-1 pl-10">
+                        <Input
+                          type="number"
+                          min="0"
+                          max="23"
+                          value={editFormData.time ? editFormData.time.split(':')[0] || '' : ''}
+                          onChange={(e) => {
+                            const hour = e.target.value === '' ? '00' : Math.max(0, Math.min(23, parseInt(e.target.value) || 0)).toString().padStart(2, '0');
+                            const currentMinute = editFormData.time ? editFormData.time.split(':')[1] || '00' : '00';
+                            setEditFormData({ ...editFormData, time: `${hour}:${currentMinute}` });
+                          }}
+                          placeholder="HH"
+                          className="w-20 bg-white text-center"
+                          style={{ fontSize: '14px' }}
+                        />
+                        <span className="text-gray-500">:</span>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="59"
+                          value={editFormData.time ? editFormData.time.split(':')[1] || '' : ''}
+                          onChange={(e) => {
+                            const minute = e.target.value === '' ? '00' : Math.max(0, Math.min(59, parseInt(e.target.value) || 0)).toString().padStart(2, '0');
+                            const currentHour = editFormData.time ? editFormData.time.split(':')[0] || '12' : '12';
+                            setEditFormData({ ...editFormData, time: `${currentHour}:${minute}` });
+                          }}
+                          placeholder="MM"
+                          className="w-20 bg-white text-center"
+                          style={{ fontSize: '14px' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor={`event-location-${editFormData.id}`}>Location</Label>
+                  <div className="relative mt-2">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      id={`event-location-${editFormData.id}`}
+                      value={editFormData.location}
+                      onChange={(e) => setEditFormData({ ...editFormData, location: e.target.value })}
+                      placeholder="Event location"
+                      className="pl-10 bg-white"
+                      style={{ fontSize: '14px' }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor={`event-short-description-${editFormData.id}`}>Brief Description</Label>
+                  <Textarea
+                    id={`event-short-description-${editFormData.id}`}
+                    value={editFormData.shortDescription}
+                    onChange={handleShortDescriptionChange}
+                    placeholder="Brief event description"
+                    className="mt-2 bg-white"
+                    style={{ fontSize: '14px' }}
+                  />
+                  <div className="flex justify-end mt-1">
+                    <p className="text-sm text-gray-500">
+                      {getWordCount(editFormData.shortDescription)}/30 words
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor={`event-full-description-${editFormData.id}`}>Full Description</Label>
+                  <Textarea
+                    id={`event-full-description-${editFormData.id}`}
+                    value={editFormData.fullDescription}
+                    onChange={handleFullDescriptionChange}
+                    placeholder="Detailed event description (optional)"
+                    className="mt-2 min-h-32 bg-white"
+                    style={{ fontSize: '14px' }}
+                  />
+                  <div className="flex justify-end mt-1">
+                    <p className="text-sm text-gray-500">
+                      {getWordCount(editFormData.fullDescription)}/250 words
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" size="sm" onClick={cancelEditing}>
+                    <X className="w-4 h-4 mr-2" />
+                    Cancel
+                  </Button>
+                  <Button size="sm" onClick={saveEditing}>
+                    <Check className="w-4 h-4 mr-2" />
+                    Save
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Show saved events */}
+          {sortedEvents.map((event) => (
             <Card key={event.id} className="p-4">
               {editingEvent === event.id && editFormData ? (
                 <div className="space-y-4">
@@ -1009,7 +1185,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                         <div className="flex items-center gap-4 text-gray-600 mt-2">
                           <div className="flex items-center gap-1">
                             <Calendar className="w-4 h-4" />
-                            <span className="text-sm">{new Date(event.date).toLocaleDateString()}</span>
+                            <span className="text-sm">{formatDateString(event.date)}</span>
                           </div>
                           {event.time && (
                             <div className="flex items-center gap-1">
@@ -1132,6 +1308,22 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
   const [editingMember, setEditingMember] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Member | null>(null);
   const [originalMemberData, setOriginalMemberData] = useState<Member | null>(null);
+
+  // Sort members by first name alphabetically
+  const sortedMembers = useMemo(() => {
+    return [...formData.members].sort((a, b) => {
+      // Get first name (first word of the name)
+      const getFirstName = (name: string): string => {
+        if (!name) return '';
+        return name.trim().split(/\s+/)[0].toLowerCase();
+      };
+      
+      const firstNameA = getFirstName(a.name);
+      const firstNameB = getFirstName(b.name);
+      
+      return firstNameA.localeCompare(firstNameB);
+    });
+  }, [formData.members]);
 
   // Cleanup: Cancel editing when component unmounts (e.g., switching tabs)
   useEffect(() => {
@@ -1687,13 +1879,148 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
           </Button>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Show saved members and currently editing member (if new) */}
-          {[
-            ...formData.members,
-            ...(editingMember && editFormData && !formData.members.find(m => m.id === editingMember) ? [editFormData] : [])
-          ].map((member) => (
-            <Card key={member.id} className="p-4">
+        <div className="space-y-4">
+          {/* Show editing member form at the top if it's a new member */}
+          {editingMember && editFormData && !formData.members.find(m => m.id === editingMember) && (
+            <Card className="p-4">
+              <div className="space-y-4">
+                <div>
+                  <Label>Member Picture</Label>
+                  <div className="mt-2">
+                    <div className="flex flex-col items-center">
+                      {editFormData.picture ? (
+                        <div className="w-20 h-20 rounded-full border-2 overflow-hidden mb-4" style={{ borderColor: '#5a3136' }}>
+                          <img 
+                            src={editFormData.picture} 
+                            alt="Member" 
+                            className="w-full h-full"
+                            style={{ 
+                              objectFit: 'cover'
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-20 h-20 flex items-center justify-center mb-4 rounded-full border-2" style={{ borderColor: '#5a3136', backgroundColor: '#fefafb' }}>
+                          <Upload className="w-5 h-5 text-gray-400" />
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden"
+                          id={`member-picture-${editFormData.id}`}
+                          disabled={uploadingMemberPicture}
+                        />
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="text-xs px-3 py-1 h-7"
+                          disabled={uploadingMemberPicture}
+                          onClick={() => document.getElementById(`member-picture-${editFormData.id}`)?.click()}
+                        >
+                          {uploadingMemberPicture ? (
+                            <div className="flex items-center gap-1">
+                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600"></div>
+                              <span>Processing...</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1">
+                              <Upload className="w-3 h-3" />
+                              <span>{editFormData.picture ? 'Change Picture' : 'Add Picture'}</span>
+                            </div>
+                          )}
+                        </Button>
+                        {editFormData.picture && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="text-xs px-3 py-1 h-7 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                            onClick={handleDeleteMemberPicture}
+                            disabled={uploadingMemberPicture}
+                          >
+                            <div className="flex items-center gap-1">
+                              <X className="w-3 h-3" />
+                              <span>Delete Picture</span>
+                            </div>
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor={`member-name-${editFormData.id}`}>Name</Label>
+                  <Input
+                    id={`member-name-${editFormData.id}`}
+                    value={editFormData.name}
+                    onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                    placeholder="Member name"
+                    className="mt-2 bg-white"
+                    style={{ fontSize: '14px' }}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor={`member-role-${editFormData.id}`}>Role</Label>
+                  <Input
+                    id={`member-role-${editFormData.id}`}
+                    value={editFormData.role}
+                    onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
+                    placeholder="e.g., President, Vice President"
+                    className="mt-2 bg-white"
+                    style={{ fontSize: '14px' }}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor={`member-email-${editFormData.id}`}>Email</Label>
+                  <div className="relative mt-2">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      id={`member-email-${editFormData.id}`}
+                      type="email"
+                      value={editFormData.email}
+                      onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                      placeholder="member@university.edu"
+                      className="pl-10 bg-white"
+                      style={{ fontSize: '14px' }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor={`member-bio-${editFormData.id}`}>Bio</Label>
+                  <Textarea
+                    id={`member-bio-${editFormData.id}`}
+                    value={editFormData.bio}
+                    onChange={(e) => setEditFormData({ ...editFormData, bio: e.target.value })}
+                    placeholder="Brief bio about the member"
+                    className="mt-2 bg-white"
+                    style={{ fontSize: '14px' }}
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" size="sm" onClick={cancelEditing}>
+                    <X className="w-4 h-4 mr-2" />
+                    Cancel
+                  </Button>
+                  <Button size="sm" onClick={saveEditing}>
+                    <Check className="w-4 h-4 mr-2" />
+                    Save
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Show saved members */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {sortedMembers.map((member) => (
+              <Card key={member.id} className="p-4">
               {editingMember === member.id && editFormData ? (
                 <div className="space-y-4">
                   <div>
@@ -1879,6 +2206,7 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
               )}
             </Card>
           ))}
+          </div>
         </div>
       )}
     </div>

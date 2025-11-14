@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { Play, Pause, RotateCcw, Settings, ChevronDown, ChevronUp, Bell, BellOff } from 'lucide-react';
+import { Play, Pause, RotateCcw, Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Collapsible, CollapsibleTrigger } from './ui/collapsible';
-import { Switch } from './ui/switch';
 
 // Pomodoro settings interface
 interface PomodoroSettings {
@@ -248,7 +247,7 @@ export function PomodoroTimer({ className = '', onStateChange }: PomodoroTimerPr
         <div 
           className="overflow-hidden transition-all duration-1000 ease-out"
           style={{ 
-            height: isOpen ? (showSettings ? '600px' : '260px') : '0px'
+            height: isOpen ? (showSettings ? '450px' : '260px') : '0px'
           }}
         >
             <div className={`p-4 space-y-4 transition-opacity duration-1000 ${
@@ -417,51 +416,6 @@ export function PomodoroTimer({ className = '', onStateChange }: PomodoroTimerPr
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-                </div>
-
-                {/* Advanced Settings */}
-                <div className="space-y-3 pt-2 border-t border-gray-100">
-                  <h5 className="text-xs font-medium text-gray-700">Advanced Settings</h5>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {settings.soundEnabled ? (
-                        <Bell className="w-4 h-4 text-[#752432]" />
-                      ) : (
-                        <BellOff className="w-4 h-4 text-gray-400" />
-                      )}
-                      <span className="text-xs text-gray-600">Sound Notifications</span>
-                    </div>
-                    <Switch
-                      checked={settings.soundEnabled}
-                      onCheckedChange={(checked) => updateSettings({ soundEnabled: checked })}
-                      className="data-[state=checked]:bg-[#752432] scale-75"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Play className="w-4 h-4 text-gray-500" />
-                      <span className="text-xs text-gray-600">Auto-start Breaks</span>
-                    </div>
-                    <Switch
-                      checked={settings.autoStartBreaks}
-                      onCheckedChange={(checked) => updateSettings({ autoStartBreaks: checked })}
-                      className="data-[state=checked]:bg-[#752432] scale-75"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Play className="w-4 h-4 text-gray-500" />
-                      <span className="text-xs text-gray-600">Auto-start Work</span>
-                    </div>
-                    <Switch
-                      checked={settings.autoStartWork}
-                      onCheckedChange={(checked) => updateSettings({ autoStartWork: checked })}
-                      className="data-[state=checked]:bg-[#752432] scale-75"
-                    />
                   </div>
                 </div>
               </div>

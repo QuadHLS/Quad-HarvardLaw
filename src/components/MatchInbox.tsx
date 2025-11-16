@@ -10,6 +10,8 @@ import { supabase } from '../lib/supabase';
 
 import { useAuth } from '../contexts/AuthContext';
 
+import { Heart } from 'lucide-react';
+
 
 
 interface ReceivedMatch {
@@ -45,6 +47,8 @@ interface SentMatch {
   name?: string;
 
   receiver_id: string;
+
+  icon?: string;
 
 }
 
@@ -151,7 +155,7 @@ export function MatchInbox({ open, onOpenChange, refreshTrigger }: MatchInboxPro
             message: 'Someone on Quad likes you',
             timestamp: formatTimestamp(new Date(match.created_at)),
             matched: isMutual,
-            icon: '❤️',
+            icon: 'heart',
             name: undefined,
             sender_id: senderId
           });
@@ -163,7 +167,7 @@ export function MatchInbox({ open, onOpenChange, refreshTrigger }: MatchInboxPro
               message: `${senderName} likes you`,
               timestamp: formatTimestamp(new Date(match.created_at)),
               matched: true,
-              icon: '💚',
+              icon: 'two-hearts',
               name: senderName,
               sender_id: senderId
             });
@@ -260,7 +264,9 @@ export function MatchInbox({ open, onOpenChange, refreshTrigger }: MatchInboxPro
 
             name: receiverName,
 
-            receiver_id: match.receiver_id
+            receiver_id: match.receiver_id,
+
+            icon: isMutual ? 'two-hearts' : '💌'
 
           };
 
@@ -391,7 +397,18 @@ export function MatchInbox({ open, onOpenChange, refreshTrigger }: MatchInboxPro
 
                   <div className="flex items-start gap-3">
 
-                    <div className="text-2xl">{match.icon}</div>
+                    <div className="flex items-center justify-center">
+                      {match.icon === 'heart' ? (
+                        <Heart className="w-6 h-6" style={{ color: '#ef4444', fill: '#ef4444' }} />
+                      ) : match.icon === 'two-hearts' ? (
+                        <div className="relative flex items-center justify-center" style={{ width: '32px', height: '28px' }}>
+                          <Heart className="w-6 h-6 absolute" style={{ color: '#ef4444', fill: '#ef4444', top: '2px', left: '0px', zIndex: 1 }} />
+                          <Heart className="w-4 h-4 absolute" style={{ color: '#ef4444', fill: '#ef4444', top: '-6px', left: '18px', zIndex: 2 }} />
+                        </div>
+                      ) : (
+                        <span className="text-2xl">{match.icon}</span>
+                      )}
+                    </div>
 
                     <div className="flex-1">
 
@@ -465,7 +482,16 @@ export function MatchInbox({ open, onOpenChange, refreshTrigger }: MatchInboxPro
 
                   <div className="flex items-start gap-3">
 
-                    <div className="text-2xl">{match.matched ? '💚' : '💌'}</div>
+                    <div className="flex items-center justify-center">
+                      {match.icon === 'two-hearts' ? (
+                        <div className="relative flex items-center justify-center" style={{ width: '32px', height: '28px' }}>
+                          <Heart className="w-6 h-6 absolute" style={{ color: '#ef4444', fill: '#ef4444', top: '2px', left: '0px', zIndex: 1 }} />
+                          <Heart className="w-4 h-4 absolute" style={{ color: '#ef4444', fill: '#ef4444', top: '-6px', left: '18px', zIndex: 2 }} />
+                        </div>
+                      ) : (
+                        <span className="text-2xl">{match.icon || '💌'}</span>
+                      )}
+                    </div>
 
                     <div className="flex-1">
 

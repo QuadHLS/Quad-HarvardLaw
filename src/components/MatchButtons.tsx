@@ -32,7 +32,7 @@ export function MatchButtons({
 
   return (
 
-    <div className="flex flex-col gap-2">
+    <div className="flex gap-2 items-center">
 
       <Button
 
@@ -72,17 +72,19 @@ export function MatchButtons({
 
         variant="outline"
 
-        size="sm"
+        size="icon"
 
         onClick={onMatchInfoClick}
 
-        className="gap-2"
+        className="!w-8 !h-8 !p-0 !min-w-8 !min-h-8"
+
+        style={{ width: '32px', height: '32px', padding: 0 }}
+
+        title="How Match Works"
 
       >
 
         <HelpCircle className="w-4 h-4" />
-
-        How Match Works
 
       </Button>
 

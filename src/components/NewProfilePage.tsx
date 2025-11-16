@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MapPin, Edit, Save, X, Trophy, BookOpen, Clock, Upload, ArrowLeft, ChevronLeft, ChevronRight, Plus, RotateCcw, Heart, LogOut } from 'lucide-react';
+import { MapPin, Edit, Save, X, Trophy, BookOpen, Clock, Upload, ArrowLeft, ChevronLeft, ChevronRight, Plus, RotateCcw, LogOut, HelpCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { extractFilename, getStorageUrl } from '../utils/storage';
@@ -8,8 +8,7 @@ import { MatchButton } from './MatchButton';
 import { MatchButtons } from './MatchButtons';
 import { HowMatchWorksModal } from './HowMatchWorksModal';
 
-// Temporary feature flag - set to true to re-enable match features
-const MATCH_FEATURE_ENABLED = true;
+// Match feature is always enabled
 
 // Utility function for class merging
 function cn(...inputs: any[]) {
@@ -358,7 +357,7 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
           setMatchSent(!!data);
         }
       } catch (error) {
-        console.error('Error checking existing match:', error?.message || "Unknown error");
+        console.error('Error checking existing match:', error instanceof Error ? error.message : "Unknown error");
       }
     };
 
@@ -370,7 +369,7 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
   // Fetch match count for received matches
   useEffect(() => {
     const fetchMatchCount = async () => {
-      if (!user?.id || !MATCH_FEATURE_ENABLED) {
+      if (!user?.id) {
         setMatchCount(0);
         return;
       }
@@ -436,7 +435,7 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
       try {
         let query = supabase
           .from('profiles')
-          .select('id, full_name, email, phone, class_year, section, classes, age, hometown, under_grad, summer_city, summer_firm, instagram, linkedin, avatar_url, photo_urls, bio, clubs_activities, clubs_visibility, courses_visibility, schedule_visibility');
+          .select('id, full_name, email, phone, class_year, section, classes, age, hometown, under_grad, summer_city, summer_firm, instagram, linkedin, avatar_url, photo_urls, bio, clubs_activities, clubs_visibility, courses_visibility, schedule_visibility, update_info');
 
         // If viewing another student's profile, fetch by name; otherwise fetch by user ID
         if (studentName && studentName !== user.email) {
@@ -573,9 +572,25 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
           } else {
             setPhotoUrls({});
           }
+
+          // Check if this is user's own profile and update_info is false
+          // If so, auto-open the match info modal and set update_info to true
+          if (!studentName && profile.email === user.email && profile.update_info === false) {
+            // Open the modal
+            setMatchInfoOpen(true);
+            // Update the database to set update_info to true
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update({ update_info: true })
+              .eq('id', user.id);
+            
+            if (updateError) {
+              console.error('Error updating update_info:', updateError);
+            }
+          }
         }
       } catch (error) {
-        console.error('Error fetching profile:', error?.message || "Unknown error");
+        console.error('Error fetching profile:', error instanceof Error ? error.message : "Unknown error");
       } finally {
         setLoading(false);
       }
@@ -796,7 +811,7 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
     setProfileData(editedData);
     setIsEditing(false);
     } catch (error) {
-      console.error('Error saving profile:', error?.message || "Unknown error");
+      console.error('Error saving profile:', error instanceof Error ? error.message : "Unknown error");
       alert('Error saving profile. Please try again.');
     }
   };
@@ -829,7 +844,7 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
         setProfileData({ ...profileData, [field]: value });
       }
     } catch (error) {
-      console.error('Error updating visibility:', error?.message || "Unknown error");
+      console.error('Error updating visibility:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -868,7 +883,7 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
       // Reload the page to trigger onboarding flow
       window.location.reload();
     } catch (error) {
-      console.error('Error resetting onboarding:', error?.message || "Unknown error");
+      console.error('Error resetting onboarding:', error instanceof Error ? error.message : "Unknown error");
       alert('Error resetting onboarding. Please try again.');
     }
   };
@@ -888,7 +903,7 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
       }
       window.location.reload();
     } catch (error) {
-      console.error('Error resetting onboarding:', error?.message || "Unknown error");
+      console.error('Error resetting onboarding:', error instanceof Error ? error.message : "Unknown error");
       alert('Error resetting onboarding. Please try again.');
     }
   };
@@ -938,7 +953,7 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
         fileInput.value = '';
       }
     } catch (error) {
-      console.error('Error deleting avatar:', error?.message || "Unknown error");
+      console.error('Error deleting avatar:', error instanceof Error ? error.message : "Unknown error");
       alert('Error deleting avatar. Please try again.');
     }
   };
@@ -1026,7 +1041,7 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
       const signedUrl = await getStorageUrl(avatarFileName, 'Avatar');
       setAvatarUrl(signedUrl);
     } catch (error) {
-      console.error('Error uploading avatar:', error?.message || "Unknown error");
+      console.error('Error uploading avatar:', error instanceof Error ? error.message : "Unknown error");
       if (error instanceof Error && error.message && error.message.includes('timeout')) {
         alert('Error: Image is too large or complex to process. Please try a smaller image.');
       } else {
@@ -1130,7 +1145,7 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
         setProfileData(prev => prev ? { ...prev, photo_urls: updatedPhotoUrls } : null);
       }
     } catch (error) {
-      console.error('Error uploading photos:', error?.message || "Unknown error");
+      console.error('Error uploading photos:', error instanceof Error ? error.message : "Unknown error");
       alert('Error uploading photos. Please try again.');
     } finally {
       setUploadingPhotos(false);
@@ -1198,7 +1213,7 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
       // Update local state
       setProfileData(prev => prev ? { ...prev, photo_urls: updatedPhotoUrls } : null);
     } catch (error) {
-      console.error('Error deleting photo:', error?.message || "Unknown error");
+      console.error('Error deleting photo:', error instanceof Error ? error.message : "Unknown error");
       alert('Error deleting photo. Please try again.');
     }
   };
@@ -1516,7 +1531,7 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
                 </div>
               )}
               {/* Match Buttons - only show on own profile when not editing */}
-              {!isEditing && !studentName && profileData && profileData.email === user?.email && MATCH_FEATURE_ENABLED && (
+              {!isEditing && !studentName && profileData && profileData.email === user?.email && (
                 <div className="mt-4 flex justify-center">
                   <MatchButtons
                     onMatchInboxClick={() => setMatchInboxOpen(true)}
@@ -1553,18 +1568,30 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
                   {!isEditing ? (
                     <>
                       {/* Show Match button when viewing someone else's profile */}
-                      {MATCH_FEATURE_ENABLED && studentName && profileData && profileData.email !== user?.email && (
-                        <MatchButton 
-                          studentName={profileData.name}
-                          receiverId={profileData.id}
-                          isMatchSent={matchSent}
-                          onMatchSent={() => {
-                            setMatchSent(true);
-                          }}
-                          onMatchUnsent={() => {
-                            setMatchSent(false);
-                          }}
-                        />
+                      {studentName && profileData && profileData.email !== user?.email && (
+                        <div className="flex gap-2 items-center">
+                          <MatchButton 
+                            studentName={profileData.name}
+                            receiverId={profileData.id}
+                            isMatchSent={matchSent}
+                            onMatchSent={() => {
+                              setMatchSent(true);
+                            }}
+                            onMatchUnsent={() => {
+                              setMatchSent(false);
+                            }}
+                          />
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setMatchInfoOpen(true)}
+                            className="!w-8 !h-8 !p-0 !min-w-8 !min-h-8"
+                            style={{ width: '32px', height: '32px', padding: 0 }}
+                            title="How Match Works"
+                          >
+                            <HelpCircle className="w-4 h-4" />
+                          </Button>
+                        </div>
                       )}
                       {/* Show Edit button only when directly accessing own profile (no studentName param) */}
                       {(!studentName && profileData && profileData.email === user?.email) && (
@@ -2259,13 +2286,11 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
           </div>
         </div>
       )}
-      {MATCH_FEATURE_ENABLED && <MatchInbox open={matchInboxOpen} onOpenChange={setMatchInboxOpen} />}
-      {MATCH_FEATURE_ENABLED && (
-        <HowMatchWorksModal 
-          isOpen={matchInfoOpen} 
-          onClose={() => setMatchInfoOpen(false)} 
-        />
-      )}
+      <MatchInbox open={matchInboxOpen} onOpenChange={setMatchInboxOpen} />
+      <HowMatchWorksModal 
+        isOpen={matchInfoOpen} 
+        onClose={() => setMatchInfoOpen(false)} 
+      />
     </div>
   );
 }

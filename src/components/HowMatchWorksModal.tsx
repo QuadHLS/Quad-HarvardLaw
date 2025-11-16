@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 
 import { Button } from './ui/button';
 
-import { Heart, Inbox, Users, Sparkles, ChevronRight, ChevronLeft, X } from 'lucide-react';
+import { Heart, Inbox, Users, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react';
 
 
 

@@ -1,13 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MapPin, Edit, Save, X, Trophy, BookOpen, Clock, Upload, ArrowLeft, ChevronLeft, ChevronRight, Plus, RotateCcw, Heart } from 'lucide-react';
+import { MapPin, Edit, Save, X, Trophy, BookOpen, Clock, Upload, ArrowLeft, ChevronLeft, ChevronRight, Plus, RotateCcw, Heart, LogOut } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { extractFilename, getStorageUrl } from '../utils/storage';
 import { MatchInbox } from './MatchInbox';
 import { MatchButton } from './MatchButton';
+import { MatchButtons } from './MatchButtons';
+import { HowMatchWorksModal } from './HowMatchWorksModal';
 
 // Temporary feature flag - set to true to re-enable match features
-const MATCH_FEATURE_ENABLED = false;
+const MATCH_FEATURE_ENABLED = true;
 
 // Utility function for class merging
 function cn(...inputs: any[]) {
@@ -330,6 +332,8 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory 
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [matchInboxOpen, setMatchInboxOpen] = useState(false);
   const [matchSent, setMatchSent] = useState(false);
+  const [matchInfoOpen, setMatchInfoOpen] = useState(false);
+  const [matchCount, setMatchCount] = useState(0);
 
   // Check if match already exists when viewing someone else's profile
   useEffect(() => {
@@ -361,6 +365,40 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory 
       checkExistingMatch();
     }
   }, [user?.id, studentName, profileData]);
+
+  // Fetch match count for received matches
+  useEffect(() => {
+    const fetchMatchCount = async () => {
+      if (!user?.id || !MATCH_FEATURE_ENABLED) {
+        setMatchCount(0);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .rpc('get_received_matches');
+
+        if (error) {
+          console.error('Error fetching match count:', error);
+          setMatchCount(0);
+        } else {
+          // Count unique matches (not counting the duplicate named entries)
+          const uniqueMatches = new Set((data || []).map((match: any) => match.id));
+          setMatchCount(uniqueMatches.size);
+        }
+      } catch (error) {
+        console.error('Error fetching match count:', error);
+        setMatchCount(0);
+      }
+    };
+
+    fetchMatchCount();
+    // Refresh count when match inbox opens/closes
+    if (matchInboxOpen) {
+      const interval = setInterval(fetchMatchCount, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [user?.id, matchInboxOpen]);
   
   // Pick a consistent color for the default avatar (green, blue, yellow, red)
   const getDefaultAvatarColor = (seed: string | undefined): string => {
@@ -1476,6 +1514,16 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory 
                   )}
                 </div>
               )}
+              {/* Match Buttons - only show on own profile when not editing */}
+              {!isEditing && !studentName && profileData && profileData.email === user?.email && MATCH_FEATURE_ENABLED && (
+                <div className="mt-4 flex justify-center">
+                  <MatchButtons
+                    onMatchInboxClick={() => setMatchInboxOpen(true)}
+                    onMatchInfoClick={() => setMatchInfoOpen(true)}
+                    matchCount={matchCount}
+                  />
+                </div>
+              )}
             </div>
             
             {/* Name and Info */}
@@ -1519,65 +1567,90 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory 
                       )}
                       {/* Show Edit button only when directly accessing own profile (no studentName param) */}
                       {(!studentName && profileData && profileData.email === user?.email) && (
-                        <div className="flex flex-col gap-2">
-                          <div className="flex gap-2">
-                            {MATCH_FEATURE_ENABLED && (
-                              <Button onClick={() => setMatchInboxOpen(true)} variant="outline" size="sm" className="gap-2 text-xs px-3 py-1 h-7">
-                                <Heart className="w-4 h-4" style={{ fill: '#ef4444', color: '#ef4444' }} />
-                                Match Inbox
-                              </Button>
-                            )}
-                            <Button onClick={handleEdit} variant="outline" size="sm" className="gap-2 text-xs px-3 py-1 h-7" style={{ width: '120px' }}>
-                              <Edit className="w-4 h-4" />
-                              Edit Profile
-                            </Button>
-                          </div>
-                          <div className="flex flex-col gap-2 items-end">
-                            {profileData.currentCourses.length === 0 ? (
-                              <Button 
-                                ref={setRedoButtonRef}
-                                onClick={completeOnboardingNoDecrement}
-                                variant="outline" 
-                                size="sm"
-                                className="gap-2 text-xs px-3 py-1 h-7"
-                                style={{ width: '120px' }}
-                              >
-                                Complete Onboarding
-                              </Button>
-                            ) : (
+                        <div className="flex gap-2 items-center">
+                          <Button 
+                            onClick={handleEdit} 
+                            variant="outline" 
+                            size="sm" 
+                            className="py-1 h-7 overflow-hidden transition-all duration-200 group flex items-center justify-start"
+                            style={{ width: '36px', paddingLeft: '8px', paddingRight: '8px' }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.width = '120px';
+                              e.currentTarget.style.paddingLeft = '12px';
+                              e.currentTarget.style.paddingRight = '12px';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.width = '36px';
+                              e.currentTarget.style.paddingLeft = '8px';
+                              e.currentTarget.style.paddingRight = '8px';
+                            }}
+                          >
+                            <Edit className="w-4 h-4 flex-shrink-0" />
+                            <span className="text-xs whitespace-nowrap max-w-0 overflow-hidden opacity-0 group-hover:ml-2 group-hover:max-w-[100px] group-hover:opacity-100 transition-all duration-200">Edit Profile</span>
+                          </Button>
+                          {profileData.currentCourses.length === 0 ? (
                             <Button 
                               ref={setRedoButtonRef}
-                              onClick={handleRedoOnboarding} 
-                              variant="outline" 
-                                size="sm"
-                                className="gap-2 text-blue-600 border-blue-600 text-xs px-3 py-1 h-7"
-                                style={{ 
-                                  backgroundColor: 'rgba(59, 130, 246, 0.4)',
-                                  borderColor: 'rgb(37, 99, 235)',
-                                  width: '120px'
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.5)';
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.4)';
-                                }}
-                            >
-                              <RotateCcw className="w-4 h-4" />
-                              Edit Courses
-                              </Button>
-                            )}
-                            {/* Sign out under redo/completion button */}
-                            <Button 
-                              onClick={() => signOut()} 
+                              onClick={completeOnboardingNoDecrement}
                               variant="outline" 
                               size="sm"
                               className="gap-2 text-xs px-3 py-1 h-7"
                               style={{ width: '120px' }}
                             >
-                              Sign out
+                              Complete Onboarding
                             </Button>
-                          </div>
+                          ) : (
+                            <Button 
+                              ref={setRedoButtonRef}
+                              onClick={handleRedoOnboarding} 
+                              variant="outline" 
+                              size="sm"
+                              className="text-blue-600 border-blue-600 py-1 h-7 overflow-hidden transition-all duration-200 group flex items-center justify-start"
+                              style={{ 
+                                backgroundColor: 'rgba(59, 130, 246, 0.4)',
+                                borderColor: 'rgb(37, 99, 235)',
+                                width: '36px',
+                                paddingLeft: '8px',
+                                paddingRight: '8px'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.width = '120px';
+                                e.currentTarget.style.paddingLeft = '12px';
+                                e.currentTarget.style.paddingRight = '12px';
+                                e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.5)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.width = '36px';
+                                e.currentTarget.style.paddingLeft = '8px';
+                                e.currentTarget.style.paddingRight = '8px';
+                                e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.4)';
+                              }}
+                            >
+                              <RotateCcw className="w-4 h-4 flex-shrink-0" />
+                              <span className="text-xs whitespace-nowrap max-w-0 overflow-hidden opacity-0 group-hover:ml-2 group-hover:max-w-[100px] group-hover:opacity-100 transition-all duration-200">Edit Courses</span>
+                            </Button>
+                          )}
+                          {/* Sign out button */}
+                          <Button 
+                            onClick={() => signOut()} 
+                            variant="outline" 
+                            size="sm"
+                            className="py-1 h-7 overflow-hidden transition-all duration-200 group flex items-center justify-start"
+                            style={{ width: '36px', paddingLeft: '8px', paddingRight: '8px' }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.width = '120px';
+                              e.currentTarget.style.paddingLeft = '12px';
+                              e.currentTarget.style.paddingRight = '12px';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.width = '36px';
+                              e.currentTarget.style.paddingLeft = '8px';
+                              e.currentTarget.style.paddingRight = '8px';
+                            }}
+                          >
+                            <LogOut className="w-4 h-4 flex-shrink-0" />
+                            <span className="text-xs whitespace-nowrap max-w-0 overflow-hidden opacity-0 group-hover:ml-2 group-hover:max-w-[100px] group-hover:opacity-100 transition-all duration-200">Sign out</span>
+                          </Button>
                         </div>
                       )}
                     </>
@@ -2186,6 +2259,12 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory 
         </div>
       )}
       {MATCH_FEATURE_ENABLED && <MatchInbox open={matchInboxOpen} onOpenChange={setMatchInboxOpen} />}
+      {MATCH_FEATURE_ENABLED && (
+        <HowMatchWorksModal 
+          isOpen={matchInfoOpen} 
+          onClose={() => setMatchInfoOpen(false)} 
+        />
+      )}
     </div>
   );
 }

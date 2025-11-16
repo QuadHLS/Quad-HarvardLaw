@@ -308,6 +308,7 @@ function AppContent({ user }: { user: any }) {
         onBack={handleBackFromStudentProfile}
         fromBarReview={previousSection === 'barreview'}
         fromDirectory={previousSection === 'directory'}
+        fromHome={previousSection === 'home'}
       />
     );
   };

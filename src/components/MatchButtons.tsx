@@ -1,10 +1,8 @@
 import React from 'react';
 
-import { Heart, HelpCircle } from 'lucide-react';
+import { Inbox, HelpCircle } from 'lucide-react';
 
 import { Button } from './ui/button';
-
-import { Badge } from './ui/badge';
 
 
 
@@ -14,8 +12,6 @@ interface MatchButtonsProps {
 
   onMatchInfoClick?: () => void;
 
-  matchCount?: number;
-
 }
 
 
@@ -24,9 +20,7 @@ export function MatchButtons({
 
   onMatchInboxClick, 
 
-  onMatchInfoClick, 
-
-  matchCount = 0 
+  onMatchInfoClick
 
 }: MatchButtonsProps) {
 
@@ -46,25 +40,9 @@ export function MatchButtons({
 
       >
 
-        <Heart className="w-4 h-4" style={{ fill: '#ef4444', color: '#ef4444' }} />
+        <Inbox className="w-4 h-4" />
 
         Match Inbox
-
-        {matchCount > 0 && (
-
-          <Badge 
-
-            className="ml-1 text-white" 
-
-            style={{ backgroundColor: '#752432' }}
-
-          >
-
-            {matchCount}
-
-          </Badge>
-
-        )}
 
       </Button>
 

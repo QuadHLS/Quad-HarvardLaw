@@ -62,21 +62,39 @@ export function HowMatchWorksModal({ isOpen, onClose }: HowMatchWorksModalProps)
 
         <div className="space-y-4">
 
-          <div className="rounded-lg p-4 border border-red-200" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)' }}>
-
-            <p className="text-gray-700 text-sm">
-
-              <strong className="text-gray-900">Tip:</strong> You can find students through your courses, clubs, or the directory. When you see someone interesting, just click Match!
-
-            </p>
-
-          </div>
-
           <p className="text-gray-700 text-center">
 
             They'll receive a notification that someone is interested, but your identity stays hidden until they match back.
 
           </p>
+
+          <div className="rounded-lg p-4 border border-blue-200" style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)' }}>
+
+            <p className="text-gray-700 text-sm mb-2">
+
+              <strong className="text-gray-900">Match Limits:</strong>
+
+            </p>
+
+            <ul className="text-gray-700 text-sm space-y-1 ml-4">
+
+              <li className="list-disc">You can send up to <strong>2 matches per day</strong></li>
+
+              <li className="list-disc">You can send up to <strong>10 matches per week</strong></li>
+
+            </ul>
+
+          </div>
+
+          <div className="rounded-lg p-4 border border-red-200" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)' }}>
+
+            <p className="text-gray-700 text-sm">
+
+              <strong className="text-gray-900">Tip:</strong> You can find students through your courses or the directory. When you see someone interesting, just click Match!
+
+            </p>
+
+          </div>
 
         </div>
 
@@ -108,7 +126,7 @@ export function HowMatchWorksModal({ isOpen, onClose }: HowMatchWorksModalProps)
 
               <div className="flex-1">
 
-                <p className="text-sm text-gray-900">Someone on Quad likes you</p>
+                <p className="text-sm text-gray-900">Someone on Quad matched with you</p>
 
                 <p className="text-xs text-gray-500">2 hours ago</p>
 
@@ -126,7 +144,7 @@ export function HowMatchWorksModal({ isOpen, onClose }: HowMatchWorksModalProps)
 
               <div className="flex-1">
 
-                <p className="text-sm text-gray-900">Sarah Martinez likes you</p>
+                <p className="text-sm text-gray-900">Quentin Quadly matched with you</p>
 
                 <p className="text-xs text-gray-500">2 days ago</p>
 
@@ -138,7 +156,7 @@ export function HowMatchWorksModal({ isOpen, onClose }: HowMatchWorksModalProps)
 
           <p className="text-gray-700 text-center text-sm">
 
-            Anonymous matches show hints about who sent them. Mutual matches reveal the person's name!
+            Mutual matches reveal the person's name!
 
           </p>
 
@@ -168,7 +186,7 @@ export function HowMatchWorksModal({ isOpen, onClose }: HowMatchWorksModalProps)
 
             <p className="text-sm text-gray-700">
 
-              You and <strong>Sarah Martinez</strong> have matched
+              You and <strong>Quentin Quadly</strong> have matched
 
             </p>
 
@@ -207,14 +225,6 @@ export function HowMatchWorksModal({ isOpen, onClose }: HowMatchWorksModalProps)
                 <span className="text-blue-600 mt-0.5">•</span>
 
                 <span>All matches are anonymous until both people match</span>
-
-              </li>
-
-              <li className="flex items-start gap-2">
-
-                <span className="text-blue-600 mt-0.5">•</span>
-
-                <span>You control who can see your profile information</span>
 
               </li>
 

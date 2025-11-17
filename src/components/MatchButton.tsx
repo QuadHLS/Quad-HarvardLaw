@@ -1,10 +1,8 @@
 import { useState } from 'react';
 
-import { Heart, Check, Inbox } from 'lucide-react';
+import { Inbox, Check } from 'lucide-react';
 
 import { Button } from './ui/button';
-
-import { Badge } from './ui/badge';
 
 import { toast } from 'sonner';
 
@@ -128,6 +126,56 @@ export function MatchButton({
 
     try {
 
+      // Check match limits before sending
+      const now = new Date();
+      // Use UTC for date calculations to match database timestamps
+      const startOfTodayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+      // Check daily limit: 2 matches per day total
+      const { data: todayMatches, error: todayError } = await supabase
+        .from('matches')
+        .select('id')
+        .eq('sender_id', user.id)
+        .gte('created_at', startOfTodayUTC.toISOString());
+
+      if (todayError) {
+        console.error('Error checking daily match limit:', todayError);
+        toast.error('Failed to check match limits');
+        setIsAnimating(false);
+        setIsLoading(false);
+        return;
+      }
+
+      if (todayMatches && todayMatches.length >= 2) {
+        toast.error('You can only send 2 matches per day');
+        setIsAnimating(false);
+        setIsLoading(false);
+        return;
+      }
+
+      // Check weekly limit: 10 matches per week
+      const { data: weekMatches, error: weekError } = await supabase
+        .from('matches')
+        .select('id')
+        .eq('sender_id', user.id)
+        .gte('created_at', oneWeekAgo.toISOString());
+
+      if (weekError) {
+        console.error('Error checking weekly match limit:', weekError);
+        toast.error('Failed to check match limits');
+        setIsAnimating(false);
+        setIsLoading(false);
+        return;
+      }
+
+      if (weekMatches && weekMatches.length >= 10) {
+        toast.error('You have reached the weekly limit of 10 matches');
+        setIsAnimating(false);
+        setIsLoading(false);
+        return;
+      }
+
       // Insert new match
 
       const { error } = await supabase
@@ -248,7 +296,7 @@ export function MatchButton({
 
     >
 
-      <Heart 
+      <Inbox 
 
         className={`w-4 h-4 transition-transform ${
 
@@ -272,8 +320,6 @@ interface MatchInboxButtonProps {
 
   onClick: () => void;
 
-  unreadCount?: number;
-
   className?: string;
 
 }
@@ -283,8 +329,6 @@ interface MatchInboxButtonProps {
 export function MatchInboxButton({ 
 
   onClick, 
-
-  unreadCount = 0,
 
   className = ''
 
@@ -298,31 +342,11 @@ export function MatchInboxButton({
 
       variant="outline" 
 
-      className={`gap-2 relative ${className}`}
+      className={`gap-2 ${className}`}
 
     >
 
-      <div className="relative">
-
-        <Inbox className="w-4 h-4" />
-
-        {unreadCount > 0 && (
-
-          <Badge 
-
-            className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs border-2 border-white text-white"
-
-            style={{ backgroundColor: '#752432' }}
-
-          >
-
-            {unreadCount > 99 ? '99+' : unreadCount}
-
-          </Badge>
-
-        )}
-
-      </div>
+      <Inbox className="w-4 h-4" />
 
       Match Inbox
 

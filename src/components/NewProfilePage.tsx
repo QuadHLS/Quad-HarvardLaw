@@ -333,7 +333,6 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
   const [matchInboxOpen, setMatchInboxOpen] = useState(false);
   const [matchSent, setMatchSent] = useState(false);
   const [matchInfoOpen, setMatchInfoOpen] = useState(false);
-  const [matchCount, setMatchCount] = useState(0);
 
   // Check if match already exists when viewing someone else's profile
   useEffect(() => {
@@ -366,39 +365,6 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
     }
   }, [user?.id, studentName, profileData]);
 
-  // Fetch match count for received matches
-  useEffect(() => {
-    const fetchMatchCount = async () => {
-      if (!user?.id) {
-        setMatchCount(0);
-        return;
-      }
-
-      try {
-        const { data, error } = await supabase
-          .rpc('get_received_matches');
-
-        if (error) {
-          console.error('Error fetching match count:', error);
-          setMatchCount(0);
-        } else {
-          // Count unique matches (not counting the duplicate named entries)
-          const uniqueMatches = new Set((data || []).map((match: any) => match.id));
-          setMatchCount(uniqueMatches.size);
-        }
-      } catch (error) {
-        console.error('Error fetching match count:', error);
-        setMatchCount(0);
-      }
-    };
-
-    fetchMatchCount();
-    // Refresh count when match inbox opens/closes
-    if (matchInboxOpen) {
-      const interval = setInterval(fetchMatchCount, 2000);
-      return () => clearInterval(interval);
-    }
-  }, [user?.id, matchInboxOpen]);
   
   // Pick a consistent color for the default avatar (green, blue, yellow, red)
   const getDefaultAvatarColor = (seed: string | undefined): string => {
@@ -1536,7 +1502,6 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
                   <MatchButtons
                     onMatchInboxClick={() => setMatchInboxOpen(true)}
                     onMatchInfoClick={() => setMatchInfoOpen(true)}
-                    matchCount={matchCount}
                   />
                 </div>
               )}

@@ -48,6 +48,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
   const { user } = useAuth();
   const [, setIsResourcesExpanded] = useState(false);
   const [userName, setUserName] = useState('User');
+  const [matchCount, setMatchCount] = useState(0);
 
   // Track collapse/expand transition to avoid overlapping UIs
   const [showText, setShowText] = useState(false);
@@ -120,6 +121,76 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
 
     fetchUserName();
   }, [user]);
+
+  // Fetch match count for received + matched matches
+  useEffect(() => {
+    const fetchMatchCount = async () => {
+      if (!user?.id) {
+        setMatchCount(0);
+        return;
+      }
+
+      try {
+        // Fetch received matches
+        const { data: receivedData, error: receivedError } = await supabase
+          .rpc('get_received_matches');
+
+        if (receivedError) {
+          console.error('Error fetching received matches:', receivedError);
+          setMatchCount(0);
+          return;
+        }
+
+        // Count received matches (non-mutual)
+        const receivedCount = (receivedData || []).filter((match: any) => !match.is_mutual).length;
+
+        // Count mutual matches from received
+        const mutualFromReceived = (receivedData || []).filter((match: any) => match.is_mutual).length;
+
+        // Fetch sent matches to check for mutual ones that weren't received
+        const { data: sentData, error: sentError } = await supabase
+          .from('matches')
+          .select('receiver_id')
+          .eq('sender_id', user.id);
+
+        let mutualFromSent = 0;
+        if (!sentError && sentData) {
+          // Get list of received match sender IDs to avoid double counting
+          const receivedSenderIds = new Set((receivedData || [])
+            .filter((m: any) => m.is_mutual && m.sender_id)
+            .map((m: any) => m.sender_id));
+
+          for (const match of sentData) {
+            // Skip if we already counted this person from received side
+            if (receivedSenderIds.has(match.receiver_id)) {
+              continue;
+            }
+
+            const { data: isMutualData } = await supabase
+              .rpc('is_mutual_match', {
+                sender_uuid: user.id,
+                receiver_uuid: match.receiver_id
+              });
+
+            if (isMutualData === true) {
+              mutualFromSent++;
+            }
+          }
+        }
+
+        // Total count = received (non-mutual) + matched (mutual from received) + matched (mutual from sent, not already counted)
+        setMatchCount(receivedCount + mutualFromReceived + mutualFromSent);
+      } catch (error) {
+        console.error('Error fetching match count:', error);
+        setMatchCount(0);
+      }
+    };
+
+    fetchMatchCount();
+    // Refresh count every 5 seconds
+    const interval = setInterval(fetchMatchCount, 5000);
+    return () => clearInterval(interval);
+  }, [user?.id]);
 
   
 
@@ -311,11 +382,28 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
         <div className="px-2 pt-2">
           <Link
             to="/profile"
-            className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
+            className={`relative w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
               activeSection === 'profile' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
             }`}
             style={{ borderRightColor: activeSection === 'profile' ? '#752432' : 'transparent' }}
           >
+            {matchCount > 0 && (
+              <div 
+                className="absolute rounded-full flex items-center justify-center text-white font-semibold z-10"
+                style={{ 
+                  backgroundColor: '#ef4444', 
+                  fontSize: '11px', 
+                  minWidth: '22px',
+                  height: '22px',
+                  padding: matchCount > 9 ? '0 5px' : '0',
+                  lineHeight: '1',
+                  top: '-6px',
+                  right: '-4px'
+                }}
+              >
+                {matchCount > 99 ? '99+' : matchCount}
+              </div>
+            )}
             <User className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
             {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">{userName.replace(/\.$/, '')}</span>}
           </Link>

@@ -103,6 +103,13 @@ export function MatchInbox({ open, onOpenChange, refreshTrigger }: MatchInboxPro
 
   const [sentMatches, setSentMatches] = useState<SentMatch[]>([]);
 
+  const [mutualMatches, setMutualMatches] = useState<Array<{
+    id: string;
+    message: string;
+    timestamp: string;
+    name: string;
+  }>>([]);
+
   const [loading, setLoading] = useState(true);
 
 
@@ -129,46 +136,22 @@ export function MatchInbox({ open, onOpenChange, refreshTrigger }: MatchInboxPro
 
       } else {
 
-        // Process received matches - create array with both anonymous and named entries for mutual matches
+        // Process received matches - only show non-mutual matches
         const allReceivedMatches: ReceivedMatch[] = [];
 
         for (const match of receivedData || []) {
           const isMutual = match.is_mutual;
           const senderId = match.sender_id;
-          let senderName: string | undefined;
 
-          // If mutual, get sender's name
-          if (isMutual && senderId) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('full_name')
-              .eq('id', senderId)
-              .single();
-            if (profile?.full_name) {
-              senderName = profile.full_name;
-            }
-          }
-
-          // Always add the anonymous "Someone on Quad likes you" message
-          allReceivedMatches.push({
-            id: match.id,
-            message: 'Someone on Quad likes you',
-            timestamp: formatTimestamp(new Date(match.created_at)),
-            matched: isMutual,
-            icon: 'heart',
-            name: undefined,
-            sender_id: senderId
-          });
-
-          // If mutual, also add the named message
-          if (isMutual && senderName) {
+          // Only add non-mutual matches to received inbox
+          if (!isMutual) {
             allReceivedMatches.push({
-              id: `${match.id}-named`,
-              message: `${senderName} likes you`,
+              id: match.id,
+              message: 'Someone on Quad matched with you',
               timestamp: formatTimestamp(new Date(match.created_at)),
-              matched: true,
-              icon: 'two-hearts',
-              name: senderName,
+              matched: false,
+              icon: '💌',
+              name: undefined,
               sender_id: senderId
             });
           }
@@ -203,6 +186,7 @@ export function MatchInbox({ open, onOpenChange, refreshTrigger }: MatchInboxPro
       } else {
 
         // Check which ones are mutual and get receiver names
+        // Only show non-mutual matches in sent inbox
 
         const formattedSent: SentMatch[] = await Promise.all((sentData || []).map(async (match: any) => {
 
@@ -222,7 +206,10 @@ export function MatchInbox({ open, onOpenChange, refreshTrigger }: MatchInboxPro
 
           const isMutual = !mutualError && isMutualData === true;
 
-
+          // Skip mutual matches - they'll be shown in Matches tab
+          if (isMutual) {
+            return null;
+          }
 
           // Get receiver name
 
@@ -242,37 +229,93 @@ export function MatchInbox({ open, onOpenChange, refreshTrigger }: MatchInboxPro
 
 
 
-          let message = `You sent a match to ${receiverName}`;
-
-          if (isMutual) {
-
-            message = `You and ${receiverName} matched!`;
-
-          }
-
-
-
           return {
 
             id: match.id,
 
-            message,
+            message: `You sent a match to ${receiverName}`,
 
             timestamp: formatTimestamp(new Date(match.created_at)),
 
-            matched: isMutual,
+            matched: false,
 
             name: receiverName,
 
             receiver_id: match.receiver_id,
 
-            icon: isMutual ? 'two-hearts' : '💌'
+            icon: '💌'
 
           };
 
         }));
 
-        setSentMatches(formattedSent);
+        // Filter out null values (mutual matches)
+        const filteredSent = formattedSent.filter((match): match is SentMatch => match !== null);
+
+        setSentMatches(filteredSent);
+
+        // Fetch mutual matches for Matches tab
+        const mutualMatchesList: Array<{
+          id: string;
+          message: string;
+          timestamp: string;
+          name: string;
+        }> = [];
+
+        // Check received matches for mutual ones
+        for (const match of receivedData || []) {
+          if (match.is_mutual && match.sender_id) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('full_name')
+              .eq('id', match.sender_id)
+              .single();
+            
+            if (profile?.full_name) {
+              mutualMatchesList.push({
+                id: match.id,
+                message: `You and ${profile.full_name} matched!`,
+                timestamp: formatTimestamp(new Date(match.created_at)),
+                name: profile.full_name
+              });
+            }
+          }
+        }
+
+        // Check sent matches for mutual ones
+        if (sentData) {
+          for (const match of sentData) {
+            const { data: isMutualData } = await supabase
+              .rpc('is_mutual_match', {
+                sender_uuid: user.id,
+                receiver_uuid: match.receiver_id
+              });
+
+            if (isMutualData === true) {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('full_name')
+                .eq('id', match.receiver_id)
+                .single();
+
+              if (profile?.full_name) {
+                // Check if we already added this match (avoid duplicates)
+                const exists = mutualMatchesList.some(m => m.name === profile.full_name);
+                
+                if (!exists) {
+                  mutualMatchesList.push({
+                    id: match.id,
+                    message: `You and ${profile.full_name} matched!`,
+                    timestamp: formatTimestamp(new Date(match.created_at)),
+                    name: profile.full_name
+                  });
+                }
+              }
+            }
+          }
+        }
+
+        setMutualMatches(mutualMatchesList);
 
       }
 
@@ -355,11 +398,13 @@ export function MatchInbox({ open, onOpenChange, refreshTrigger }: MatchInboxPro
 
         <Tabs defaultValue="received" className="w-full">
 
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
 
             <TabsTrigger value="received">Received</TabsTrigger>
 
             <TabsTrigger value="sent">Sent</TabsTrigger>
+
+            <TabsTrigger value="matches">Matches</TabsTrigger>
 
           </TabsList>
 
@@ -398,15 +443,13 @@ export function MatchInbox({ open, onOpenChange, refreshTrigger }: MatchInboxPro
                   <div className="flex items-start gap-3">
 
                     <div className="flex items-center justify-center">
-                      {match.icon === 'heart' ? (
-                        <Heart className="w-6 h-6" style={{ color: '#ef4444', fill: '#ef4444' }} />
-                      ) : match.icon === 'two-hearts' ? (
+                      {match.icon === 'two-hearts' ? (
                         <div className="relative flex items-center justify-center" style={{ width: '32px', height: '28px' }}>
                           <Heart className="w-6 h-6 absolute" style={{ color: '#ef4444', fill: '#ef4444', top: '2px', left: '0px', zIndex: 1 }} />
                           <Heart className="w-4 h-4 absolute" style={{ color: '#ef4444', fill: '#ef4444', top: '-6px', left: '18px', zIndex: 2 }} />
                         </div>
                       ) : (
-                        <span className="text-2xl">{match.icon}</span>
+                        <span className="text-2xl">{match.icon || '💌'}</span>
                       )}
                     </div>
 
@@ -549,6 +592,45 @@ export function MatchInbox({ open, onOpenChange, refreshTrigger }: MatchInboxPro
 
             )}
 
+          </TabsContent>
+
+          
+          <TabsContent value="matches" className="space-y-3 mt-4">
+            {loading ? (
+              <div className="text-center py-8 text-gray-500">Loading matches...</div>
+            ) : mutualMatches.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">No matches yet</div>
+            ) : (
+              mutualMatches.map((match) => (
+                <div
+                  key={match.id}
+                  className="p-4 rounded-lg border transition-colors bg-green-50 border-green-200"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex items-center justify-center">
+                      <div className="relative flex items-center justify-center" style={{ width: '32px', height: '28px' }}>
+                        <Heart className="w-6 h-6 absolute" style={{ color: '#ef4444', fill: '#ef4444', top: '2px', left: '0px', zIndex: 1 }} />
+                        <Heart className="w-4 h-4 absolute" style={{ color: '#ef4444', fill: '#ef4444', top: '-6px', left: '18px', zIndex: 2 }} />
+                      </div>
+                    </div>
+
+                    <div className="flex-1">
+                      <div className="text-green-900">
+                        {match.message}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">{match.timestamp}</div>
+                    </div>
+
+                    <Badge 
+                      className="border-0 text-white" 
+                      style={{ backgroundColor: '#04913A' }}
+                    >
+                      Matched!
+                    </Badge>
+                  </div>
+                </div>
+              ))
+            )}
           </TabsContent>
 
         </Tabs>

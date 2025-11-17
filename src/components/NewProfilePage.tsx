@@ -427,7 +427,7 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
             phone: profile.phone || '',
             instagram: profile.instagram || '',
             linkedin: profile.linkedin || '',
-            year: profile.class_year || '2L',
+            year: profile.class_year || '',
             age: profile.age || null,
             hometown: profile.hometown || '',
             underGrad: profile.under_grad || '',
@@ -1522,9 +1522,11 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
                     ) : (
                     <h1 className="text-gray-900 text-3xl">{profileData.name}</h1>
                     )}
-                    <Badge className="border-0 text-white" style={{ backgroundColor: '#752432' }}>
-                      {profileData.year}
-                    </Badge>
+                    {profileData.year && profileData.year.trim() !== '' && (
+                      <Badge className="border-0 text-white" style={{ backgroundColor: '#752432' }}>
+                        {profileData.year}
+                      </Badge>
+                    )}
                   </div>
                 </div>
 

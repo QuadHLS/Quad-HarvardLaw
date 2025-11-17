@@ -405,12 +405,14 @@ export function DirectoryPage({ onNavigateToStudentProfile }: DirectoryPageProps
                           <div>
                             <div className="flex items-center gap-2">
                               <p className="text-gray-900">{user.firstName} {user.lastName}</p>
-                              <span 
-                                className="px-2 py-0.5 rounded-full text-xs text-white"
-                                style={{ backgroundColor: getClassYearColor(user.classYear) }}
-                              >
-                                {user.classYear}
-                              </span>
+                              {user.classYear && user.classYear.trim() !== '' && (
+                                <span 
+                                  className="px-2 py-0.5 rounded-full text-xs text-white"
+                                  style={{ backgroundColor: getClassYearColor(user.classYear) }}
+                                >
+                                  {user.classYear}
+                                </span>
+                              )}
                             </div>
                             {user.classYear !== 'LLM' && (
                               <p className="text-sm text-gray-500">

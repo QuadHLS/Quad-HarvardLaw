@@ -184,6 +184,7 @@ interface DirectoryUser {
   id: string;
   firstName: string;
   lastName: string;
+  fullName: string;
   classYear: string;
   section: string;
 }
@@ -228,20 +229,29 @@ export function DirectoryPage({ onNavigateToStudentProfile }: DirectoryPageProps
             'sr7@harvard.edu'
           ];
           const directoryUsers: DirectoryUser[] = data
-            .filter((profile: any) => !excludedEmails.includes(profile.email))
+            .filter((profile: any) => {
+              // Exclude specific emails
+              if (excludedEmails.includes(profile.email)) {
+                return false;
+              }
+              // Ensure full_name is not null or empty
+              const fullName = (profile.full_name || '').trim();
+              return fullName !== '';
+            })
             .map((profile: any) => {
-              const nameParts = (profile.full_name || '').trim().split(' ');
+              const fullName = (profile.full_name || '').trim();
+              const nameParts = fullName.split(' ');
               const firstName = nameParts[0] || '';
               const lastName = nameParts.slice(1).join(' ') || '';
               return {
                 id: profile.id,
                 firstName,
                 lastName,
+                fullName,
                 classYear: profile.class_year || '',
                 section: profile.section || ''
               };
-            })
-            .filter((user: DirectoryUser) => user.firstName && user.lastName);
+            });
 
           setUsers(directoryUsers);
         }
@@ -271,36 +281,38 @@ export function DirectoryPage({ onNavigateToStudentProfile }: DirectoryPageProps
     if (!searchQuery) return true;
     
     const query = searchQuery.toLowerCase();
-    const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
-    const reverseFullName = `${user.lastName} ${user.firstName}`.toLowerCase();
+    if (!user.fullName) return false;
+    const fullNameLower = user.fullName.toLowerCase();
+    const nameParts = user.fullName.split(' ');
     
+    // Search in full name and individual parts
     return (
-      fullName.includes(query) ||
-      reverseFullName.includes(query) ||
-      user.firstName.toLowerCase().includes(query) ||
-      user.lastName.toLowerCase().includes(query)
+      fullNameLower.includes(query) ||
+      nameParts.some(part => part.toLowerCase().includes(query))
     );
   });
 
-  // Group users by first letter of first name
+  // Group users by first letter of full name
   const groupedUsers: { [key: string]: DirectoryUser[] } = {};
   filteredUsers.forEach(user => {
-    const firstLetter = user.firstName.charAt(0).toUpperCase();
-    if (!groupedUsers[firstLetter]) {
-      groupedUsers[firstLetter] = [];
+    if (!user.fullName || user.fullName.trim() === '') return;
+    const firstLetter = user.fullName.charAt(0).toUpperCase();
+    if (firstLetter && firstLetter.match(/[A-Z]/)) {
+      if (!groupedUsers[firstLetter]) {
+        groupedUsers[firstLetter] = [];
+      }
+      groupedUsers[firstLetter].push(user);
     }
-    groupedUsers[firstLetter].push(user);
   });
 
   // Get sorted letters
   const sortedLetters = Object.keys(groupedUsers).sort();
 
   const handleUserClick = (user: DirectoryUser) => {
-    const fullName = `${user.firstName} ${user.lastName}`;
     if (onNavigateToStudentProfile) {
-      onNavigateToStudentProfile(fullName);
+      onNavigateToStudentProfile(user.fullName);
     } else {
-      navigate(`/student-profile/${encodeURIComponent(fullName)}`);
+      navigate(`/student-profile/${encodeURIComponent(user.fullName)}`);
     }
   };
 
@@ -404,7 +416,9 @@ export function DirectoryPage({ onNavigateToStudentProfile }: DirectoryPageProps
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="flex items-center gap-2">
-                              <p className="text-gray-900">{user.firstName} {user.lastName}</p>
+                              <p className="text-gray-900">
+                                {user.fullName}
+                              </p>
                               {user.classYear && user.classYear.trim() !== '' && (
                                 <span 
                                   className="px-2 py-0.5 rounded-full text-xs text-white"
@@ -414,7 +428,7 @@ export function DirectoryPage({ onNavigateToStudentProfile }: DirectoryPageProps
                                 </span>
                               )}
                             </div>
-                            {user.classYear !== 'LLM' && (
+                            {user.classYear !== 'LLM' && user.section && (
                               <p className="text-sm text-gray-500">
                                 Section {user.section}
                               </p>

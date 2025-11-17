@@ -3089,7 +3089,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
       // Then, get profile information for these users
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('full_name, class_year')
+        .select('full_name, class_year, email')
         .in('id', userIds);
 
       if (profilesError) {
@@ -3097,11 +3097,26 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
         return;
       }
 
-      // Transform the data
-      const studentList = profiles?.map((profile: any) => ({
-        name: profile.full_name || 'Unknown',
-        year: profile.class_year || ''
-      })) || [];
+      // Exclude specific emails
+      const excludedEmails = [
+        '123@jd27.law.harvard.edu',
+        'sr1@harvard.edu',
+        'sr2@harvard.edu',
+        'sr3@harvard.edu',
+        'sr4@harvard.edu',
+        'sr5@harvard.edu',
+        'sr6@harvard.edu',
+        'sr7@harvard.edu',
+        'master@harvard.edu'
+      ];
+
+      // Transform the data and filter out excluded emails
+      const studentList = profiles
+        ?.filter((profile: any) => !excludedEmails.includes(profile.email))
+        .map((profile: any) => ({
+          name: profile.full_name || 'Unknown',
+          year: profile.class_year || ''
+        })) || [];
 
       setCourseStudents(studentList);
     } catch (error) {

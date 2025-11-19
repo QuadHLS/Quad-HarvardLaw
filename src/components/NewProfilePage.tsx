@@ -325,6 +325,8 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
   const [isEditing, setIsEditing] = useState(false);
   const [showRedoConfirm, setShowRedoConfirm] = useState(false);
   const [redoButtonRef, setRedoButtonRef] = useState<HTMLButtonElement | null>(null);
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const [signOutButtonRef, setSignOutButtonRef] = useState<HTMLButtonElement | null>(null);
   const scheduleScrollRef = useRef<HTMLDivElement>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
@@ -876,6 +878,25 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
 
   const cancelRedoOnboarding = () => {
     setShowRedoConfirm(false);
+  };
+
+  const handleSignOut = () => {
+    if (showSignOutConfirm) {
+      // If popup is already open, close it
+      setShowSignOutConfirm(false);
+    } else {
+      // If popup is closed, open it
+      setShowSignOutConfirm(true);
+    }
+  };
+
+  const confirmSignOut = () => {
+    setShowSignOutConfirm(false);
+    signOut();
+  };
+
+  const cancelSignOut = () => {
+    setShowSignOutConfirm(false);
   };
 
   // Avatar delete function
@@ -1567,23 +1588,10 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
                             onClick={handleEdit} 
                             variant="outline" 
                             size="sm" 
-                            className="py-1 h-7 transition-all duration-200 group flex items-center justify-start"
-                            style={{ width: '36px', paddingLeft: '8px', paddingRight: '8px', overflow: 'visible' }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.width = 'auto';
-                              e.currentTarget.style.minWidth = '120px';
-                              e.currentTarget.style.paddingLeft = '12px';
-                              e.currentTarget.style.paddingRight = '12px';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.width = '36px';
-                              e.currentTarget.style.minWidth = '36px';
-                              e.currentTarget.style.paddingLeft = '8px';
-                              e.currentTarget.style.paddingRight = '8px';
-                            }}
+                            className="py-1 h-7 flex items-center justify-center"
+                            style={{ width: '36px', paddingLeft: '8px', paddingRight: '8px' }}
                           >
                             <Edit className="w-4 h-4 flex-shrink-0" />
-                            <span className="text-xs whitespace-nowrap max-w-0 overflow-visible opacity-0 group-hover:ml-2 group-hover:max-w-none group-hover:opacity-100 transition-all duration-200">Edit Profile</span>
                           </Button>
                           {profileData.currentCourses.length === 0 ? (
                             <Button 
@@ -1602,56 +1610,28 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
                               onClick={handleRedoOnboarding} 
                               variant="outline" 
                               size="sm"
-                              className="text-blue-600 border-blue-600 py-1 h-7 transition-all duration-200 group flex items-center justify-start"
+                              className="text-blue-600 border-blue-600 py-1 h-7 flex items-center justify-center"
                               style={{ 
                                 backgroundColor: 'rgba(59, 130, 246, 0.4)',
                                 borderColor: 'rgb(37, 99, 235)',
                                 width: '36px',
                                 paddingLeft: '8px',
-                                paddingRight: '8px',
-                                overflow: 'visible'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.width = 'auto';
-                                e.currentTarget.style.minWidth = '120px';
-                                e.currentTarget.style.paddingLeft = '12px';
-                                e.currentTarget.style.paddingRight = '12px';
-                                e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.5)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.width = '36px';
-                                e.currentTarget.style.minWidth = '36px';
-                                e.currentTarget.style.paddingLeft = '8px';
-                                e.currentTarget.style.paddingRight = '8px';
-                                e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.4)';
+                                paddingRight: '8px'
                               }}
                             >
                               <RotateCcw className="w-4 h-4 flex-shrink-0" />
-                              <span className="text-xs whitespace-nowrap max-w-0 overflow-visible opacity-0 group-hover:ml-2 group-hover:max-w-none group-hover:opacity-100 transition-all duration-200">Edit Courses</span>
                             </Button>
                           )}
                           {/* Sign out button */}
                           <Button 
-                            onClick={() => signOut()} 
+                            ref={setSignOutButtonRef}
+                            onClick={handleSignOut} 
                             variant="outline" 
                             size="sm"
-                            className="py-1 h-7 transition-all duration-200 group flex items-center justify-start"
-                            style={{ width: '36px', paddingLeft: '8px', paddingRight: '8px', overflow: 'visible' }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.width = 'auto';
-                              e.currentTarget.style.minWidth = '120px';
-                              e.currentTarget.style.paddingLeft = '12px';
-                              e.currentTarget.style.paddingRight = '12px';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.width = '36px';
-                              e.currentTarget.style.minWidth = '36px';
-                              e.currentTarget.style.paddingLeft = '8px';
-                              e.currentTarget.style.paddingRight = '8px';
-                            }}
+                            className="py-1 h-7 flex items-center justify-center"
+                            style={{ width: '36px', paddingLeft: '8px', paddingRight: '8px' }}
                           >
                             <LogOut className="w-4 h-4 flex-shrink-0" />
-                            <span className="text-xs whitespace-nowrap max-w-0 overflow-visible opacity-0 group-hover:ml-2 group-hover:max-w-none group-hover:opacity-100 transition-all duration-200">Sign out</span>
                           </Button>
                         </div>
                       )}
@@ -2260,6 +2240,61 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
           </div>
         </div>
       )}
+
+      {/* Sign Out Confirmation Popup */}
+      {showSignOutConfirm && signOutButtonRef && (
+        <div 
+          className="fixed inset-0 z-50"
+          onClick={cancelSignOut}
+        >
+          {/* Popup positioned under the button */}
+          <div 
+            className="absolute bg-white border border-gray-200/30 rounded-lg p-4 shadow-lg pointer-events-auto"
+            style={{
+              top: signOutButtonRef.offsetTop + signOutButtonRef.offsetHeight + 8,
+              right: '20px',
+              width: '200px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h4 className="text-sm font-semibold text-gray-900 mb-2">
+              Sign Out
+            </h4>
+            <p className="text-sm text-gray-600 mb-3">
+              Are you sure you want to sign out?
+            </p>
+            <div className="flex gap-2">
+              <Button 
+                onClick={cancelSignOut} 
+                variant="outline"
+                size="sm"
+                className="text-xs"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={confirmSignOut}
+                variant="outline"
+                size="sm"
+                className="text-xs text-red-600 border-red-600"
+                style={{ 
+                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                  borderColor: 'rgb(220, 38, 38)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                }}
+              >
+                Yes, Sign Out
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <MatchInbox open={matchInboxOpen} onOpenChange={setMatchInboxOpen} />
       <HowMatchWorksModal 
         isOpen={matchInfoOpen} 

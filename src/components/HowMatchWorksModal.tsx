@@ -118,9 +118,9 @@ export function HowMatchWorksModal({ isOpen, onClose }: HowMatchWorksModalProps)
 
             <div className="flex items-center gap-3">
 
-              <div className="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full bg-pink-100 flex items-center justify-center text-3xl">
 
-                ❤️
+                ✉️
 
               </div>
 
@@ -136,9 +136,9 @@ export function HowMatchWorksModal({ isOpen, onClose }: HowMatchWorksModalProps)
 
             <div className="flex items-center gap-3">
 
-              <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center text-3xl">
 
-                💚
+                ✉️
 
               </div>
 

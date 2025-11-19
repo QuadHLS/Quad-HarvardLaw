@@ -442,15 +442,8 @@ export function MatchInbox({ open, onOpenChange, refreshTrigger }: MatchInboxPro
 
                   <div className="flex items-start gap-3">
 
-                    <div className="flex items-center justify-center">
-                      {match.icon === 'two-hearts' ? (
-                        <div className="relative flex items-center justify-center" style={{ width: '32px', height: '28px' }}>
-                          <Heart className="w-6 h-6 absolute" style={{ color: '#ef4444', fill: '#ef4444', top: '2px', left: '0px', zIndex: 1 }} />
-                          <Heart className="w-4 h-4 absolute" style={{ color: '#ef4444', fill: '#ef4444', top: '-6px', left: '18px', zIndex: 2 }} />
-                        </div>
-                      ) : (
-                        <span className="text-2xl">{match.icon || '💌'}</span>
-                      )}
+                    <div className="w-16 h-16 rounded-full bg-pink-100 flex items-center justify-center text-3xl">
+                      ✉️
                     </div>
 
                     <div className="flex-1">
@@ -525,15 +518,8 @@ export function MatchInbox({ open, onOpenChange, refreshTrigger }: MatchInboxPro
 
                   <div className="flex items-start gap-3">
 
-                    <div className="flex items-center justify-center">
-                      {match.icon === 'two-hearts' ? (
-                        <div className="relative flex items-center justify-center" style={{ width: '32px', height: '28px' }}>
-                          <Heart className="w-6 h-6 absolute" style={{ color: '#ef4444', fill: '#ef4444', top: '2px', left: '0px', zIndex: 1 }} />
-                          <Heart className="w-4 h-4 absolute" style={{ color: '#ef4444', fill: '#ef4444', top: '-6px', left: '18px', zIndex: 2 }} />
-                        </div>
-                      ) : (
-                        <span className="text-2xl">{match.icon || '💌'}</span>
-                      )}
+                    <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center text-3xl">
+                      ✉️
                     </div>
 
                     <div className="flex-1">

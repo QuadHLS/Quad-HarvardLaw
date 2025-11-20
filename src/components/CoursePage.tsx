@@ -463,7 +463,8 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
       const days = Math.floor(diffInSeconds / 86400);
       return `${days} day${days > 1 ? 's' : ''} ago`;
     } else {
-      return postDate.toLocaleDateString();
+      // Format as "November 11" instead of numeric date
+      return postDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
     }
   };
 

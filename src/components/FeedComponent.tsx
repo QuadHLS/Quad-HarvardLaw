@@ -690,7 +690,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} min ago`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hour${Math.floor(diffInSeconds / 3600) > 1 ? 's' : ''} ago`;
     if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} day${Math.floor(diffInSeconds / 86400) > 1 ? 's' : ''} ago`;
-    return date.toLocaleDateString();
+    // Format as "November 11" instead of numeric date
+    return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
   }, []);
 
   // Helper function to count words in text

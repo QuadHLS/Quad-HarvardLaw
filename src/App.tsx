@@ -23,6 +23,7 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { AuthCallback } from './components/auth/AuthCallback';
 import { ClubAccountPage } from './components/ClubAccountPage';
 import { BigLawGuidePage } from './components/BigLawGuidePage';
+import { QuadlePage } from './components/QuadlePage';
 import { MobileComingSoon } from './components/MobileComingSoon';
 import { isPhone } from './components/ui/use-mobile';
 import { supabase } from './lib/supabase';
@@ -995,6 +996,7 @@ function AppContent({ user }: { user: any }) {
           <Route path="/barreview" element={<BarReviewPage onNavigateToStudentProfile={handleNavigateToStudentProfile} />} />
           <Route path="/directory" element={<DirectoryPage onNavigateToStudentProfile={handleNavigateToStudentProfile} />} />
           <Route path="/biglaw-guide" element={<BigLawGuidePage />} />
+          <Route path="/quadle" element={<QuadlePage />} />
           <Route path="/clubs" element={<ClubsPage onNavigateToClub={(clubId) => navigate(`/club/${clubId}`)} />} />
           <Route path="/club/:clubId" element={<ClubDetailPageWrapper />} />
           <Route path="/feedback" element={<FeedbackPage />} />

@@ -15527,11 +15527,24 @@ export function QuadlePage() {
   useEffect(() => {
     const checkAndUpdateDailyWord = async () => {
       try {
-        // Get today's date at midnight EST (UTC-5)
+        // Get today's date at midnight EST in UTC
         // EST is UTC-5, so midnight EST = 05:00 UTC
+        // To find "today" in EST, we convert current UTC time to EST, get the date, then convert back
         const now = new Date();
-        const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 5, 0, 0, 0));
-        const todayESTStart = todayUTC.toISOString();
+        const nowUTC = now.getTime();
+        
+        // Convert UTC to EST (subtract 5 hours = 5 * 60 * 60 * 1000 ms)
+        const estOffsetMs = 5 * 60 * 60 * 1000; // EST is UTC-5
+        const nowEST = new Date(nowUTC - estOffsetMs);
+        
+        // Get the date components in EST
+        const estYear = nowEST.getUTCFullYear();
+        const estMonth = nowEST.getUTCMonth();
+        const estDate = nowEST.getUTCDate();
+        
+        // Create midnight EST today as a UTC timestamp (05:00 UTC on the EST date)
+        const todayESTStartUTC = new Date(Date.UTC(estYear, estMonth, estDate, 5, 0, 0, 0));
+        const todayESTStart = todayESTStartUTC.toISOString();
 
         // Fetch current daily word
         const { data: currentWord, error: fetchError } = await supabase
@@ -15554,7 +15567,8 @@ export function QuadlePage() {
           const wordCreatedAt = new Date(currentWord.created_at);
           
           // Check if word was created today (after midnight EST today)
-          if (wordCreatedAt >= new Date(todayESTStart)) {
+          // Both dates are in UTC, so we can compare directly
+          if (wordCreatedAt >= todayESTStartUTC) {
             // Word is from today, use it
             wordToUse = currentWord.word;
           } else {

@@ -15459,7 +15459,7 @@ export function QuadlePage() {
   // Only shows players who correctly guessed the word within 6 tries (is_correct = true)
   const fetchLeaderboard = React.useCallback(async () => {
     try {
-      // Fetch top 5 plays, sorted by time (ascending), then by tries (ascending)
+      // Fetch top 3 plays, sorted by time (ascending), then by tries (ascending)
       // Only include players who correctly guessed the word (is_correct = true)
       const { data: plays, error } = await supabase
         .from('quadle_plays')
@@ -15472,7 +15472,7 @@ export function QuadlePage() {
         .eq('is_correct', true) // Only show players who correctly guessed within 6 tries
         .order('time', { ascending: true })
         .order('tries', { ascending: true })
-        .limit(5);
+        .limit(3);
 
       if (error) {
         console.error('Error fetching leaderboard:', error);
@@ -16072,7 +16072,7 @@ export function QuadlePage() {
         <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mt-6 max-w-2xl mx-auto">
           <p className="text-sm">
             <strong>Compete for the top spot!</strong> The top
-            5 users with the fastest completion times will be
+            3 users with the fastest completion times will be
             displayed on the leaderboard at the end of each
             game.
           </p>
@@ -16292,7 +16292,7 @@ export function QuadlePage() {
             style={{ color: "#752432" }}
           />
           <h2 className="text-2xl" style={{ color: "#752432" }}>
-            Top 5 Leaderboard
+            Top 3 Leaderboard
           </h2>
         </div>
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Trophy, Clock } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
+import { toast } from "sonner";
 
 // Utility function for className merging (simplified version of clsx + twMerge)
 function cn(...inputs: (string | undefined | null | boolean)[]) {
@@ -15353,13 +15354,83 @@ export function QuadlePage() {
   const [letterStates, setLetterStates] = useState<
     Record<string, "correct" | "present" | "absent">
   >({});
-  const [errorMessage, setErrorMessage] = useState("");
-  const [hasPlayed, setHasPlayed] = useState(false);
+  const [userExistsInTable, setUserExistsInTable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dailyWord, setDailyWord] = useState<string>("");
+  const [animatingBox, setAnimatingBox] = useState<number | null>(null);
   const timerRef = React.useRef(0);
+  const hasSavedIncompleteGameRef = React.useRef(false);
 
   const MAX_GUESSES = 6;
+
+  // Track game state in localStorage for navigation blocking
+  useEffect(() => {
+    if (gameState === "playing" && isRunning) {
+      localStorage.setItem("quadleGameActive", "true");
+    } else {
+      localStorage.removeItem("quadleGameActive");
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      localStorage.removeItem("quadleGameActive");
+    };
+  }, [gameState, isRunning]);
+
+  // Function to save incomplete game (when page reloads during active game)
+  const saveIncompleteGame = React.useCallback(() => {
+    // Only save if game is in progress, has guesses, hasn't been saved yet, and user is logged in
+    if (gameState === "playing" && guesses.length > 0 && user?.id && !hasSavedIncompleteGameRef.current) {
+      const currentTime = timerRef.current;
+      
+      // Mark as saved to prevent duplicate saves
+      hasSavedIncompleteGameRef.current = true;
+
+      // Try to save via Supabase
+      supabase
+        .from('quadle_plays')
+        .insert({
+          user_id: user.id,
+          time: currentTime,
+          tries: guesses.length,
+          is_correct: false,
+        })
+        .then(() => {
+          // Mark user as existing in table to prevent restart
+          setUserExistsInTable(true);
+        })
+        .catch((error: any) => {
+          console.error('Error saving incomplete game:', error);
+          // Reset flag on error so we can retry
+          hasSavedIncompleteGameRef.current = false;
+        });
+    }
+  }, [gameState, guesses.length, user]);
+
+  // Save game on page reload/unload (only on actual page unload, not during normal play)
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (gameState === "playing" && guesses.length > 0) {
+        // Attempt to save (may not complete due to browser limitations)
+        saveIncompleteGame();
+      }
+    };
+
+    const handlePageHide = () => {
+      // Save when page is being unloaded (more reliable than beforeunload for async operations)
+      if (gameState === "playing" && guesses.length > 0) {
+        saveIncompleteGame();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handlePageHide);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handlePageHide);
+    };
+  }, [gameState, guesses.length, saveIncompleteGame]);
 
   // Timer effect
   useEffect(() => {
@@ -15547,7 +15618,7 @@ export function QuadlePage() {
     checkAndUpdateDailyWord();
   }, []);
 
-  // Check if user has already played
+  // Check if user has already played (check if UUID exists in quadle_plays)
   useEffect(() => {
     const checkUserPlayed = async () => {
       if (!user?.id || !dailyWord) {
@@ -15558,21 +15629,11 @@ export function QuadlePage() {
       }
 
       try {
-        // Check if user has played today (EST timezone)
-        // EST is UTC-5, so midnight EST = 05:00 UTC
-        const now = new Date();
-        const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 5, 0, 0, 0));
-        const todayESTStart = todayUTC.toISOString();
-        const tomorrowUTC = new Date(todayUTC);
-        tomorrowUTC.setUTCDate(tomorrowUTC.getUTCDate() + 1);
-        const tomorrowESTStart = tomorrowUTC.toISOString();
-
+        // Simply check if user_id exists in quadle_plays table
         const { data, error } = await supabase
           .from('quadle_plays')
           .select('id')
           .eq('user_id', user.id)
-          .gte('created_at', todayESTStart)
-          .lt('created_at', tomorrowESTStart)
           .maybeSingle();
 
         if (error) {
@@ -15582,13 +15643,12 @@ export function QuadlePage() {
         }
 
         if (data) {
-          // User has already played, show leaderboard
-          setHasPlayed(true);
-          setGameState('complete');
+          // User UUID exists in table, show only leaderboard
+          setUserExistsInTable(true);
           await fetchLeaderboard();
         } else {
-          // User hasn't played yet
-          setHasPlayed(false);
+          // User UUID doesn't exist, they can play
+          setUserExistsInTable(false);
         }
       } catch (error) {
         console.error('Error checking if user played:', error);
@@ -15601,8 +15661,8 @@ export function QuadlePage() {
   }, [user, fetchLeaderboard, dailyWord]);
 
   const startGame = () => {
-    // Prevent starting if user has already played
-    if (hasPlayed) {
+    // Prevent starting if user exists in table
+    if (userExistsInTable) {
       return;
     }
 
@@ -15621,7 +15681,8 @@ export function QuadlePage() {
     setGameState("playing");
     setGameWon(false);
     setLetterStates({});
-    setErrorMessage("");
+    // Reset the flag when starting a new game
+    hasSavedIncompleteGameRef.current = false;
   };
 
   const updateLetterStates = React.useCallback((guess: string) => {
@@ -15661,19 +15722,17 @@ export function QuadlePage() {
 
       // Validate that the guess is a real 5-letter word
       if (upperGuess.length !== 5 || !VALID_WORDS.has(upperGuess)) {
-        setErrorMessage("Not in word list");
-        // Clear error message after 2 seconds
-        setTimeout(() => setErrorMessage(""), 2000);
+        toast.error("not a word");
         return prevGuesses;
       }
-
-      // Clear any error message
-      setErrorMessage("");
 
       // Update letter states for keyboard coloring (use uppercase version)
       updateLetterStates(upperGuess);
 
       const newGuesses = [...prevGuesses, upperGuess];
+
+      // Clear current guess only when the word is valid
+      setCurrentGuess("");
 
       if (upperGuess === targetWord) {
         // Game won - user correctly guessed the word within 6 tries
@@ -15694,7 +15753,7 @@ export function QuadlePage() {
               is_correct: true, // Correctly guessed within 6 tries
             })
             .then(() => {
-              setHasPlayed(true);
+              setUserExistsInTable(true);
               fetchLeaderboard();
             })
             .catch((error: any) => {
@@ -15721,7 +15780,7 @@ export function QuadlePage() {
               is_correct: false, // Did not correctly guess within 6 tries
             })
             .then(() => {
-              setHasPlayed(true);
+              setUserExistsInTable(true);
               fetchLeaderboard();
             })
             .catch((error: any) => {
@@ -15734,8 +15793,6 @@ export function QuadlePage() {
 
       return newGuesses;
     });
-
-    setCurrentGuess("");
   }, [targetWord, updateLetterStates, user, fetchLeaderboard]);
 
   const handleKeyPress = React.useCallback((key: string) => {
@@ -15746,6 +15803,8 @@ export function QuadlePage() {
         if (prev.length === 5) {
           // Submit the guess with the current value
           submitGuess(prev);
+          // Clear immediately to prevent it from showing on next line
+          return "";
         }
         return prev;
       });
@@ -15754,6 +15813,10 @@ export function QuadlePage() {
     } else {
       setCurrentGuess((prev) => {
         if (prev.length < 5) {
+          // Trigger animation for the box that will have the new letter
+          setAnimatingBox(prev.length);
+          // Clear animation after a short time
+          setTimeout(() => setAnimatingBox(null), 200);
           return prev + key;
         }
         return prev;
@@ -15984,26 +16047,22 @@ export function QuadlePage() {
       </div>
 
       <div className="text-center">
-        {!hasPlayed && (
-          <>
-            <Button
-              onClick={startGame}
-              className="px-6 py-3 text-xl font-semibold"
-              style={{ backgroundColor: "#752432" }}
-            >
-              Start Game
-            </Button>
-            
-            <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mt-6 max-w-2xl mx-auto">
-              <p className="text-sm">
-                <strong>Compete for the top spot!</strong> The top
-                5 users with the fastest completion times will be
-                displayed on the leaderboard at the end of each
-                game.
-              </p>
-            </div>
-          </>
-        )}
+        <Button
+          onClick={startGame}
+          className="px-6 py-3 text-xl font-semibold"
+          style={{ backgroundColor: "#752432" }}
+        >
+          Start Game
+        </Button>
+        
+        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mt-6 max-w-2xl mx-auto">
+          <p className="text-sm">
+            <strong>Compete for the top spot!</strong> The top
+            5 users with the fastest completion times will be
+            displayed on the leaderboard at the end of each
+            game.
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -16037,12 +16096,6 @@ export function QuadlePage() {
             </div>
           </div>
 
-          {/* Error Message */}
-          {errorMessage && (
-            <div className="mb-4 text-red-600">
-              {errorMessage}
-            </div>
-          )}
         </div>
 
         {/* Game Grid - Always show exactly MAX_GUESSES rows */}
@@ -16094,10 +16147,12 @@ export function QuadlePage() {
                       (_, index) => (
                         <div
                           key={index}
-                          className="flex items-center justify-center border-2 border-gray-300 bg-white text-2xl font-bold text-gray-800"
+                          className="flex items-center justify-center border-2 bg-white text-2xl font-bold text-gray-800 transition-transform duration-200"
                           style={{
                             width: '62px',
                             height: '62px',
+                            borderColor: currentGuess[index] ? '#6b7280' : '#d1d5db',
+                            transform: animatingBox === index ? 'scale(1.15)' : 'scale(1)',
                           }}
                         >
                           {currentGuess[index] || ""}
@@ -16256,7 +16311,6 @@ export function QuadlePage() {
                             : "#752432",
                   }}
                 >
-                  {index + 1}
                 </div>
                 <span className="text-lg">{entry.name}</span>
               </div>
@@ -16306,9 +16360,17 @@ export function QuadlePage() {
           </div>
         ) : (
           <>
-            {gameState === "instructions" && renderInstructions()}
-            {gameState === "playing" && renderGame()}
-            {gameState === "complete" && renderComplete()}
+            {userExistsInTable ? (
+              // User UUID exists in table, show only leaderboard
+              renderComplete()
+            ) : (
+              // User can play, show game pages
+              <>
+                {gameState === "instructions" && renderInstructions()}
+                {gameState === "playing" && renderGame()}
+                {gameState === "complete" && renderComplete()}
+              </>
+            )}
           </>
         )}
       </div>

@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Home, FileText, Star, Beer, User, Archive, BookOpen, CalendarDays, Mail, Users, Briefcase, Lightbulb } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { toast } from 'sonner';
 
 interface NavigationSidebarProps {
   isCollapsed: boolean;
@@ -210,6 +211,22 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
     { id: 'reviews', label: 'Reviews', icon: Star },
   ];
 
+  // Check if Quadle game is active and handle navigation
+  const handleNavigation = (e: React.MouseEvent, to: string) => {
+    // Allow navigation to Quadle page itself
+    if (to === '/quadle') {
+      return; // Let Link handle it normally
+    }
+
+    const gameActive = localStorage.getItem('quadleGameActive') === 'true';
+    if (gameActive) {
+      e.preventDefault();
+      toast.error('Finish your game first', {
+        description: 'You have an active Quadle game in progress. Please finish the game before navigating to another page.',
+      });
+    }
+  };
+
   return (
     <div 
       className={`group text-gray-800 flex flex-col border-r border-gray-200 h-full flex-shrink-0 ${
@@ -226,6 +243,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
         }`}>
           <Link
             to="/"
+            onClick={(e) => handleNavigation(e, '/')}
             className="flex items-center justify-center flex-shrink-0 hover:opacity-80 cursor-pointer w-12 h-12 relative z-20"
           >
             <img 
@@ -244,6 +262,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
           {/* Home */}
           <Link
             to="/"
+            onClick={(e) => handleNavigation(e, '/')}
             className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
               activeSection === 'home' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
             }`}
@@ -256,6 +275,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
           {/* Planner */}
           <Link
             to="/planner"
+            onClick={(e) => handleNavigation(e, '/planner')}
             className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
               activeSection === 'planner' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
             }`}
@@ -272,6 +292,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
           {/* Directory */}
           <Link
             to="/directory"
+            onClick={(e) => handleNavigation(e, '/directory')}
             className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
               activeSection === 'directory' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
             }`}
@@ -317,6 +338,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
                   <Link
                     key={item.id}
                     to={`/${item.id}`}
+                    onClick={(e) => handleNavigation(e, `/${item.id}`)}
                     className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
                       isActive ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
                     }`}
@@ -335,6 +357,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
           {/* Big Law Guide */}
           <Link
             to="/biglaw-guide"
+            onClick={(e) => handleNavigation(e, '/biglaw-guide')}
             className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
               activeSection === 'biglaw-guide' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
             }`}
@@ -359,6 +382,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
           {/* Bar Review */}
           <Link
             to="/barreview"
+            onClick={(e) => handleNavigation(e, '/barreview')}
             className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 transition-transform duration-500 ease-out ${
               activeSection === 'barreview' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
             }`}
@@ -381,6 +405,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
         <div className="px-2 pt-2">
           <Link
             to="/feedback"
+            onClick={(e) => handleNavigation(e, '/feedback')}
             className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
               activeSection === 'feedback' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
             }`}
@@ -395,6 +420,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
         <div className="px-2 pt-2">
           <Link
             to="/profile"
+            onClick={(e) => handleNavigation(e, '/profile')}
             className={`relative w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
               activeSection === 'profile' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
             }`}
@@ -424,7 +450,6 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
       </nav>
 
       {/* Removed duplicated collapsed-only sections; unified nav above handles both states */}
-
     </div>
   );
 }

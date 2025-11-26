@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -10,6 +10,8 @@ import {
   List,
   MapPin,
   Users,
+  Download,
+  Upload,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import {
@@ -21,7 +23,10 @@ import {
 } from './ui/dialog';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { cn } from './ui/utils';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 // ToggleGroup Component
 interface ToggleGroupProps {
@@ -80,9 +85,12 @@ const ToggleGroupItem: React.FC<ToggleGroupItemProps> = ({
   return (
     <button
       className={cn(
-        'px-3 py-1.5 text-sm border-none bg-transparent text-gray-700 cursor-pointer transition-all border-r border-gray-300 last:border-r-0 hover:bg-gray-100',
-        isSelected && 'bg-[#752432] text-white hover:bg-[#5A1C28]',
-        className
+        'px-3 py-1.5 text-sm border-none bg-transparent cursor-pointer transition-all border-r border-gray-300 last:border-r-0 flex items-center justify-center whitespace-nowrap',
+        isSelected 
+          ? 'bg-[#752432] text-white hover:bg-[#5A1C28]' 
+          : 'text-gray-700 hover:bg-gray-100',
+        className,
+        isSelected && '!text-white'
       )}
       onClick={onClick}
       {...props}
@@ -90,6 +98,59 @@ const ToggleGroupItem: React.FC<ToggleGroupItemProps> = ({
       {children}
     </button>
   );
+};
+
+// UserCourse interface matching HomePage
+interface UserCourse {
+  course_id: string;
+  class: string;
+  professor: string;
+  schedule?: {
+    days?: string;
+    times?: string;
+    location?: string;
+    semester?: string;
+  };
+}
+
+// Semester logic functions (same as HomePage)
+const getSemestersFromCode = (semesterCode: string): ('FA' | 'WI' | 'SP')[] => {
+  switch (semesterCode) {
+    case 'FA': return ['FA'];
+    case 'WI': return ['WI'];
+    case 'SP': return ['SP'];
+    case 'FS': return ['FA', 'SP'];
+    case 'FW': return ['FA', 'WI'];
+    case 'WS': return ['WI', 'SP'];
+    default: return [];
+  }
+};
+
+const courseMatchesSemester = (courseTerm: string, selectedSemester: 'FA' | 'WI' | 'SP'): boolean => {
+  if (!courseTerm || courseTerm === 'TBD') return false;
+  
+  const semesterCode = courseTerm.slice(-2);
+  const semesters = getSemestersFromCode(semesterCode);
+  
+  return semesters.includes(selectedSemester);
+};
+
+const formatDisplayCourseName = (rawName: string): string => {
+  if (!rawName) return rawName;
+  const requiredPatterns = [
+    'Civil Procedure',
+    'Contracts',
+    'Criminal Law',
+    'Torts',
+    'Constitutional Law',
+    'Property',
+    'Legislation and Regulation'
+  ];
+  const pattern = new RegExp(`^(?:${requiredPatterns.join('|')})\\s([1-7])$`);
+  if (pattern.test(rawName)) {
+    return rawName.replace(/\s[1-7]$/, '');
+  }
+  return rawName;
 };
 
 // Helper function to get organization abbreviation
@@ -116,6 +177,7 @@ interface CalendarPageProps {
 }
 
 export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
+  const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('week');
   const [showEventsMenu, setShowEventsMenu] = useState(false);
@@ -128,6 +190,37 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
   const [showOrgFilterDialog, setShowOrgFilterDialog] = useState(false);
   const [selectedOrgs, setSelectedOrgs] = useState<Set<string>>(new Set());
   const [eventsFilter, setEventsFilter] = useState<'all' | 'my-events'>('all');
+  
+  // User courses state (same as HomePage)
+  const [userCourses, setUserCourses] = useState<UserCourse[]>([]);
+  
+  // Get current semester using date-based logic (same as HomePage)
+  const getCurrentSemester = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth() + 1;
+    const day = today.getDate();
+    
+    // Fall: September 2 - November 25
+    if ((month === 9 && day >= 2) || month === 10 || (month === 11 && day <= 25)) {
+      return `${year}FA`;
+    }
+    // Winter: January 5 - January 21
+    else if (month === 1 && day >= 5 && day <= 21) {
+      return `${year}WI`;
+    }
+    // Spring: January 26 - April 24
+    else if ((month === 1 && day >= 26) || month === 2 || month === 3 || (month === 4 && day <= 24)) {
+      return `${year}SP`;
+    }
+    // Default to current year Fall if outside semester periods
+    else {
+      return `${year}FA`;
+    }
+  };
+  
+  const currentSemester = getCurrentSemester();
+  const [selectedSemester, setSelectedSemester] = useState<string>(currentSemester);
   const [newEvent, setNewEvent] = useState({
     title: '',
     date: new Date().toISOString().split('T')[0],
@@ -139,11 +232,55 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
   });
   const [customEvents, setCustomEvents] = useState<Event[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const eventsPanelRef = useRef<HTMLDivElement>(null);
+  const eventsButtonRef = useRef<HTMLButtonElement>(null);
 
   // Calendar category filters
   const [showClasses, setShowClasses] = useState(true);
   const [showClubEvents, setShowClubEvents] = useState(true);
   const [showOther, setShowOther] = useState(true);
+
+  // Current time state for real-time updates
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Fetch user's profile and courses (same as HomePage)
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user?.id) {
+        return;
+      }
+
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('full_name, classes, class_year')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching profile:', error?.message || "Unknown error");
+          return;
+        }
+
+        if (profile) {
+          setUserCourses(profile.classes || []);
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error instanceof Error ? error.message : "Unknown error");
+      }
+    };
+
+    fetchUserProfile();
+  }, [user]);
+
+  // Update current time every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Scroll to top on mount
   useEffect(() => {
@@ -151,6 +288,33 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
       scrollRef.current.scrollTop = 0;
     }
   }, [viewMode]);
+
+  // Close events panel when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        showEventsMenu &&
+        eventsPanelRef.current &&
+        eventsButtonRef.current &&
+        !eventsPanelRef.current.contains(event.target as Node) &&
+        !eventsButtonRef.current.contains(event.target as Node)
+      ) {
+        setIsClosingEventsMenu(true);
+        setTimeout(() => {
+          setShowEventsMenu(false);
+          setIsClosingEventsMenu(false);
+        }, 300);
+      }
+    };
+
+    if (showEventsMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showEventsMenu]);
 
   const allEvents = [...additionalEvents, ...customEvents];
 
@@ -226,38 +390,6 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
     });
   };
 
-  const getCourseColor = (_course?: string): string => {
-    // Return default color for all courses
-    // Course-specific colors should come from the database
-    return '#3B82F6';
-  };
-
-  const getEventColor = (event: Event): string => {
-    if (event.type === 'class') {
-      return getCourseColor(event.course);
-    }
-    switch (event.type) {
-      case 'exam':
-        return '#DC2626';
-      case 'assignment':
-        return '#F59E0B';
-      case 'study':
-        return '#64748B';
-      case 'meeting':
-        return '#10B981';
-      case 'personal':
-        return '#6366F1';
-      case 'lunch':
-        return '#10B981';
-      case 'panel':
-        return '#3B82F6';
-      case 'club-event':
-        return '#8B5CF6';
-      default:
-        return '#6B7280';
-    }
-  };
-
   const formatDate = (date: Date): string => {
     return date.toLocaleDateString('en-US', {
       month: 'long',
@@ -290,7 +422,19 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
   };
 
   const goToToday = () => {
-    setCurrentDate(new Date());
+    const today = new Date();
+    setCurrentDate(today);
+    
+    // Scroll to current time in week/day view
+    if (scrollRef.current && (viewMode === 'week' || viewMode === 'day')) {
+      setTimeout(() => {
+        if (scrollRef.current) {
+          const currentHour = today.getHours();
+          const scrollPosition = currentHour * 60; // 60px per hour
+          scrollRef.current.scrollTop = Math.max(0, scrollPosition - 200); // Scroll to show current time with some offset
+        }
+      }, 0);
+    }
   };
 
   const getWeekDays = (): Date[] => {
@@ -331,16 +475,134 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
     return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
   };
 
+  // Course parsing functions (same as HomePage)
+  const parseCourseSchedule = (scheduleString: string) => {
+    if (!scheduleString || scheduleString === 'TBD') return [];
+    
+    // Split by bullet points and commas
+    const days = scheduleString.split(/[,\•]/).map(d => d.trim());
+    const dayMap: { [key: string]: number } = {
+      'Mon': 1, 'Monday': 1,
+      'Tue': 2, 'Tuesday': 2, 'Tues': 2,
+      'Wed': 3, 'Wednesday': 3,
+      'Thu': 4, 'Thursday': 4, 'Thurs': 4,
+      'Fri': 5, 'Friday': 5,
+      'Sat': 6, 'Saturday': 6,
+      'Sun': 0, 'Sunday': 0
+    };
+    
+    return days.map(day => dayMap[day]).filter(day => day !== undefined);
+  };
+
+  // Get courses for a specific day (same logic as HomePage)
+  const getCoursesForDay = (day: Date): UserCourse[] => {
+    const dayOfWeek = day.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    return userCourses.filter(course => {
+      // Check if course is for selected semester using multi-semester logic
+      const courseSemester = course.schedule?.semester;
+      const selectedTerm = selectedSemester.slice(-2) as 'FA' | 'WI' | 'SP';
+      
+      if (!courseMatchesSemester(courseSemester, selectedTerm)) {
+        return false;
+      }
+      
+      // Parse schedule days
+      const scheduleDays = parseCourseSchedule(course.schedule?.days || '');
+      
+      // Check if course meets on selected day
+      return scheduleDays.includes(dayOfWeek);
+    });
+  };
+
+  // Parse time string and convert to position for calendar display (same calculation as HomePage, scaled to 60px/hour)
+  const parseTimeToPosition = (timeString: string) => {
+    if (!timeString || timeString === 'TBD') return null;
+    
+    // Parse time format like "1:30PM - 3:30PM" or "8:00AM - 9:30AM"
+    const timeMatch = timeString.match(/(\d{1,2}):(\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (!timeMatch) return null;
+    
+    const [, startHour, startMin, startPeriod, endHour, endMin, endPeriod] = timeMatch;
+    
+    // Convert to 24-hour format
+    const startHour24 = parseInt(startHour) + (startPeriod.toUpperCase() === 'PM' && startHour !== '12' ? 12 : 0);
+    const endHour24 = parseInt(endHour) + (endPeriod.toUpperCase() === 'PM' && endHour !== '12' ? 12 : 0);
+    
+    // Convert to minutes since midnight
+    const startMinutes = startHour24 * 60 + parseInt(startMin);
+    const endMinutes = endHour24 * 60 + parseInt(endMin);
+    
+    // Only show courses within 8AM-8PM range (same as HomePage)
+    if (startHour24 < 8 || endHour24 > 20) return null;
+    
+    // Calculate position: each hour is 60px, starting from 8AM (480 minutes)
+    // Time labels are positioned at top: -6px relative to each hour row
+    // Hour rows start at: 0px (8AM), 60px (9AM), 120px (10AM), etc.
+    // So time labels are at: -6px (8AM), 54px (9AM), 114px (10AM), etc.
+    // We align classes to match the time label vertical positions
+    // Position = (minutes from 8AM) * (60px per hour / 60 minutes per hour) - 3px for better alignment
+    const startPosition = ((startMinutes - 480) / 60) * 60 - 3; // 60px per hour, -3px to align with labels
+    const height = ((endMinutes - startMinutes) / 60) * 60; // 60px per hour
+    
+    return { startPosition, height };
+  };
+
+  // Course color mapping (same as HomePage)
+  const colorCycle = ['#04913A', '#0080BD', '#FFBB06', '#F22F21'];
+  const getCourseColor = (index: number): string => {
+    return colorCycle[index % 4];
+  };
+
+  // Map course name -> color for schedule blocks
+  const courseNameToColor = useMemo(() => {
+    const map: Record<string, string> = {};
+    userCourses.forEach((course, index) => {
+      const displayName = formatDisplayCourseName(course.class);
+      if (displayName && !map[displayName]) {
+        map[displayName] = getCourseColor(index);
+      }
+    });
+    return map;
+  }, [userCourses]);
+
+  const getEventColor = (event: Event): string => {
+    if (event.type === 'class' && event.course) {
+      // Use courseNameToColor map if available, otherwise default
+      return courseNameToColor[event.course] || '#3B82F6';
+    }
+    switch (event.type) {
+      case 'exam':
+        return '#DC2626';
+      case 'assignment':
+        return '#F59E0B';
+      case 'study':
+        return '#64748B';
+      case 'meeting':
+        return '#10B981';
+      case 'personal':
+        return '#6366F1';
+      case 'lunch':
+        return '#10B981';
+      case 'panel':
+        return '#3B82F6';
+      case 'club-event':
+        return '#8B5CF6';
+      default:
+        return '#6B7280';
+    }
+  };
+
   const weekDays = getWeekDays();
   const weekDayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
   const today = new Date();
 
   // Generate hours from 12 AM to 11 PM
-  const hours = Array.from({ length: 24 }, (_, i) => i);
+  // Hours from 8AM to 8PM (same as HomePage)
+  const hours = Array.from({ length: 13 }, (_, i) => i + 8);
 
-  // Get current time for the red line indicator
-  const now = new Date();
-  const currentTimePosition = now.getHours() + now.getMinutes() / 60;
+  // Get current time for the red line indicator (using state for real-time updates)
+  const currentTimePosition = currentTime.getHours() + currentTime.getMinutes() / 60;
 
   // Get month calendar days for month view
   const getMonthCalendarDays = () => {
@@ -475,11 +737,12 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
         }
         
         .calendar-page [data-slot="dialog-content"] {
-          background-color: #FEFBF6 !important;
-          border: 1px solid #E5DFD4 !important;
-          border-radius: 0.5rem !important;
-          padding: 1.5rem !important;
-          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+          background-color: #faf5f1 !important;
+          background: #faf5f1 !important;
+          border: 1px solid rgba(255, 255, 255, 0.6) !important;
+          border-radius: 24px !important;
+          padding: 0 !important;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
           animation: zoomIn 0.2s;
         }
         
@@ -525,27 +788,64 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
           animation: slideOutToRight 0.3s ease-in;
         }
         
-        /* Input field styling to match original */
-        .calendar-page input[type="text"],
-        .calendar-page input[type="date"],
-        .calendar-page input[type="time"],
-        .calendar-page select,
-        .calendar-page textarea {
-          border: 1px solid #D1D5DB;
-          border-radius: 0.375rem;
-          padding: 0.5rem 0.75rem;
-          font-size: 0.875rem;
+        /* Input field styling to match review form */
+        .calendar-page [data-slot="dialog-content"] input[type="text"],
+        .calendar-page [data-slot="dialog-content"] input[type="date"],
+        .calendar-page [data-slot="dialog-content"] input[type="time"],
+        .calendar-page [data-slot="dialog-content"] select,
+        .calendar-page [data-slot="dialog-content"] textarea {
+          background-color: white !important;
+          border: 1px solid #E5E7EB !important;
+          border-radius: 16px !important;
+          padding: 0.5rem 0.75rem !important;
+          font-size: 12px !important;
+          height: 36px !important;
+          transition: all 0.2s !important;
+          width: 100% !important;
+          box-sizing: border-box !important;
+          appearance: none !important;
+          -webkit-appearance: none !important;
         }
         
-        .calendar-page input[type="text"]:focus,
-        .calendar-page input[type="date"]:focus,
-        .calendar-page input[type="time"]:focus,
-        .calendar-page select:focus,
-        .calendar-page textarea:focus {
-          outline: none;
-          ring: 2px;
-          ring-color: #752432;
-          border-color: transparent;
+        .calendar-page [data-slot="dialog-content"] input[type="date"],
+        .calendar-page [data-slot="dialog-content"] input[type="time"] {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          flex-shrink: 1 !important;
+          overflow: hidden !important;
+        }
+        
+        .calendar-page [data-slot="dialog-content"] input[type="date"]::-webkit-calendar-picker-indicator,
+        .calendar-page [data-slot="dialog-content"] input[type="time"]::-webkit-calendar-picker-indicator {
+          cursor: pointer;
+          padding: 0;
+          margin-left: 0.5rem;
+          opacity: 0.6;
+          width: 16px !important;
+          height: 16px !important;
+        }
+        
+        .calendar-page [data-slot="dialog-content"] input[data-slot="input"][type="date"],
+        .calendar-page [data-slot="dialog-content"] input[data-slot="input"][type="time"] {
+          width: 100% !important;
+          max-width: 100% !important;
+        }
+        
+        .calendar-page [data-slot="dialog-content"] textarea {
+          height: auto !important;
+          min-height: 64px !important;
+          border-radius: 24px !important;
+        }
+        
+        .calendar-page [data-slot="dialog-content"] input[type="text"]:focus,
+        .calendar-page [data-slot="dialog-content"] input[type="date"]:focus,
+        .calendar-page [data-slot="dialog-content"] input[type="time"]:focus,
+        .calendar-page [data-slot="dialog-content"] select:focus,
+        .calendar-page [data-slot="dialog-content"] textarea:focus {
+          outline: none !important;
+          border-color: transparent !important;
+          box-shadow: 0 0 0 2px rgba(117, 36, 50, 1) !important;
         }
         
         /* Hide scrollbar but keep scrolling functionality */
@@ -595,7 +895,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
           border-color: #10B981;
         }
         
-        /* Make checkmark black for all checkboxes */
+        /* Make checkmark white for all checkboxes */
         .calendar-page input[type="checkbox"]:checked::after {
           content: '';
           position: absolute;
@@ -603,10 +903,11 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
           top: 1px;
           width: 4px;
           height: 8px;
-          border: solid #000000;
+          border: solid #FFFFFF;
           border-width: 0 2px 2px 0;
           transform: rotate(45deg);
         }
+        
       `}</style>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#E5DFD4] bg-[#F8F4ED]">
@@ -660,13 +961,13 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
               onValueChange={(value) => value && setViewMode(value as 'day' | 'week' | 'month')}
               className="border border-gray-300 rounded-lg"
             >
-              <ToggleGroupItem value="day" aria-label="Day view" className="text-gray-700">
+              <ToggleGroupItem value="day" aria-label="Day view">
                 Day
               </ToggleGroupItem>
-              <ToggleGroupItem value="week" aria-label="Week view" className="text-gray-700">
+              <ToggleGroupItem value="week" aria-label="Week view">
                 Week
               </ToggleGroupItem>
-              <ToggleGroupItem value="month" aria-label="Month view" className="text-gray-700">
+              <ToggleGroupItem value="month" aria-label="Month view">
                 Month
               </ToggleGroupItem>
             </ToggleGroup>
@@ -674,6 +975,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
 
           {/* Events Button */}
           <Button
+            ref={eventsButtonRef}
             variant="outline"
             size="sm"
             onClick={() => {
@@ -709,7 +1011,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
 
       <div className="flex flex-1 min-h-0">
         {/* Left Sidebar */}
-        <div className="w-56 border-r border-[#E5DFD4] bg-[#F8F4ED] flex flex-col">
+        <div className="w-64 border-r border-[#E5DFD4] bg-[#F8F4ED] flex flex-col">
           <div className="p-4">
             <Button
               onClick={() => setShowCreateDialog(true)}
@@ -729,7 +1031,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                 </span>
               </div>
 
-              <div className="grid grid-cols-7 gap-1 text-center">
+              <div className="grid grid-cols-7 gap-1.5 text-center">
                 {weekDayLabels.map((label, idx) => (
                   <div key={idx} className="text-xs text-gray-500 py-1">
                     {label}
@@ -760,15 +1062,13 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                         }
                       }}
                       className={cn(
-                        'text-xs py-1 rounded-full cursor-pointer transition-colors',
+                        'text-xs py-1 rounded-md cursor-pointer transition-colors h-8 w-8 flex items-center justify-center font-medium',
                         day
-                          ? isToday && isSelected
-                            ? 'bg-[#752432] text-white font-medium'
+                          ? isSelected
+                            ? 'bg-[#752432] text-white'
                             : isToday
-                            ? 'bg-[#752432] text-white font-medium'
-                            : isSelected
-                            ? 'bg-[#F5F1E8] text-gray-900 font-medium ring-2 ring-[#752432] ring-inset'
-                            : 'text-gray-700 hover:bg-[#F5F1E8]'
+                            ? 'bg-[#752432]/10 text-[#752432] border border-[#752432]/20'
+                            : 'text-gray-700 hover:bg-gray-100'
                           : ''
                       )}
                     >
@@ -803,24 +1103,6 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
               </div>
               <div
                 className="flex items-center gap-2 py-1 cursor-pointer hover:bg-[#F5F1E8] rounded px-2"
-                onClick={() => setShowClubEvents(!showClubEvents)}
-              >
-                <input
-                  type="checkbox"
-                  checked={showClubEvents}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    setShowClubEvents(!showClubEvents);
-                  }}
-                  className="rounded checkbox-club-events"
-                />
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: '#8B5CF6' }} />
-                  <span className="text-sm text-gray-700 truncate">Club Events</span>
-                </div>
-              </div>
-              <div
-                className="flex items-center gap-2 py-1 cursor-pointer hover:bg-[#F5F1E8] rounded px-2"
                 onClick={() => setShowOther(!showOther)}
               >
                 <input
@@ -833,7 +1115,6 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                   className="rounded checkbox-other"
                 />
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: '#10B981' }} />
                   <span className="text-sm text-gray-700 truncate">Other</span>
                 </div>
               </div>
@@ -845,9 +1126,9 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
         <div className="flex-1 flex flex-col min-h-0 relative">
           {viewMode === 'month' ? (
             // Month View
-            <div className="flex-1 flex flex-col bg-[#FEFBF6]">
+            <div className="flex-1 flex flex-col bg-[#FEFBF6] min-h-0 overflow-hidden">
               {/* Month header */}
-              <div className="border-b-2 border-[#E5DFD4] bg-[#F8F4ED]">
+              <div className="border-b-2 border-[#E5DFD4] bg-[#F8F4ED] flex-shrink-0">
                 <div className="grid grid-cols-7">
                   {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(
                     (day, idx) => (
@@ -864,13 +1145,15 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                 </div>
               </div>
 
-              <div className="flex-1 grid grid-rows-6 overflow-y-auto">
-                {Array.from({ length: 6 }).map((_, weekIdx) => (
-                  <div key={weekIdx} className="grid grid-cols-7 flex-1">
-                    {monthCalendarDays.slice(weekIdx * 7, (weekIdx + 1) * 7).map((dayObj, dayIdx) => {
+              <div className="flex-1 overflow-y-auto min-h-0">
+                <div className="grid grid-rows-6">
+                  {Array.from({ length: 6 }).map((_, weekIdx) => (
+                    <div key={weekIdx} className="grid grid-cols-7">
+                      {monthCalendarDays.slice(weekIdx * 7, (weekIdx + 1) * 7).map((dayObj, dayIdx) => {
                       const isToday = dayObj.date.toDateString() === today.toDateString();
                       const events = getEventsForDay(dayObj.date);
                       const nonClassEvents = events.filter((event) => event.type !== 'class');
+                      const dayCourses = showClasses ? getCoursesForDay(dayObj.date) : [];
 
                       return (
                         <div
@@ -894,7 +1177,21 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                             {dayObj.day}
                           </div>
                           <div className="space-y-1">
-                            {nonClassEvents.slice(0, 3).map((event) => (
+                            {/* Class blocks (same UI as HomePage) */}
+                            {dayCourses.slice(0, 3).map((course, courseIndex) => {
+                              const displayName = formatDisplayCourseName(course.class);
+                              const bgColor = courseNameToColor[displayName] || getCourseColor(courseIndex);
+                              return (
+                                <div
+                                  key={`course-${dayIdx}-${courseIndex}`}
+                                  className="text-xs p-1 rounded truncate"
+                                  style={{ backgroundColor: bgColor, color: 'white' }}
+                                >
+                                  {displayName}
+                                </div>
+                              );
+                            })}
+                            {nonClassEvents.slice(0, Math.max(0, 3 - dayCourses.length)).map((event) => (
                               <div
                                 key={event.id}
                                 onClick={() => setSelectedEvent(event)}
@@ -904,17 +1201,18 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                 {event.startTime} {event.title}
                               </div>
                             ))}
-                            {nonClassEvents.length > 3 && (
+                            {(dayCourses.length + nonClassEvents.length) > 3 && (
                               <div className="text-xs text-gray-500 pl-1">
-                                +{nonClassEvents.length - 3} more
+                                +{dayCourses.length + nonClassEvents.length - 3} more
                               </div>
                             )}
                           </div>
                         </div>
                       );
-                    })}
-                  </div>
-                ))}
+                      })}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           ) : (
@@ -985,11 +1283,96 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                 </div>
 
                 {/* Time Rows */}
-                <div className="relative">
-                  {hours.map((hour) => (
+                <div className="relative" style={{ minHeight: `${hours.length * 60}px` }}>
+                  {/* Class blocks - rendered absolutely across all hours (same as HomePage) */}
+                  {showClasses && (viewMode === 'day' ? (
+                    (() => {
+                      const day = currentDate;
+                      const dayCourses = getCoursesForDay(day);
+                      return (
+                        <div className="absolute left-[60px] right-0 top-0 z-20" style={{ height: `${hours.length * 60}px`, width: 'calc(100% - 60px)' }}>
+                          {dayCourses.map((course, courseIndex) => {
+                            const timePosition = parseTimeToPosition(course.schedule?.times || '');
+                            if (!timePosition) return null;
+                            
+                            const displayName = formatDisplayCourseName(course.class);
+                            const bgColor = courseNameToColor[displayName] || getCourseColor(courseIndex);
+                            
+                            return (
+                              <div
+                                key={`course-${courseIndex}`}
+                                className="absolute text-white rounded text-xs p-2 left-1 right-1 cursor-pointer hover:opacity-90"
+                                style={{
+                                  top: `${timePosition.startPosition}px`,
+                                  height: `${timePosition.height}px`,
+                                  backgroundColor: bgColor,
+                                  pointerEvents: 'auto',
+                                  zIndex: 20
+                                }}
+                              >
+                                <div className="font-medium truncate">{displayName}</div>
+                                <div className="text-white/90 mt-1 leading-none flex items-center">
+                                  <span>{course.schedule?.times || 'TBD'}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()
+                  ) : (
+                    weekDays.map((day, dayIdx) => {
+                      const dayCourses = getCoursesForDay(day);
+                      return (
+                        <div
+                          key={`courses-${dayIdx}`}
+                          className="absolute top-0 z-10"
+                          style={{
+                            left: `calc(60px + ${dayIdx} * calc((100% - 60px) / 7))`,
+                            width: `calc((100% - 60px) / 7)`,
+                            height: `${hours.length * 60}px`,
+                            minHeight: `${hours.length * 60}px`
+                          }}
+                        >
+                          {dayCourses.map((course, courseIndex) => {
+                            const timePosition = parseTimeToPosition(course.schedule?.times || '');
+                            if (!timePosition) return null;
+                            
+                            const displayName = formatDisplayCourseName(course.class);
+                            const bgColor = courseNameToColor[displayName] || getCourseColor(courseIndex);
+                            
+                            return (
+                              <div
+                                key={`course-${dayIdx}-${courseIndex}`}
+                                className="absolute text-white rounded text-xs p-2 left-1 right-1 z-10"
+                                style={{
+                                  top: `${timePosition.startPosition}px`,
+                                  height: `${timePosition.height}px`,
+                                  backgroundColor: bgColor
+                                }}
+                              >
+                                <div className="font-medium truncate">{displayName}</div>
+                                <div className="text-white/90 mt-1 leading-none flex items-center">
+                                  <span>{course.schedule?.times || 'TBD'}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })
+                  ))}
+                  
+                  {hours.map((hour) => {
+                    // Check if any day in this row is today
+                    const isTodayInRow = viewMode === 'day' 
+                      ? currentDate.toDateString() === today.toDateString()
+                      : weekDays.some(day => day.toDateString() === today.toDateString());
+                    
+                    return (
                     <div
                       key={hour}
-                      className="grid"
+                      className="grid relative"
                       style={{
                         height: '60px',
                         gridTemplateColumns: viewMode === 'day' 
@@ -997,6 +1380,24 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                           : '60px repeat(7, minmax(0, 1fr))'
                       }}
                     >
+                      {/* Current time indicator - spans entire row */}
+                      {isTodayInRow && 
+                       currentTimePosition >= 8 && 
+                       currentTimePosition < 20 && 
+                       hour === Math.floor(currentTimePosition) && (
+                        <div
+                          className="absolute z-30 pointer-events-none"
+                          style={{
+                            left: '60px',
+                            right: '0',
+                            top: `${((currentTimePosition % 1) * 60)}px`,
+                          }}
+                        >
+                          <div className="absolute left-0 w-2 h-2 bg-red-600 rounded-full" style={{ backgroundColor: '#DC2626', transform: 'translate(-50%, -50%)', top: '50%' }} />
+                          <div className="h-0.5 bg-red-600 w-full" style={{ backgroundColor: '#DC2626' }} />
+                        </div>
+                      )}
+                      
                       {/* Time label - fixed width */}
                       <div className="border-r border-[#E5DFD4] pr-2 text-right bg-[#F8F4ED] relative" style={{ paddingTop: 0 }}>
                         <span className="text-xs text-gray-500 absolute" style={{ top: '-6px', right: '8px', lineHeight: '1' }}>
@@ -1016,6 +1417,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                           const day = currentDate;
                           const isToday = day.toDateString() === today.toDateString();
                           const events = getEventsForDay(day);
+                          
                           // Get all events that overlap with this hour
                           const hourEvents = events.filter((event) => {
                             const eventStart = parseTime(event.startTime);
@@ -1031,18 +1433,6 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                 isToday ? 'bg-blue-50/30' : 'bg-[#FEFBF6]'
                               )}
                             >
-                              {/* Current time indicator */}
-                              {isToday && hour === Math.floor(currentTimePosition) && (
-                                <div
-                                  className="absolute left-0 right-0 z-30"
-                                  style={{
-                                    top: `${((currentTimePosition % 1) * 60)}px`,
-                                  }}
-                                >
-                                  <div className="absolute -left-1 w-3 h-3 bg-red-600 rounded-full" style={{ backgroundColor: '#DC2626' }} />
-                                  <div className="h-0.5 bg-red-600" style={{ backgroundColor: '#DC2626' }} />
-                                </div>
-                              )}
 
                               {/* Event blocks */}
                               {hourEvents.map((event) => {
@@ -1094,6 +1484,8 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                         weekDays.map((day, dayIdx) => {
                           const isToday = day.toDateString() === today.toDateString();
                           const events = getEventsForDay(day);
+                          const dayCourses = getCoursesForDay(day);
+                          
                           // Get all events that overlap with this hour
                           const hourEvents = events.filter((event) => {
                             const eventStart = parseTime(event.startTime);
@@ -1110,19 +1502,6 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                 isToday ? 'bg-blue-50/30' : 'bg-[#FEFBF6]'
                               )}
                             >
-                              {/* Current time indicator */}
-                              {isToday && hour === Math.floor(currentTimePosition) && (
-                                <div
-                                  className="absolute left-0 right-0 z-30"
-                                  style={{
-                                    top: `${((currentTimePosition % 1) * 60)}px`,
-                                  }}
-                                >
-                                  <div className="absolute -left-1 w-3 h-3 bg-red-600 rounded-full" style={{ backgroundColor: '#DC2626' }} />
-                                  <div className="h-0.5 bg-red-600" style={{ backgroundColor: '#DC2626' }} />
-                                </div>
-                              )}
-
                               {/* Event blocks */}
                               {hourEvents.map((event) => {
                                 const eventStart = parseTime(event.startTime);
@@ -1171,7 +1550,8 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                         })
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -1180,7 +1560,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
 
         {/* Right Events Panel */}
         {showEventsMenu && (
-          <div className={cn("events-panel absolute right-0 top-0 bottom-0 w-80 border-l border-[#E5DFD4] bg-[#F8F4ED] flex flex-col z-10 shadow-lg", isClosingEventsMenu && "closing")} style={{ backgroundColor: '#F8F4ED' }}>
+          <div ref={eventsPanelRef} className={cn("events-panel absolute right-0 top-0 bottom-0 w-80 border-l border-[#E5DFD4] bg-[#F8F4ED] flex flex-col z-50 shadow-lg", isClosingEventsMenu && "closing")} style={{ backgroundColor: '#F8F4ED', zIndex: 9999 }}>
             <div className="p-4 border-b border-[#E5DFD4]">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-medium text-gray-900">
@@ -1215,14 +1595,14 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                   <ToggleGroupItem
                     value="all"
                     aria-label="All events"
-                    className="text-gray-700 flex-1"
+                    className="flex-1"
                   >
                     All Events
                   </ToggleGroupItem>
                   <ToggleGroupItem
                     value="my-events"
                     aria-label="My events"
-                    className="text-gray-700 flex-1"
+                    className="flex-1 min-w-[120px]"
                   >
                     My Events
                   </ToggleGroupItem>
@@ -1234,11 +1614,11 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                 value={eventsViewMode}
                 onValueChange={(value) => value && setEventsViewMode(value as 'grid' | 'list')}
               >
-                <ToggleGroupItem value="grid" aria-label="Grid view" className="text-gray-700 flex-1">
+                <ToggleGroupItem value="grid" aria-label="Grid view" className="flex-1 min-w-[100px]">
                   <LayoutGrid className="h-4 w-4 mr-1" />
                   Grid
                 </ToggleGroupItem>
-                <ToggleGroupItem value="list" aria-label="List view" className="text-gray-700 flex-1">
+                <ToggleGroupItem value="list" aria-label="List view" className="flex-1 min-w-[100px]">
                   <List className="h-4 w-4 mr-1" />
                   List
                 </ToggleGroupItem>
@@ -1342,7 +1722,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                 ) : eventsViewMode === 'list' ? (
                   Object.entries(groupedEvents).map(([dayName, dayEvents]) => (
                     <div key={dayName} className="mb-3">
-                      <div className="text-xs text-gray-700 uppercase font-bold mb-1.5 bg-gradient-to-r from-[#752432] to-[#8B2E3F] text-white px-3 py-1.5 rounded-md shadow-sm border-l-4 border-[#5A1C28]">
+                      <div className="text-xs text-gray-700 uppercase font-bold mb-1.5 bg-[#752432] text-white px-3 py-1.5 rounded-md shadow-sm border-l-4 border-[#5A1C28]">
                         {dayName}
                       </div>
                       <div className="space-y-0.5">
@@ -1387,7 +1767,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                 ) : (
                   Object.entries(groupedEvents).map(([dayName, dayEvents]) => (
                     <div key={dayName} className="mb-4">
-                      <div className="text-xs text-gray-700 uppercase font-bold mb-2 bg-gradient-to-r from-[#752432] to-[#8B2E3F] text-white px-3 py-1.5 rounded-md shadow-sm border-l-4 border-[#5A1C28]">
+                      <div className="text-xs text-gray-700 uppercase font-bold mb-2 bg-[#752432] text-white px-3 py-1.5 rounded-md shadow-sm border-l-4 border-[#5A1C28]">
                         {dayName}
                       </div>
                       <div className="space-y-2">
@@ -1436,24 +1816,13 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                 )
               )}
             </div>
-
-            <div className="p-4 border-t border-[#E5DFD4]">
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full text-gray-700 hover:bg-[#F5F1E8] border-gray-300"
-                onClick={() => setShowOrgFilterDialog(true)}
-              >
-                View my Organizations
-              </Button>
-            </div>
           </div>
         )}
       </div>
 
       {/* Settings Dialog */}
       <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
-        <DialogContent className="bg-[#FEFBF6] max-w-md">
+        <DialogContent className="bg-[#FEFBF6] max-w-md" style={{ backgroundColor: '#FEFBF6' }}>
           <DialogHeader>
             <DialogTitle className="text-xl text-gray-900">Calendar Settings</DialogTitle>
             <DialogDescription className="text-gray-600">
@@ -1462,18 +1831,39 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
           </DialogHeader>
           <div className="space-y-3 py-4">
             {/* Connect to Google Calendar */}
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3 h-auto py-4 border-gray-300 hover:bg-[#F5F1E8]"
-            >
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-white border border-gray-200">
-                <CalendarIcon className="w-5 h-5" style={{ color: '#752432' }} />
+            <div className="border border-gray-300 rounded-md p-4 hover:bg-[#F5F1E8] transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-white border border-gray-200">
+                    <CalendarIcon className="w-5 h-5" style={{ color: '#752432' }} />
+                  </div>
+                  <div className="text-left flex-1">
+                    <div className="font-medium text-gray-900">Connect to Google Calendar</div>
+                    <div className="text-sm text-gray-600">Sync your events with Google Calendar</div>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-auto py-1 px-2 text-xs border-gray-300 hover:bg-white"
+                    onClick={() => {}}
+                  >
+                    <Download className="w-3 h-3 mr-1.5" />
+                    Import
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-auto py-1 px-2 text-xs border-gray-300 hover:bg-white"
+                    onClick={() => {}}
+                  >
+                    <Upload className="w-3 h-3 mr-1.5" />
+                    Export
+                  </Button>
+                </div>
               </div>
-              <div className="text-left flex-1">
-                <div className="font-medium text-gray-900">Connect to Google Calendar</div>
-                <div className="text-sm text-gray-600">Sync your events with Google Calendar</div>
-              </div>
-            </Button>
+            </div>
 
             {/* Connect to Canvas */}
             <Button
@@ -1503,14 +1893,14 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
 
       {/* Create Event Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="bg-[#FEFBF6] max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-xl text-gray-900">Create New Event</DialogTitle>
+        <DialogContent className="rounded-[24px] shadow-2xl border border-white/60 overflow-hidden p-0" style={{ backgroundColor: '#faf5f1', borderRadius: 24, width: '500px', maxWidth: '92vw' }}>
+          <DialogHeader className="px-6 pt-6 pb-3 border-b border-white/60">
+            <DialogTitle className="text-2xl font-semibold tracking-tight text-gray-900">Create New Event</DialogTitle>
             <DialogDescription className="text-gray-600">
               Add a new event to your calendar
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="px-6 py-5 space-y-4">
             {/* Event Title */}
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">
@@ -1521,18 +1911,20 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                 value={newEvent.title}
                 onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
                 placeholder="Enter event title"
-                className="w-full"
+                className="w-full h-9 rounded-3xl border border-gray-200 focus:ring-2 focus:ring-[#752432] focus:border-transparent transition text-xs"
+                style={{ backgroundColor: 'white', borderRadius: 16, fontSize: '12px' }}
               />
             </div>
 
             {/* Date */}
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">Date *</label>
-              <Input
+              <input
                 type="date"
                 value={newEvent.date}
                 onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
-                className="w-full"
+                className="w-full h-9 rounded-3xl border border-gray-200 focus:ring-2 focus:ring-[#752432] focus:border-transparent transition text-xs"
+                style={{ backgroundColor: 'white', borderRadius: 16, fontSize: '12px', padding: '0.5rem 0.75rem', boxSizing: 'border-box' }}
               />
             </div>
 
@@ -1542,20 +1934,22 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                 <label className="text-sm font-medium text-gray-700 mb-1 block">
                   Start Time *
                 </label>
-                <Input
+                <input
                   type="time"
                   value={newEvent.startTime}
                   onChange={(e) => setNewEvent({ ...newEvent, startTime: e.target.value })}
-                  className="w-full"
+                  className="w-full h-9 rounded-3xl border border-gray-200 focus:ring-2 focus:ring-[#752432] focus:border-transparent transition text-xs"
+                  style={{ backgroundColor: 'white', borderRadius: 16, fontSize: '12px', padding: '0.5rem 0.75rem', boxSizing: 'border-box' }}
                 />
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">End Time *</label>
-                <Input
+                <input
                   type="time"
                   value={newEvent.endTime}
                   onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })}
-                  className="w-full"
+                  className="w-full h-9 rounded-3xl border border-gray-200 focus:ring-2 focus:ring-[#752432] focus:border-transparent transition text-xs"
+                  style={{ backgroundColor: 'white', borderRadius: 16, fontSize: '12px', padding: '0.5rem 0.75rem', boxSizing: 'border-box' }}
                 />
               </div>
             </div>
@@ -1563,20 +1957,21 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
             {/* Event Type */}
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">Event Type</label>
-              <select
-                value={newEvent.type}
-                onChange={(e) => setNewEvent({ ...newEvent, type: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#752432] focus:border-transparent bg-white"
-              >
-                <option value="personal">Personal</option>
-                <option value="study">Study</option>
-                <option value="meeting">Meeting</option>
-                <option value="exam">Exam</option>
-                <option value="assignment">Assignment</option>
-                <option value="club-event">Club Event</option>
-                <option value="panel">Panel</option>
-                <option value="lunch">Lunch & Learn</option>
-              </select>
+              <Select value={newEvent.type} onValueChange={(value) => setNewEvent({ ...newEvent, type: value })}>
+                <SelectTrigger className="mt-1 h-9 rounded-3xl border border-gray-200 focus:ring-2 focus:ring-[#752432] focus:border-transparent transition text-xs" style={{ backgroundColor: 'white', borderRadius: 16 }}>
+                  <SelectValue placeholder="Select event type" />
+                </SelectTrigger>
+                <SelectContent className="shadow-xl overflow-hidden border border-gray-200 [&>*:hover]:bg-white [&>*:focus]:bg-white" style={{ borderRadius: '24px', backgroundColor: 'white' }}>
+                  <SelectItem value="personal" className="hover:bg-white focus:bg-white">Personal</SelectItem>
+                  <SelectItem value="study" className="hover:bg-white focus:bg-white">Study</SelectItem>
+                  <SelectItem value="meeting" className="hover:bg-white focus:bg-white">Meeting</SelectItem>
+                  <SelectItem value="exam" className="hover:bg-white focus:bg-white">Exam</SelectItem>
+                  <SelectItem value="assignment" className="hover:bg-white focus:bg-white">Assignment</SelectItem>
+                  <SelectItem value="club-event" className="hover:bg-white focus:bg-white">Club Event</SelectItem>
+                  <SelectItem value="panel" className="hover:bg-white focus:bg-white">Panel</SelectItem>
+                  <SelectItem value="lunch" className="hover:bg-white focus:bg-white">Lunch & Learn</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Location */}
@@ -1587,7 +1982,8 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                 value={newEvent.location}
                 onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
                 placeholder="Enter location (optional)"
-                className="w-full"
+                className="w-full h-9 rounded-3xl border border-gray-200 focus:ring-2 focus:ring-[#752432] focus:border-transparent transition text-xs"
+                style={{ backgroundColor: 'white', borderRadius: 16, fontSize: '12px' }}
               />
             </div>
 
@@ -1599,26 +1995,29 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                 onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
                 placeholder="Enter description (optional)"
                 rows={3}
-                className="w-full resize-none"
+                className="w-full resize-none rounded-3xl border border-gray-200 focus:outline-none focus:ring-0 focus:border-gray-200 transition text-sm"
+                style={{ backgroundColor: 'white', borderRadius: 24 }}
               />
             </div>
           </div>
 
-          <div className="flex justify-end gap-3">
-            <Button
-              onClick={() => setShowCreateDialog(false)}
-              variant="outline"
-              className="border-gray-300 text-gray-700 hover:bg-gray-100"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreateEvent}
-              disabled={!newEvent.title || !newEvent.date || !newEvent.startTime || !newEvent.endTime}
-              className="bg-[#752432] text-white hover:bg-[#5A1C28] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Create Event
-            </Button>
+          <div className="sticky bottom-0 -mx-6 px-6 py-3 border-t border-white/60 flex justify-center" style={{ backgroundColor: '#faf5f1' }}>
+            <div className="flex gap-3">
+              <Button
+                onClick={() => setShowCreateDialog(false)}
+                variant="outline"
+                className="border-gray-300 text-gray-700 hover:bg-gray-100"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateEvent}
+                disabled={!newEvent.title || !newEvent.date || !newEvent.startTime || !newEvent.endTime}
+                className="bg-[#752432] text-white hover:bg-[#5A1C28] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Create Event
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

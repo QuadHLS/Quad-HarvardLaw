@@ -335,6 +335,7 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
   const [matchInboxOpen, setMatchInboxOpen] = useState(false);
   const [matchSent, setMatchSent] = useState(false);
   const [matchInfoOpen, setMatchInfoOpen] = useState(false);
+  const [matchCount, setMatchCount] = useState(0);
 
   // Check if match already exists when viewing someone else's profile
   useEffect(() => {
@@ -366,6 +367,76 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
       checkExistingMatch();
     }
   }, [user?.id, studentName, profileData]);
+
+  // Fetch match count for received + matched matches
+  useEffect(() => {
+    const fetchMatchCount = async () => {
+      if (!user?.id) {
+        setMatchCount(0);
+        return;
+      }
+
+      try {
+        // Fetch received matches
+        const { data: receivedData, error: receivedError } = await supabase
+          .rpc('get_received_matches');
+
+        if (receivedError) {
+          console.error('Error fetching received matches:', receivedError);
+          setMatchCount(0);
+          return;
+        }
+
+        // Count received matches (non-mutual)
+        const receivedCount = (receivedData || []).filter((match: any) => !match.is_mutual).length;
+
+        // Count mutual matches from received
+        const mutualFromReceived = (receivedData || []).filter((match: any) => match.is_mutual).length;
+
+        // Fetch sent matches to check for mutual ones that weren't received
+        const { data: sentData, error: sentError } = await supabase
+          .from('matches')
+          .select('receiver_id')
+          .eq('sender_id', user.id);
+
+        let mutualFromSent = 0;
+        if (!sentError && sentData) {
+          // Get list of received match sender IDs to avoid double counting
+          const receivedSenderIds = new Set((receivedData || [])
+            .filter((m: any) => m.is_mutual && m.sender_id)
+            .map((m: any) => m.sender_id));
+
+          for (const match of sentData) {
+            // Skip if we already counted this person from received side
+            if (receivedSenderIds.has(match.receiver_id)) {
+              continue;
+            }
+
+            const { data: isMutualData } = await supabase
+              .rpc('is_mutual_match', {
+                sender_uuid: user.id,
+                receiver_uuid: match.receiver_id
+              });
+
+            if (isMutualData === true) {
+              mutualFromSent++;
+            }
+          }
+        }
+
+        // Total count = received (non-mutual) + matched (mutual from received) + matched (mutual from sent, not already counted)
+        setMatchCount(receivedCount + mutualFromReceived + mutualFromSent);
+      } catch (error) {
+        console.error('Error fetching match count:', error);
+        setMatchCount(0);
+      }
+    };
+
+    fetchMatchCount();
+    // Refresh count every 5 seconds
+    const interval = setInterval(fetchMatchCount, 5000);
+    return () => clearInterval(interval);
+  }, [user?.id]);
 
   
   // Pick a consistent color for the default avatar (green, blue, yellow, red)
@@ -1523,6 +1594,7 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
                   <MatchButtons
                     onMatchInboxClick={() => setMatchInboxOpen(true)}
                     onMatchInfoClick={() => setMatchInfoOpen(true)}
+                    matchCount={matchCount}
                   />
                 </div>
               )}

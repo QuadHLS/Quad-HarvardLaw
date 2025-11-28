@@ -2329,11 +2329,16 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
             <div className="border border-gray-300 rounded-md p-4 hover:bg-[#F5F1E8] transition-colors">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 flex-1">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-white border border-gray-200">
-                    <CalendarIcon className="w-5 h-5" style={{ color: '#752432' }} />
+                  <div className="rounded-lg flex items-center justify-center bg-white border border-gray-200 overflow-hidden" style={{ width: '40px', height: '40px' }}>
+                    <img 
+                      src="/Google_Calendar_icon_(2020).svg.png" 
+                      alt="Google Calendar" 
+                      className="max-w-full max-h-full object-contain"
+                      style={{ width: 'auto', height: 'auto' }}
+                    />
                   </div>
                   <div className="text-left flex-1">
-                    <div className="font-medium text-gray-900">Connect to Google Calendar</div>
+                    <div className="font-medium text-gray-900">Connect Google Calendar</div>
                     <div className="text-sm text-gray-600">Sync your events with Google Calendar</div>
                   </div>
                 </div>
@@ -2344,8 +2349,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                     className="h-auto py-1 px-2 text-xs border-gray-300 hover:bg-white"
                     onClick={() => {}}
                   >
-                    <Download className="w-3 h-3 mr-1.5" />
-                    Import
+                    Connect
                   </Button>
                   <Button
                     variant="outline"
@@ -2361,18 +2365,33 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
             </div>
 
             {/* Connect to Canvas */}
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3 h-auto py-4 border-gray-300 hover:bg-[#F5F1E8]"
-            >
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-[#DC3545] border border-gray-200">
-                <div className="w-5 h-5 bg-white rounded" />
+            <div className="border border-gray-300 rounded-md p-4 hover:bg-[#F5F1E8] transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="rounded-lg flex items-center justify-center bg-white border border-gray-200 overflow-hidden" style={{ width: '40px', height: '40px' }}>
+                    <img 
+                      src="/Logo_Canvas_Red_Vertical-768x593.png" 
+                      alt="Canvas" 
+                      style={{ width: '40px', height: 'auto', transform: 'scale(1.50)', transformOrigin: 'center' }}
+                    />
+                  </div>
+                  <div className="text-left flex-1">
+                    <div className="font-medium text-gray-900">Connect Canvas</div>
+                    <div className="text-sm text-gray-600">Import assignments and events from Canvas</div>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-auto py-1 px-2 text-xs border-gray-300 hover:bg-white"
+                    onClick={() => {}}
+                  >
+                    Connect
+                  </Button>
+                </div>
               </div>
-              <div className="text-left flex-1">
-                <div className="font-medium text-gray-900">Connect to Canvas</div>
-                <div className="text-sm text-gray-600">Import assignments and events from Canvas</div>
-              </div>
-            </Button>
+            </div>
           </div>
           <div className="flex justify-end">
             <Button

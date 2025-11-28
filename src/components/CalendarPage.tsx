@@ -85,10 +85,10 @@ const ToggleGroupItem: React.FC<ToggleGroupItemProps> = ({
   return (
     <button
       className={cn(
-        'px-3 py-1.5 text-sm border-none bg-transparent cursor-pointer transition-all border-r border-gray-300 last:border-r-0 flex items-center justify-center whitespace-nowrap',
+        'px-3 py-1.5 text-sm border-none cursor-pointer transition-all border-r border-gray-300 last:border-r-0 flex items-center justify-center whitespace-nowrap',
         isSelected 
           ? 'bg-[#752432] text-white hover:bg-[#5A1C28]' 
-          : 'text-gray-700 hover:bg-gray-100',
+          : 'bg-white text-gray-700 hover:bg-gray-100',
         className,
         isSelected && '!text-white'
       )}
@@ -234,6 +234,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const eventsPanelRef = useRef<HTMLDivElement>(null);
   const eventsButtonRef = useRef<HTMLButtonElement>(null);
+  const [expandedDay, setExpandedDay] = useState<string | null>(null); // Track which day is expanded (format: "YYYY-MM-DD")
 
   // Calendar category filters
   const [showClasses, setShowClasses] = useState(true);
@@ -243,7 +244,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
   // Current time state for real-time updates
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Fetch user's profile and courses (same as HomePage)
+  // Fetch user's profile, courses, and events (same as HomePage)
   useEffect(() => {
     const fetchUserProfile = async () => {
       if (!user?.id) {
@@ -253,7 +254,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
       try {
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('full_name, classes, class_year')
+          .select('full_name, classes, class_year, user_events')
           .eq('id', user.id)
           .single();
 
@@ -264,6 +265,23 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
 
         if (profile) {
           setUserCourses(profile.classes || []);
+          
+          // Load user events from database
+          if (profile.user_events && Array.isArray(profile.user_events)) {
+            const loadedEvents: Event[] = profile.user_events.map((eventDb: any) => ({
+              id: eventDb.id || `custom-${Date.now()}-${Math.random()}`,
+              title: eventDb.event_title,
+              date: eventDb.date,
+              startTime: eventDb.start_time,
+              endTime: eventDb.end_time,
+              type: eventDb.event_type || 'personal',
+              location: eventDb.location || undefined,
+              description: eventDb.description || undefined,
+            }));
+            
+            setCustomEvents(loadedEvents);
+            setAddedEventIds(loadedEvents.map(e => e.id));
+          }
         }
       } catch (error) {
         console.error('Error fetching user profile:', error instanceof Error ? error.message : "Unknown error");
@@ -339,7 +357,47 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
   };
 
   // Handler to remove event from calendar
-  const handleRemoveEvent = (eventId: string) => {
+  const handleRemoveEvent = async (eventId: string) => {
+    // Check if this is a user-created event (starts with "custom-")
+    const isUserEvent = eventId.startsWith('custom-');
+    
+    if (isUserEvent && user) {
+      // Remove from database
+      try {
+        // Fetch current user_events
+        const { data: profile, error: fetchError } = await supabase
+          .from('profiles')
+          .select('user_events')
+          .eq('id', user.id)
+          .single();
+
+        if (fetchError) {
+          console.error('Error fetching profile:', fetchError);
+        } else if (profile?.user_events && Array.isArray(profile.user_events)) {
+          // Remove the event from the array
+          const updatedEvents = (profile.user_events as any[]).filter(
+            (eventDb: any) => eventDb.id !== eventId
+          );
+
+          // Update database
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ user_events: updatedEvents })
+            .eq('id', user.id);
+
+          if (updateError) {
+            console.error('Error removing event from database:', updateError);
+          }
+        }
+      } catch (error) {
+        console.error('Error removing event:', error);
+      }
+      
+      // Remove from local state
+      setCustomEvents(customEvents.filter((event) => event.id !== eventId));
+    }
+    
+    // Remove from added event IDs
     setAddedEventIds(addedEventIds.filter((id) => id !== eventId));
   };
 
@@ -358,8 +416,13 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
   };
 
   // Handler to create new event
-  const handleCreateEvent = () => {
+  const handleCreateEvent = async () => {
     if (!newEvent.title || !newEvent.date || !newEvent.startTime || !newEvent.endTime) {
+      return;
+    }
+
+    if (!user) {
+      console.error('User not authenticated');
       return;
     }
 
@@ -374,6 +437,53 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
       description: newEvent.description,
     };
 
+    // Save to database
+    try {
+      // Fetch current user_events
+      const { data: profile, error: fetchError } = await supabase
+        .from('profiles')
+        .select('user_events')
+        .eq('id', user.id)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching profile:', fetchError);
+      }
+
+      // Get existing events or empty array
+      const existingEvents = (profile?.user_events as any[]) || [];
+
+      // Create event object for database (matching the structure from migration)
+      const eventForDb = {
+        id: createdEvent.id,
+        event_title: createdEvent.title,
+        date: createdEvent.date,
+        start_time: createdEvent.startTime,
+        end_time: createdEvent.endTime,
+        event_type: createdEvent.type || 'personal',
+        location: createdEvent.location || null,
+        description: createdEvent.description || null,
+      };
+
+      // Add new event to array
+      const updatedEvents = [...existingEvents, eventForDb];
+
+      // Update database
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ user_events: updatedEvents })
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Error saving event to database:', updateError);
+        // Still add to local state even if DB save fails
+      }
+    } catch (error) {
+      console.error('Error saving event:', error);
+      // Still add to local state even if DB save fails
+    }
+
+    // Update local state
     setCustomEvents([...customEvents, createdEvent]);
     setAddedEventIds([...addedEventIds, createdEvent.id]);
     setShowCreateDialog(false);
@@ -429,11 +539,13 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
     if (scrollRef.current && (viewMode === 'week' || viewMode === 'day')) {
       setTimeout(() => {
         if (scrollRef.current) {
-          const currentHour = today.getHours();
-          const scrollPosition = currentHour * 60; // 60px per hour
+          const currentHour = today.getHours() + today.getMinutes() / 60;
+          const startHour = hours[0] || 8;
+          // Calculate scroll position relative to start hour
+          const scrollPosition = (currentHour - startHour) * 60; // 60px per hour
           scrollRef.current.scrollTop = Math.max(0, scrollPosition - 200); // Scroll to show current time with some offset
         }
-      }, 0);
+      }, 100); // Small delay to ensure hours are calculated
     }
   };
 
@@ -473,6 +585,44 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
     const period = hours >= 12 ? 'PM' : 'AM';
     const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
     return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+  };
+
+  // Format time range, only showing AM/PM on the second time if both have the same period
+  const formatTimeRange = (startTime: string, endTime: string): string => {
+    const formatStart = formatTime(startTime);
+    const formatEnd = formatTime(endTime);
+    
+    // Extract periods
+    const startPeriod = formatStart.includes('AM') ? 'AM' : 'PM';
+    const endPeriod = formatEnd.includes('AM') ? 'AM' : 'PM';
+    
+    // If both have the same period, only show it on the end time
+    if (startPeriod === endPeriod) {
+      const startWithoutPeriod = formatStart.replace(/\s*(AM|PM)/i, '');
+      return `${startWithoutPeriod} - ${formatEnd}`;
+    }
+    
+    // If different periods, show both
+    return `${formatStart} - ${formatEnd}`;
+  };
+
+  // Format course schedule time string (e.g., "9:00 AM - 10:30 AM" -> "9:00 - 10:30 AM")
+  const formatCourseTime = (timeString: string): string => {
+    if (!timeString || timeString === 'TBD') return timeString;
+    
+    // Parse time format like "9:00 AM - 10:30 AM" or "1:30 PM - 3:30 PM"
+    const timeMatch = timeString.match(/(\d{1,2}):(\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (!timeMatch) return timeString;
+    
+    const [, startHour, startMin, startPeriod, endHour, endMin, endPeriod] = timeMatch;
+    
+    // If both have the same period, only show it on the end time
+    if (startPeriod.toUpperCase() === endPeriod.toUpperCase()) {
+      return `${startHour}:${startMin} - ${endHour}:${endMin} ${endPeriod}`;
+    }
+    
+    // If different periods, show both
+    return `${startHour}:${startMin} ${startPeriod} - ${endHour}:${endMin} ${endPeriod}`;
   };
 
   // Course parsing functions (same as HomePage)
@@ -516,7 +666,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
   };
 
   // Parse time string and convert to position for calendar display (same calculation as HomePage, scaled to 60px/hour)
-  const parseTimeToPosition = (timeString: string) => {
+  const parseTimeToPosition = (timeString: string, startHourForCalc: number = 8) => {
     if (!timeString || timeString === 'TBD') return null;
     
     // Parse time format like "1:30PM - 3:30PM" or "8:00AM - 9:30AM"
@@ -533,16 +683,48 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
     const startMinutes = startHour24 * 60 + parseInt(startMin);
     const endMinutes = endHour24 * 60 + parseInt(endMin);
     
-    // Only show courses within 8AM-8PM range (same as HomePage)
-    if (startHour24 < 8 || endHour24 > 20) return null;
-    
-    // Calculate position: each hour is 60px, starting from 8AM (480 minutes)
+    // Calculate position: each hour is 60px, starting from the first hour in the view
     // Time labels are positioned at top: -6px relative to each hour row
-    // Hour rows start at: 0px (8AM), 60px (9AM), 120px (10AM), etc.
-    // So time labels are at: -6px (8AM), 54px (9AM), 114px (10AM), etc.
     // We align classes to match the time label vertical positions
-    // Position = (minutes from 8AM) * (60px per hour / 60 minutes per hour) - 3px for better alignment
-    const startPosition = ((startMinutes - 480) / 60) * 60 - 3; // 60px per hour, -3px to align with labels
+    // Position = (minutes from start hour) * (60px per hour / 60 minutes per hour) - 1px for better alignment
+    const startHourMinutes = startHourForCalc * 60; // Convert start hour to minutes
+    const startPosition = ((startMinutes - startHourMinutes) / 60) * 60 - 1; // 60px per hour, -1px to align with labels
+    const height = ((endMinutes - startMinutes) / 60) * 60; // 60px per hour
+    
+    return { startPosition, height };
+  };
+
+  // Parse event times and convert to position for calendar display (same as classes)
+  const parseEventTimeToPosition = (startTime: string, endTime: string, startHourForCalc: number = 8) => {
+    if (!startTime || !endTime) return null;
+    
+    // Parse time format like "09:00" or "9:00 AM"
+    const parseTimeString = (timeStr: string): number => {
+      // Handle 24-hour format (HH:MM)
+      if (timeStr.includes(':')) {
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        return hours + minutes / 60;
+      }
+      // Handle 12-hour format (H:MM AM/PM)
+      const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+      if (timeMatch) {
+        const [, hour, min, period] = timeMatch;
+        const hour24 = parseInt(hour) + (period.toUpperCase() === 'PM' && hour !== '12' ? 12 : 0);
+        return hour24 + parseInt(min) / 60;
+      }
+      return 0;
+    };
+    
+    const startHour = parseTimeString(startTime);
+    const endHour = parseTimeString(endTime);
+    
+    // Convert to minutes since midnight
+    const startMinutes = startHour * 60;
+    const endMinutes = endHour * 60;
+    
+    // Calculate position: each hour is 60px, starting from the first hour in the view
+    const startHourMinutes = startHourForCalc * 60;
+    const startPosition = ((startMinutes - startHourMinutes) / 60) * 60 - 1; // 60px per hour, -1px to align with labels
     const height = ((endMinutes - startMinutes) / 60) * 60; // 60px per hour
     
     return { startPosition, height };
@@ -597,9 +779,57 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
   const weekDayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
   const today = new Date();
 
-  // Generate hours from 12 AM to 11 PM
-  // Hours from 8AM to 8PM (same as HomePage)
-  const hours = Array.from({ length: 13 }, (_, i) => i + 8);
+  // Calculate dynamic hours based on events and classes
+  // Default is 8AM-8PM, but extend if events exist outside this range
+  const hours = useMemo(() => {
+    let minHour = 8; // Default start: 8AM
+    let maxHour = 20; // Default end: 8PM
+    
+    // Check all events and classes for the current view
+    const daysToCheck = viewMode === 'day' 
+      ? [currentDate] 
+      : weekDays;
+    
+    daysToCheck.forEach(day => {
+      // Check events
+      const dayEvents = getEventsForDay(day);
+      dayEvents.forEach(event => {
+        if (event.startTime) {
+          const startHour = parseTime(event.startTime);
+          const endHour = event.endTime ? parseTime(event.endTime) : startHour + 1;
+          minHour = Math.min(minHour, Math.floor(startHour));
+          maxHour = Math.max(maxHour, Math.ceil(endHour));
+        }
+      });
+      
+      // Check classes - first pass with default 8AM to get actual hours
+      if (showClasses) {
+        const dayCourses = getCoursesForDay(day);
+        dayCourses.forEach(course => {
+          if (course.schedule?.times && course.schedule.times !== 'TBD') {
+            const timeMatch = course.schedule.times.match(/(\d{1,2}):(\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+            if (timeMatch) {
+              const [, startHour, , startPeriod, endHour, , endPeriod] = timeMatch;
+              const startHour24 = parseInt(startHour) + (startPeriod.toUpperCase() === 'PM' && startHour !== '12' ? 12 : 0);
+              const endHour24 = parseInt(endHour) + (endPeriod.toUpperCase() === 'PM' && endHour !== '12' ? 12 : 0);
+              minHour = Math.min(minHour, startHour24);
+              maxHour = Math.max(maxHour, endHour24);
+            }
+          }
+        });
+      }
+    });
+    
+    // Ensure we don't go below 0 or above 23
+    minHour = Math.max(0, Math.floor(minHour));
+    maxHour = Math.min(23, Math.ceil(maxHour));
+    
+    // Generate hours array
+    const hourCount = maxHour - minHour + 1;
+    return Array.from({ length: hourCount }, (_, i) => i + minHour);
+  }, [viewMode, currentDate, weekDays, filteredEvents, showClasses, userCourses, selectedSemester]);
+  
+  const startHour = hours[0] || 8; // First hour in the array
 
   // Get current time for the red line indicator (using state for real-time updates)
   const currentTimePosition = currentTime.getHours() + currentTime.getMinutes() / 60;
@@ -1002,7 +1232,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
             variant="ghost"
             size="sm"
             onClick={() => setShowSettingsDialog(true)}
-            className="h-9 w-9 p-0 text-gray-600 hover:bg-gray-100"
+            className="h-9 w-9 p-0 text-gray-700 hover:bg-gray-100"
           >
             <Settings className="h-5 w-5" />
           </Button>
@@ -1147,13 +1377,72 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
 
               <div className="flex-1 overflow-y-auto min-h-0">
                 <div className="grid grid-rows-6">
-                  {Array.from({ length: 6 }).map((_, weekIdx) => (
-                    <div key={weekIdx} className="grid grid-cols-7">
-                      {monthCalendarDays.slice(weekIdx * 7, (weekIdx + 1) * 7).map((dayObj, dayIdx) => {
+                {Array.from({ length: 6 }).map((_, weekIdx) => {
+                  // Check if any day in this week is expanded
+                  const weekDays = monthCalendarDays.slice(weekIdx * 7, (weekIdx + 1) * 7);
+                  const hasExpandedDay = weekDays.some(dayObj => {
+                    const dateStr = dayObj.date.toISOString().split('T')[0];
+                    return expandedDay === dateStr;
+                  });
+                  
+                  return (
+                    <div key={weekIdx} className="grid grid-cols-7" style={{ minHeight: hasExpandedDay ? 'auto' : undefined }}>
+                      {weekDays.map((dayObj, dayIdx) => {
                       const isToday = dayObj.date.toDateString() === today.toDateString();
                       const events = getEventsForDay(dayObj.date);
                       const nonClassEvents = events.filter((event) => event.type !== 'class');
                       const dayCourses = showClasses ? getCoursesForDay(dayObj.date) : [];
+                      const dateStr = dayObj.date.toISOString().split('T')[0];
+                      const isExpanded = expandedDay === dateStr;
+
+                      // Combine classes and events, then sort by start time
+                      interface CalendarItem {
+                        type: 'class' | 'event';
+                        id: string;
+                        startTime: number;
+                        course?: UserCourse;
+                        event?: Event;
+                        courseIndex?: number;
+                      }
+
+                      const allItems: CalendarItem[] = [];
+                      
+                      // Add classes with their start times
+                      dayCourses.forEach((course, courseIndex) => {
+                        if (course.schedule?.times && course.schedule.times !== 'TBD') {
+                          const timeMatch = course.schedule.times.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+                          if (timeMatch) {
+                            const [, hour, min, period] = timeMatch;
+                            const hour24 = parseInt(hour) + (period.toUpperCase() === 'PM' && hour !== '12' ? 12 : 0);
+                            const startTime = hour24 + parseInt(min) / 60;
+                            allItems.push({
+                              type: 'class',
+                              id: `course-${courseIndex}`,
+                              startTime,
+                              course,
+                              courseIndex
+                            });
+                          }
+                        }
+                      });
+                      
+                      // Add events with their start times
+                      nonClassEvents.forEach((event) => {
+                        const startTime = parseTime(event.startTime);
+                        allItems.push({
+                          type: 'event',
+                          id: event.id,
+                          startTime,
+                          event
+                        });
+                      });
+                      
+                      // Sort all items by start time (earliest first)
+                      allItems.sort((a, b) => a.startTime - b.startTime);
+                      
+                      // Determine how many items to show
+                      const itemsToShow = isExpanded ? allItems : allItems.slice(0, 3);
+                      const hasMore = allItems.length > 3;
 
                       return (
                         <div
@@ -1177,33 +1466,53 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                             {dayObj.day}
                           </div>
                           <div className="space-y-1">
-                            {/* Class blocks (same UI as HomePage) */}
-                            {dayCourses.slice(0, 3).map((course, courseIndex) => {
-                              const displayName = formatDisplayCourseName(course.class);
-                              const bgColor = courseNameToColor[displayName] || getCourseColor(courseIndex);
-                              return (
-                                <div
-                                  key={`course-${dayIdx}-${courseIndex}`}
-                                  className="text-xs p-1 rounded truncate"
-                                  style={{ backgroundColor: bgColor, color: 'white' }}
-                                >
-                                  {displayName}
-                                </div>
-                              );
+                            {itemsToShow.map((item) => {
+                              if (item.type === 'class' && item.course) {
+                                const displayName = formatDisplayCourseName(item.course.class);
+                                const bgColor = courseNameToColor[displayName] || getCourseColor(item.courseIndex || 0);
+                                return (
+                                  <div
+                                    key={item.id}
+                                    className="text-xs p-1 rounded truncate"
+                                    style={{ backgroundColor: bgColor, color: 'white' }}
+                                  >
+                                    {displayName}
+                                  </div>
+                                );
+                              } else if (item.type === 'event' && item.event) {
+                                return (
+                                  <div
+                                    key={item.id}
+                                    onClick={() => setSelectedEvent(item.event!)}
+                                    className="text-xs p-1 rounded truncate cursor-pointer hover:opacity-80"
+                                    style={{ backgroundColor: getEventColor(item.event), color: 'white' }}
+                                  >
+                                    {item.event.startTime} {item.event.title}
+                                  </div>
+                                );
+                              }
+                              return null;
                             })}
-                            {nonClassEvents.slice(0, Math.max(0, 3 - dayCourses.length)).map((event) => (
-                              <div
-                                key={event.id}
-                                onClick={() => setSelectedEvent(event)}
-                                className="text-xs p-1 rounded truncate cursor-pointer hover:opacity-80"
-                                style={{ backgroundColor: getEventColor(event), color: 'white' }}
+                            {hasMore && !isExpanded && (
+                              <div 
+                                className="text-xs text-gray-500 pl-1 cursor-pointer hover:text-gray-700 hover:underline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedDay(dateStr);
+                                }}
                               >
-                                {event.startTime} {event.title}
+                                +{allItems.length - 3} more
                               </div>
-                            ))}
-                            {(dayCourses.length + nonClassEvents.length) > 3 && (
-                              <div className="text-xs text-gray-500 pl-1">
-                                +{dayCourses.length + nonClassEvents.length - 3} more
+                            )}
+                            {isExpanded && (
+                              <div 
+                                className="text-xs text-gray-500 pl-1 cursor-pointer hover:text-gray-700 hover:underline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedDay(null);
+                                }}
+                              >
+                                Show less
                               </div>
                             )}
                           </div>
@@ -1211,7 +1520,8 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                       );
                       })}
                     </div>
-                  ))}
+                  );
+                })}
                 </div>
               </div>
             </div>
@@ -1292,7 +1602,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                       return (
                         <div className="absolute left-[60px] right-0 top-0 z-20" style={{ height: `${hours.length * 60}px`, width: 'calc(100% - 60px)' }}>
                           {dayCourses.map((course, courseIndex) => {
-                            const timePosition = parseTimeToPosition(course.schedule?.times || '');
+                            const timePosition = parseTimeToPosition(course.schedule?.times || '', startHour);
                             if (!timePosition) return null;
                             
                             const displayName = formatDisplayCourseName(course.class);
@@ -1312,7 +1622,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                               >
                                 <div className="font-medium truncate">{displayName}</div>
                                 <div className="text-white/90 mt-1 leading-none flex items-center">
-                                  <span>{course.schedule?.times || 'TBD'}</span>
+                                  <span>{formatCourseTime(course.schedule?.times || 'TBD')}</span>
                                 </div>
                               </div>
                             );
@@ -1335,7 +1645,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                           }}
                         >
                           {dayCourses.map((course, courseIndex) => {
-                            const timePosition = parseTimeToPosition(course.schedule?.times || '');
+                            const timePosition = parseTimeToPosition(course.schedule?.times || '', startHour);
                             if (!timePosition) return null;
                             
                             const displayName = formatDisplayCourseName(course.class);
@@ -1353,7 +1663,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                               >
                                 <div className="font-medium truncate">{displayName}</div>
                                 <div className="text-white/90 mt-1 leading-none flex items-center">
-                                  <span>{course.schedule?.times || 'TBD'}</span>
+                                  <span>{formatCourseTime(course.schedule?.times || 'TBD')}</span>
                                 </div>
                               </div>
                             );
@@ -1362,6 +1672,208 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                       );
                     })
                   ))}
+                  
+                  {/* User events - rendered absolutely like classes with overlap handling */}
+                  {viewMode === 'day' ? (
+                    (() => {
+                      const day = currentDate;
+                      const dayEvents = getEventsForDay(day).filter(e => e.type !== 'class');
+                      
+                      // Group overlapping events (same logic as planner page)
+                      const conflictGroups: Event[][] = [];
+                      const processedEvents = new Set<string>();
+                      
+                      dayEvents.forEach(event => {
+                        if (processedEvents.has(event.id)) return;
+                        
+                        const eventStart = parseTime(event.startTime);
+                        const eventEnd = parseTime(event.endTime);
+                        const eventStartMinutes = eventStart * 60;
+                        const eventEndMinutes = eventEnd * 60;
+                        
+                        // Find all events that overlap with this one
+                        const conflictingEvents = [event];
+                        processedEvents.add(event.id);
+                        
+                        dayEvents.forEach(otherEvent => {
+                          if (processedEvents.has(otherEvent.id)) return;
+                          
+                          const otherStart = parseTime(otherEvent.startTime);
+                          const otherEnd = parseTime(otherEvent.endTime);
+                          const otherStartMinutes = otherStart * 60;
+                          const otherEndMinutes = otherEnd * 60;
+                          
+                          // Check if times overlap
+                          const hasOverlap = (eventStartMinutes < otherEndMinutes && eventEndMinutes > otherStartMinutes);
+                          
+                          if (hasOverlap) {
+                            conflictingEvents.push(otherEvent);
+                            processedEvents.add(otherEvent.id);
+                          }
+                        });
+                        
+                        // Sort events by start time (earliest first)
+                        conflictingEvents.sort((a, b) => {
+                          const aStart = parseTime(a.startTime);
+                          const bStart = parseTime(b.startTime);
+                          return aStart - bStart;
+                        });
+                        
+                        conflictGroups.push(conflictingEvents);
+                      });
+                      
+                      return (
+                        <div className="absolute left-[60px] right-0 top-0 z-20" style={{ height: `${hours.length * 60}px`, width: 'calc(100% - 60px)' }}>
+                          {conflictGroups.map((events) => {
+                            return events.map((event, index) => {
+                              const timePosition = parseEventTimeToPosition(event.startTime, event.endTime, startHour);
+                              if (!timePosition) return null;
+                              
+                              const color = getEventColor(event);
+                              const isConflicted = events.length > 1;
+                              // Calculate width: each event gets equal share of available space
+                              // Available space = 100% - 8px (padding) - (N-1)*2px (gaps)
+                              const totalGaps = (events.length - 1) * 2;
+                              const eventWidth = isConflicted 
+                                ? `calc((100% - ${8 + totalGaps}px) / ${events.length})` 
+                                : 'calc(100% - 8px)';
+                              // Left offset: percentage of available space + gaps before + padding
+                              // Available space percentage: (100% - 8px - totalGaps) / events.length * index
+                              // Then add gaps (index * 2px) and padding (4px)
+                              const leftOffset = isConflicted 
+                                ? `calc((100% - ${8 + totalGaps}px) / ${events.length} * ${index} + ${index * 2}px + 4px)` 
+                                : '4px';
+                              
+                              return (
+                                <div
+                                  key={event.id}
+                                  onClick={() => setSelectedEvent(event)}
+                                  className="absolute text-white rounded text-xs p-2 cursor-pointer hover:opacity-90"
+                                  style={{
+                                    top: `${timePosition.startPosition}px`,
+                                    height: `${timePosition.height}px`,
+                                    left: leftOffset,
+                                    width: eventWidth,
+                                    backgroundColor: color,
+                                    pointerEvents: 'auto',
+                                    zIndex: 20 + index
+                                  }}
+                                >
+                                  <div className="font-medium truncate">{event.title}</div>
+                                  <div className="text-white/90 mt-1 leading-none flex items-center">
+                                    <span>{formatTimeRange(event.startTime, event.endTime)}</span>
+                                  </div>
+                                </div>
+                              );
+                            });
+                          })}
+                        </div>
+                      );
+                    })()
+                  ) : (
+                    weekDays.map((day, dayIdx) => {
+                      const dayEvents = getEventsForDay(day).filter(e => e.type !== 'class');
+                      
+                      // Group overlapping events (same logic as planner page)
+                      const conflictGroups: Event[][] = [];
+                      const processedEvents = new Set<string>();
+                      
+                      dayEvents.forEach(event => {
+                        if (processedEvents.has(event.id)) return;
+                        
+                        const eventStart = parseTime(event.startTime);
+                        const eventEnd = parseTime(event.endTime);
+                        const eventStartMinutes = eventStart * 60;
+                        const eventEndMinutes = eventEnd * 60;
+                        
+                        // Find all events that overlap with this one
+                        const conflictingEvents = [event];
+                        processedEvents.add(event.id);
+                        
+                        dayEvents.forEach(otherEvent => {
+                          if (processedEvents.has(otherEvent.id)) return;
+                          
+                          const otherStart = parseTime(otherEvent.startTime);
+                          const otherEnd = parseTime(otherEvent.endTime);
+                          const otherStartMinutes = otherStart * 60;
+                          const otherEndMinutes = otherEnd * 60;
+                          
+                          // Check if times overlap
+                          const hasOverlap = (eventStartMinutes < otherEndMinutes && eventEndMinutes > otherStartMinutes);
+                          
+                          if (hasOverlap) {
+                            conflictingEvents.push(otherEvent);
+                            processedEvents.add(otherEvent.id);
+                          }
+                        });
+                        
+                        // Sort events by start time (earliest first)
+                        conflictingEvents.sort((a, b) => {
+                          const aStart = parseTime(a.startTime);
+                          const bStart = parseTime(b.startTime);
+                          return aStart - bStart;
+                        });
+                        
+                        conflictGroups.push(conflictingEvents);
+                      });
+                      
+                      return (
+                        <div
+                          key={`events-${dayIdx}`}
+                          className="absolute top-0 z-10"
+                          style={{
+                            left: `calc(60px + ${dayIdx} * calc((100% - 60px) / 7))`,
+                            width: `calc((100% - 60px) / 7)`,
+                            height: `${hours.length * 60}px`,
+                            minHeight: `${hours.length * 60}px`
+                          }}
+                        >
+                          {conflictGroups.map((events) => {
+                            return events.map((event, index) => {
+                              const timePosition = parseEventTimeToPosition(event.startTime, event.endTime, startHour);
+                              if (!timePosition) return null;
+                              
+                              const color = getEventColor(event);
+                              const isConflicted = events.length > 1;
+                              // Calculate width: each event gets equal share of available space
+                              // Available space = 100% - 8px (padding) - (N-1)*2px (gaps)
+                              const totalGaps = (events.length - 1) * 2;
+                              const eventWidth = isConflicted 
+                                ? `calc((100% - ${8 + totalGaps}px) / ${events.length})` 
+                                : 'calc(100% - 8px)';
+                              // Left offset: percentage of available space + gaps before + padding
+                              // Available space percentage: (100% - 8px - totalGaps) / events.length * index
+                              // Then add gaps (index * 2px) and padding (4px)
+                              const leftOffset = isConflicted 
+                                ? `calc((100% - ${8 + totalGaps}px) / ${events.length} * ${index} + ${index * 2}px + 4px)` 
+                                : '4px';
+                              
+                              return (
+                                <div
+                                  key={event.id}
+                                  onClick={() => setSelectedEvent(event)}
+                                  className="absolute text-white rounded text-xs p-2 cursor-pointer hover:opacity-90 z-10"
+                                  style={{
+                                    top: `${timePosition.startPosition}px`,
+                                    height: `${timePosition.height}px`,
+                                    left: leftOffset,
+                                    width: eventWidth,
+                                    backgroundColor: color,
+                                    zIndex: 10 + index
+                                  }}
+                                >
+                                  <div className="font-medium truncate">{event.title}</div>
+                                  <div className="text-white/90 mt-1 leading-none flex items-center">
+                                    <span>{formatTimeRange(event.startTime, event.endTime)}</span>
+                                  </div>
+                                </div>
+                              );
+                            });
+                          })}
+                        </div>
+                      );
+                    })
+                  )}
                   
                   {hours.map((hour) => {
                     // Check if any day in this row is today
@@ -1382,8 +1894,8 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                     >
                       {/* Current time indicator - spans entire row */}
                       {isTodayInRow && 
-                       currentTimePosition >= 8 && 
-                       currentTimePosition < 20 && 
+                       currentTimePosition >= startHour && 
+                       currentTimePosition < (hours[hours.length - 1] + 1) && 
                        hour === Math.floor(currentTimePosition) && (
                         <div
                           className="absolute z-30 pointer-events-none"
@@ -1411,141 +1923,25 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                         </span>
                       </div>
                       
-                      {/* Day columns */}
+                      {/* Day columns - just background cells, events rendered absolutely above */}
                       {viewMode === 'day' ? (
-                        (() => {
-                          const day = currentDate;
-                          const isToday = day.toDateString() === today.toDateString();
-                          const events = getEventsForDay(day);
-                          
-                          // Get all events that overlap with this hour
-                          const hourEvents = events.filter((event) => {
-                            const eventStart = parseTime(event.startTime);
-                            const eventEnd = parseTime(event.endTime);
-                            // Event overlaps with this hour if it starts before hour+1 and ends after hour
-                            return eventStart < hour + 1 && eventEnd > hour;
-                          });
-
-                          return (
-                            <div
-                              className={cn(
-                                'relative border-r border-b border-[#E5DFD4]',
-                                isToday ? 'bg-blue-50/30' : 'bg-[#FEFBF6]'
-                              )}
-                            >
-
-                              {/* Event blocks */}
-                              {hourEvents.map((event) => {
-                                const eventStart = parseTime(event.startTime);
-                                const eventEnd = parseTime(event.endTime);
-                                
-                                // Calculate position within this hour row
-                                const startInHour = Math.max(0, eventStart - hour);
-                                const endInHour = Math.min(1, eventEnd - hour);
-                                const durationInHour = endInHour - startInHour;
-                                
-                                const heightMultiplier = 60; // 60px per hour
-                                const eventHeight = Math.max(durationInHour * heightMultiplier - 2, 20);
-                                const topOffset = startInHour * heightMultiplier;
-                                const color = getEventColor(event);
-
-                                return (
-                                  <div
-                                    key={event.id}
-                                    onClick={() => setSelectedEvent(event)}
-                                    className="absolute left-0.5 right-0.5 rounded shadow-sm cursor-pointer hover:shadow-md transition-shadow z-20 overflow-hidden"
-                                    style={{
-                                      backgroundColor: color,
-                                      height: `${eventHeight}px`,
-                                      top: `${topOffset + 1}px`,
-                                      border: `1px solid ${color}`,
-                                    }}
-                                  >
-                                    <div className="p-1 h-full flex flex-col text-white">
-                                      <div className="text-xs font-medium leading-tight truncate">
-                                        {event.title}
-                                      </div>
-                                      <div className="text-xs leading-tight opacity-90 truncate">
-                                        {formatTime(event.startTime)} - {formatTime(event.endTime)}
-                                      </div>
-                                      {event.location && eventHeight > 50 && (
-                                        <div className="text-xs leading-tight opacity-80 truncate">
-                                          {event.location}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                                })}
-                            </div>
-                          );
-                        })()
+                        <div
+                          className={cn(
+                            'border-r border-b border-[#E5DFD4]',
+                            currentDate.toDateString() === today.toDateString() ? 'bg-blue-50/30' : 'bg-[#FEFBF6]'
+                          )}
+                        />
                       ) : (
                         weekDays.map((day, dayIdx) => {
                           const isToday = day.toDateString() === today.toDateString();
-                          const events = getEventsForDay(day);
-                          const dayCourses = getCoursesForDay(day);
-                          
-                          // Get all events that overlap with this hour
-                          const hourEvents = events.filter((event) => {
-                            const eventStart = parseTime(event.startTime);
-                            const eventEnd = parseTime(event.endTime);
-                            // Event overlaps with this hour if it starts before hour+1 and ends after hour
-                            return eventStart < hour + 1 && eventEnd > hour;
-                          });
-
                           return (
                             <div
                               key={dayIdx}
                               className={cn(
-                                'relative border-r border-b border-[#E5DFD4] last:border-r-0',
+                                'border-r border-b border-[#E5DFD4] last:border-r-0',
                                 isToday ? 'bg-blue-50/30' : 'bg-[#FEFBF6]'
                               )}
-                            >
-                              {/* Event blocks */}
-                              {hourEvents.map((event) => {
-                                const eventStart = parseTime(event.startTime);
-                                const eventEnd = parseTime(event.endTime);
-                                
-                                // Calculate position within this hour row
-                                const startInHour = Math.max(0, eventStart - hour);
-                                const endInHour = Math.min(1, eventEnd - hour);
-                                const durationInHour = endInHour - startInHour;
-                                
-                                const heightMultiplier = 60; // 60px per hour
-                                const eventHeight = Math.max(durationInHour * heightMultiplier - 2, 20);
-                                const topOffset = startInHour * heightMultiplier;
-                                const color = getEventColor(event);
-
-                                return (
-                                  <div
-                                    key={event.id}
-                                    onClick={() => setSelectedEvent(event)}
-                                    className="absolute left-0.5 right-0.5 rounded shadow-sm cursor-pointer hover:shadow-md transition-shadow z-20 overflow-hidden"
-                                    style={{
-                                      backgroundColor: color,
-                                      height: `${eventHeight}px`,
-                                      top: `${topOffset + 1}px`,
-                                      border: `1px solid ${color}`,
-                                    }}
-                                  >
-                                    <div className="p-1 h-full flex flex-col text-white">
-                                      <div className="text-xs font-medium leading-tight truncate">
-                                        {event.title}
-                                      </div>
-                                      <div className="text-xs leading-tight opacity-90 truncate">
-                                        {formatTime(event.startTime)} - {formatTime(event.endTime)}
-                                      </div>
-                                      {event.location && eventHeight > 50 && (
-                                        <div className="text-xs leading-tight opacity-80 truncate">
-                                          {event.location}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                  );
-                                })}
-                            </div>
+                            />
                           );
                         })
                       )}
@@ -2025,7 +2421,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
       {/* Event Details Dialog */}
       {selectedEvent && (
         <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
-          <DialogContent className="bg-[#FEFBF6] max-w-md">
+          <DialogContent className="bg-[#FEFBF6] max-w-md" style={{ backgroundColor: '#FEFBF6' }}>
             <DialogHeader>
               <DialogTitle className="text-xl text-gray-900">{selectedEvent.title}</DialogTitle>
               <DialogDescription className="sr-only">
@@ -2045,7 +2441,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                     })}
                   </div>
                   <div className="text-sm text-gray-600">
-                    {formatTime(selectedEvent.startTime)} - {formatTime(selectedEvent.endTime)}
+                    {formatTimeRange(selectedEvent.startTime, selectedEvent.endTime)}
                   </div>
                 </div>
               </div>

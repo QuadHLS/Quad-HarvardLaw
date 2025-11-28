@@ -10,8 +10,6 @@ import {
   List,
   MapPin,
   Users,
-  Download,
-  Upload,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import {
@@ -27,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { cn } from './ui/utils';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 // ToggleGroup Component
 interface ToggleGroupProps {
@@ -178,6 +177,8 @@ interface CalendarPageProps {
 
 export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('week');
   const [showEventsMenu, setShowEventsMenu] = useState(false);
@@ -189,6 +190,8 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showOrgFilterDialog, setShowOrgFilterDialog] = useState(false);
   const [selectedOrgs, setSelectedOrgs] = useState<Set<string>>(new Set());
+  const [googleCalendarConnected, setGoogleCalendarConnected] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   
   // User courses state (same as HomePage)
   const [userCourses, setUserCourses] = useState<UserCourse[]>([]);
@@ -239,9 +242,38 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
   const [showClasses, setShowClasses] = useState(true);
   const [showClubEvents, setShowClubEvents] = useState(true);
   const [showOther, setShowOther] = useState(true);
+  const [showGoogleCalendar, setShowGoogleCalendar] = useState(true);
 
   // Current time state for real-time updates
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Check URL params for OAuth callback results
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const connected = params.get('connected');
+    const error = params.get('error');
+
+    if (connected === 'true') {
+      // Successfully connected
+      setGoogleCalendarConnected(true);
+      // Clear URL params
+      navigate('/calendar', { replace: true });
+      // Automatically sync once after connection
+      // Pass skipConnectionCheck=true since we just connected but state might not be updated yet
+      if (user) {
+        setTimeout(() => {
+          handleImportGoogleCalendar(true);
+        }, 100);
+      }
+    } else if (error) {
+      // Handle error
+      console.error('Google Calendar connection error:', error);
+      // Clear URL params
+      navigate('/calendar', { replace: true });
+      // Optionally show an error message
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location, navigate, user]);
 
   // Fetch user's profile, courses, and events (same as HomePage)
   useEffect(() => {
@@ -253,7 +285,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
       try {
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('full_name, classes, class_year, user_events')
+          .select('full_name, classes, class_year, user_events, google_calendar_connected, google_calendar_events')
           .eq('id', user.id)
           .single();
 
@@ -264,6 +296,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
 
         if (profile) {
           setUserCourses(profile.classes || []);
+          setGoogleCalendarConnected(profile.google_calendar_connected || false);
           
           // Load user events from database
           if (profile.user_events && Array.isArray(profile.user_events)) {
@@ -280,6 +313,33 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
             
             setCustomEvents(loadedEvents);
             setAddedEventIds(loadedEvents.map(e => e.id));
+          }
+
+          // Load Google Calendar events
+          if (profile.google_calendar_events && Array.isArray(profile.google_calendar_events)) {
+            const googleEvents: Event[] = profile.google_calendar_events.map((eventDb: any) => ({
+              id: `google-${eventDb.id}`,
+              title: eventDb.event_title,
+              date: eventDb.date,
+              startTime: eventDb.start_time,
+              endTime: eventDb.end_time,
+              type: eventDb.event_type || 'personal',
+              location: eventDb.location || undefined,
+              description: eventDb.description || undefined,
+            }));
+            
+            // Merge with existing custom events
+            setCustomEvents(prev => {
+              const existingIds = new Set(prev.map(e => e.id));
+              const newGoogleEvents = googleEvents.filter(e => !existingIds.has(e.id));
+              // Also add Google Calendar event IDs to addedEventIds so they display
+              setAddedEventIds(prevIds => {
+                const newIds = newGoogleEvents.map(e => e.id);
+                const existingIdSet = new Set(prevIds);
+                return [...prevIds, ...newIds.filter(id => !existingIdSet.has(id))];
+              });
+              return [...prev, ...newGoogleEvents];
+            });
           }
         }
       } catch (error) {
@@ -352,6 +412,9 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
       return showClasses;
     } else if (event.type === 'club-event') {
       return showClubEvents;
+    } else if (event.id.startsWith('google-')) {
+      // Google Calendar events
+      return showGoogleCalendar;
     } else if (event.id.startsWith('custom-')) {
       // User-created events (Your Events)
       return showOther;
@@ -371,35 +434,64 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
 
   // Handler to remove event from calendar
   const handleRemoveEvent = async (eventId: string) => {
-    // Check if this is a user-created event (starts with "custom-")
-    const isUserEvent = eventId.startsWith('custom-');
+    // Check if this is a user-created event (starts with "custom-") or Google Calendar event (starts with "google-")
+    const isUserEvent = eventId.startsWith('custom-') || eventId.startsWith('google-');
     
     if (isUserEvent && user) {
       // Remove from database
       try {
-        // Fetch current user_events
+        // Fetch current profile data
         const { data: profile, error: fetchError } = await supabase
           .from('profiles')
-          .select('user_events')
+          .select('user_events, google_calendar_events')
           .eq('id', user.id)
           .single();
 
         if (fetchError) {
           console.error('Error fetching profile:', fetchError);
-        } else if (profile?.user_events && Array.isArray(profile.user_events)) {
-          // Remove the event from the array
-          const updatedEvents = (profile.user_events as any[]).filter(
-            (eventDb: any) => eventDb.id !== eventId
-          );
+        } else if (profile) {
+          // Handle user-created events (custom-)
+          // Note: user-created events store the ID with the "custom-" prefix in the database
+          if (eventId.startsWith('custom-')) {
+            if (profile.user_events && Array.isArray(profile.user_events)) {
+              // Remove the event from the array (ID in DB includes the "custom-" prefix)
+              const updatedEvents = (profile.user_events as any[]).filter(
+                (eventDb: any) => eventDb.id !== eventId
+              );
 
-          // Update database
-          const { error: updateError } = await supabase
-            .from('profiles')
-            .update({ user_events: updatedEvents })
-            .eq('id', user.id);
+              // Update database
+              const { error: updateError } = await supabase
+                .from('profiles')
+                .update({ user_events: updatedEvents })
+                .eq('id', user.id);
 
-          if (updateError) {
-            console.error('Error removing event from database:', updateError);
+              if (updateError) {
+                console.error('Error removing event from database:', updateError);
+              }
+            }
+          }
+          
+          // Handle Google Calendar events (google-)
+          // Note: Google Calendar events store the ID without the "google-" prefix in the database
+          if (eventId.startsWith('google-')) {
+            if (profile.google_calendar_events && Array.isArray(profile.google_calendar_events)) {
+              // Extract the actual event ID (remove "google-" prefix)
+              const actualEventId = eventId.replace('google-', '');
+              // Remove the event from the array
+              const updatedGoogleEvents = (profile.google_calendar_events as any[]).filter(
+                (eventDb: any) => eventDb.id !== actualEventId
+              );
+
+              // Update database
+              const { error: updateError } = await supabase
+                .from('profiles')
+                .update({ google_calendar_events: updatedGoogleEvents })
+                .eq('id', user.id);
+
+              if (updateError) {
+                console.error('Error removing Google Calendar event from database:', updateError);
+              }
+            }
           }
         }
       } catch (error) {
@@ -425,7 +517,12 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
 
   // Check if an event is on the calendar
   const isEventOnCalendar = (event: Event): boolean => {
-    return event.type === 'class' || addedEventIds.includes(event.id);
+    // Classes are always on the calendar
+    if (event.type === 'class') return true;
+    // User-created events (custom-) and Google Calendar events (google-) are always on the calendar
+    if (event.id.startsWith('custom-') || event.id.startsWith('google-')) return true;
+    // Other events need to be in addedEventIds
+    return addedEventIds.includes(event.id);
   };
 
   // Handler to create new event
@@ -511,6 +608,233 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
       location: '',
       description: '',
     });
+  };
+
+  // Handler to connect Google Calendar
+  const handleConnectGoogleCalendar = async () => {
+    if (!user) {
+      alert('Please log in to connect Google Calendar');
+      console.error('User not authenticated');
+      return;
+    }
+
+    try {
+      // Get Supabase URL and anon key from environment
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      if (!supabaseUrl) {
+        alert('Supabase URL not configured. Please check your environment variables.');
+        console.error('Supabase URL not configured');
+        return;
+      }
+
+      if (!supabaseAnonKey) {
+        alert('Supabase anon key not configured. Please check your environment variables.');
+        console.error('Supabase anon key not configured');
+        return;
+      }
+
+      // Call the OAuth start function
+      // Get the current session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        alert('Error getting session: ' + sessionError.message);
+        console.error('Session error:', sessionError);
+        return;
+      }
+      
+      if (!session || !session.access_token) {
+        alert('No active session. Please log in again.');
+        console.error('No active session or access token');
+        return;
+      }
+
+      console.log('Calling google-oauth-start...');
+      console.log('Session token exists:', !!session.access_token);
+      
+      const response = await fetch(`${supabaseUrl}/functions/v1/google-oauth-start`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': supabaseAnonKey,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText };
+        }
+        alert('Error starting OAuth: ' + (errorData.error || 'Unknown error'));
+        console.error('Error starting OAuth:', errorData);
+        return;
+      }
+
+      const data = await response.json();
+      console.log('OAuth start response:', data);
+      
+      if (!data.authUrl) {
+        alert('No auth URL received from server');
+        console.error('No authUrl in response:', data);
+        return;
+      }
+
+      const { authUrl } = data;
+      
+      // Redirect to Google OAuth
+      console.log('Redirecting to:', authUrl);
+      window.location.href = authUrl;
+    } catch (error: any) {
+      alert('Error connecting Google Calendar: ' + (error.message || 'Unknown error'));
+      console.error('Error connecting Google Calendar:', error);
+    }
+  };
+
+  // Handler to import Google Calendar events
+  const handleImportGoogleCalendar = async (skipConnectionCheck = false) => {
+    if (!user) {
+      console.error('User not authenticated');
+      return;
+    }
+
+    if (!skipConnectionCheck && !googleCalendarConnected) {
+      console.error('Google Calendar not connected');
+      return;
+    }
+
+    setIsImporting(true);
+
+    try {
+      // Get Supabase URL from environment
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      if (!supabaseUrl) {
+        console.error('Supabase URL not configured');
+        setIsImporting(false);
+        return;
+      }
+
+      // Get session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.error('No active session');
+        setIsImporting(false);
+        return;
+      }
+
+      // Call the import function
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const response = await fetch(`${supabaseUrl}/functions/v1/google-calendar-import`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': supabaseAnonKey || '',
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Error importing events:', errorData);
+        setIsImporting(false);
+        return;
+      }
+
+      const result = await response.json();
+      console.log(`Successfully imported ${result.imported} events`);
+
+      // Refresh the profile to get updated events
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('google_calendar_events, google_last_synced')
+        .eq('id', user.id)
+        .single();
+
+      if (!error && profile) {
+        // Update Google Calendar connection status
+        setGoogleCalendarConnected(true);
+
+        // Load Google Calendar events
+        if (profile.google_calendar_events && Array.isArray(profile.google_calendar_events)) {
+          const googleEvents: Event[] = profile.google_calendar_events.map((eventDb: any) => ({
+            id: `google-${eventDb.id}`,
+            title: eventDb.event_title,
+            date: eventDb.date,
+            startTime: eventDb.start_time,
+            endTime: eventDb.end_time,
+            type: eventDb.event_type || 'personal',
+            location: eventDb.location || undefined,
+            description: eventDb.description || undefined,
+          }));
+
+          // Merge with existing custom events (avoid duplicates)
+          setCustomEvents(prev => {
+            const existingIds = new Set(prev.map(e => e.id));
+            const newGoogleEvents = googleEvents.filter(e => !existingIds.has(e.id));
+            // Add Google Calendar event IDs to addedEventIds so they display
+            setAddedEventIds(prevIds => {
+              const newIds = newGoogleEvents.map(e => e.id);
+              const existingIdSet = new Set(prevIds);
+              return [...prevIds, ...newIds.filter(id => !existingIdSet.has(id))];
+            });
+            return [...prev, ...newGoogleEvents];
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error importing Google Calendar:', error);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleDisconnectGoogleCalendar = async () => {
+    if (!user) return;
+
+    try {
+      // Delete tokens from user_google_tokens table
+      const { error: tokenError } = await supabase
+        .from('user_google_tokens')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (tokenError) {
+        console.error('Error deleting Google tokens:', tokenError);
+      }
+
+      // Clear Google Calendar data from profiles table
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          google_calendar_events: [],
+          google_calendar_connected: false,
+          google_last_synced: null,
+        })
+        .eq('id', user.id);
+
+      if (profileError) {
+        console.error('Error clearing Google Calendar data:', profileError);
+        return;
+      }
+
+      // Update local state
+      setGoogleCalendarConnected(false);
+
+      // Remove Google Calendar events from local state
+      setCustomEvents(prev => prev.filter(e => !e.id.startsWith('google-')));
+      setAddedEventIds(prevIds => prevIds.filter(id => !id.startsWith('google-')));
+
+      console.log('Google Calendar disconnected successfully');
+    } catch (error) {
+      console.error('Error disconnecting Google Calendar:', error);
+    }
   };
 
   const formatDate = (date: Date): string => {
@@ -696,7 +1020,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
       // Check if course is for the semester of the date being viewed using multi-semester logic
       const courseSemester = course.schedule?.semester;
       
-      if (!courseMatchesSemester(courseSemester, selectedTerm)) {
+      if (!courseSemester || !courseMatchesSemester(courseSemester, selectedTerm)) {
         return false;
       }
       
@@ -950,7 +1274,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
   // Get events for the current view (only user-created events)
   const getEventsForCurrentView = (): Event[] => {
     // Only show user-created events (events with IDs starting with "custom-")
-    let events = filteredEvents.filter((event) => event.type !== 'class' && event.id.startsWith('custom-'));
+    let events = filteredEvents.filter((event) => event.type !== 'class' && (event.id.startsWith('custom-') || event.id.startsWith('google-')));
 
     if (viewMode === 'day') {
       const dateStr = currentDate.toISOString().split('T')[0];
@@ -1168,6 +1492,11 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
           border-color: #10B981;
         }
         
+        .calendar-page input[type="checkbox"].checkbox-google-calendar:checked {
+          background-color: #4285F4;
+          border-color: #4285F4;
+        }
+        
         /* Make checkmark white for all checkboxes */
         .calendar-page input[type="checkbox"]:checked::after {
           content: '';
@@ -1374,6 +1703,25 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                   <span className="text-sm text-gray-700 truncate">Classes</span>
                 </div>
               </div>
+              {googleCalendarConnected && (
+                <div
+                  className="flex items-center gap-2 py-1 cursor-pointer hover:bg-[#F5F1E8] rounded px-2"
+                  onClick={() => setShowGoogleCalendar(!showGoogleCalendar)}
+                >
+                  <input
+                    type="checkbox"
+                    checked={showGoogleCalendar}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      setShowGoogleCalendar(!showGoogleCalendar);
+                    }}
+                    className="rounded checkbox-google-calendar"
+                  />
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="text-sm text-gray-700 truncate">Google Calendar</span>
+                  </div>
+                </div>
+              )}
               <div
                 className="flex items-center gap-2 py-1 cursor-pointer hover:bg-[#F5F1E8] rounded px-2"
                 onClick={() => setShowOther(!showOther)}
@@ -2083,15 +2431,15 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                           className="h-5 w-5 p-0 flex-shrink-0 ml-2"
                           onClick={(e) => {
                             e.stopPropagation();
-                            // If it's a user-created event, always call handleRemoveEvent to delete from database
-                            if (event.id.startsWith('custom-')) {
+                            // If it's a user-created event or Google Calendar event, always call handleRemoveEvent to delete from database
+                            if (event.id.startsWith('custom-') || event.id.startsWith('google-')) {
                               handleRemoveEvent(event.id);
                             } else {
                               handleToggleEvent(event.id);
                             }
                           }}
                         >
-                          {addedEventIds.includes(event.id) || event.id.startsWith('custom-') ? (
+                          {addedEventIds.includes(event.id) || event.id.startsWith('custom-') || event.id.startsWith('google-') ? (
                             <X className="h-3 w-3 text-red-600" />
                           ) : (
                             <Plus className="h-3 w-3 text-gray-700" />
@@ -2149,7 +2497,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                               }
                             }}
                           >
-                            {addedEventIds.includes(event.id) || event.id.startsWith('custom-') ? (
+                            {addedEventIds.includes(event.id) || event.id.startsWith('custom-') || event.id.startsWith('google-') ? (
                               <X className="h-4 w-4 text-red-600" />
                             ) : (
                               <Plus className="h-4 w-4 text-gray-700" />
@@ -2220,7 +2568,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                 }
                               }}
                             >
-                              {addedEventIds.includes(event.id) || event.id.startsWith('custom-') ? (
+                              {addedEventIds.includes(event.id) || event.id.startsWith('custom-') || event.id.startsWith('google-') ? (
                                 <X className="h-3 w-3 text-red-600" />
                               ) : (
                                 <Plus className="h-3 w-3 text-gray-700" />
@@ -2295,7 +2643,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                   }
                                 }}
                               >
-                                {addedEventIds.includes(event.id) || event.id.startsWith('custom-') ? (
+                                {addedEventIds.includes(event.id) || event.id.startsWith('custom-') || event.id.startsWith('google-') ? (
                                   <X className="h-4 w-4 text-red-600" />
                                 ) : (
                                   <Plus className="h-4 w-4 text-gray-700" />
@@ -2346,19 +2694,24 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-auto py-1 px-2 text-xs border-gray-300 hover:bg-white"
-                    onClick={() => {}}
+                    className={cn(
+                      "h-auto py-1 px-2 text-xs",
+                      googleCalendarConnected
+                        ? "bg-green-600 text-white border-green-600 hover:bg-green-700 hover:border-green-700"
+                        : "border-gray-300 hover:bg-white"
+                    )}
+                    onClick={googleCalendarConnected ? handleDisconnectGoogleCalendar : handleConnectGoogleCalendar}
                   >
-                    Connect
+                    {googleCalendarConnected ? 'Disconnect' : 'Connect'}
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     className="h-auto py-1 px-2 text-xs border-gray-300 hover:bg-white"
-                    onClick={() => {}}
+                    onClick={() => handleImportGoogleCalendar()}
+                    disabled={!googleCalendarConnected || isImporting}
                   >
-                    <Upload className="w-3 h-3 mr-1.5" />
-                    Export
+                    {isImporting ? 'Syncing...' : 'Sync'}
                   </Button>
                 </div>
               </div>

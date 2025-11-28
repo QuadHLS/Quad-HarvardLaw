@@ -189,7 +189,6 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showOrgFilterDialog, setShowOrgFilterDialog] = useState(false);
   const [selectedOrgs, setSelectedOrgs] = useState<Set<string>>(new Set());
-  const [eventsFilter, setEventsFilter] = useState<'all' | 'my-events'>('all');
   
   // User courses state (same as HomePage)
   const [userCourses, setUserCourses] = useState<UserCourse[]>([]);
@@ -310,6 +309,11 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
   // Close events panel when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // Don't close events menu if event modal is open
+      if (selectedEvent) {
+        return;
+      }
+      
       if (
         showEventsMenu &&
         eventsPanelRef.current &&
@@ -317,6 +321,12 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
         !eventsPanelRef.current.contains(event.target as Node) &&
         !eventsButtonRef.current.contains(event.target as Node)
       ) {
+        // Check if click is on dialog overlay or content
+        const target = event.target as HTMLElement;
+        if (target.closest('[data-slot="dialog-overlay"]') || target.closest('[data-slot="dialog-content"]')) {
+          return;
+        }
+        
         setIsClosingEventsMenu(true);
         setTimeout(() => {
           setShowEventsMenu(false);
@@ -332,7 +342,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showEventsMenu]);
+  }, [showEventsMenu, selectedEvent]);
 
   const allEvents = [...additionalEvents, ...customEvents];
 
@@ -342,6 +352,9 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
       return showClasses;
     } else if (event.type === 'club-event') {
       return showClubEvents;
+    } else if (event.id.startsWith('custom-')) {
+      // User-created events (Your Events)
+      return showOther;
     } else {
       return showOther;
     }
@@ -644,14 +657,44 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
     return days.map(day => dayMap[day]).filter(day => day !== undefined);
   };
 
+  // Get semester for a specific date (returns null if date is outside semester periods)
+  const getSemesterForDate = (date: Date): string | null => {
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    
+    // Fall: September 2 - November 25
+    if ((month === 9 && day >= 2) || month === 10 || (month === 11 && day <= 25)) {
+      return `${year}FA`;
+    }
+    // Winter: January 5 - January 21
+    else if (month === 1 && day >= 5 && day <= 21) {
+      return `${year}WI`;
+    }
+    // Spring: January 26 - April 24
+    else if ((month === 1 && day >= 26) || month === 2 || month === 3 || (month === 4 && day <= 24)) {
+      return `${year}SP`;
+    }
+    // Return null if outside semester periods (no classes should be displayed)
+    else {
+      return null;
+    }
+  };
+
   // Get courses for a specific day (same logic as HomePage)
   const getCoursesForDay = (day: Date): UserCourse[] => {
+    // If date is outside semester periods, don't show any classes
+    const semesterForDate = getSemesterForDate(day);
+    if (!semesterForDate) {
+      return [];
+    }
+    
     const dayOfWeek = day.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const selectedTerm = semesterForDate.slice(-2) as 'FA' | 'WI' | 'SP';
     
     return userCourses.filter(course => {
-      // Check if course is for selected semester using multi-semester logic
+      // Check if course is for the semester of the date being viewed using multi-semester logic
       const courseSemester = course.schedule?.semester;
-      const selectedTerm = selectedSemester.slice(-2) as 'FA' | 'WI' | 'SP';
       
       if (!courseMatchesSemester(courseSemester, selectedTerm)) {
         return false;
@@ -904,13 +947,10 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
   const miniCalendarDays = getMiniCalendarDays();
   const monthCalendarDays = getMonthCalendarDays();
 
-  // Get events for the current view
+  // Get events for the current view (only user-created events)
   const getEventsForCurrentView = (): Event[] => {
-    let events = filteredEvents.filter((event) => event.type !== 'class');
-
-    if (eventsFilter === 'my-events') {
-      events = events.filter((event) => addedEventIds.includes(event.id));
-    }
+    // Only show user-created events (events with IDs starting with "custom-")
+    let events = filteredEvents.filter((event) => event.type !== 'class' && event.id.startsWith('custom-'));
 
     if (viewMode === 'day') {
       const dateStr = currentDate.toISOString().split('T')[0];
@@ -933,7 +973,10 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
   const groupEventsByDay = (events: Event[]): Record<string, Event[]> => {
     const grouped: Record<string, Event[]> = {};
     events.forEach((event) => {
-      const date = new Date(event.date);
+      // Parse date string manually to avoid timezone issues
+      // event.date is in format "YYYY-MM-DD"
+      const [year, month, day] = event.date.split('-').map(Number);
+      const date = new Date(year, month - 1, day); // month is 0-indexed
       const dayName = date.toLocaleDateString('en-US', {
         weekday: 'long',
         month: 'short',
@@ -1345,7 +1388,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                   className="rounded checkbox-other"
                 />
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <span className="text-sm text-gray-700 truncate">Other</span>
+                  <span className="text-sm text-gray-700 truncate">Your Events</span>
                 </div>
               </div>
             </div>
@@ -1654,15 +1697,15 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                             return (
                               <div
                                 key={`course-${dayIdx}-${courseIndex}`}
-                                className="absolute text-white rounded text-xs p-2 left-1 right-1 z-10"
+                                className="absolute text-white rounded text-xs p-2 left-1 right-1 z-10 overflow-hidden"
                                 style={{
                                   top: `${timePosition.startPosition}px`,
                                   height: `${timePosition.height}px`,
                                   backgroundColor: bgColor
                                 }}
                               >
-                                <div className="font-medium truncate">{displayName}</div>
-                                <div className="text-white/90 mt-1 leading-none flex items-center">
+                                <div className="font-medium overflow-hidden">{displayName}</div>
+                                <div className="text-white/90 mt-1 leading-none overflow-hidden">
                                   <span>{formatCourseTime(course.schedule?.times || 'TBD')}</span>
                                 </div>
                               </div>
@@ -1748,7 +1791,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                 <div
                                   key={event.id}
                                   onClick={() => setSelectedEvent(event)}
-                                  className="absolute text-white rounded text-xs p-2 cursor-pointer hover:opacity-90"
+                                  className="absolute text-white rounded text-xs p-2 cursor-pointer hover:opacity-90 overflow-hidden"
                                   style={{
                                     top: `${timePosition.startPosition}px`,
                                     height: `${timePosition.height}px`,
@@ -1756,11 +1799,12 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                     width: eventWidth,
                                     backgroundColor: color,
                                     pointerEvents: 'auto',
-                                    zIndex: 20 + index
+                                    zIndex: 20 + index,
+                                    maxWidth: eventWidth
                                   }}
                                 >
-                                  <div className="font-medium truncate">{event.title}</div>
-                                  <div className="text-white/90 mt-1 leading-none flex items-center">
+                                  <div className="font-medium overflow-hidden">{event.title}</div>
+                                  <div className="text-white/90 mt-1 leading-none overflow-hidden">
                                     <span>{formatTimeRange(event.startTime, event.endTime)}</span>
                                   </div>
                                 </div>
@@ -1852,18 +1896,19 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                 <div
                                   key={event.id}
                                   onClick={() => setSelectedEvent(event)}
-                                  className="absolute text-white rounded text-xs p-2 cursor-pointer hover:opacity-90 z-10"
+                                  className="absolute text-white rounded text-xs p-2 cursor-pointer hover:opacity-90 z-10 overflow-hidden"
                                   style={{
                                     top: `${timePosition.startPosition}px`,
                                     height: `${timePosition.height}px`,
                                     left: leftOffset,
                                     width: eventWidth,
                                     backgroundColor: color,
-                                    zIndex: 10 + index
+                                    zIndex: 10 + index,
+                                    maxWidth: eventWidth
                                   }}
                                 >
-                                  <div className="font-medium truncate">{event.title}</div>
-                                  <div className="text-white/90 mt-1 leading-none flex items-center">
+                                  <div className="font-medium overflow-hidden">{event.title}</div>
+                                  <div className="text-white/90 mt-1 leading-none overflow-hidden">
                                     <span>{formatTimeRange(event.startTime, event.endTime)}</span>
                                   </div>
                                 </div>
@@ -1982,28 +2027,6 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                 </Button>
               </div>
 
-              <div className="mb-3">
-                <ToggleGroup
-                  type="single"
-                  value={eventsFilter}
-                  onValueChange={(value) => value && setEventsFilter(value as 'all' | 'my-events')}
-                >
-                  <ToggleGroupItem
-                    value="all"
-                    aria-label="All events"
-                    className="flex-1"
-                  >
-                    All Events
-                  </ToggleGroupItem>
-                  <ToggleGroupItem
-                    value="my-events"
-                    aria-label="My events"
-                    className="flex-1 min-w-[120px]"
-                  >
-                    My Events
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </div>
 
               <ToggleGroup
                 type="single"
@@ -2029,35 +2052,46 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                 </div>
               ) : viewMode === 'day' ? (
                 eventsViewMode === 'list' ? (
-                  <div className="space-y-0.5">
+                  <div className="space-y-2">
                     {currentViewEvents.map((event) => (
                       <div
                         key={event.id}
                         onClick={() => setSelectedEvent(event)}
-                        className="flex items-center justify-between p-1.5 hover:bg-[#F5F1E8] rounded cursor-pointer border border-[#E5DFD4] bg-[#FEFBF6]"
+                        className="flex items-center justify-between p-2 hover:bg-[#F5F1E8] rounded cursor-pointer border border-[#E5DFD4] bg-[#FEFBF6]"
                       >
-                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                          <div className="flex-1 min-w-0 truncate">
-                            <span className="text-xs text-gray-900">
-                              {event.organization && (
-                                <span className="px-1.5 py-0.5 text-[10px] rounded bg-[#F5E9EB] text-[#752432] border border-[#E5D5D8] whitespace-nowrap mr-1.5">
-                                  {getOrgAbbreviation(event.organization)}
-                                </span>
-                              )}
-                              {event.title} • {formatTime(event.startTime)}
+                        <div className="flex items-center gap-1.5 flex-1 min-w-0 overflow-hidden">
+                          {event.type && (
+                            <span className="px-1.5 py-0.5 text-[10px] rounded bg-[#F5E9EB] text-[#752432] border border-[#E5D5D8] whitespace-nowrap flex-shrink-0">
+                              {event.type}
                             </span>
-                          </div>
+                          )}
+                          {event.organization && (
+                            <span className="px-1.5 py-0.5 text-[10px] rounded bg-[#F5E9EB] text-[#752432] border border-[#E5D5D8] whitespace-nowrap flex-shrink-0">
+                              {getOrgAbbreviation(event.organization)}
+                            </span>
+                          )}
+                          <span className="text-xs text-gray-900 truncate">
+                            {event.title}
+                            {formatTimeRange(event.startTime, event.endTime) && ` • ${formatTimeRange(event.startTime, event.endTime)}`}
+                            {event.location && ` • ${event.location}`}
+                            {event.description && ` • ${event.description}`}
+                          </span>
                         </div>
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-5 w-5 p-0 flex-shrink-0"
+                          className="h-5 w-5 p-0 flex-shrink-0 ml-2"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleToggleEvent(event.id);
+                            // If it's a user-created event, always call handleRemoveEvent to delete from database
+                            if (event.id.startsWith('custom-')) {
+                              handleRemoveEvent(event.id);
+                            } else {
+                              handleToggleEvent(event.id);
+                            }
                           }}
                         >
-                          {addedEventIds.includes(event.id) ? (
+                          {addedEventIds.includes(event.id) || event.id.startsWith('custom-') ? (
                             <X className="h-3 w-3 text-red-600" />
                           ) : (
                             <Plus className="h-3 w-3 text-gray-700" />
@@ -2076,17 +2110,29 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                       >
                         <div className="flex items-start gap-2">
                           <div className="flex-1 min-w-0">
+                            {event.type && (
+                              <span className="px-1.5 py-0.5 text-[10px] rounded bg-[#F5E9EB] text-[#752432] border border-[#E5D5D8] whitespace-nowrap inline-block mb-1">
+                                {event.type}
+                              </span>
+                            )}
                             {event.organization && (
                               <span className="px-1.5 py-0.5 text-[10px] rounded bg-[#F5E9EB] text-[#752432] border border-[#E5D5D8] whitespace-nowrap inline-block mb-1">
                                 {getOrgAbbreviation(event.organization)}
                               </span>
                             )}
-                            <div className="font-medium text-sm text-gray-900">{event.title}</div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              {event.startTime} - {event.endTime}
+                            <div className="font-medium text-sm text-gray-900 mb-1">{event.title}</div>
+                            <div className="text-xs text-gray-600 mb-1">
+                              {formatTimeRange(event.startTime, event.endTime)}
                             </div>
                             {event.location && (
-                              <div className="text-xs text-gray-500">{event.location}</div>
+                              <div className="text-xs text-gray-600 mb-1">
+                                {event.location}
+                              </div>
+                            )}
+                            {event.description && (
+                              <div className="text-xs text-gray-500 mt-1 line-clamp-2">
+                                {event.description}
+                              </div>
                             )}
                           </div>
                           <Button
@@ -2095,10 +2141,15 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                             className="h-6 w-6 p-0 flex-shrink-0"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleToggleEvent(event.id);
+                              // If it's a user-created event, always call handleRemoveEvent to delete from database
+                              if (event.id.startsWith('custom-')) {
+                                handleRemoveEvent(event.id);
+                              } else {
+                                handleToggleEvent(event.id);
+                              }
                             }}
                           >
-                            {addedEventIds.includes(event.id) ? (
+                            {addedEventIds.includes(event.id) || event.id.startsWith('custom-') ? (
                               <X className="h-4 w-4 text-red-600" />
                             ) : (
                               <Plus className="h-4 w-4 text-gray-700" />
@@ -2116,40 +2167,60 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                     <p>No events for this {viewMode}</p>
                   </div>
                 ) : eventsViewMode === 'list' ? (
-                  Object.entries(groupedEvents).map(([dayName, dayEvents]) => (
+                  Object.entries(groupedEvents).map(([dayName, dayEvents]) => {
+                    // Check if this date is today
+                    const today = new Date();
+                    const isToday = dayEvents.length > 0 && (() => {
+                      const [year, month, day] = dayEvents[0].date.split('-').map(Number);
+                      const eventDate = new Date(year, month - 1, day);
+                      return eventDate.toDateString() === today.toDateString();
+                    })();
+                    
+                    return (
                     <div key={dayName} className="mb-3">
-                      <div className="text-xs text-gray-700 uppercase font-bold mb-1.5 bg-[#752432] text-white px-3 py-1.5 rounded-md shadow-sm border-l-4 border-[#5A1C28]">
-                        {dayName}
+                      <div className="text-xs text-gray-700 uppercase font-bold mb-2 bg-[#752432] text-white px-3 py-1.5 rounded-md shadow-sm border-l-4 border-[#5A1C28]">
+                        {isToday ? `TODAY • ${dayName}` : dayName}
                       </div>
-                      <div className="space-y-0.5">
+                      <div className="space-y-2">
                         {dayEvents.map((event) => (
                           <div
                             key={event.id}
                             onClick={() => setSelectedEvent(event)}
-                            className="flex items-center justify-between p-1.5 hover:bg-[#F5F1E8] rounded cursor-pointer border border-[#E5DFD4] bg-[#FEFBF6]"
+                            className="flex items-center justify-between p-2 hover:bg-[#F5F1E8] rounded cursor-pointer border border-[#E5DFD4] bg-[#FEFBF6]"
                           >
-                            <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                              <div className="flex-1 min-w-0 truncate">
-                                <span className="text-xs text-gray-900">
-                                  {event.organization && (
-                                    <span className="px-1.5 py-0.5 text-[10px] rounded bg-[#F5E9EB] text-[#752432] border border-[#E5D5D8] whitespace-nowrap mr-1.5">
-                                      {getOrgAbbreviation(event.organization)}
-                                    </span>
-                                  )}
-                                  {event.title} • {formatTime(event.startTime)}
+                            <div className="flex items-center gap-1.5 flex-1 min-w-0 overflow-hidden">
+                              {event.type && (
+                                <span className="px-1.5 py-0.5 text-[10px] rounded bg-[#F5E9EB] text-[#752432] border border-[#E5D5D8] whitespace-nowrap flex-shrink-0">
+                                  {event.type}
                                 </span>
-                              </div>
+                              )}
+                              {event.organization && (
+                                <span className="px-1.5 py-0.5 text-[10px] rounded bg-[#F5E9EB] text-[#752432] border border-[#E5D5D8] whitespace-nowrap flex-shrink-0">
+                                  {getOrgAbbreviation(event.organization)}
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-900 truncate">
+                                {event.title}
+                                {formatTimeRange(event.startTime, event.endTime) && ` • ${formatTimeRange(event.startTime, event.endTime)}`}
+                                {event.location && ` • ${event.location}`}
+                                {event.description && ` • ${event.description}`}
+                              </span>
                             </div>
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-5 w-5 p-0 flex-shrink-0"
+                              className="h-5 w-5 p-0 flex-shrink-0 ml-2"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleToggleEvent(event.id);
+                                // If it's a user-created event, always call handleRemoveEvent to delete from database
+                                if (event.id.startsWith('custom-')) {
+                                  handleRemoveEvent(event.id);
+                                } else {
+                                  handleToggleEvent(event.id);
+                                }
                               }}
                             >
-                              {addedEventIds.includes(event.id) ? (
+                              {addedEventIds.includes(event.id) || event.id.startsWith('custom-') ? (
                                 <X className="h-3 w-3 text-red-600" />
                               ) : (
                                 <Plus className="h-3 w-3 text-gray-700" />
@@ -2159,12 +2230,22 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                         ))}
                       </div>
                     </div>
-                  ))
+                    );
+                  })
                 ) : (
-                  Object.entries(groupedEvents).map(([dayName, dayEvents]) => (
+                  Object.entries(groupedEvents).map(([dayName, dayEvents]) => {
+                    // Check if this date is today
+                    const today = new Date();
+                    const isToday = dayEvents.length > 0 && (() => {
+                      const [year, month, day] = dayEvents[0].date.split('-').map(Number);
+                      const eventDate = new Date(year, month - 1, day);
+                      return eventDate.toDateString() === today.toDateString();
+                    })();
+                    
+                    return (
                     <div key={dayName} className="mb-4">
                       <div className="text-xs text-gray-700 uppercase font-bold mb-2 bg-[#752432] text-white px-3 py-1.5 rounded-md shadow-sm border-l-4 border-[#5A1C28]">
-                        {dayName}
+                        {isToday ? `TODAY • ${dayName}` : dayName}
                       </div>
                       <div className="space-y-2">
                         {dayEvents.map((event) => (
@@ -2175,17 +2256,29 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                           >
                             <div className="flex items-start gap-2">
                               <div className="flex-1 min-w-0">
+                                {event.type && (
+                                  <span className="px-1.5 py-0.5 text-[10px] rounded bg-[#F5E9EB] text-[#752432] border border-[#E5D5D8] whitespace-nowrap inline-block mb-1">
+                                    {event.type}
+                                  </span>
+                                )}
                                 {event.organization && (
                                   <span className="px-1.5 py-0.5 text-[10px] rounded bg-[#F5E9EB] text-[#752432] border border-[#E5D5D8] whitespace-nowrap inline-block mb-1">
                                     {getOrgAbbreviation(event.organization)}
                                   </span>
                                 )}
-                                <div className="font-medium text-sm text-gray-900">{event.title}</div>
-                                <div className="text-xs text-gray-500 mt-1">
-                                  {event.startTime} - {event.endTime}
+                                <div className="font-medium text-sm text-gray-900 mb-1">{event.title}</div>
+                                <div className="text-xs text-gray-600 mb-1">
+                                  {formatTimeRange(event.startTime, event.endTime)}
                                 </div>
                                 {event.location && (
-                                  <div className="text-xs text-gray-500">{event.location}</div>
+                                  <div className="text-xs text-gray-600 mb-1">
+                                    {event.location}
+                                  </div>
+                                )}
+                                {event.description && (
+                                  <div className="text-xs text-gray-500 mt-1 line-clamp-2">
+                                    {event.description}
+                                  </div>
                                 )}
                               </div>
                               <Button
@@ -2194,10 +2287,15 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                 className="h-6 w-6 p-0 flex-shrink-0"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleToggleEvent(event.id);
+                                  // If it's a user-created event, always call handleRemoveEvent to delete from database
+                                  if (event.id.startsWith('custom-')) {
+                                    handleRemoveEvent(event.id);
+                                  } else {
+                                    handleToggleEvent(event.id);
+                                  }
                                 }}
                               >
-                                {addedEventIds.includes(event.id) ? (
+                                {addedEventIds.includes(event.id) || event.id.startsWith('custom-') ? (
                                   <X className="h-4 w-4 text-red-600" />
                                 ) : (
                                   <Plus className="h-4 w-4 text-gray-700" />
@@ -2208,7 +2306,8 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                         ))}
                       </div>
                     </div>
-                  ))
+                    );
+                  })
                 )
               )}
             </div>
@@ -2433,12 +2532,18 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                 <CalendarIcon className="w-5 h-5 text-gray-600 mt-0.5" />
                 <div>
                   <div className="text-sm text-gray-900">
-                    {new Date(selectedEvent.date).toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      month: 'long',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })}
+                    {(() => {
+                      // Parse date string manually to avoid timezone issues
+                      // selectedEvent.date is in format "YYYY-MM-DD"
+                      const [year, month, day] = selectedEvent.date.split('-').map(Number);
+                      const date = new Date(year, month - 1, day); // month is 0-indexed
+                      return date.toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric',
+                      });
+                    })()}
                   </div>
                   <div className="text-sm text-gray-600">
                     {formatTimeRange(selectedEvent.startTime, selectedEvent.endTime)}

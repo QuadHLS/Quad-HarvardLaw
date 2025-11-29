@@ -192,6 +192,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
   const [selectedOrgs, setSelectedOrgs] = useState<Set<string>>(new Set());
   const [googleCalendarConnected, setGoogleCalendarConnected] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const isImportingRef = useRef(false);
   
   // User courses state (same as HomePage)
   const [userCourses, setUserCourses] = useState<UserCourse[]>([]);
@@ -358,6 +359,125 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Auto-sync Google Calendar events with smart interval and error handling
+  useEffect(() => {
+    if (!user || !googleCalendarConnected) return;
+
+    let syncInterval: NodeJS.Timeout | null = null;
+    let retryTimeout: NodeJS.Timeout | null = null;
+    let immediateSyncTimeout: NodeJS.Timeout | null = null;
+    let lastSyncTime = 0;
+    let consecutiveErrors = 0;
+    let minInterval = 5000; // Dynamic minimum interval (increases on errors)
+    const BASE_INTERVAL = 5000; // Base interval: 5 seconds
+    const MAX_INTERVAL = 300000; // Maximum 5 minutes between syncs
+
+    const syncWithBackoff = async () => {
+      const now = Date.now();
+      // Ensure minimum time between syncs (dynamic based on errors)
+      if (now - lastSyncTime < minInterval) {
+        return;
+      }
+
+      if (isImportingRef.current) {
+        return;
+      }
+
+      try {
+        await handleImportGoogleCalendar(true);
+        lastSyncTime = now;
+        // Reset error count and interval on success
+        consecutiveErrors = 0;
+        minInterval = BASE_INTERVAL;
+      } catch (error) {
+        consecutiveErrors++;
+        // Exponential backoff: double the minimum interval on each error, up to max
+        minInterval = Math.min(minInterval * 2, MAX_INTERVAL);
+        console.warn(`Sync failed (${consecutiveErrors} consecutive errors). Next retry in ${minInterval / 1000}s`);
+        
+        // If we have too many errors, stop syncing for a while
+        if (consecutiveErrors >= 5) {
+          console.error('Too many sync errors. Pausing auto-sync.');
+          if (syncInterval) {
+            clearInterval(syncInterval);
+            syncInterval = null;
+          }
+          // Clear any existing retry timeout
+          if (retryTimeout) {
+            clearTimeout(retryTimeout);
+          }
+          // Retry after 5 minutes
+          retryTimeout = setTimeout(() => {
+            consecutiveErrors = 0;
+            minInterval = BASE_INTERVAL;
+            startSyncInterval();
+            retryTimeout = null;
+          }, 300000);
+        }
+      }
+    };
+
+    const startSyncInterval = () => {
+      if (syncInterval) {
+        clearInterval(syncInterval);
+      }
+      syncInterval = setInterval(() => {
+        if (googleCalendarConnected && document.visibilityState === 'visible') {
+          syncWithBackoff();
+        }
+      }, BASE_INTERVAL);
+    };
+
+    // Sync immediately on mount (with delay to avoid race with initial load)
+    const syncImmediately = () => {
+      if (immediateSyncTimeout) {
+        clearTimeout(immediateSyncTimeout);
+      }
+      immediateSyncTimeout = setTimeout(() => {
+        syncWithBackoff();
+        immediateSyncTimeout = null;
+      }, 1000);
+    };
+
+    // Sync on page visibility change (when user returns to tab)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && googleCalendarConnected) {
+        // Sync immediately when tab becomes visible (if enough time has passed)
+        syncWithBackoff();
+        // Reset interval and error count when tab becomes visible
+        minInterval = BASE_INTERVAL;
+        consecutiveErrors = 0;
+        startSyncInterval();
+      }
+    };
+
+    // Initial sync (skip if we just connected, as that already triggers a sync)
+    const params = new URLSearchParams(location.search);
+    if (params.get('connected') !== 'true') {
+      syncImmediately();
+    }
+
+    // Start the sync interval
+    startSyncInterval();
+
+    // Listen for visibility changes
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      if (syncInterval) {
+        clearInterval(syncInterval);
+      }
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
+      if (immediateSyncTimeout) {
+        clearTimeout(immediateSyncTimeout);
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, googleCalendarConnected]);
 
   // Scroll to top on mount
   useEffect(() => {
@@ -701,32 +821,27 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
   // Handler to import Google Calendar events
   const handleImportGoogleCalendar = async (skipConnectionCheck = false) => {
     if (!user) {
-      console.error('User not authenticated');
-      return;
+      throw new Error('User not authenticated');
     }
 
     if (!skipConnectionCheck && !googleCalendarConnected) {
-      console.error('Google Calendar not connected');
-      return;
+      throw new Error('Google Calendar not connected');
     }
 
     setIsImporting(true);
+    isImportingRef.current = true;
 
     try {
       // Get Supabase URL from environment
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       if (!supabaseUrl) {
-        console.error('Supabase URL not configured');
-        setIsImporting(false);
-        return;
+        throw new Error('Supabase URL not configured');
       }
 
       // Get session
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        console.error('No active session');
-        setIsImporting(false);
-        return;
+        throw new Error('No active session');
       }
 
       // Call the import function
@@ -744,7 +859,8 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
         const errorData = await response.json();
         console.error('Error importing events:', errorData);
         setIsImporting(false);
-        return;
+        isImportingRef.current = false;
+        throw new Error(errorData.error || 'Failed to import Google Calendar events');
       }
 
       const result = await response.json();
@@ -757,41 +873,62 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
         .eq('id', user.id)
         .single();
 
-      if (!error && profile) {
-        // Update Google Calendar connection status
-        setGoogleCalendarConnected(true);
+      if (error || !profile) {
+        setIsImporting(false);
+        isImportingRef.current = false;
+        throw new Error(error?.message || 'Failed to fetch updated profile');
+      }
 
-        // Load Google Calendar events
-        if (profile.google_calendar_events && Array.isArray(profile.google_calendar_events)) {
-          const googleEvents: Event[] = profile.google_calendar_events.map((eventDb: any) => ({
-            id: `google-${eventDb.id}`,
-            title: eventDb.event_title,
-            date: eventDb.date,
-            startTime: eventDb.start_time,
-            endTime: eventDb.end_time,
-            type: eventDb.event_type || 'personal',
-            location: eventDb.location || undefined,
-            description: eventDb.description || undefined,
-          }));
+      // Update Google Calendar connection status
+      setGoogleCalendarConnected(true);
 
-          // Merge with existing custom events (avoid duplicates)
-          setCustomEvents(prev => {
-            const existingIds = new Set(prev.map(e => e.id));
-            const newGoogleEvents = googleEvents.filter(e => !existingIds.has(e.id));
-            // Add Google Calendar event IDs to addedEventIds so they display
-            setAddedEventIds(prevIds => {
-              const newIds = newGoogleEvents.map(e => e.id);
-              const existingIdSet = new Set(prevIds);
-              return [...prevIds, ...newIds.filter(id => !existingIdSet.has(id))];
-            });
-            return [...prev, ...newGoogleEvents];
-          });
-        }
+      // Load Google Calendar events
+      if (profile.google_calendar_events && Array.isArray(profile.google_calendar_events)) {
+        const googleEvents: Event[] = profile.google_calendar_events.map((eventDb: any) => ({
+          id: `google-${eventDb.id}`,
+          title: eventDb.event_title,
+          date: eventDb.date,
+          startTime: eventDb.start_time,
+          endTime: eventDb.end_time,
+          type: eventDb.event_type || 'personal',
+          location: eventDb.location || undefined,
+          description: eventDb.description || undefined,
+        }));
+
+        // Merge with existing events: update all Google Calendar events, keep user-created events
+        setCustomEvents(prev => {
+          // Separate user-created events (custom-) from Google Calendar events (google-)
+          const userEvents = prev.filter(e => e.id.startsWith('custom-'));
+          
+          // Return user events + all current Google events (this replaces all Google events)
+          return [...userEvents, ...googleEvents];
+        });
+        
+        // Update addedEventIds separately to ensure React detects the change
+        setAddedEventIds(prevIds => {
+          const googleEventIds = new Set(googleEvents.map(e => e.id));
+          // Remove old Google event IDs that no longer exist
+          const filteredIds = prevIds.filter(id => 
+            !id.startsWith('google-') || googleEventIds.has(id)
+          );
+          // Add new Google event IDs
+          const existingIdSet = new Set(filteredIds);
+          const newIds = googleEvents
+            .map(e => e.id)
+            .filter(id => !existingIdSet.has(id));
+          return [...filteredIds, ...newIds];
+        });
+      } else {
+        // No Google Calendar events - remove all Google events from state
+        setCustomEvents(prev => prev.filter(e => !e.id.startsWith('google-')));
+        setAddedEventIds(prevIds => prevIds.filter(id => !id.startsWith('google-')));
       }
     } catch (error) {
       console.error('Error importing Google Calendar:', error);
+      throw error; // Re-throw so syncWithBackoff can handle it
     } finally {
       setIsImporting(false);
+      isImportingRef.current = false;
     }
   };
 
@@ -816,6 +953,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
           google_calendar_events: [],
           google_calendar_connected: false,
           google_last_synced: null,
+          google_sync_token: null,
         })
         .eq('id', user.id);
 
@@ -1114,6 +1252,49 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
     });
     return map;
   }, [userCourses]);
+
+  // Helper function to extract end time from class schedule times (format: "9:00 AM - 10:30 AM")
+  const extractEndTime = (timeString: string): string | null => {
+    if (!timeString || timeString === 'TBD') return null;
+    const timeMatch = timeString.match(/(\d{1,2}):(\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (timeMatch) {
+      const [, , , , endHour, endMin, endPeriod] = timeMatch;
+      return `${endHour}:${endMin} ${endPeriod}`;
+    }
+    return null;
+  };
+
+  // Helper function to check if an event or class has ended (using end time)
+  const isPastEvent = (date: string, time: string): boolean => {
+    const now = new Date();
+    let eventDateTime: Date;
+    
+    // Parse time - could be "HH:MM" (24-hour) or "H:MM AM/PM" format
+    if (time.includes('AM') || time.includes('PM')) {
+      // Parse "H:MM AM/PM" format
+      const timeMatch = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+      if (timeMatch) {
+        const [, hour, min, period] = timeMatch;
+        let hour24 = parseInt(hour);
+        if (period.toUpperCase() === 'PM' && hour24 !== 12) {
+          hour24 += 12;
+        } else if (period.toUpperCase() === 'AM' && hour24 === 12) {
+          hour24 = 0;
+        }
+        eventDateTime = new Date(date + 'T00:00:00');
+        eventDateTime.setHours(hour24, parseInt(min), 0, 0);
+      } else {
+        return false; // Can't parse, assume not past
+      }
+    } else {
+      // Parse "HH:MM" (24-hour) format
+      const [hours, minutes] = time.split(':').map(Number);
+      eventDateTime = new Date(date + 'T00:00:00');
+      eventDateTime.setHours(hours, minutes, 0, 0);
+    }
+    
+    return eventDateTime < now;
+  };
 
   const getEventColor = (event: Event): string => {
     if (event.type === 'class' && event.course) {
@@ -1861,24 +2042,28 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                               if (item.type === 'class' && item.course) {
                                 const displayName = formatDisplayCourseName(item.course.class);
                                 const bgColor = courseNameToColor[displayName] || getCourseColor(item.courseIndex || 0);
+                                const dateStr = dayObj.date.toISOString().split('T')[0];
+                                const endTime = item.course.schedule?.times ? extractEndTime(item.course.schedule.times) : null;
+                                const isPast = endTime ? isPastEvent(dateStr, endTime) : false;
                                 return (
                                   <div
                                     key={item.id}
                                     className="text-xs p-1 rounded truncate"
-                                    style={{ backgroundColor: bgColor, color: 'white' }}
+                                    style={{ backgroundColor: bgColor, color: 'white', opacity: isPast ? 0.65 : 1 }}
                                   >
                                     {displayName}
                                   </div>
                                 );
                               } else if (item.type === 'event' && item.event) {
+                                const isPast = isPastEvent(item.event.date, item.event.endTime);
                                 return (
                                   <div
                                     key={item.id}
                                     onClick={() => setSelectedEvent(item.event!)}
                                     className="text-xs p-1 rounded truncate cursor-pointer hover:opacity-80"
-                                    style={{ backgroundColor: getEventColor(item.event), color: 'white' }}
+                                    style={{ backgroundColor: getEventColor(item.event), color: 'white', opacity: isPast ? 0.65 : 1 }}
                                   >
-                                    {item.event.startTime} {item.event.title}
+                                    {formatTime(item.event.startTime)} {item.event.title}
                                   </div>
                                 );
                               }
@@ -1998,6 +2183,9 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                             
                             const displayName = formatDisplayCourseName(course.class);
                             const bgColor = courseNameToColor[displayName] || getCourseColor(courseIndex);
+                            const dateStr = day.toISOString().split('T')[0];
+                            const endTime = course.schedule?.times ? extractEndTime(course.schedule.times) : null;
+                            const isPast = endTime ? isPastEvent(dateStr, endTime) : false;
                             
                             return (
                               <div
@@ -2007,6 +2195,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                   top: `${timePosition.startPosition}px`,
                                   height: `${timePosition.height}px`,
                                   backgroundColor: bgColor,
+                                  opacity: isPast ? 0.65 : 1,
                                   pointerEvents: 'auto',
                                   zIndex: 20
                                 }}
@@ -2041,6 +2230,9 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                             
                             const displayName = formatDisplayCourseName(course.class);
                             const bgColor = courseNameToColor[displayName] || getCourseColor(courseIndex);
+                            const dateStr = day.toISOString().split('T')[0];
+                            const endTime = course.schedule?.times ? extractEndTime(course.schedule.times) : null;
+                            const isPast = endTime ? isPastEvent(dateStr, endTime) : false;
                             
                             return (
                               <div
@@ -2049,7 +2241,8 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                 style={{
                                   top: `${timePosition.startPosition}px`,
                                   height: `${timePosition.height}px`,
-                                  backgroundColor: bgColor
+                                  backgroundColor: bgColor,
+                                  opacity: isPast ? 0.65 : 1
                                 }}
                               >
                                 <div className="font-medium overflow-hidden">{displayName}</div>
@@ -2122,6 +2315,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                               
                               const color = getEventColor(event);
                               const isConflicted = events.length > 1;
+                              const isPast = isPastEvent(event.date, event.endTime);
                               // Calculate width: each event gets equal share of available space
                               // Available space = 100% - 8px (padding) - (N-1)*2px (gaps)
                               const totalGaps = (events.length - 1) * 2;
@@ -2146,6 +2340,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                     left: leftOffset,
                                     width: eventWidth,
                                     backgroundColor: color,
+                                    opacity: isPast ? 0.65 : 1,
                                     pointerEvents: 'auto',
                                     zIndex: 20 + index,
                                     maxWidth: eventWidth
@@ -2227,6 +2422,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                               
                               const color = getEventColor(event);
                               const isConflicted = events.length > 1;
+                              const isPast = isPastEvent(event.date, event.endTime);
                               // Calculate width: each event gets equal share of available space
                               // Available space = 100% - 8px (padding) - (N-1)*2px (gaps)
                               const totalGaps = (events.length - 1) * 2;
@@ -2251,6 +2447,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                     left: leftOffset,
                                     width: eventWidth,
                                     backgroundColor: color,
+                                    opacity: isPast ? 0.65 : 1,
                                     zIndex: 10 + index,
                                     maxWidth: eventWidth
                                   }}
@@ -2274,6 +2471,31 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                       ? currentDate.toDateString() === today.toDateString()
                       : weekDays.some(day => day.toDateString() === today.toDateString());
                     
+                    // Find today's index in week view
+                    const todayIndex = viewMode === 'week' 
+                      ? weekDays.findIndex(day => day.toDateString() === today.toDateString())
+                      : -1;
+                    
+                    // Calculate positioning for the red line
+                    const getRedLineStyle = () => {
+                      if (viewMode === 'day') {
+                        // Day view: span full width
+                        return {
+                          left: '60px',
+                          right: '0',
+                        };
+                      } else if (viewMode === 'week' && todayIndex >= 0) {
+                        // Week view: only span today's column
+                        const columnWidth = `calc((100% - 60px) / 7)`;
+                        const leftOffset = `calc(60px + ${todayIndex} * ${columnWidth})`;
+                        return {
+                          left: leftOffset,
+                          width: columnWidth,
+                        };
+                      }
+                      return {};
+                    };
+                    
                     return (
                     <div
                       key={hour}
@@ -2285,21 +2507,20 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                           : '60px repeat(7, minmax(0, 1fr))'
                       }}
                     >
-                      {/* Current time indicator - spans entire row */}
+                      {/* Current time indicator - only spans current day in week view */}
                       {isTodayInRow && 
                        currentTimePosition >= startHour && 
                        currentTimePosition < (hours[hours.length - 1] + 1) && 
                        hour === Math.floor(currentTimePosition) && (
                         <div
-                          className="absolute z-30 pointer-events-none"
+                          className="absolute z-50 pointer-events-none"
                           style={{
-                            left: '60px',
-                            right: '0',
+                            ...getRedLineStyle(),
                             top: `${((currentTimePosition % 1) * 60)}px`,
                           }}
                         >
-                          <div className="absolute left-0 w-2 h-2 bg-red-600 rounded-full" style={{ backgroundColor: '#DC2626', transform: 'translate(-50%, -50%)', top: '50%' }} />
-                          <div className="h-0.5 bg-red-600 w-full" style={{ backgroundColor: '#DC2626' }} />
+                          <div className="absolute left-0 w-2 h-2 bg-red-600 rounded-full" style={{ backgroundColor: '#DC2626', opacity: 0.75, transform: 'translate(-50%, -50%)', top: '50%' }} />
+                          <div className="h-0.5 bg-red-600 w-full" style={{ backgroundColor: '#DC2626', opacity: 0.75 }} />
                         </div>
                       )}
                       
@@ -2425,26 +2646,28 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                             {event.description && ` • ${event.description}`}
                           </span>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-5 w-5 p-0 flex-shrink-0 ml-2"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // If it's a user-created event or Google Calendar event, always call handleRemoveEvent to delete from database
-                            if (event.id.startsWith('custom-') || event.id.startsWith('google-')) {
-                              handleRemoveEvent(event.id);
-                            } else {
-                              handleToggleEvent(event.id);
-                            }
-                          }}
-                        >
-                          {addedEventIds.includes(event.id) || event.id.startsWith('custom-') || event.id.startsWith('google-') ? (
-                            <X className="h-3 w-3 text-red-600" />
-                          ) : (
-                            <Plus className="h-3 w-3 text-gray-700" />
-                          )}
-                        </Button>
+                        {!event.id.startsWith('google-') && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-5 w-5 p-0 flex-shrink-0 ml-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // If it's a user-created event, always call handleRemoveEvent to delete from database
+                              if (event.id.startsWith('custom-')) {
+                                handleRemoveEvent(event.id);
+                              } else {
+                                handleToggleEvent(event.id);
+                              }
+                            }}
+                          >
+                            {addedEventIds.includes(event.id) || event.id.startsWith('custom-') ? (
+                              <X className="h-3 w-3 text-red-600" />
+                            ) : (
+                              <Plus className="h-3 w-3 text-gray-700" />
+                            )}
+                          </Button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -2483,26 +2706,28 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                               </div>
                             )}
                           </div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 w-6 p-0 flex-shrink-0"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              // If it's a user-created event, always call handleRemoveEvent to delete from database
-                              if (event.id.startsWith('custom-')) {
-                                handleRemoveEvent(event.id);
-                              } else {
-                                handleToggleEvent(event.id);
-                              }
-                            }}
-                          >
-                            {addedEventIds.includes(event.id) || event.id.startsWith('custom-') || event.id.startsWith('google-') ? (
-                              <X className="h-4 w-4 text-red-600" />
-                            ) : (
-                              <Plus className="h-4 w-4 text-gray-700" />
-                            )}
-                          </Button>
+                          {!event.id.startsWith('google-') && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0 flex-shrink-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // If it's a user-created event, always call handleRemoveEvent to delete from database
+                                if (event.id.startsWith('custom-')) {
+                                  handleRemoveEvent(event.id);
+                                } else {
+                                  handleToggleEvent(event.id);
+                                }
+                              }}
+                            >
+                              {addedEventIds.includes(event.id) || event.id.startsWith('custom-') ? (
+                                <X className="h-4 w-4 text-red-600" />
+                              ) : (
+                                <Plus className="h-4 w-4 text-gray-700" />
+                              )}
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -2554,26 +2779,28 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                 {event.description && ` • ${event.description}`}
                               </span>
                             </div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-5 w-5 p-0 flex-shrink-0 ml-2"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                // If it's a user-created event, always call handleRemoveEvent to delete from database
-                                if (event.id.startsWith('custom-')) {
-                                  handleRemoveEvent(event.id);
-                                } else {
-                                  handleToggleEvent(event.id);
-                                }
-                              }}
-                            >
-                              {addedEventIds.includes(event.id) || event.id.startsWith('custom-') || event.id.startsWith('google-') ? (
-                                <X className="h-3 w-3 text-red-600" />
-                              ) : (
-                                <Plus className="h-3 w-3 text-gray-700" />
-                              )}
-                            </Button>
+                            {!event.id.startsWith('google-') && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-5 w-5 p-0 flex-shrink-0 ml-2"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // If it's a user-created event, always call handleRemoveEvent to delete from database
+                                  if (event.id.startsWith('custom-')) {
+                                    handleRemoveEvent(event.id);
+                                  } else {
+                                    handleToggleEvent(event.id);
+                                  }
+                                }}
+                              >
+                                {addedEventIds.includes(event.id) || event.id.startsWith('custom-') ? (
+                                  <X className="h-3 w-3 text-red-600" />
+                                ) : (
+                                  <Plus className="h-3 w-3 text-gray-700" />
+                                )}
+                              </Button>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -2629,26 +2856,28 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                   </div>
                                 )}
                               </div>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-6 w-6 p-0 flex-shrink-0"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // If it's a user-created event, always call handleRemoveEvent to delete from database
-                                  if (event.id.startsWith('custom-')) {
-                                    handleRemoveEvent(event.id);
-                                  } else {
-                                    handleToggleEvent(event.id);
-                                  }
-                                }}
-                              >
-                                {addedEventIds.includes(event.id) || event.id.startsWith('custom-') || event.id.startsWith('google-') ? (
-                                  <X className="h-4 w-4 text-red-600" />
-                                ) : (
-                                  <Plus className="h-4 w-4 text-gray-700" />
-                                )}
-                              </Button>
+                              {!event.id.startsWith('google-') && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0 flex-shrink-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // If it's a user-created event, always call handleRemoveEvent to delete from database
+                                    if (event.id.startsWith('custom-')) {
+                                      handleRemoveEvent(event.id);
+                                    } else {
+                                      handleToggleEvent(event.id);
+                                    }
+                                  }}
+                                >
+                                  {addedEventIds.includes(event.id) || event.id.startsWith('custom-') ? (
+                                    <X className="h-4 w-4 text-red-600" />
+                                  ) : (
+                                    <Plus className="h-4 w-4 text-gray-700" />
+                                  )}
+                                </Button>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -2703,15 +2932,6 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                     onClick={googleCalendarConnected ? handleDisconnectGoogleCalendar : handleConnectGoogleCalendar}
                   >
                     {googleCalendarConnected ? 'Disconnect' : 'Connect'}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-auto py-1 px-2 text-xs border-gray-300 hover:bg-white"
-                    onClick={() => handleImportGoogleCalendar()}
-                    disabled={!googleCalendarConnected || isImporting}
-                  >
-                    {isImporting ? 'Syncing...' : 'Sync'}
                   </Button>
                 </div>
               </div>
@@ -2953,32 +3173,36 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
             </div>
 
             <div className="flex gap-2">
-              {isEventOnCalendar(selectedEvent) ? (
-                <Button
-                  onClick={() => {
-                    handleRemoveEvent(selectedEvent.id);
-                    setSelectedEvent(null);
-                  }}
-                  variant="outline"
-                  className="flex-1 border-red-300 hover:border-red-400"
-                  style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#DC2626' }}
-                >
-                  <X className="w-4 h-4 mr-2" />
-                  Remove from Calendar
-                </Button>
-              ) : (
-                <Button
-                  onClick={() => {
-                    handleAddEvent(selectedEvent.id);
-                    setSelectedEvent(null);
-                  }}
-                  variant="outline"
-                  className="flex-1 border-green-300 hover:border-green-400"
+              {!selectedEvent.id.startsWith('google-') && (
+                <>
+                  {isEventOnCalendar(selectedEvent) ? (
+                    <Button
+                      onClick={() => {
+                        handleRemoveEvent(selectedEvent.id);
+                        setSelectedEvent(null);
+                      }}
+                      variant="outline"
+                      className="flex-1 border-red-300 hover:border-red-400"
+                      style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#DC2626' }}
+                    >
+                      <X className="w-4 h-4 mr-2" />
+                      Remove from Calendar
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => {
+                        handleAddEvent(selectedEvent.id);
+                        setSelectedEvent(null);
+                      }}
+                      variant="outline"
+                      className="flex-1 border-green-300 hover:border-green-400"
                   style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#16A34A' }}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add to Calendar
-                </Button>
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add to Calendar
+                    </Button>
+                  )}
+                </>
               )}
               <Button
                 onClick={() => setSelectedEvent(null)}

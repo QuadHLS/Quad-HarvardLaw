@@ -402,8 +402,8 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Calendar button */}
-        <div className="px-2 pt-2">
+        {/* Calendar button - Hidden */}
+        <div className="px-2 pt-2" style={{ display: 'none' }}>
           <Link
             to="/calendar"
             onClick={(e) => handleNavigation(e, '/calendar')}

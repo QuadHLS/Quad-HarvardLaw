@@ -10,6 +10,8 @@ import {
   List,
   MapPin,
   Users,
+  CheckCircle2,
+  Circle,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import {
@@ -169,6 +171,7 @@ interface Event {
   location?: string;
   organization?: string;
   description?: string;
+  canvasUrl?: string;
 }
 
 interface CalendarPageProps {
@@ -186,6 +189,9 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
   const [eventsViewMode, setEventsViewMode] = useState<'grid' | 'list'>('grid');
   const [addedEventIds, setAddedEventIds] = useState<string[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [showCanvasEventsModal, setShowCanvasEventsModal] = useState(false);
+  const [canvasEventsForDay, setCanvasEventsForDay] = useState<Event[]>([]);
+  const [canvasEventsDay, setCanvasEventsDay] = useState<Date | null>(null);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showOrgFilterDialog, setShowOrgFilterDialog] = useState(false);
@@ -193,6 +199,9 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
   const [googleCalendarConnected, setGoogleCalendarConnected] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const isImportingRef = useRef(false);
+  const [canvasFeedUrl, setCanvasFeedUrl] = useState('');
+  const [canvasCalendarConnected, setCanvasCalendarConnected] = useState(false);
+  const [isImportingCanvas, setIsImportingCanvas] = useState(false);
   
   // User courses state (same as HomePage)
   const [userCourses, setUserCourses] = useState<UserCourse[]>([]);
@@ -244,6 +253,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
   const [showClubEvents, setShowClubEvents] = useState(true);
   const [showOther, setShowOther] = useState(true);
   const [showGoogleCalendar, setShowGoogleCalendar] = useState(true);
+  const [showCanvasCalendar, setShowCanvasCalendar] = useState(true);
 
   // Current time state for real-time updates
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -286,7 +296,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
       try {
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('full_name, classes, class_year, user_events, google_calendar_connected, google_calendar_events')
+          .select('full_name, classes, class_year, user_events, google_calendar_connected, google_calendar_events, canvas_calendar_connected, canvas_calendar_events, canvas_feed_url')
           .eq('id', user.id)
           .single();
 
@@ -298,6 +308,8 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
         if (profile) {
           setUserCourses(profile.classes || []);
           setGoogleCalendarConnected(profile.google_calendar_connected || false);
+          setCanvasCalendarConnected(profile.canvas_calendar_connected || false);
+          setCanvasFeedUrl(profile.canvas_feed_url || '');
           
           // Load user events from database
           if (profile.user_events && Array.isArray(profile.user_events)) {
@@ -342,6 +354,39 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
               return [...prev, ...newGoogleEvents];
             });
           }
+
+          // Load Canvas Calendar events
+          if (profile.canvas_calendar_events && Array.isArray(profile.canvas_calendar_events)) {
+            const canvasEvents: Event[] = profile.canvas_calendar_events.map((eventDb: any) => {
+              // Parse raw Canvas time (extract time only, use date from database)
+              const parsedTime = eventDb.raw_due_time ? parseCanvasTime(eventDb.raw_due_time) : '23:59';
+              
+              return {
+                id: `canvas-${eventDb.id}`,
+                title: eventDb.event_title,
+                date: eventDb.date, // Use date from database, don't parse from raw_due_time
+                startTime: parsedTime,
+                endTime: parsedTime,
+                type: eventDb.event_type || 'event',
+                location: eventDb.location || undefined,
+                description: eventDb.description || undefined,
+                canvasUrl: eventDb.canvas_url || undefined,
+              };
+            });
+            
+            // Merge with existing events
+            setCustomEvents(prev => {
+              const existingIds = new Set(prev.map(e => e.id));
+              const newCanvasEvents = canvasEvents.filter(e => !existingIds.has(e.id));
+              // Add Canvas events to addedEventIds by default (so they show on calendar)
+              setAddedEventIds(prevIds => {
+                const newIds = newCanvasEvents.map(e => e.id);
+                const existingIdSet = new Set(prevIds);
+                return [...prevIds, ...newIds.filter(id => !existingIdSet.has(id))];
+              });
+              return [...prev, ...newCanvasEvents];
+            });
+          }
         }
       } catch (error) {
         console.error('Error fetching user profile:', error instanceof Error ? error.message : "Unknown error");
@@ -359,6 +404,117 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Auto-sync Canvas Calendar events with smart interval and error handling
+  useEffect(() => {
+    if (!user || !canvasCalendarConnected) return;
+
+    let syncInterval: NodeJS.Timeout | null = null;
+    let retryTimeout: NodeJS.Timeout | null = null;
+    let immediateSyncTimeout: NodeJS.Timeout | null = null;
+    let lastSyncTime = 0;
+    let consecutiveErrors = 0;
+    let minInterval = 5000; // Dynamic minimum interval (increases on errors)
+    const BASE_INTERVAL = 300000; // Base interval: 5 minutes (Canvas feeds update less frequently)
+    const MAX_INTERVAL = 1800000; // Maximum 30 minutes between syncs
+
+    const syncWithBackoff = async () => {
+      const now = Date.now();
+      if (now - lastSyncTime < minInterval) {
+        return;
+      }
+      try {
+        await handleImportCanvasCalendar(true);
+        lastSyncTime = now;
+        consecutiveErrors = 0;
+        minInterval = BASE_INTERVAL;
+      } catch (error) {
+        consecutiveErrors++;
+        minInterval = Math.min(minInterval * 2, MAX_INTERVAL);
+        console.warn(`Canvas sync failed (${consecutiveErrors} consecutive errors). Next retry in ${minInterval / 1000}s`);
+        if (consecutiveErrors >= 5) {
+          console.error('Too many Canvas sync errors. Pausing auto-sync.');
+          if (syncInterval) {
+            clearInterval(syncInterval);
+            syncInterval = null;
+          }
+          if (retryTimeout) {
+            clearTimeout(retryTimeout);
+          }
+          retryTimeout = setTimeout(() => {
+            consecutiveErrors = 0;
+            minInterval = BASE_INTERVAL;
+            startSyncInterval();
+            retryTimeout = null;
+          }, 300000);
+        }
+      }
+    };
+
+    const startSyncInterval = () => {
+      if (syncInterval) {
+        clearInterval(syncInterval);
+      }
+      syncInterval = setInterval(() => {
+        if (canvasCalendarConnected && document.visibilityState === 'visible') {
+          syncWithBackoff();
+        }
+      }, BASE_INTERVAL);
+    };
+
+    const syncImmediately = () => {
+      if (immediateSyncTimeout) {
+        clearTimeout(immediateSyncTimeout);
+      }
+      immediateSyncTimeout = setTimeout(() => {
+        syncWithBackoff();
+        immediateSyncTimeout = null;
+      }, 1000);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && canvasCalendarConnected) {
+        syncWithBackoff();
+        minInterval = BASE_INTERVAL;
+        consecutiveErrors = 0;
+        startSyncInterval();
+      }
+    };
+
+    const params = new URLSearchParams(location.search);
+    if (params.get('connected') !== 'true') {
+      syncImmediately();
+    }
+    startSyncInterval();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      if (syncInterval) {
+        clearInterval(syncInterval);
+      }
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
+      if (immediateSyncTimeout) {
+        clearTimeout(immediateSyncTimeout);
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user, canvasCalendarConnected]);
+
+  // Set classes to unselected by default in month view (only if Canvas or Google Calendar connected), selected in day/week views
+  useEffect(() => {
+    if (viewMode === 'month') {
+      // Only unselect classes if Canvas or Google Calendar is connected
+      if (canvasCalendarConnected || googleCalendarConnected) {
+        setShowClasses(false);
+      } else {
+        setShowClasses(true);
+      }
+    } else if (viewMode === 'day' || viewMode === 'week') {
+      setShowClasses(true);
+    }
+  }, [viewMode, canvasCalendarConnected, googleCalendarConnected]);
 
   // Auto-sync Google Calendar events with smart interval and error handling
   useEffect(() => {
@@ -535,6 +691,9 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
     } else if (event.id.startsWith('google-')) {
       // Google Calendar events
       return showGoogleCalendar;
+    } else if (event.id.startsWith('canvas-')) {
+      // Canvas Calendar events
+      return showCanvasCalendar;
     } else if (event.id.startsWith('custom-')) {
       // User-created events (Your Events)
       return showOther;
@@ -554,6 +713,11 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
 
   // Handler to remove event from calendar
   const handleRemoveEvent = async (eventId: string) => {
+    // Prevent deletion of Canvas events
+    if (eventId.startsWith('canvas-')) {
+      return;
+    }
+    
     // Check if this is a user-created event (starts with "custom-") or Google Calendar event (starts with "google-")
     const isUserEvent = eventId.startsWith('custom-') || eventId.startsWith('google-');
     
@@ -620,14 +784,19 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
       
       // Remove from local state
       setCustomEvents(customEvents.filter((event) => event.id !== eventId));
+      
+      // Remove from added event IDs (only for non-Canvas events)
+      setAddedEventIds(addedEventIds.filter((id) => id !== eventId));
     }
-    
-    // Remove from added event IDs
-    setAddedEventIds(addedEventIds.filter((id) => id !== eventId));
   };
 
   // Handler to toggle event
   const handleToggleEvent = (eventId: string) => {
+    // Prevent toggling Canvas events (they should always be visible when Canvas calendar is connected)
+    if (eventId.startsWith('canvas-')) {
+      return;
+    }
+    
     if (addedEventIds.includes(eventId)) {
       handleRemoveEvent(eventId);
     } else {
@@ -641,7 +810,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
     if (event.type === 'class') return true;
     // User-created events (custom-) and Google Calendar events (google-) are always on the calendar
     if (event.id.startsWith('custom-') || event.id.startsWith('google-')) return true;
-    // Other events need to be in addedEventIds
+    // Canvas events and other events need to be in addedEventIds
     return addedEventIds.includes(event.id);
   };
 
@@ -977,6 +1146,197 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
     }
   };
 
+  // Handler to connect Canvas Calendar
+  const handleConnectCanvasCalendar = async () => {
+    if (!user) {
+      alert('Please log in to connect Canvas Calendar');
+      return;
+    }
+
+    if (!canvasFeedUrl || !canvasFeedUrl.trim()) {
+      alert('Please enter a Canvas feed URL');
+      return;
+    }
+
+    // Validate URL format
+    try {
+      new URL(canvasFeedUrl);
+    } catch {
+      alert('Please enter a valid URL');
+      return;
+    }
+
+    try {
+      // Save the feed URL to the profile
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          canvas_feed_url: canvasFeedUrl.trim(),
+        })
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Error saving Canvas feed URL:', updateError);
+        alert('Error saving Canvas feed URL');
+        return;
+      }
+
+      // Import Canvas events
+      await handleImportCanvasCalendar(true);
+    } catch (error: any) {
+      alert('Error connecting Canvas Calendar: ' + (error.message || 'Unknown error'));
+      console.error('Error connecting Canvas Calendar:', error);
+    }
+  };
+
+  // Handler to import Canvas Calendar events
+  const handleImportCanvasCalendar = async (skipConnectionCheck = false) => {
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    if (!skipConnectionCheck && !canvasCalendarConnected) {
+      throw new Error('Canvas Calendar not connected');
+    }
+
+    setIsImportingCanvas(true);
+
+    try {
+      // Get Supabase URL from environment
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      if (!supabaseUrl) {
+        throw new Error('Supabase URL not configured');
+      }
+
+      // Get session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      // Call the import function
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const response = await fetch(`${supabaseUrl}/functions/v1/Canvas-Calendar-Import`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': supabaseAnonKey || '',
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Error importing Canvas events:', errorData);
+        setIsImportingCanvas(false);
+        throw new Error(errorData.error || 'Failed to import Canvas Calendar events');
+      }
+
+      const result = await response.json();
+      console.log(`Successfully imported ${result.imported} Canvas events`);
+
+      // Refresh the profile to get updated events
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('canvas_calendar_events, canvas_last_synced, canvas_calendar_connected')
+        .eq('id', user.id)
+        .single();
+
+      if (error || !profile) {
+        setIsImportingCanvas(false);
+        throw new Error(error?.message || 'Failed to fetch updated profile');
+      }
+
+      // Update Canvas Calendar connection status
+      setCanvasCalendarConnected(true);
+
+      // Load Canvas Calendar events
+      if (profile.canvas_calendar_events && Array.isArray(profile.canvas_calendar_events)) {
+        const canvasEvents: Event[] = profile.canvas_calendar_events.map((eventDb: any) => {
+          // Parse raw Canvas time (extract time only, use date from database)
+          const parsedTime = eventDb.raw_due_time ? parseCanvasTime(eventDb.raw_due_time) : '23:59';
+          
+          return {
+            id: `canvas-${eventDb.id}`,
+            title: eventDb.event_title,
+            date: eventDb.date, // Use date from database, don't parse from raw_due_time
+            startTime: parsedTime,
+            endTime: parsedTime,
+            type: eventDb.event_type || 'event',
+            location: eventDb.location || undefined,
+            description: eventDb.description || undefined,
+            canvasUrl: eventDb.canvas_url || undefined,
+          };
+        });
+
+        // Merge with existing events: update all Canvas events, keep user-created and Google events
+        setCustomEvents(prev => {
+          // Separate user-created and Google events from Canvas events
+          const nonCanvasEvents = prev.filter(e => !e.id.startsWith('canvas-'));
+          
+          // Return non-Canvas events + all current Canvas events (this replaces all Canvas events)
+          return [...nonCanvasEvents, ...canvasEvents];
+        });
+        
+        // Update addedEventIds separately to ensure React detects the change
+        setAddedEventIds(prevIds => {
+          const canvasEventIds = new Set(canvasEvents.map(e => e.id));
+          // Remove old Canvas event IDs that no longer exist
+          const filteredIds = prevIds.filter(id => 
+            !id.startsWith('canvas-') || canvasEventIds.has(id)
+          );
+          // Add new Canvas event IDs
+          const existingIdSet = new Set(filteredIds);
+          const newIds = canvasEvents
+            .map(e => e.id)
+            .filter(id => !existingIdSet.has(id));
+          return [...filteredIds, ...newIds];
+        });
+      } else {
+        // No Canvas Calendar events - remove all Canvas events from state
+        setCustomEvents(prev => prev.filter(e => !e.id.startsWith('canvas-')));
+        setAddedEventIds(prevIds => prevIds.filter(id => !id.startsWith('canvas-')));
+      }
+    } catch (error) {
+      console.error('Error importing Canvas Calendar:', error);
+      throw error;
+    } finally {
+      setIsImportingCanvas(false);
+    }
+  };
+
+  const handleDisconnectCanvasCalendar = async () => {
+    if (!user) return;
+
+    try {
+      // Clear Canvas Calendar data from profiles table
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          canvas_calendar_events: [],
+          canvas_calendar_connected: false,
+          canvas_feed_url: null,
+        })
+        .eq('id', user.id);
+
+      if (profileError) {
+        console.error('Error clearing Canvas Calendar data:', profileError);
+        alert('Error disconnecting Canvas Calendar');
+        return;
+      }
+
+      setCanvasCalendarConnected(false);
+      setCanvasFeedUrl('');
+      
+      // Remove Canvas Calendar events from UI
+      setCustomEvents(prev => prev.filter(e => !e.id.startsWith('canvas-')));
+      setAddedEventIds(prevIds => prevIds.filter(id => !id.startsWith('canvas-')));
+    } catch (error) {
+      console.error('Error disconnecting Canvas Calendar:', error);
+      alert('Error disconnecting Canvas Calendar');
+    }
+  };
+
   const formatDate = (date: Date): string => {
     return date.toLocaleDateString('en-US', {
       month: 'long',
@@ -1052,6 +1412,13 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
     );
   };
 
+  const getCanvasEventsForDay = (day: Date): Event[] => {
+    const dateStr = day.toISOString().split('T')[0];
+    return filteredEvents.filter(
+      (event) => event.date === dateStr && event.id.startsWith('canvas-') && isEventOnCalendar(event)
+    );
+  };
+
   const parseTime = (timeStr: string): number => {
     const [hours, minutes] = timeStr.split(':').map(Number);
     return hours + minutes / 60;
@@ -1064,8 +1431,30 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
     return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
   };
 
+  // Parse Canvas raw iCal time string - extract time only (date comes from database)
+  // Format: "20241101T235900Z" (UTC) or "20241101T235900" (local)
+  const parseCanvasTime = (rawTime: string): string => {
+    // Remove Z and T, then parse
+    const cleaned = rawTime.replace(/[TZ]/g, '');
+    
+    // Extract time components (characters 8-13: HHMMSS)
+    const hour = cleaned.length > 8 ? parseInt(cleaned.substring(8, 10)) : 23;
+    const minute = cleaned.length > 10 ? parseInt(cleaned.substring(10, 12)) : 59;
+    
+    // Format time as HH:MM
+    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  };
+
   // Format time range, only showing AM/PM on the second time if both have the same period
-  const formatTimeRange = (startTime: string, endTime: string): string => {
+  const formatTimeRange = (startTime: string, endTime: string, eventId?: string): string => {
+    const isCanvasEvent = eventId?.startsWith('canvas-');
+    
+    // If start and end times are the same, just show the time once (e.g., for Canvas due times)
+    if (startTime === endTime) {
+      const timeStr = formatTime(startTime);
+      return isCanvasEvent ? `Due: ${timeStr}` : timeStr;
+    }
+    
     const formatStart = formatTime(startTime);
     const formatEnd = formatTime(endTime);
     
@@ -1076,11 +1465,13 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
     // If both have the same period, only show it on the end time
     if (startPeriod === endPeriod) {
       const startWithoutPeriod = formatStart.replace(/\s*(AM|PM)/i, '');
-      return `${startWithoutPeriod} - ${formatEnd}`;
+      const timeRange = `${startWithoutPeriod} - ${formatEnd}`;
+      return isCanvasEvent ? `Due: ${timeRange}` : timeRange;
     }
     
     // If different periods, show both
-    return `${formatStart} - ${formatEnd}`;
+    const timeRange = `${formatStart} - ${formatEnd}`;
+    return isCanvasEvent ? `Due: ${timeRange}` : timeRange;
   };
 
   // Format course schedule time string (e.g., "9:00 AM - 10:30 AM" -> "9:00 - 10:30 AM")
@@ -1341,8 +1732,8 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
       : weekDays;
     
     daysToCheck.forEach(day => {
-      // Check events
-      const dayEvents = getEventsForDay(day);
+      // Check events (exclude Canvas events from height calculation)
+      const dayEvents = getEventsForDay(day).filter(e => !e.id.startsWith('canvas-'));
       dayEvents.forEach(event => {
         if (event.startTime) {
           const startHour = parseTime(event.startTime);
@@ -1428,8 +1819,8 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
     return days;
   };
 
-  // Mini calendar helper
-  const getMiniCalendarDays = (): (number | null)[] => {
+  // Mini calendar helper - includes days from adjacent months
+  const getMiniCalendarDays = (): Array<{ day: number; isCurrentMonth: boolean; date: Date }> => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
 
@@ -1438,14 +1829,35 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
     const startDay = firstDay.getDay();
     const daysInMonth = lastDay.getDate();
 
-    const days: (number | null)[] = [];
+    const days: Array<{ day: number; isCurrentMonth: boolean; date: Date }> = [];
 
-    for (let i = 0; i < startDay; i++) {
-      days.push(null);
+    // Previous month days
+    const prevMonthLastDay = new Date(year, month, 0).getDate();
+    for (let i = startDay - 1; i >= 0; i--) {
+      days.push({
+        day: prevMonthLastDay - i,
+        isCurrentMonth: false,
+        date: new Date(year, month - 1, prevMonthLastDay - i),
+      });
     }
 
+    // Current month days
     for (let day = 1; day <= daysInMonth; day++) {
-      days.push(day);
+      days.push({
+        day: day,
+        isCurrentMonth: true,
+        date: new Date(year, month, day),
+      });
+    }
+
+    // Next month days to fill grid
+    const remainingDays = 42 - days.length;
+    for (let day = 1; day <= remainingDays; day++) {
+      days.push({
+        day: day,
+        isCurrentMonth: false,
+        date: new Date(year, month + 1, day),
+      });
     }
 
     return days;
@@ -1456,8 +1868,18 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
 
   // Get events for the current view (only user-created events)
   const getEventsForCurrentView = (): Event[] => {
-    // Only show user-created events (events with IDs starting with "custom-")
-    let events = filteredEvents.filter((event) => event.type !== 'class' && (event.id.startsWith('custom-') || event.id.startsWith('google-')));
+    // Show user-created events, Google Calendar events, and Canvas events (exclude classes)
+    let events = filteredEvents.filter((event) => event.type !== 'class' && (event.id.startsWith('custom-') || event.id.startsWith('google-') || event.id.startsWith('canvas-')));
+    
+    // Filter to only show events from today onwards (no past events)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to start of today
+    const todayStr = today.toISOString().split('T')[0];
+    
+    events = events.filter((event) => {
+      const eventDate = event.date; // Format: "YYYY-MM-DD"
+      return eventDate >= todayStr; // Only include today and future dates
+    });
 
     if (viewMode === 'day') {
       const dateStr = currentDate.toISOString().split('T')[0];
@@ -1467,12 +1889,9 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
       const weekDateStrs = weekDays.map((d) => d.toISOString().split('T')[0]);
       return events.filter((event) => weekDateStrs.includes(event.date));
     } else {
-      const year = currentDate.getFullYear();
-      const month = currentDate.getMonth();
-      return events.filter((event) => {
-        const eventDate = new Date(event.date);
-        return eventDate.getFullYear() === year && eventDate.getMonth() === month;
-      });
+      // Month view: include events from all visible dates in the month grid (including adjacent months)
+      const visibleDates = monthCalendarDays.map(dayObj => dayObj.date.toISOString().split('T')[0]);
+      return events.filter((event) => visibleDates.includes(event.date));
     }
   };
 
@@ -1680,6 +2099,11 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
           border-color: #4285F4;
         }
         
+        .calendar-page input[type="checkbox"].checkbox-canvas-calendar:checked {
+          background-color: #F59E0B;
+          border-color: #F59E0B;
+        }
+        
         /* Make checkmark white for all checkboxes */
         .calendar-page input[type="checkbox"]:checked::after {
           content: '';
@@ -1822,42 +2246,28 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                     {label}
                   </div>
                 ))}
-                {miniCalendarDays.map((day, index) => {
-                  const isToday =
-                    day &&
-                    new Date().toDateString() ===
-                      new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString();
-
-                  const isSelected =
-                    day &&
-                    currentDate.getDate() === day &&
-                    currentDate.getMonth() ===
-                      new Date(currentDate.getFullYear(), currentDate.getMonth(), day).getMonth();
-
-                  const dayDate = day
-                    ? new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
-                    : null;
+                {miniCalendarDays.map((dayObj, index) => {
+                  const isToday = dayObj.date.toDateString() === new Date().toDateString();
+                  const isSelected = dayObj.date.toDateString() === currentDate.toDateString();
 
                   return (
                     <div
                       key={index}
                       onClick={() => {
-                        if (day && dayDate) {
-                          setCurrentDate(dayDate);
-                        }
+                        setCurrentDate(dayObj.date);
                       }}
                       className={cn(
                         'text-xs py-1 rounded-md cursor-pointer transition-colors h-8 w-8 flex items-center justify-center font-medium',
-                        day
-                          ? isSelected
-                            ? 'bg-[#752432] text-white'
-                            : isToday
-                            ? 'bg-[#752432]/10 text-[#752432] border border-[#752432]/20'
-                            : 'text-gray-700 hover:bg-gray-100'
-                          : ''
+                        isSelected
+                          ? 'bg-[#752432] text-white'
+                          : isToday
+                          ? 'bg-[#752432]/10 text-[#752432] border border-[#752432]/20'
+                          : dayObj.isCurrentMonth
+                          ? 'text-gray-700 hover:bg-gray-100'
+                          : 'text-gray-400 hover:bg-gray-100'
                       )}
                     >
-                      {day || ''}
+                      {dayObj.day}
                     </div>
                   );
                 })}
@@ -1902,6 +2312,25 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                   />
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     <span className="text-sm text-gray-700 truncate">Google Calendar</span>
+                  </div>
+                </div>
+              )}
+              {canvasCalendarConnected && (
+                <div
+                  className="flex items-center gap-2 py-1 cursor-pointer hover:bg-[#F5F1E8] rounded px-2"
+                  onClick={() => setShowCanvasCalendar(!showCanvasCalendar)}
+                >
+                  <input
+                    type="checkbox"
+                    checked={showCanvasCalendar}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      setShowCanvasCalendar(!showCanvasCalendar);
+                    }}
+                    className="rounded checkbox-canvas-calendar"
+                  />
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="text-sm text-gray-700 truncate">Canvas</span>
                   </div>
                 </div>
               )}
@@ -2126,8 +2555,11 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                         const day = currentDate;
                         const isToday = day.toDateString() === today.toDateString();
 
+                        const canvasEvents = getCanvasEventsForDay(day);
+                        const hasCanvasEvents = canvasEvents.length > 0;
+
                         return (
-                          <div className="border-r border-[#E5DFD4] py-3 px-2 text-center bg-gradient-to-b from-[#F8F4ED] to-[#F5F1E8] shadow-sm">
+                          <div className="border-r border-[#E5DFD4] py-3 px-2 text-center bg-gradient-to-b from-[#F8F4ED] to-[#F5F1E8] shadow-sm flex flex-col items-center">
                             <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
                               {day.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase()}
                             </div>
@@ -2140,16 +2572,33 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                             >
                               {day.getDate()}
                             </div>
+                            {hasCanvasEvents && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="mt-1.5 h-6 px-2 text-xs bg-[#F59E0B] text-black border-[#F59E0B] hover:bg-[#D97706] hover:border-[#D97706]"
+                                onClick={() => {
+                                  setCanvasEventsForDay(canvasEvents);
+                                  setCanvasEventsDay(day);
+                                  setShowCanvasEventsModal(true);
+                                }}
+                              >
+                                Canvas ({canvasEvents.length})
+                              </Button>
+                            )}
                           </div>
                         );
                       })()
                     ) : (
                       weekDays.map((day, idx) => {
                         const isToday = day.toDateString() === today.toDateString();
+                        const canvasEvents = getCanvasEventsForDay(day);
+                        const hasCanvasEvents = canvasEvents.length > 0;
+
                         return (
                           <div
                             key={idx}
-                            className="border-r border-[#E5DFD4] last:border-r-0 py-3 text-center bg-gradient-to-b from-[#F8F4ED] to-[#F5F1E8] shadow-sm"
+                            className="border-r border-[#E5DFD4] last:border-r-0 py-3 text-center bg-gradient-to-b from-[#F8F4ED] to-[#F5F1E8] shadow-sm flex flex-col items-center"
                           >
                             <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
                               {day.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase()}
@@ -2163,6 +2612,20 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                             >
                               {day.getDate()}
                             </div>
+                            {hasCanvasEvents && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="mt-1.5 h-6 px-2 text-xs bg-[#F59E0B] text-black border-[#F59E0B] hover:bg-[#D97706] hover:border-[#D97706]"
+                                onClick={() => {
+                                  setCanvasEventsForDay(canvasEvents);
+                                  setCanvasEventsDay(day);
+                                  setShowCanvasEventsModal(true);
+                                }}
+                              >
+                                Canvas ({canvasEvents.length})
+                              </Button>
+                            )}
                           </div>
                         );
                       })
@@ -2263,12 +2726,13 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                   {viewMode === 'day' ? (
                     (() => {
                       const day = currentDate;
-                      const dayEvents = getEventsForDay(day).filter(e => e.type !== 'class');
+                      const dayEvents = getEventsForDay(day).filter(e => e.type !== 'class' && !e.id.startsWith('canvas-'));
                       
                       // Group overlapping events (same logic as planner page)
                       const conflictGroups: Event[][] = [];
                       const processedEvents = new Set<string>();
                       
+                      // Group overlapping events
                       dayEvents.forEach(event => {
                         if (processedEvents.has(event.id)) return;
                         
@@ -2281,7 +2745,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                         const conflictingEvents = [event];
                         processedEvents.add(event.id);
                         
-                        dayEvents.forEach(otherEvent => {
+                        dayEvents.forEach((otherEvent: Event) => {
                           if (processedEvents.has(otherEvent.id)) return;
                           
                           const otherStart = parseTime(otherEvent.startTime);
@@ -2313,6 +2777,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                           {conflictGroups.map((events) => {
                             return events.map((event, index) => {
                               const timePosition = parseEventTimeToPosition(event.startTime, event.endTime, startHour);
+                              
                               if (!timePosition) return null;
                               
                               const color = getEventColor(event);
@@ -2350,7 +2815,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                 >
                                   <div className="font-medium overflow-hidden">{event.title}</div>
                                   <div className="text-white/90 mt-1 leading-none overflow-hidden">
-                                    <span>{formatTimeRange(event.startTime, event.endTime)}</span>
+                                    <span>{formatTimeRange(event.startTime, event.endTime, event.id)}</span>
                                   </div>
                                 </div>
                               );
@@ -2361,12 +2826,13 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                     })()
                   ) : (
                     weekDays.map((day, dayIdx) => {
-                      const dayEvents = getEventsForDay(day).filter(e => e.type !== 'class');
+                      const dayEvents = getEventsForDay(day).filter(e => e.type !== 'class' && !e.id.startsWith('canvas-'));
                       
                       // Group overlapping events (same logic as planner page)
                       const conflictGroups: Event[][] = [];
                       const processedEvents = new Set<string>();
                       
+                      // Group overlapping events
                       dayEvents.forEach(event => {
                         if (processedEvents.has(event.id)) return;
                         
@@ -2420,6 +2886,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                           {conflictGroups.map((events) => {
                             return events.map((event, index) => {
                               const timePosition = parseEventTimeToPosition(event.startTime, event.endTime, startHour);
+                              
                               if (!timePosition) return null;
                               
                               const color = getEventColor(event);
@@ -2456,7 +2923,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                 >
                                   <div className="font-medium overflow-hidden">{event.title}</div>
                                   <div className="text-white/90 mt-1 leading-none overflow-hidden">
-                                    <span>{formatTimeRange(event.startTime, event.endTime)}</span>
+                                    <span>{formatTimeRange(event.startTime, event.endTime, event.id)}</span>
                                   </div>
                                 </div>
                               );
@@ -2576,11 +3043,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
             <div className="p-4 border-b border-[#E5DFD4]">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-medium text-gray-900">
-                  {viewMode === 'day'
-                    ? "Today's Events"
-                    : viewMode === 'week'
-                    ? "This Week's Events"
-                    : "This Month's Events"}
+                  Future Events
                 </h3>
                 <Button
                   variant="ghost"
@@ -2631,6 +3094,22 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                         className="flex items-center justify-between p-2 hover:bg-[#F5F1E8] rounded cursor-pointer border border-[#E5DFD4] bg-[#FEFBF6]"
                       >
                         <div className="flex items-center gap-1.5 flex-1 min-w-0 overflow-hidden">
+                          {/* Checkmark for Canvas events */}
+                          {event.id.startsWith('canvas-') && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleEvent(event.id);
+                              }}
+                              className="flex-shrink-0"
+                            >
+                              {isEventOnCalendar(event) ? (
+                                <CheckCircle2 className="h-4 w-4 text-[#752432]" />
+                              ) : (
+                                <Circle className="h-4 w-4 text-gray-400 hover:text-[#752432] transition-colors" />
+                              )}
+                            </button>
+                          )}
                           {event.type && (
                             <span className="px-1.5 py-0.5 text-[10px] rounded bg-[#F5E9EB] text-[#752432] border border-[#E5D5D8] whitespace-nowrap flex-shrink-0">
                               {event.type}
@@ -2643,12 +3122,12 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                           )}
                           <span className="text-xs text-gray-900 truncate">
                             {event.title}
-                            {formatTimeRange(event.startTime, event.endTime) && ` • ${formatTimeRange(event.startTime, event.endTime)}`}
+                            {formatTimeRange(event.startTime, event.endTime, event.id) && ` • ${formatTimeRange(event.startTime, event.endTime, event.id)}`}
                             {event.location && ` • ${event.location}`}
                             {event.description && ` • ${event.description}`}
                           </span>
                         </div>
-                        {!event.id.startsWith('google-') && (
+                        {!event.id.startsWith('google-') && !event.id.startsWith('canvas-') && (
                           <Button
                             size="sm"
                             variant="ghost"
@@ -2682,6 +3161,22 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                         className="p-3 hover:bg-[#F5F1E8] rounded-lg cursor-pointer border border-[#E5DFD4] bg-[#FEFBF6]"
                       >
                         <div className="flex items-start gap-2">
+                          {/* Checkmark for Canvas events */}
+                          {event.id.startsWith('canvas-') && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleEvent(event.id);
+                              }}
+                              className="flex-shrink-0 mt-0.5"
+                            >
+                              {isEventOnCalendar(event) ? (
+                                <CheckCircle2 className="h-4 w-4 text-[#752432]" />
+                              ) : (
+                                <Circle className="h-4 w-4 text-gray-400 hover:text-[#752432] transition-colors" />
+                              )}
+                            </button>
+                          )}
                           <div className="flex-1 min-w-0">
                             {event.type && (
                               <span className="px-1.5 py-0.5 text-[10px] rounded bg-[#F5E9EB] text-[#752432] border border-[#E5D5D8] whitespace-nowrap inline-block mb-1">
@@ -2695,7 +3190,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                             )}
                             <div className="font-medium text-sm text-gray-900 mb-1">{event.title}</div>
                             <div className="text-xs text-gray-600 mb-1">
-                              {formatTimeRange(event.startTime, event.endTime)}
+                              {formatTimeRange(event.startTime, event.endTime, event.id)}
                             </div>
                             {event.location && (
                               <div className="text-xs text-gray-600 mb-1">
@@ -2703,12 +3198,17 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                               </div>
                             )}
                             {event.description && (
-                              <div className="text-xs text-gray-500 mt-1 line-clamp-2">
-                                {event.description}
-                              </div>
+                              <div 
+                                className="text-xs text-gray-500 mt-1 line-clamp-2"
+                                dangerouslySetInnerHTML={{ 
+                                  __html: event.id.startsWith('canvas-') 
+                                    ? event.description.replace(/(<a href="https:\/\/canvas\.wisc\.edu[^"]*"[^>]*>)/g, '<br /><br />$1')
+                                    : event.description.replace(/\n/g, '<br />')
+                                }}
+                              />
                             )}
                           </div>
-                          {!event.id.startsWith('google-') && (
+                          {!event.id.startsWith('google-') && !event.id.startsWith('canvas-') && (
                             <Button
                               size="sm"
                               variant="ghost"
@@ -2764,6 +3264,22 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                             className="flex items-center justify-between p-2 hover:bg-[#F5F1E8] rounded cursor-pointer border border-[#E5DFD4] bg-[#FEFBF6]"
                           >
                             <div className="flex items-center gap-1.5 flex-1 min-w-0 overflow-hidden">
+                              {/* Checkmark for Canvas events */}
+                              {event.id.startsWith('canvas-') && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleToggleEvent(event.id);
+                                  }}
+                                  className="flex-shrink-0"
+                                >
+                                  {isEventOnCalendar(event) ? (
+                                    <CheckCircle2 className="h-4 w-4 text-[#752432]" />
+                                  ) : (
+                                    <Circle className="h-4 w-4 text-gray-400 hover:text-[#752432] transition-colors" />
+                                  )}
+                                </button>
+                              )}
                               {event.type && (
                                 <span className="px-1.5 py-0.5 text-[10px] rounded bg-[#F5E9EB] text-[#752432] border border-[#E5D5D8] whitespace-nowrap flex-shrink-0">
                                   {event.type}
@@ -2776,12 +3292,12 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                               )}
                               <span className="text-xs text-gray-900 truncate">
                                 {event.title}
-                                {formatTimeRange(event.startTime, event.endTime) && ` • ${formatTimeRange(event.startTime, event.endTime)}`}
+                                {formatTimeRange(event.startTime, event.endTime, event.id) && ` • ${formatTimeRange(event.startTime, event.endTime, event.id)}`}
                                 {event.location && ` • ${event.location}`}
                                 {event.description && ` • ${event.description}`}
                               </span>
                             </div>
-                            {!event.id.startsWith('google-') && (
+                            {!event.id.startsWith('google-') && !event.id.startsWith('canvas-') && (
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -2832,6 +3348,22 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                             className="p-3 hover:bg-[#F5F1E8] rounded-lg cursor-pointer border border-[#E5DFD4] bg-[#FEFBF6]"
                           >
                             <div className="flex items-start gap-2">
+                              {/* Checkmark for Canvas events */}
+                              {event.id.startsWith('canvas-') && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleToggleEvent(event.id);
+                                  }}
+                                  className="flex-shrink-0 mt-0.5"
+                                >
+                                  {isEventOnCalendar(event) ? (
+                                    <CheckCircle2 className="h-4 w-4 text-[#752432]" />
+                                  ) : (
+                                    <Circle className="h-4 w-4 text-gray-400 hover:text-[#752432] transition-colors" />
+                                  )}
+                                </button>
+                              )}
                               <div className="flex-1 min-w-0">
                                 {event.type && (
                                   <span className="px-1.5 py-0.5 text-[10px] rounded bg-[#F5E9EB] text-[#752432] border border-[#E5D5D8] whitespace-nowrap inline-block mb-1">
@@ -2845,7 +3377,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                 )}
                                 <div className="font-medium text-sm text-gray-900 mb-1">{event.title}</div>
                                 <div className="text-xs text-gray-600 mb-1">
-                                  {formatTimeRange(event.startTime, event.endTime)}
+                                  {formatTimeRange(event.startTime, event.endTime, event.id)}
                                 </div>
                                 {event.location && (
                                   <div className="text-xs text-gray-600 mb-1">
@@ -2853,12 +3385,17 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                   </div>
                                 )}
                                 {event.description && (
-                                  <div className="text-xs text-gray-500 mt-1 line-clamp-2">
-                                    {event.description}
-                                  </div>
+                                  <div 
+                                    className="text-xs text-gray-500 mt-1 line-clamp-2"
+                                    dangerouslySetInnerHTML={{ 
+                                      __html: event.id.startsWith('canvas-') 
+                                        ? event.description.replace(/(<a href="https:\/\/canvas\.wisc\.edu[^"]*"[^>]*>)/g, '<br />$1')
+                                        : event.description.replace(/\n/g, '<br />')
+                                    }}
+                                  />
                                 )}
                               </div>
-                              {!event.id.startsWith('google-') && (
+                              {!event.id.startsWith('google-') && !event.id.startsWith('canvas-') && (
                                 <Button
                                   size="sm"
                                   variant="ghost"
@@ -2952,17 +3489,32 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                   </div>
                   <div className="text-left flex-1">
                     <div className="font-medium text-gray-900">Connect Canvas</div>
-                    <div className="text-sm text-gray-600">Import assignments and events from Canvas</div>
                   </div>
                 </div>
-                <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2">
+                  {!canvasCalendarConnected && (
+                    <input
+                      type="text"
+                      placeholder="Paste Canvas feed URL"
+                      value={canvasFeedUrl}
+                      onChange={(e) => setCanvasFeedUrl(e.target.value)}
+                      className="h-8 px-2 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 bg-white text-gray-900 placeholder-gray-500"
+                      style={{ width: '150px' }}
+                    />
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-auto py-1 px-2 text-xs border-gray-300 hover:bg-white"
-                    onClick={() => {}}
+                    className={cn(
+                      "h-8 py-1 px-2 text-xs whitespace-nowrap",
+                      canvasCalendarConnected
+                        ? "bg-green-600 text-white border-green-600 hover:bg-green-700 hover:border-green-700"
+                        : "border-gray-300 hover:bg-white"
+                    )}
+                    onClick={canvasCalendarConnected ? handleDisconnectCanvasCalendar : handleConnectCanvasCalendar}
+                    disabled={isImportingCanvas}
                   >
-                    Connect
+                    {isImportingCanvas ? 'Connecting...' : canvasCalendarConnected ? 'Disconnect' : 'Connect'}
                   </Button>
                 </div>
               </div>
@@ -3140,7 +3692,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                     })()}
                   </div>
                   <div className="text-sm text-gray-600">
-                    {formatTimeRange(selectedEvent.startTime, selectedEvent.endTime)}
+                    {formatTimeRange(selectedEvent.startTime, selectedEvent.endTime, selectedEvent.id)}
                   </div>
                 </div>
               </div>
@@ -3170,12 +3722,30 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
               </div>
 
               {selectedEvent.description && (
-                <div className="text-sm text-gray-700">{selectedEvent.description}</div>
+                <div 
+                  className="text-sm text-gray-700"
+                  dangerouslySetInnerHTML={{ 
+                    __html: selectedEvent.id.startsWith('canvas-') 
+                      ? selectedEvent.description.replace(/(<a href="https:\/\/canvas\.wisc\.edu[^"]*"[^>]*>)/g, '<br /><br />$1')
+                      : selectedEvent.description.replace(/\n/g, '<br />')
+                  }}
+                />
+              )}
+              
+              {selectedEvent.canvasUrl && !selectedEvent.description?.includes('href=') && (
+                <a
+                  href={selectedEvent.canvasUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-[#752432] hover:text-[#5a1c26] underline font-medium mt-2 inline-block"
+                >
+                  View in Canvas
+                </a>
               )}
             </div>
 
             <div className="flex gap-2">
-              {!selectedEvent.id.startsWith('google-') && (
+              {!selectedEvent.id.startsWith('google-') && !selectedEvent.id.startsWith('canvas-') && (
                 <>
                   {isEventOnCalendar(selectedEvent) ? (
                     <Button
@@ -3279,6 +3849,79 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
             >
               Apply
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Canvas Events Modal */}
+      <Dialog open={showCanvasEventsModal} onOpenChange={setShowCanvasEventsModal}>
+        <DialogContent className="bg-[#FEFBF6] max-w-md flex flex-col" style={{ backgroundColor: '#FEFBF6', maxHeight: '80vh' }}>
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="text-xl text-gray-900">
+              Canvas Events - {canvasEventsDay ? canvasEventsDay.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : ''}
+            </DialogTitle>
+            <DialogDescription className="text-gray-600">
+              Assignments and events due on this day
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-4 flex-1 overflow-y-auto min-h-0">
+            {canvasEventsForDay.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <CalendarIcon className="h-12 w-12 mx-auto mb-2 opacity-40" />
+                <p>No Canvas events due on this day</p>
+              </div>
+            ) : (
+              canvasEventsForDay
+                .sort((a, b) => {
+                  // Sort by due time first, then alphabetically by title
+                  const timeA = parseTime(a.endTime);
+                  const timeB = parseTime(b.endTime);
+                  if (timeA !== timeB) return timeA - timeB;
+                  return a.title.localeCompare(b.title);
+                })
+                .map((event) => (
+                  <div
+                    key={event.id}
+                    onClick={() => {
+                      setSelectedEvent(event);
+                      setShowCanvasEventsModal(false);
+                    }}
+                    className="flex items-center justify-between p-2 hover:bg-[#F5F1E8] rounded cursor-pointer border border-[#E5DFD4] bg-[#FEFBF6]"
+                  >
+                    <div className="flex flex-col gap-1.5 flex-1 min-w-0 overflow-hidden">
+                      <div className="flex items-center gap-1.5">
+                        {event.type && (
+                          <span className="px-1.5 py-0.5 text-[10px] rounded bg-[#F5E9EB] text-[#752432] border border-[#E5D5D8] whitespace-nowrap flex-shrink-0">
+                            {event.type}
+                          </span>
+                        )}
+                        {event.organization && (
+                          <span className="px-1.5 py-0.5 text-[10px] rounded bg-[#F5E9EB] text-[#752432] border border-[#E5D5D8] whitespace-nowrap flex-shrink-0">
+                            {getOrgAbbreviation(event.organization)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs text-gray-900 truncate font-medium">
+                          {event.title}
+                        </div>
+                        {formatTimeRange(event.startTime, event.endTime, event.id) && (
+                          <div className="text-xs text-gray-600">
+                            {formatTimeRange(event.startTime, event.endTime, event.id)}
+                          </div>
+                        )}
+                        {(event.location || event.description) && (
+                          <div className="text-xs text-gray-500 truncate mt-0.5">
+                            {event.location && event.location}
+                            {event.location && event.description && ` • `}
+                            {event.description && event.description.replace(/<[^>]*>/g, '')}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+            )}
           </div>
         </DialogContent>
       </Dialog>

@@ -256,21 +256,21 @@ Deno.serve(async (req: Request) => {
       const timeMin = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
       const timeMax = new Date(Date.now() + 270 * 24 * 60 * 60 * 1000).toISOString();
       const retryResponse = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
-        new URLSearchParams({
-          timeMin,
-          timeMax,
-          maxResults: '2500',
-          singleEvents: 'true',
-          orderBy: 'startTime',
-        }),
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-      
+      `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
+      new URLSearchParams({
+        timeMin,
+        timeMax,
+        maxResults: '2500',
+        singleEvents: 'true',
+        orderBy: 'startTime',
+      }),
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
       if (!retryResponse.ok) {
         const errorText = await retryResponse.text();
         console.error('Google Calendar API error on retry:', errorText);

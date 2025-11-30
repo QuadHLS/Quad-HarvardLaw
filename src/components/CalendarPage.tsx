@@ -774,7 +774,9 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
       console.log('Calling google-oauth-start...');
       console.log('Session token exists:', !!session.access_token);
       
-      const response = await fetch(`${supabaseUrl}/functions/v1/google-oauth-start`, {
+      // Pass the frontend URL so callback can redirect back to the correct domain
+      const frontendUrl = window.location.origin;
+      const response = await fetch(`${supabaseUrl}/functions/v1/google-oauth-start?frontend_url=${encodeURIComponent(frontendUrl)}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,

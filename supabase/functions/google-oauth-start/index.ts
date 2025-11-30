@@ -107,9 +107,13 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Generate state parameter (CSRF protection + user identification)
+    // Get frontend URL from query parameter (for redirect after OAuth)
+    const url = new URL(req.url);
+    const frontendUrl = url.searchParams.get('frontend_url') || Deno.env.get('FRONTEND_URL') || 'http://localhost:3000';
+    
+    // Generate state parameter (CSRF protection + user identification + frontend URL)
     const randomState = crypto.randomUUID();
-    const state = `user_id:${user.id}|state:${randomState}`;
+    const state = `user_id:${user.id}|state:${randomState}|frontend_url:${encodeURIComponent(frontendUrl)}`;
     
     // Use custom domain for redirect URI (auth.quadhls.com)
     // This will be displayed in the Google OAuth consent screen

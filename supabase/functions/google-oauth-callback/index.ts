@@ -39,14 +39,21 @@ Deno.serve(async (req: Request) => {
     
     console.log('OAuth callback received:', { code: code ? 'present' : 'missing', state, error });
 
+    // Parse state early to get frontend URL for error redirects
+    const stateParts = state?.split('|') || [];
+    const frontendUrlPart = stateParts.find(part => part.startsWith('frontend_url:'));
+    const redirectFrontendUrl = frontendUrlPart 
+      ? decodeURIComponent(frontendUrlPart.split(':').slice(1).join(':')) 
+      : frontendUrl;
+
     // Handle OAuth errors
     if (error) {
       console.error('OAuth error:', error);
-      return Response.redirect(`${frontendUrl}/calendar?error=${encodeURIComponent(error)}`);
+      return Response.redirect(`${redirectFrontendUrl}/calendar?error=${encodeURIComponent(error)}`);
     }
 
     if (!code) {
-      return Response.redirect(`${frontendUrl}/calendar?error=no_code`);
+      return Response.redirect(`${redirectFrontendUrl}/calendar?error=no_code`);
     }
 
     // Verify state parameter - extract user_id from state (format: "user_id:uuid|state:random")
@@ -74,7 +81,7 @@ Deno.serve(async (req: Request) => {
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text();
       console.error('Token exchange error:', errorData);
-      return Response.redirect(`${frontendUrl}/calendar?error=token_exchange_failed`);
+      return Response.redirect(`${redirectFrontendUrl}/calendar?error=token_exchange_failed`);
     }
 
     const tokenData = await tokenResponse.json();
@@ -87,17 +94,15 @@ Deno.serve(async (req: Request) => {
     } = tokenData;
 
     if (!access_token || !refresh_token) {
-      return Response.redirect(`${frontendUrl}/calendar?error=missing_tokens`);
+      return Response.redirect(`${redirectFrontendUrl}/calendar?error=missing_tokens`);
     }
 
-    // Parse state to get user_id (format: "user_id:uuid|state:random")
-    // The state parameter contains the user_id for security and user identification
-    const stateParts = state?.split('|') || [];
+    // Extract user_id from state (already parsed above for frontend URL)
     const userStatePart = stateParts.find(part => part.startsWith('user_id:'));
     const userId = userStatePart?.split(':')[1];
 
     if (!userId) {
-      return Response.redirect(`${frontendUrl}/calendar?error=invalid_state`);
+      return Response.redirect(`${redirectFrontendUrl}/calendar?error=invalid_state`);
     }
 
     // Create admin client to save tokens
@@ -128,7 +133,7 @@ Deno.serve(async (req: Request) => {
 
     if (dbError) {
       console.error('Database error:', dbError);
-      return Response.redirect(`${frontendUrl}/calendar?error=database_error`);
+      return Response.redirect(`${redirectFrontendUrl}/calendar?error=database_error`);
     }
 
     // Update profiles table to mark as connected
@@ -146,11 +151,26 @@ Deno.serve(async (req: Request) => {
     }
 
     // Redirect to calendar page with success
-    return Response.redirect(`${frontendUrl}/calendar?connected=true`);
+    return Response.redirect(`${redirectFrontendUrl}/calendar?connected=true`);
   } catch (error: any) {
     console.error('Error in google-oauth-callback:', error);
-    const frontendUrl = Deno.env.get('FRONTEND_URL') || 'http://localhost:3000';
-    return Response.redirect(`${frontendUrl}/calendar?error=${encodeURIComponent(error.message || 'unknown_error')}`);
+    // Try to get frontend URL from state if available
+    try {
+      const url = new URL(req.url);
+      const state = url.searchParams.get('state');
+      if (state) {
+        const stateParts = state.split('|');
+        const frontendUrlPart = stateParts.find(part => part.startsWith('frontend_url:'));
+        if (frontendUrlPart) {
+          const errorFrontendUrl = decodeURIComponent(frontendUrlPart.split(':').slice(1).join(':'));
+          return Response.redirect(`${errorFrontendUrl}/calendar?error=${encodeURIComponent(error.message || 'unknown_error')}`);
+        }
+      }
+    } catch {
+      // Fall through to default
+    }
+    const fallbackFrontendUrl = Deno.env.get('FRONTEND_URL') || 'http://localhost:3000';
+    return Response.redirect(`${fallbackFrontendUrl}/calendar?error=${encodeURIComponent(error.message || 'unknown_error')}`);
   }
 });
 

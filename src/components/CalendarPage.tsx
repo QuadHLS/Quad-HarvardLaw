@@ -2480,7 +2480,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                   <div
                                     key={item.id}
                                     className="text-xs p-1 rounded truncate"
-                                    style={{ backgroundColor: bgColor, color: 'white', opacity: isPast ? 0.65 : 1 }}
+                                    style={{ backgroundColor: bgColor, color: 'white', opacity: isPast ? 0.5 : 1 }}
                                   >
                                     {displayName}
                                   </div>
@@ -2492,7 +2492,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                     key={item.id}
                                     onClick={() => setSelectedEvent(item.event!)}
                                     className="text-xs p-1 rounded truncate cursor-pointer hover:opacity-80"
-                                    style={{ backgroundColor: getEventColor(item.event), color: 'white', opacity: isPast ? 0.65 : 1 }}
+                                    style={{ backgroundColor: getEventColor(item.event), color: 'white', opacity: isPast ? 0.5 : 1 }}
                                   >
                                     {formatTime(item.event.startTime)} {item.event.title}
                                   </div>
@@ -2660,7 +2660,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                   top: `${timePosition.startPosition}px`,
                                   height: `${timePosition.height}px`,
                                   backgroundColor: bgColor,
-                                  opacity: isPast ? 0.65 : 1,
+                                  opacity: isPast ? 0.5 : 1,
                                   pointerEvents: 'auto',
                                   zIndex: 20
                                 }}
@@ -2707,7 +2707,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                   top: `${timePosition.startPosition}px`,
                                   height: `${timePosition.height}px`,
                                   backgroundColor: bgColor,
-                                  opacity: isPast ? 0.65 : 1
+                                  opacity: isPast ? 0.5 : 1
                                 }}
                               >
                                 <div className="font-medium overflow-hidden">{displayName}</div>
@@ -2807,7 +2807,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                     left: leftOffset,
                                     width: eventWidth,
                                     backgroundColor: color,
-                                    opacity: isPast ? 0.65 : 1,
+                                    opacity: isPast ? 0.5 : 1,
                                     pointerEvents: 'auto',
                                     zIndex: 20 + index,
                                     maxWidth: eventWidth
@@ -2916,7 +2916,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                                     left: leftOffset,
                                     width: eventWidth,
                                     backgroundColor: color,
-                                    opacity: isPast ? 0.65 : 1,
+                                    opacity: isPast ? 0.5 : 1,
                                     zIndex: 10 + index,
                                     maxWidth: eventWidth
                                   }}

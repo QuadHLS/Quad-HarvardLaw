@@ -917,8 +917,9 @@ function AppContent({ user }: { user: any }) {
     (user && hasCompletedOnboarding !== null && !minLoadingTimeElapsed);
   
   // Show regular loading (no animation) while checking onboarding on page refresh
-  const shouldShowRegularLoading = showAuthLoading || 
-    (hasCompletedOnboarding === null && user);
+  // Skip if animation should show (to avoid showing logo before animation)
+  const shouldShowRegularLoading = (showAuthLoading || 
+    (hasCompletedOnboarding === null && user)) && !shouldShowAnimation;
   
   // Always render the website content, but show animation overlay on top when needed
   const websiteContent = (
@@ -1048,8 +1049,8 @@ function AppContent({ user }: { user: any }) {
   if (shouldShowAnimation) {
     return (
       <>
-        {/* Only render website content when fading out - nothing loads during animation */}
-        {isFadingOut && websiteContent}
+        {/* Always render website content behind animation so it shows through as animation fades */}
+        {websiteContent}
         <PostLoginLoading isFadingOut={isFadingOut} />
       </>
     );

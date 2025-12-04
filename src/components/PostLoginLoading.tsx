@@ -275,7 +275,7 @@ export const PostLoginLoading: React.FC<{ isFadingOut: boolean }> = ({ isFadingO
     <motion.div
       className="fixed inset-0 z-50"
       style={{ 
-        backgroundColor: '#FAF9F5',
+        backgroundColor: 'var(--background-color, #f9f5f0)',
         willChange: 'opacity',
         transform: 'translateZ(0)', // Force GPU acceleration
         isolation: 'isolate', // Create new stacking context

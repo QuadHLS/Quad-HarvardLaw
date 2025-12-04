@@ -35,6 +35,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Only clear animation flag if it's stale (e.g., page reload long after login)
+    const maybeClearAnimationFlag = () => {
+      const timestamp = sessionStorage.getItem('playLoginAnimationSetAt');
+      if (!timestamp) {
+        sessionStorage.removeItem('playLoginAnimation');
+        return;
+      }
+
+      const age = Date.now() - parseInt(timestamp, 10);
+      if (Number.isNaN(age) || age > 60000) {
+        sessionStorage.removeItem('playLoginAnimation');
+        sessionStorage.removeItem('playLoginAnimationSetAt');
+      }
+    };
+
+    maybeClearAnimationFlag();
+
     // Get initial session - with a delay to allow URL parameter processing
     const initializeAuth = async () => {
       try {
@@ -42,6 +59,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         await new Promise(resolve => setTimeout(resolve, 50));
         
         const { data: { session }, error } = await supabase.auth.getSession();
+        
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -76,7 +94,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setSession(session);
         setUser(session.user);
         setLoading(false);
-        sessionStorage.setItem('isFreshLogin', 'true');
       } else {
         // For all other events, update session and user normally
         setSession(session)
@@ -104,11 +121,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       email,
       password,
     })
+
+    if (!error) {
+      sessionStorage.setItem('playLoginAnimation', 'true');
+      sessionStorage.setItem('playLoginAnimationSetAt', Date.now().toString());
+    }
+
     return { error }
   }
 
   const signInWithGoogle = async () => {
     try {
+      sessionStorage.setItem('playLoginAnimation', 'true');
+      sessionStorage.setItem('playLoginAnimationSetAt', Date.now().toString());
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -118,6 +143,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (error) {
         console.error('Google OAuth error:', error?.message || 'Unknown error');
+        sessionStorage.removeItem('playLoginAnimation');
+        sessionStorage.removeItem('playLoginAnimationSetAt');
         // Provide more specific error messages
         if (error.message.includes('access_denied')) {
           return { error: { ...error, message: 'Google login was cancelled or denied. Please try again.' } };
@@ -133,12 +160,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return { error: null }
     } catch (err) {
       console.error('Google OAuth exception:', err instanceof Error ? err.message : 'Unknown error');
+      sessionStorage.removeItem('playLoginAnimation');
+      sessionStorage.removeItem('playLoginAnimationSetAt');
       return { error: { message: 'An unexpected error occurred during Google login. Please try again.' } }
     }
   }
 
   const signInWithMicrosoft = async () => {
     try {
+      sessionStorage.setItem('playLoginAnimation', 'true');
+      sessionStorage.setItem('playLoginAnimationSetAt', Date.now().toString());
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'microsoft',
         options: {
@@ -148,6 +179,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (error) {
         console.error('Microsoft OAuth error:', error?.message || 'Unknown error');
+        sessionStorage.removeItem('playLoginAnimation');
+        sessionStorage.removeItem('playLoginAnimationSetAt');
         // Provide more specific error messages
         if (error.message.includes('access_denied')) {
           return { error: { ...error, message: 'Microsoft login was cancelled or denied. Please try again.' } };
@@ -163,11 +196,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return { error: null }
     } catch (err) {
       console.error('Microsoft OAuth exception:', err instanceof Error ? err.message : 'Unknown error');
+      sessionStorage.removeItem('playLoginAnimation');
+      sessionStorage.removeItem('playLoginAnimationSetAt');
       return { error: { message: 'An unexpected error occurred during Microsoft login. Please try again.' } }
     }
   }
 
   const signOut = async () => {
+    sessionStorage.removeItem('playLoginAnimation');
+    sessionStorage.removeItem('playLoginAnimationSetAt');
     const { error } = await supabase.auth.signOut()
     return { error }
   }

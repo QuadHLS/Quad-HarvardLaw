@@ -35,19 +35,10 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
   };
 
   const activeSection = getCurrentSection();
-  // Start collapsed and auto-expand on load
-  const [isAutoExpanded, setIsAutoExpanded] = useState(false);
+  // Hover state for expand/collapse
+  const [isHovered, setIsHovered] = useState(false);
   
-  // Auto-expand on component mount
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsAutoExpanded(true);
-    }, 100); // Small delay for smooth animation
-    
-    return () => clearTimeout(timer);
-  }, []);
-  
-  const isCollapsedOverride = !isAutoExpanded;
+  const isCollapsedOverride = !isHovered;
   const { user } = useAuth();
   const [, setIsResourcesExpanded] = useState(false);
   const [userName, setUserName] = useState('User');
@@ -234,8 +225,8 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
         isCollapsedOverride ? 'w-16' : 'w-40'
       }`}
       style={{ backgroundColor: 'var(--background-color, #f9f5f0)', transition: 'width 300ms ease-in-out', minWidth: '4rem' }}
-      onMouseEnter={() => {/* Disabled for now - sidebar always extended */}}
-      onMouseLeave={() => {/* Disabled for now - sidebar always extended */}}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {/* Header */}
       <div className="p-4">
@@ -251,6 +242,8 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
               src="/QUAD.svg" 
               alt="Quad Logo" 
               className="w-auto object-contain h-12 relative z-20"
+              id="sidebar-quad-logo"
+              data-quad-logo="sidebar"
             />
           </Link>
           {/* Menu button removed */}

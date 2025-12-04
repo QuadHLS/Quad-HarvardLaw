@@ -827,12 +827,15 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
 
 
   // Fetch user's profile and courses
+  // Start fetching immediately when animation begins (as soon as user exists)
   useEffect(() => {
     const fetchUserProfile = async () => {
       if (!user?.id) {
         setLoading(false);
         return;
       }
+      
+      // Start fetching immediately - don't wait for anything
 
       try {
         const { data: profile, error } = await supabase

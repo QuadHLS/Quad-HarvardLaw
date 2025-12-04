@@ -30,12 +30,14 @@ import { MobileComingSoon } from './components/MobileComingSoon';
 import { isPhone } from './components/ui/use-mobile';
 import { supabase } from './lib/supabase';
 import type { Outline } from './types';
+import { PostLoginLoading } from './components/PostLoginLoading';
 
 
 function AppContent({ user }: { user: any }) {
   const [authLoading, setAuthLoading] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
+  const [isFadingOut, setIsFadingOut] = React.useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -121,8 +123,10 @@ function AppContent({ user }: { user: any }) {
       listener.subscription.unsubscribe();
     };
   }, [user, navigate]);
+  
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean | null>(null);
   const [isClubAccount, setIsClubAccount] = useState<boolean>(false);
+  const [minLoadingTimeElapsed, setMinLoadingTimeElapsed] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(() => {
     return window.location.pathname === '/reset-password';
   });
@@ -251,7 +255,7 @@ function AppContent({ user }: { user: any }) {
 
         setSavedOutlines(outlines || []);
       } catch (error) {
-        console.error('Error loading saved outlines:', error?.message || "Unknown error");
+        console.error('Error loading saved outlines:', error instanceof Error ? error.message : "Unknown error");
       }
     };
 
@@ -331,10 +335,11 @@ function AppContent({ user }: { user: any }) {
 
 
   // Fetch outlines from Supabase with pagination (only after login)
+  // Start fetching only when animation starts fading out to prevent lag
   useEffect(() => {
     const fetchOutlines = async () => {
-      // Wait for authentication to be ready and a user session to exist
-      if (authLoading || !user) {
+      // Only start fetching when animation is fading out (isFadingOut is true)
+      if (!user || !isFadingOut) {
         return;
       }
 
@@ -342,6 +347,8 @@ function AppContent({ user }: { user: any }) {
       if (fetchedOutlinesOnceRef.current) {
         return;
       }
+      
+      // Start fetching when fade begins
 
       try {
         const allOutlines: Outline[] = [];
@@ -396,18 +403,19 @@ function AppContent({ user }: { user: any }) {
         setOutlines(transformedOutlines);
         fetchedOutlinesOnceRef.current = true;
       } catch (error) {
-        console.error('Error fetching outlines:', error?.message || "Unknown error");
+        console.error('Error fetching outlines:', error instanceof Error ? error.message : "Unknown error");
       }
     };
 
     fetchOutlines();
-  }, [authLoading, user]);
+  }, [user, isFadingOut]); // Start fetching when fade begins
 
   // Fetch exams from Supabase with pagination
+  // Start fetching only when animation starts fading out to prevent lag
   useEffect(() => {
     const fetchExams = async () => {
-      // Wait for authentication to be ready and a user session to exist
-      if (authLoading || !user) {
+      // Only start fetching when animation is fading out (isFadingOut is true)
+      if (!user || !isFadingOut) {
         return;
       }
 
@@ -415,6 +423,8 @@ function AppContent({ user }: { user: any }) {
       if (fetchedExamsOnceRef.current) {
         return;
       }
+      
+      // Start fetching when fade begins
 
       try {
         const allExams: Outline[] = [];
@@ -451,12 +461,12 @@ function AppContent({ user }: { user: any }) {
         setExams(allExams);
         fetchedExamsOnceRef.current = true;
       } catch (error) {
-        console.error('Error fetching exams:', error?.message || "Unknown error");
+        console.error('Error fetching exams:', error instanceof Error ? error.message : "Unknown error");
       }
     };
 
     fetchExams();
-  }, [authLoading, user]);
+  }, [user, isFadingOut]); // Start fetching when fade begins
 
   // Load saved exams from database
   useEffect(() => {
@@ -494,7 +504,7 @@ function AppContent({ user }: { user: any }) {
 
         setSavedExams(savedExamObjects || []);
       } catch (error) {
-        console.error('Error loading saved exams:', error?.message || "Unknown error");
+        console.error('Error loading saved exams:', error instanceof Error ? error.message : "Unknown error");
       }
     };
 
@@ -639,7 +649,7 @@ function AppContent({ user }: { user: any }) {
       // Update local state
       setSavedOutlines((prev) => [...prev, outline]);
     } catch (error) {
-      console.error('Error saving outline:', error?.message || "Unknown error");
+      console.error('Error saving outline:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -680,7 +690,7 @@ function AppContent({ user }: { user: any }) {
         prev.filter((outline) => outline.id !== outlineId)
       );
     } catch (error) {
-      console.error('Error removing saved outline:', error?.message || "Unknown error");
+      console.error('Error removing saved outline:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -739,7 +749,7 @@ function AppContent({ user }: { user: any }) {
       // Update local state
       setSavedExams((prev) => [...prev, exam]);
     } catch (error) {
-      console.error('Error saving exam:', error?.message || "Unknown error");
+      console.error('Error saving exam:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -780,7 +790,7 @@ function AppContent({ user }: { user: any }) {
         prev.filter((exam) => exam.id !== examId)
       );
     } catch (error) {
-      console.error('Error removing saved exam:', error?.message || "Unknown error");
+      console.error('Error removing saved exam:', error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -819,21 +829,58 @@ function AppContent({ user }: { user: any }) {
     };
   }, [authLoading]);
 
-  // Show loading state while checking authentication
-  if (showAuthLoading) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center z-50 fade-in-overlay" style={{ backgroundColor: '#faf3ef' }}>
-        <div className="text-center">
-          <img
-            src="/QUAD.svg"
-            alt="Quad Logo"
-            className="w-24 h-24 mx-auto"
-          />
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-700 mx-auto mt-4"></div>
-        </div>
-      </div>
-    );
-  }
+  // Ensure loading screen shows for minimum duration (3.0s overlay; animation completes in ~2.0s)
+  // Only show animation when the playLoginAnimation flag is set (manual login)
+  // NOTHING loads during animation - data fetching and website rendering only start when fade begins
+  const previousUserRef = React.useRef<any>(null);
+
+  React.useEffect(() => {
+    if (user) {
+      const shouldPlayAnimation = sessionStorage.getItem('playLoginAnimation') === 'true';
+      
+      if (shouldPlayAnimation) {
+        // Manual login just occurred - show animation for minimum duration
+        // NO data fetching or rendering happens during animation - only when fade starts
+        setMinLoadingTimeElapsed(false);
+        setIsFadingOut(false);
+        
+        // Start fade out immediately after animation completes (2.0s), then hide completely after fade
+        // This is when data fetching and website rendering will begin
+        const fadeTimer = setTimeout(() => {
+          setIsFadingOut(true); // This triggers all data fetching and website rendering
+        }, 2000); // Start fading immediately when animation completes (no hold)
+        
+        const hideTimer = setTimeout(() => {
+          setMinLoadingTimeElapsed(true);
+          sessionStorage.removeItem('playLoginAnimation');
+          sessionStorage.removeItem('playLoginAnimationSetAt');
+        }, 3000); // Hide completely after fade completes (2.0s + 1.0s fade)
+        
+        return () => {
+          clearTimeout(fadeTimer);
+          clearTimeout(hideTimer);
+        };
+      } else {
+        // No animation requested - skip immediately
+        setMinLoadingTimeElapsed(true);
+        setIsFadingOut(false);
+        sessionStorage.removeItem('playLoginAnimation');
+        sessionStorage.removeItem('playLoginAnimationSetAt');
+      }
+    } else {
+      // Reset timer when there is no authenticated user
+      setMinLoadingTimeElapsed(false);
+      setIsFadingOut(false);
+
+      // Only clear animation flags if the previous state had a user (i.e., an actual logout)
+      if (previousUserRef.current) {
+        sessionStorage.removeItem('playLoginAnimation');
+        sessionStorage.removeItem('playLoginAnimationSetAt');
+      }
+    }
+
+    previousUserRef.current = user;
+  }, [user]);
 
   // Show auth callback page if user is on auth callback route (check this first)
   if (showAuthCallback) {
@@ -860,47 +907,21 @@ function AppContent({ user }: { user: any }) {
     return <ClubAccountPage />;
   }
 
-  // Show loading spinner while checking onboarding status
-  if (hasCompletedOnboarding === null && user) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center z-50 fade-in-overlay" style={{ backgroundColor: '#faf3ef' }}>
-        <div className="text-center">
-          <img
-            src="/QUAD.svg"
-            alt="Quad Logo"
-            className="w-24 h-24 mx-auto"
-          />
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-700 mx-auto mt-4"></div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show onboarding flow if user hasn't completed onboarding (unless we're on reset password page or in password recovery)
-  const isPasswordRecovery = sessionStorage.getItem('isPasswordRecovery') === 'true';
-  if (hasCompletedOnboarding === false && !showResetPassword && !isPasswordRecovery) {
-    return (
-      <OnboardingFlow onComplete={async () => {
-        // Mark classes_filled as true in the database
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
-        if (currentUser) {
-          const { error } = await supabase
-            .from('profiles')
-            .update({ classes_filled: true })
-            .eq('id', currentUser.id);
-          
-          if (error) {
-            console.error('Error updating classes_filled:', error?.message || "Unknown error");
-          }
-        }
-        
-        // Immediately show main website after completion
-        setHasCompletedOnboarding(true);
-      }} />
-    );
-  }
-
-  return (
+  // Show loading state while checking authentication OR checking onboarding status
+  // Animation ends after 2.3s regardless of data loading status
+  // Only show animation when explicitly requested by manual login
+  const shouldPlayAnimationFlag = sessionStorage.getItem('playLoginAnimation') === 'true';
+  
+  // Show animation only when flag is set (manual login)
+  const shouldShowAnimation = shouldPlayAnimationFlag && 
+    (user && hasCompletedOnboarding !== null && !minLoadingTimeElapsed);
+  
+  // Show regular loading (no animation) while checking onboarding on page refresh
+  const shouldShowRegularLoading = showAuthLoading || 
+    (hasCompletedOnboarding === null && user);
+  
+  // Always render the website content, but show animation overlay on top when needed
+  const websiteContent = (
     <div className="h-screen flex min-w-0" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
       {/* Navigation Sidebar */}
       <NavigationSidebar
@@ -910,9 +931,6 @@ function AppContent({ user }: { user: any }) {
 
       {/* Toast Notifications */}
       <Toaster position="top-right" />
-
-      {/* OutlinePage manages its own header/filters; no left sidebar */}
-
 
       {/* Main Content */}
       <div className={`flex-1 overflow-hidden ${sidebarCollapsed ? 'ml-16' : 'ml-40'}`} style={{ transition: 'margin-left 300ms ease' }}>
@@ -1026,6 +1044,65 @@ function AppContent({ user }: { user: any }) {
       </div>
     </div>
   );
+
+  if (shouldShowAnimation) {
+    return (
+      <>
+        {/* Only render website content when fading out - nothing loads during animation */}
+        {isFadingOut && websiteContent}
+        <PostLoginLoading isFadingOut={isFadingOut} />
+      </>
+    );
+  }
+  
+  // Show minimal loading state (no animation) for page refreshes
+  if (shouldShowRegularLoading) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center z-50 fade-in-overlay" style={{ backgroundColor: '#faf3ef' }}>
+        <div className="text-center">
+          <img
+            src="/QUAD.svg"
+            alt="Quad Logo"
+            className="w-24 h-24 mx-auto"
+          />
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-700 mx-auto mt-4"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show onboarding flow if user hasn't completed onboarding (unless we're on reset password page or in password recovery)
+  const isPasswordRecovery = sessionStorage.getItem('isPasswordRecovery') === 'true';
+  if (hasCompletedOnboarding === false && !showResetPassword && !isPasswordRecovery) {
+    return (
+      <OnboardingFlow onComplete={async () => {
+        // Mark classes_filled as true in the database
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        if (currentUser) {
+          const { error } = await supabase
+            .from('profiles')
+            .update({ classes_filled: true })
+            .eq('id', currentUser.id);
+          
+          if (error) {
+            console.error('Error updating classes_filled:', error?.message || "Unknown error");
+          }
+        }
+        
+        // Immediately show main website after completion
+        setHasCompletedOnboarding(true);
+      }} />
+    );
+  }
+
+  return websiteContent;
+}
+
+// App component that uses AuthContext - must be defined before App
+function AppWithAuth() {
+  const { user } = useAuth();
+
+  return <AppContent user={user} />;
 }
 
 // Main App Component with AuthProvider and Router
@@ -1037,11 +1114,4 @@ export default function App() {
       </AuthProvider>
     </Router>
   );
-}
-
-// App component that uses AuthContext
-function AppWithAuth() {
-  const { user } = useAuth();
-
-  return <AppContent user={user} />;
 }

@@ -2208,12 +2208,12 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
           </Button>
 
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={() => setShowSettingsDialog(true)}
-            className="h-9 w-9 p-0 text-gray-700 hover:bg-gray-100"
+            className="border-gray-300 text-gray-700 hover:bg-[#F5F1E8]"
           >
-            <Settings className="h-5 w-5" />
+            Import Calendars
           </Button>
         </div>
       </div>

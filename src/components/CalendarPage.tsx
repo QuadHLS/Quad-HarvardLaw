@@ -1066,13 +1066,13 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
           description: eventDb.description || undefined,
         }));
 
-        // Merge with existing events: update all Google Calendar events, keep user-created events
+        // Merge with existing events: update all Google Calendar events, keep user-created events and Canvas events
         setCustomEvents(prev => {
-          // Separate user-created events (custom-) from Google Calendar events (google-)
-          const userEvents = prev.filter(e => e.id.startsWith('custom-'));
+          // Separate user-created events (custom-) and Canvas events (canvas-) from Google Calendar events (google-)
+          const nonGoogleEvents = prev.filter(e => !e.id.startsWith('google-'));
           
-          // Return user events + all current Google events (this replaces all Google events)
-          return [...userEvents, ...googleEvents];
+          // Return non-Google events + all current Google events (this replaces all Google events)
+          return [...nonGoogleEvents, ...googleEvents];
         });
         
         // Update addedEventIds separately to ensure React detects the change
@@ -3463,7 +3463,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                     variant="outline"
                     size="sm"
                     className={cn(
-                      "h-auto py-1 px-2 text-xs",
+                      "h-8 py-1 px-2 text-xs whitespace-nowrap",
                       googleCalendarConnected
                         ? "bg-green-600 text-white border-green-600 hover:bg-green-700 hover:border-green-700"
                         : "border-gray-300 hover:bg-white"

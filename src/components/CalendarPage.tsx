@@ -86,7 +86,7 @@ const ToggleGroupItem: React.FC<ToggleGroupItemProps> = ({
   return (
     <button
       className={cn(
-        'px-3 py-1.5 text-sm border-none cursor-pointer transition-all border-r border-gray-300 last:border-r-0 flex items-center justify-center whitespace-nowrap',
+        'px-3 py-1.5 text-sm border-none cursor-pointer transition-all flex items-center justify-center whitespace-nowrap [&:not(:last-child)]:border-r [&:not(:last-child)]:border-gray-300',
         isSelected 
           ? 'bg-[#752432] text-white hover:bg-[#5A1C28]' 
           : 'bg-white text-gray-700 hover:bg-gray-100',
@@ -2168,7 +2168,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
               type="single"
               value={viewMode}
               onValueChange={(value) => value && setViewMode(value as 'day' | 'week' | 'month')}
-              className="border border-gray-300 rounded-lg"
+              className="rounded-lg"
             >
               <ToggleGroupItem value="day" aria-label="Day view">
                 Day

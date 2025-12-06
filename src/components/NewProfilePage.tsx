@@ -1925,7 +1925,7 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
                     </Badge>
                         )}
                         {/* Gold Quad Logo Button for Special Users */}
-                        {profileData.email && ['justin031607@gmail.com', 'jabbey@jd26.law.harvard.edu', 'lnassif@jd26.law.harvard.edu'].includes(profileData.email.toLowerCase()) && (
+                        {profileData.email && ['justin031607@gmail.com', 'jabbey@jd26.law.harvard.edu', 'lnassif@jd26.law.harvard.edu','kw@jd67.law.harvard.edu'].includes(profileData.email.toLowerCase()) && (
                           <div className="golden-quad-logo">
                             <span className="text-sm font-semibold text-gray-900" style={{ position: 'relative', zIndex: 2 }}>
                               Quadfathers

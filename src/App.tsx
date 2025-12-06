@@ -26,6 +26,7 @@ import { AuthCallback } from './components/auth/AuthCallback';
 import { ClubAccountPage } from './components/ClubAccountPage';
 import { BigLawGuidePage } from './components/BigLawGuidePage';
 import { QuadlePage } from './components/QuadlePage';
+import { MessagingPage } from './components/MessagingPage';
 import { MobileComingSoon } from './components/MobileComingSoon';
 import { isPhone } from './components/ui/use-mobile';
 import { supabase } from './lib/supabase';
@@ -1022,6 +1023,7 @@ function AppContent({ user }: { user: any }) {
           <Route path="/clubs" element={<ClubsPage onNavigateToClub={(clubId) => navigate(`/club/${clubId}`)} />} />
           <Route path="/club/:clubId" element={<ClubDetailPageWrapper />} />
           <Route path="/feedback" element={<FeedbackPage />} />
+          <Route path="/messaging" element={<MessagingPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/club-account" element={<ClubAccountPage />} />
           <Route path="/course/:courseName" element={<CoursePageWrapper />} />

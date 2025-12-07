@@ -926,7 +926,11 @@ export function MessagingPage() {
     if (!selectedConversation?.id) return;
 
     const channel = supabase
-      .channel(`messages:${selectedConversation.id}`)
+      .channel(`messages:${selectedConversation.id}`, {
+        config: {
+          broadcast: { self: true }
+        }
+      })
       .on(
         'postgres_changes',
         {
@@ -936,6 +940,7 @@ export function MessagingPage() {
           filter: `conversation_id=eq.${selectedConversation.id}`,
         },
         async (payload: { new: { id: string; sender_id: string; content: string | null; created_at: string; is_edited: boolean | null; edited_at: string | null } }) => {
+          console.log('Realtime INSERT received:', payload);
           const newMessage = payload.new;
 
           // Fetch sender profile
@@ -993,8 +998,10 @@ export function MessagingPage() {
           setMessages((prev) => {
             // Avoid duplicates
             if (prev.some((m) => m.id === transformedMessage.id)) {
+              console.log('Duplicate message detected, skipping:', transformedMessage.id);
               return prev;
             }
+            console.log('Adding new message from realtime:', transformedMessage.id);
             const updated = [...prev, transformedMessage];
             // Scroll to bottom when new message arrives
             setTimeout(() => {
@@ -1081,7 +1088,17 @@ export function MessagingPage() {
           setMessages((prev) => prev.filter((m) => m.id !== payload.old.id));
         }
       )
-      .subscribe();
+      .subscribe((status: string, err?: Error) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Realtime subscribed to messages');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('Realtime channel error:', err);
+        } else if (status === 'TIMED_OUT') {
+          console.error('Realtime subscription timed out');
+        } else if (status === 'CLOSED') {
+          console.log('Realtime channel closed');
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -1953,7 +1970,7 @@ export function MessagingPage() {
                         message.isCurrentUser ? 'items-end max-w-[70%]' : 'items-start max-w-[70%]'
                       )}
                     >
-                      {!message.isCurrentUser && (
+                      {!message.isCurrentUser && selectedConversation?.type !== 'dm' && (
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-medium text-sm">{message.senderName}</span>
                         </div>

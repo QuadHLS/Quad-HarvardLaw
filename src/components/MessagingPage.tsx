@@ -21,6 +21,8 @@ import {
   File as FileIcon,
   Download,
   Check,
+  MoreVertical,
+  Globe,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -48,6 +50,7 @@ interface Conversation {
   name: string;
   lastMessage?: string;
   lastMessageTime?: string;
+  lastMessageAt?: string; // ISO timestamp for sorting
   unreadCount: number;
   status?: 'online' | 'away' | 'busy' | 'offline';
   participants?: string[];
@@ -96,6 +99,7 @@ export function MessagingPage() {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversationsLoading, setConversationsLoading] = useState(true);
   const [expandedSections, setExpandedSections] = useState({
     dms: true,
     groups: true,
@@ -118,10 +122,12 @@ export function MessagingPage() {
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const groupMembersListRef = useRef<HTMLDivElement>(null);
   const groupMembersContainerRef = useRef<HTMLDivElement>(null);
+  const blockMenuRef = useRef<HTMLDivElement>(null);
   
   // Blocking state
   const [isBlocked, setIsBlocked] = useState(false);
   const [blockedByUser, setBlockedByUser] = useState(false);
+  const [showBlockMenu, setShowBlockMenu] = useState(false);
   
   // Group management state
   const [showGroupSettings, setShowGroupSettings] = useState(false);
@@ -144,7 +150,9 @@ export function MessagingPage() {
   // File upload state
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const paperclipButtonRef = useRef<HTMLButtonElement>(null);
   
   // Emoji picker state
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -283,6 +291,21 @@ export function MessagingPage() {
       return () => document.removeEventListener('click', handleClickOutside);
     }
   }, [showGroupMembersList]);
+
+  // Close block menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (blockMenuRef.current && !blockMenuRef.current.contains(event.target as Node)) {
+        setShowBlockMenu(false);
+      }
+    };
+    if (showBlockMenu) {
+      setTimeout(() => {
+        document.addEventListener('click', handleClickOutside);
+      }, 0);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [showBlockMenu]);
 
   // Reset Create Group modal state when it opens
   useEffect(() => {
@@ -700,8 +723,12 @@ export function MessagingPage() {
   // Fetch conversations (extracted to reusable function)
   const fetchConversations = useCallback(async () => {
     try {
+      setConversationsLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setConversationsLoading(false);
+        return;
+      }
 
       // Fetch conversation IDs where user is a participant
       const { data: participants, error: partError } = await supabase
@@ -712,11 +739,13 @@ export function MessagingPage() {
 
       if (partError) {
         console.error('Error fetching conversations:', partError);
+        setConversationsLoading(false);
         return;
       }
 
       if (!participants || participants.length === 0) {
         setConversations([]);
+        setConversationsLoading(false);
         return;
       }
 
@@ -732,11 +761,13 @@ export function MessagingPage() {
 
       if (convsError) {
         console.error('Error fetching conversation details:', convsError);
+        setConversationsLoading(false);
         return;
       }
 
       if (!convsData) {
         setConversations([]);
+        setConversationsLoading(false);
         return;
       }
 
@@ -796,6 +827,7 @@ export function MessagingPage() {
               name: otherUser.full_name || 'Unknown User',
               lastMessage: lastMessage.content,
               lastMessageTime: new Date(lastMessage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              lastMessageAt: lastMessage.created_at,
               unreadCount: 0,
               userId: otherUser.id,
             };
@@ -818,6 +850,7 @@ export function MessagingPage() {
             name: conv.name || 'Unnamed',
             lastMessage: lastMessage?.content,
             lastMessageTime: lastMessage ? new Date(lastMessage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined,
+            lastMessageAt: lastMessage?.created_at || conv.last_message_at || undefined,
             unreadCount: 0,
           };
         })
@@ -827,6 +860,8 @@ export function MessagingPage() {
       setConversations(filteredConvs);
     } catch (err) {
       console.error('Error fetching conversations:', err);
+    } finally {
+      setConversationsLoading(false);
     }
   }, []);
 
@@ -1158,7 +1193,19 @@ export function MessagingPage() {
   };
 
   const handleSendMessage = async () => {
-    if (!messageInput.trim() || !selectedConversation) return;
+    if (!selectedConversation) return;
+    
+    // If files are selected, upload them
+    if (selectedFiles.length > 0) {
+      await handleUploadFiles();
+      // If there's also text, continue to send it below
+      if (!messageInput.trim()) {
+        return; // Only files, no text to send
+      }
+    }
+    
+    // If no files and no text, return
+    if (!messageInput.trim() && selectedFiles.length === 0) return;
 
     // Check if user is blocked (only for DMs) - check both directions
     if (selectedConversation.type === 'dm' && selectedConversation.userId) {
@@ -1209,6 +1256,145 @@ export function MessagingPage() {
         return;
       }
 
+      // Check if message starts with a URL
+      const urlCheck = startsWithUrl(content);
+      
+      if (urlCheck.isUrl && urlCheck.url) {
+        // Send the URL as a separate message first
+        const { data: linkMessage, error: linkError } = await supabase
+          .from('messages')
+          .insert({
+            conversation_id: selectedConversation.id,
+            sender_id: user.id,
+            content: urlCheck.url,
+            message_type: 'text',
+          })
+          .select('id, sender_id, content, created_at, is_edited, edited_at')
+          .single();
+
+        if (linkError) {
+          console.error('Error sending link message:', linkError);
+          setMessageInput(content);
+          setSendingMessage(false);
+          return;
+        }
+
+        // Fetch sender profile for link message
+        const { data: linkProfile } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        // Add link message to local state optimistically
+        if (linkMessage && linkProfile) {
+          const optimisticLinkMessage: Message = {
+            id: linkMessage.id,
+            senderId: linkMessage.sender_id,
+            senderName: linkProfile.full_name || 'You',
+            senderAvatar: linkProfile.avatar_url,
+            content: linkMessage.content,
+            timestamp: new Date(linkMessage.created_at).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+            created_at: linkMessage.created_at,
+            isCurrentUser: true,
+            is_edited: linkMessage.is_edited,
+            edited_at: linkMessage.edited_at,
+            attachments: [],
+          };
+
+          setMessages((prev) => {
+            const updated = [...prev, optimisticLinkMessage];
+            // Scroll to bottom after sending
+            setTimeout(() => {
+              const messagesContainer = messagesEndRef.current?.closest('[data-slot="scroll-area"]');
+              const viewport = messagesContainer?.querySelector('[data-slot="scroll-area-viewport"]') as HTMLElement;
+              if (viewport) {
+                viewport.scrollTop = viewport.scrollHeight;
+              } else {
+                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+              }
+            }, 100);
+            return updated;
+          });
+        }
+
+        // If there's remaining text after the URL, send it as a separate message
+        if (urlCheck.remainingText) {
+          // Determine message type for remaining text
+          let messageType: 'text' | 'emoji' | 'image' | 'file' | 'mixed' = 'text';
+          const emojiRegex = /^[\p{Emoji}\s]+$/u;
+          if (emojiRegex.test(urlCheck.remainingText)) {
+            messageType = 'emoji';
+          }
+
+          const { data: textMessage, error: textError } = await supabase
+            .from('messages')
+            .insert({
+              conversation_id: selectedConversation.id,
+              sender_id: user.id,
+              content: urlCheck.remainingText,
+              message_type: messageType,
+            })
+            .select('id, sender_id, content, created_at, is_edited, edited_at')
+            .single();
+
+          if (textError) {
+            console.error('Error sending text message:', textError);
+            setSendingMessage(false);
+            return;
+          }
+
+          // Fetch sender profile for text message
+          const { data: textProfile } = await supabase
+            .from('profiles')
+            .select('id, full_name, avatar_url')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          // Add text message to local state optimistically
+          if (textMessage && textProfile) {
+            const optimisticTextMessage: Message = {
+              id: textMessage.id,
+              senderId: textMessage.sender_id,
+              senderName: textProfile.full_name || 'You',
+              senderAvatar: textProfile.avatar_url,
+              content: textMessage.content,
+              timestamp: new Date(textMessage.created_at).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              }),
+              created_at: textMessage.created_at,
+              isCurrentUser: true,
+              is_edited: textMessage.is_edited,
+              edited_at: textMessage.edited_at,
+              attachments: [],
+            };
+
+            setMessages((prev) => {
+              const updated = [...prev, optimisticTextMessage];
+              // Scroll to bottom after sending
+              setTimeout(() => {
+                const messagesContainer = messagesEndRef.current?.closest('[data-slot="scroll-area"]');
+                const viewport = messagesContainer?.querySelector('[data-slot="scroll-area-viewport"]') as HTMLElement;
+                if (viewport) {
+                  viewport.scrollTop = viewport.scrollHeight;
+                } else {
+                  messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                }
+              }, 100);
+              return updated;
+            });
+          }
+        }
+
+        setSendingMessage(false);
+        return;
+      }
+
+      // Normal message sending (no URL at start)
       // Determine message type based on content
       let messageType: 'text' | 'emoji' | 'image' | 'file' | 'mixed' = 'text';
       
@@ -1442,7 +1628,22 @@ export function MessagingPage() {
   // File upload functions
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    setSelectedFiles(files);
+    // Append new files to existing selected files instead of replacing
+    setSelectedFiles((prev) => [...prev, ...files]);
+    // Reset the input value so the same file can be selected again if needed
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    // Blur the paperclip button to prevent Enter key from triggering it
+    if (paperclipButtonRef.current) {
+      paperclipButtonRef.current.blur();
+    }
+    // Focus the message input so Enter key will send the file
+    setTimeout(() => {
+      if (messageInputRef.current) {
+        messageInputRef.current.focus();
+      }
+    }, 100);
   };
   
   const handleUploadFiles = async () => {
@@ -1453,10 +1654,20 @@ export function MessagingPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       
-      // Upload files and create messages
-      for (const file of selectedFiles) {
+      // Fetch sender profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .eq('id', user.id)
+        .maybeSingle();
+      
+      // Upload files and create messages in order
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
         const fileExt = file.name.split('.').pop();
-        const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        // Add small delay between files to ensure proper ordering (10ms per file)
+        const timestamp = Date.now() + (i * 10);
+        const fileName = `${user.id}/${timestamp}-${Math.random().toString(36).substring(7)}.${fileExt}`;
         const isImage = file.type.startsWith('image/');
         const bucket = isImage ? 'message-images' : 'message-files';
         
@@ -1477,13 +1688,13 @@ export function MessagingPage() {
             content: file.name,
             message_type: messageType,
           })
-          .select('id')
+          .select('id, sender_id, content, created_at, is_edited, edited_at')
           .single();
         
         if (messageError) throw messageError;
         
         // Create attachment record
-        await supabase
+        const { data: attachment, error: attachmentError } = await supabase
           .from('message_attachments')
           .insert({
             message_id: message.id,
@@ -1492,14 +1703,69 @@ export function MessagingPage() {
             file_path: fileName,
             file_size: file.size,
             mime_type: file.type,
-          });
+          })
+          .select('id, attachment_type, file_name, file_path, file_size, mime_type, thumbnail_url')
+          .single();
+        
+        if (attachmentError) throw attachmentError;
+        
+        // Get signed URL for attachment
+        let signedUrl: string | undefined;
+        try {
+          const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+            .from(bucket)
+            .createSignedUrl(fileName, 3600); // 1 hour expiry
+          
+          if (!signedUrlError && signedUrlData?.signedUrl) {
+            signedUrl = signedUrlData.signedUrl;
+          }
+        } catch (err) {
+          console.error('Error creating signed URL:', err);
+        }
+        
+        // Add message to local state immediately for optimistic update
+        const transformedMessage: Message = {
+          id: message.id,
+          senderId: message.sender_id,
+          senderName: profile?.full_name || currentUserProfile?.full_name || 'You',
+          senderAvatar: profile?.avatar_url,
+          content: message.content || '',
+          timestamp: new Date(message.created_at).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          created_at: message.created_at,
+          isCurrentUser: true,
+          is_edited: false,
+          attachments: attachment ? [{
+            ...attachment,
+            signedUrl: signedUrl,
+          }] : [],
+        };
+        
+        setMessages((prev) => {
+          const updated = [...prev, transformedMessage];
+          // Scroll to bottom after sending (only for the last file)
+          if (i === selectedFiles.length - 1) {
+            setTimeout(() => {
+              const messagesContainer = messagesEndRef.current?.closest('[data-slot="scroll-area"]');
+              const viewport = messagesContainer?.querySelector('[data-slot="scroll-area-viewport"]') as HTMLElement;
+              if (viewport) {
+                viewport.scrollTop = viewport.scrollHeight;
+              } else {
+                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+              }
+            }, 100);
+          }
+          return updated;
+        });
       }
       
       setSelectedFiles([]);
       if (fileInputRef.current) fileInputRef.current.value = '';
-      fetchMessages(selectedConversation.id);
     } catch (err) {
       console.error('Error uploading files:', err);
+      toast.error('Failed to upload file');
     } finally {
       setUploadingFiles(false);
     }
@@ -1667,15 +1933,387 @@ export function MessagingPage() {
     fetchConversations();
   }, [fetchConversations]);
 
+  // Auto-select the most recent conversation when conversations are loaded
+  useEffect(() => {
+    // Only auto-select if no conversation is currently selected
+    if (selectedConversation || conversations.length === 0) return;
+
+    // Priority: DMs first, then groups (exclude course messages)
+    const dms = conversations.filter(c => c.type === 'dm');
+    const groups = conversations.filter(c => c.type === 'group');
+    
+    let mostRecentConv: Conversation | null = null;
+    
+    if (dms.length > 0) {
+      // Sort DMs by last message timestamp (most recent first)
+      const sortedDMs = [...dms].sort((a, b) => {
+        const timeA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+        const timeB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+        return timeB - timeA;
+      });
+      mostRecentConv = sortedDMs[0];
+    } else if (groups.length > 0) {
+      // Sort groups by last message timestamp (most recent first)
+      const sortedGroups = [...groups].sort((a, b) => {
+        const timeA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+        const timeB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+        return timeB - timeA;
+      });
+      mostRecentConv = sortedGroups[0];
+    }
+    
+    // Auto-select the most recent conversation
+    if (mostRecentConv) {
+      setSelectedConversation(mostRecentConv);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversations]); // Only depend on conversations, not selectedConversation to avoid loops
+
   const getDMs = () => conversations.filter((c) => c.type === 'dm');
   const getGroups = () => conversations.filter((c) => c.type === 'group');
   const getCourses = () => conversations.filter((c) => c.type === 'course');
+  
+  // Check if user has any DMs or groups (excluding course messages)
+  const hasDMsOrGroups = getDMs().length > 0 || getGroups().length > 0;
 
   // Helper function to truncate names to 28 characters
   const truncateName = (name: string): string => {
     if (!name) return '';
     if (name.length <= 28) return name;
     return name.substring(0, 28) + '...';
+  };
+
+  const truncateFileName = (fileName: string): string => {
+    if (!fileName) return '';
+    if (fileName.length <= 80) return fileName;
+    return fileName.substring(0, 80) + '...';
+  };
+
+  // Format file name for iMessage-style display: max 3 lines, 40 chars per line
+  const formatFileNameForDisplay = (fileName: string): string[] => {
+    if (!fileName) return [''];
+    const maxLines = 3;
+    const charsPerLine = 40;
+    const lines: string[] = [];
+    
+    for (let i = 0; i < maxLines; i++) {
+      const start = i * charsPerLine;
+      const end = start + charsPerLine;
+      if (start >= fileName.length) break;
+      
+      const line = fileName.substring(start, end);
+      if (i === maxLines - 1 && fileName.length > end) {
+        // Last line, add ellipsis if there's more
+        lines.push(line.substring(0, charsPerLine - 3) + '...');
+      } else {
+        lines.push(line);
+      }
+    }
+    
+    return lines.length > 0 ? lines : [fileName];
+  };
+
+  // Get file type from mime_type or file extension
+  const getFileType = (mimeType?: string, fileName?: string): string => {
+    if (mimeType) {
+      if (mimeType.startsWith('application/pdf')) return 'PDF Document';
+      if (mimeType.startsWith('image/')) return 'Image';
+      if (mimeType.startsWith('video/')) return 'Video';
+      if (mimeType.startsWith('audio/')) return 'Audio';
+      if (mimeType.includes('word') || mimeType.includes('document')) return 'Word Document';
+      if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'Excel Spreadsheet';
+      if (mimeType.includes('powerpoint') || mimeType.includes('presentation')) return 'PowerPoint';
+      if (mimeType.includes('zip') || mimeType.includes('compressed')) return 'Archive';
+      if (mimeType.includes('text')) return 'Text Document';
+    }
+    
+    if (fileName) {
+      const ext = fileName.split('.').pop()?.toLowerCase();
+      if (ext === 'pdf') return 'PDF Document';
+      if (['doc', 'docx'].includes(ext || '')) return 'Word Document';
+      if (['xls', 'xlsx'].includes(ext || '')) return 'Excel Spreadsheet';
+      if (['ppt', 'pptx'].includes(ext || '')) return 'PowerPoint';
+      if (['zip', 'rar', '7z'].includes(ext || '')) return 'Archive';
+      if (['txt'].includes(ext || '')) return 'Text Document';
+    }
+    
+    return 'Document';
+  };
+
+  // Format file size
+  const formatFileSize = (bytes?: number): string => {
+    if (!bytes) return 'Unknown size';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  };
+
+  // Extract domain from URL
+  const extractDomain = (url: string): string => {
+    try {
+      let cleanUrl = url;
+      if (url.startsWith('www.')) {
+        cleanUrl = 'https://' + url;
+      } else if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        cleanUrl = 'https://' + url;
+      }
+      const urlObj = new URL(cleanUrl);
+      return urlObj.hostname.replace('www.', '');
+    } catch {
+      // If URL parsing fails, try to extract domain manually
+      const match = url.match(/(?:https?:\/\/)?(?:www\.)?([^\/\s]+)/);
+      return match ? match[1] : url;
+    }
+  };
+
+  // Helper function to convert video URLs (YouTube, YouTube Shorts, TikTok, Instagram) to embed format
+  const getVideoEmbedUrl = (url: string | null | undefined): { embedUrl: string; platform: 'youtube' | 'tiktok' | 'instagram' } | null => {
+    if (!url || !url.trim()) return null;
+    
+    const trimmedUrl = url.trim();
+    
+    // YouTube (regular videos and shorts)
+    // Format: https://www.youtube.com/watch?v=VIDEO_ID
+    let watchMatch = trimmedUrl.match(/youtube\.com\/watch\?v=([^&\s]+)/);
+    if (watchMatch) {
+      const videoId = watchMatch[1].split('&')[0].split('#')[0];
+      return { embedUrl: `https://www.youtube.com/embed/${videoId}`, platform: 'youtube' };
+    }
+    
+    // Format: https://youtu.be/VIDEO_ID
+    let shortMatch = trimmedUrl.match(/youtu\.be\/([^?\s]+)/);
+    if (shortMatch) {
+      const videoId = shortMatch[1].split('&')[0].split('#')[0];
+      return { embedUrl: `https://www.youtube.com/embed/${videoId}`, platform: 'youtube' };
+    }
+    
+    // Format: https://www.youtube.com/shorts/VIDEO_ID
+    let shortsMatch = trimmedUrl.match(/youtube\.com\/shorts\/([^?\s]+)/);
+    if (shortsMatch) {
+      const videoId = shortsMatch[1].split('&')[0].split('#')[0];
+      return { embedUrl: `https://www.youtube.com/embed/${videoId}`, platform: 'youtube' };
+    }
+    
+    // Format: https://www.youtube.com/embed/VIDEO_ID
+    let embedMatch = trimmedUrl.match(/youtube\.com\/embed\/([^?\s]+)/);
+    if (embedMatch) {
+      return { embedUrl: trimmedUrl, platform: 'youtube' };
+    }
+    
+    // If it's just a video ID (no URL structure) - assume YouTube
+    if (!trimmedUrl.includes('http') && !trimmedUrl.includes('/') && !trimmedUrl.includes('?')) {
+      return { embedUrl: `https://www.youtube.com/embed/${trimmedUrl}`, platform: 'youtube' };
+    }
+    
+    // TikTok
+    // Format: https://www.tiktok.com/@username/video/VIDEO_ID
+    let tiktokMatch = trimmedUrl.match(/tiktok\.com\/@[\w.-]+\/video\/(\d+)/);
+    if (tiktokMatch) {
+      const videoId = tiktokMatch[1];
+      return { embedUrl: `https://www.tiktok.com/embed/v2/${videoId}`, platform: 'tiktok' };
+    }
+    
+    // Format: https://vm.tiktok.com/CODE or https://tiktok.com/@username/video/VIDEO_ID
+    if (trimmedUrl.includes('tiktok.com') || trimmedUrl.includes('vm.tiktok.com')) {
+      let vidMatch = trimmedUrl.match(/video\/(\d+)/);
+      if (vidMatch) {
+        return { embedUrl: `https://www.tiktok.com/embed/v2/${vidMatch[1]}`, platform: 'tiktok' };
+      }
+    }
+    
+    // Instagram
+    // Format: https://www.instagram.com/p/VIDEO_ID/ or https://www.instagram.com/reel/VIDEO_ID/
+    let instagramMatch = trimmedUrl.match(/instagram\.com\/(?:p|reel)\/([^\/\?\s]+)/);
+    if (instagramMatch) {
+      const postId = instagramMatch[1];
+      return { embedUrl: `https://www.instagram.com/p/${postId}/embed/`, platform: 'instagram' };
+    }
+    
+    return null;
+  };
+
+  // Check if text starts with a URL
+  const startsWithUrl = (text: string): { isUrl: boolean; url?: string; remainingText?: string } => {
+    if (!text || !text.trim()) return { isUrl: false };
+    
+    const trimmed = text.trim();
+    // URL regex pattern - matches http, https, www, and common domains at start
+    const urlRegex = /^(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}[^\s]*)/;
+    const match = trimmed.match(urlRegex);
+    
+    if (match) {
+      const url = match[0];
+      const remainingText = trimmed.substring(url.length).trim();
+      return { isUrl: true, url, remainingText: remainingText || undefined };
+    }
+    
+    return { isUrl: false };
+  };
+
+  // Convert URLs in text to clickable links
+  // If link is at start (separate message), show as card. Otherwise, show as underlined text.
+  const linkifyText = (text: string, isCurrentUser: boolean, isLinkOnlyMessage: boolean = false): React.ReactNode[] => {
+    if (!text) return [];
+    
+    // If this is a link-only message, check if it's a YouTube/video link
+    if (isLinkOnlyMessage) {
+      let url = text.trim();
+      // Add https:// if it starts with www. or doesn't have protocol
+      if (url.startsWith('www.')) {
+        url = 'https://' + url;
+      } else if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+      }
+      
+      // Check if it's a YouTube/video link
+      const embedData = getVideoEmbedUrl(url);
+      if (embedData && embedData.platform === 'youtube') {
+        // Render YouTube iframe with original aspect ratio
+        return [
+          <div
+            key="youtube-embed"
+            className="relative w-full"
+            style={{ maxWidth: '800px' }}
+          >
+            <div className="relative overflow-hidden rounded-lg">
+              <iframe
+                src={embedData.embedUrl}
+                title="YouTube video player"
+                frameBorder="0"
+                scrolling="no"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                className="w-full rounded-lg"
+                style={{ 
+                  border: 'none', 
+                  overflow: 'hidden',
+                  aspectRatio: '16/9',
+                  minHeight: '250px'
+                }}
+              />
+            </div>
+          </div>
+        ];
+      }
+      
+      // Otherwise, show as regular link card
+      const domain = extractDomain(url);
+      
+      return [
+        <a
+          key="link-card"
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-start gap-3 px-3 py-2 rounded-lg w-full max-w-md"
+          style={{ backgroundColor: '#e9e8eb' }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#d4d3d6'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#e9e8eb'}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex-1 min-w-0 flex flex-col gap-1">
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-black leading-tight">
+                {domain}
+              </span>
+              <div className="flex justify-end">
+                <span className="text-xs text-black/70">Link</span>
+              </div>
+            </div>
+          </div>
+          <Globe className="w-6 h-6 flex-shrink-0 text-black/80" />
+        </a>
+      ];
+    }
+    
+    // Otherwise, show links as underlined text
+    const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}[^\s]*)/g;
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match;
+    
+    while ((match = urlRegex.exec(text)) !== null) {
+      // Add text before the URL
+      if (match.index > lastIndex) {
+        parts.push(text.substring(lastIndex, match.index));
+      }
+      
+      // Prepare the URL
+      let url = match[0];
+      // Add https:// if it starts with www. or doesn't have protocol
+      if (url.startsWith('www.')) {
+        url = 'https://' + url;
+      } else if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+      }
+      
+      // Add the URL as underlined text link
+      parts.push(
+        <a
+          key={match.index}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(
+            "underline break-all decoration-solid",
+            isCurrentUser ? "text-white/90 hover:text-white underline decoration-white/90" : "text-blue-600 hover:text-blue-800 underline decoration-blue-600"
+          )}
+          style={{ textDecoration: 'underline' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {match[0]}
+        </a>
+      );
+      
+      lastIndex = match.index + match[0].length;
+    }
+    
+    // Add remaining text after the last URL
+    if (lastIndex < text.length) {
+      parts.push(text.substring(lastIndex));
+    }
+    
+    return parts.length > 0 ? parts : [text];
+  };
+
+  // Wrap text to 120 characters per line (including whitespace)
+  const wrapTextToLines = (text: string, maxCharsPerLine: number = 120): string => {
+    if (!text) return '';
+    
+    // Split by existing newlines first to preserve user's line breaks
+    const lines = text.split('\n');
+    const wrappedLines: string[] = [];
+    
+    for (const line of lines) {
+      if (line.length <= maxCharsPerLine) {
+        wrappedLines.push(line);
+      } else {
+        // Break long lines into chunks of maxCharsPerLine, trying to break at word boundaries
+        let start = 0;
+        while (start < line.length) {
+          let end = Math.min(start + maxCharsPerLine, line.length);
+          
+          // If not at the end of the string, try to find a space to break at
+          if (end < line.length) {
+            const lastSpace = line.lastIndexOf(' ', end);
+            // If we found a space within the last 20 characters, use it
+            if (lastSpace > start && lastSpace > end - 20) {
+              end = lastSpace;
+            }
+          }
+          
+          wrappedLines.push(line.substring(start, end).trim());
+          start = end;
+          // Skip the space if we broke at a word boundary
+          if (start < line.length && line[start] === ' ') {
+            start++;
+          }
+        }
+      }
+    }
+    
+    return wrappedLines.join('\n');
   };
 
   return (
@@ -1874,10 +2512,17 @@ export function MessagingPage() {
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col bg-white min-h-0 min-w-0">
-        {selectedConversation ? (
+        {conversationsLoading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-8 h-8 border-4 border-[#752432] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading conversations...</p>
+            </div>
+          </div>
+        ) : selectedConversation ? (
           <>
             {/* Chat Header */}
-            <div className="border-b p-4" style={{ backgroundColor: '#F8F4ED' }}>
+            <div className="border-b p-4 relative z-10" style={{ backgroundColor: 'rgba(248, 244, 237, 0.75)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 flex-1">
                   {selectedConversation.type === 'dm' ? (
@@ -1965,29 +2610,43 @@ export function MessagingPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   {selectedConversation.type === 'dm' && selectedConversation.userId && (
-                    <>
-                      {isBlocked ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleUnblockUser(selectedConversation.userId!)}
-                          className="text-gray-600 hover:text-gray-900"
-                        >
-                          <Unlock className="w-4 h-4 mr-1" />
-                          Unblock
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleBlockUser(selectedConversation.userId!)}
-                          className="text-gray-600 hover:text-red-600"
-                        >
-                          <Ban className="w-4 h-4 mr-1" />
-                          Block
-                        </Button>
+                    <div className="relative" ref={blockMenuRef}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowBlockMenu(!showBlockMenu)}
+                        className="text-gray-600 hover:text-gray-900"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </Button>
+                      {showBlockMenu && (
+                        <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-20 min-w-[120px]">
+                          {isBlocked ? (
+                            <button
+                              onClick={() => {
+                                handleUnblockUser(selectedConversation.userId!);
+                                setShowBlockMenu(false);
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                            >
+                              <Unlock className="w-4 h-4" />
+                              Unblock
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                handleBlockUser(selectedConversation.userId!);
+                                setShowBlockMenu(false);
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center gap-2"
+                            >
+                              <Ban className="w-4 h-4" />
+                              Block
+                            </button>
+                          )}
+                        </div>
                       )}
-                    </>
+                    </div>
                   )}
                   {selectedConversation.type === 'group' && (
                     <div className="relative">
@@ -2042,8 +2701,9 @@ export function MessagingPage() {
             </div>
 
             {/* Messages */}
-            <ScrollArea 
-              className="flex-1 min-h-0"
+            <div className="flex-1 min-h-0 relative z-0" style={{ marginTop: '-73px', marginBottom: '-100px' }}>
+              <ScrollArea 
+                className="h-full"
               onWheel={(e) => {
                 // Detect two-finger horizontal swipe (trackpad gesture)
                 // Check for horizontal scroll with significant deltaX
@@ -2064,12 +2724,14 @@ export function MessagingPage() {
               }}
             >
               {messagesLoading ? (
-                <div className="max-w-4xl mx-auto p-6">
+                <div className="max-w-4xl mx-auto p-6" style={{ paddingTop: 'calc(73px + 1.5rem)', paddingBottom: 'calc(100px + 1.5rem)' }}>
                   <div className="text-center text-gray-500 py-8">Loading messages...</div>
                 </div>
               ) : messages.length > 0 ? (
-                <div className="p-6 space-y-4">
-                  {messages.map((message) => (
+                <div className="p-6 space-y-4" style={{ paddingTop: 'calc(73px + 1.5rem)', paddingBottom: 'calc(100px + 1.5rem)' }}>
+                  {messages.map((message) => {
+                    const hasButtons = message.isCurrentUser && (canDeleteMessage(message.created_at) || canEditMessage(message.created_at));
+                    return (
                   <div
                     key={message.id}
                     className={cn(
@@ -2103,16 +2765,35 @@ export function MessagingPage() {
                           <span className="font-medium text-sm">{message.senderName}</span>
                         </div>
                       )}
-                      <div
-                        className={cn(
-                          'px-4 py-1.5 max-w-2xl relative group',
-                          message.isCurrentUser ? 'text-white' : 'bg-gray-100 text-gray-900'
-                        )}
-                        style={{
-                          ...(message.isCurrentUser ? { backgroundColor: '#752432' } : {}),
-                          borderRadius: '24px'
-                        }}
-                      >
+                      {(() => {
+                        const hasFileAttachments = message.attachments?.some(att => att.attachment_type === 'file') ?? false;
+                        const hasOnlyImages = (message.attachments?.length ?? 0) > 0 && 
+                          (message.attachments?.every(att => att.attachment_type === 'image') ?? false) &&
+                          !hasFileAttachments;
+                        const hasTextContent = message.content && 
+                          !(message.attachments && message.attachments.length > 0 && 
+                            message.attachments.some(att => att.file_name === message.content));
+                        // Check if message is link-only (should not have bubble)
+                        const urlCheck = message.content ? startsWithUrl(message.content.trim()) : { isUrl: false };
+                        const isLinkOnly = urlCheck.isUrl && !urlCheck.remainingText;
+                        const hasOnlyFiles = hasFileAttachments && !hasTextContent && !hasOnlyImages;
+                        const shouldShowBubble = (hasTextContent || (!hasFileAttachments && !hasOnlyImages)) && !hasOnlyFiles && !isLinkOnly;
+                        
+                        return (
+                          <div
+                            className={cn(
+                              'max-w-2xl relative group',
+                              shouldShowBubble && 'px-4',
+                              shouldShowBubble && hasButtons && 'pt-2 pb-2',
+                              shouldShowBubble && !hasButtons && 'py-2',
+                              shouldShowBubble && (message.isCurrentUser ? 'text-white' : 'text-gray-900')
+                            )}
+                            style={{
+                              ...(shouldShowBubble && message.isCurrentUser ? { backgroundColor: '#752432' } : {}),
+                              ...(shouldShowBubble && !message.isCurrentUser ? { backgroundColor: '#e9e8eb' } : {}),
+                              ...(shouldShowBubble ? { borderRadius: '24px' } : {})
+                            }}
+                          >
                         {editingMessageId === message.id ? (
                           <div className="space-y-2">
                             <textarea
@@ -2176,12 +2857,12 @@ export function MessagingPage() {
                                         <img
                                           src={att.signedUrl || ''}
                                           alt={att.file_name}
-                                          className="max-w-xs max-h-64 rounded-lg object-contain"
+                                          className="max-w-xs max-h-[70px] rounded-lg object-contain"
                                         />
                                         <a
                                           href={att.signedUrl || '#'}
                                           download={att.file_name}
-                                          className="w-full p-2 bg-white/10 rounded hover:bg-white/20 flex items-center justify-center"
+                                          className="w-full p-2 bg-white/10 rounded hover:bg-white/20 flex items-center justify-center border border-black"
                                           onClick={async (e) => {
                                             if (!att.signedUrl) {
                                               e.preventDefault();
@@ -2206,25 +2887,56 @@ export function MessagingPage() {
                                           title={`Download ${att.file_name}`}
                                         >
                                           <Download className="w-4 h-4" />
+                                          <span className="text-xs ml-1">·</span>
+                                          <span className="text-xs ml-1">{formatFileSize(att.file_size)}</span>
                                         </a>
                                       </div>
                                     ) : (
                                       <a
                                         href={att.signedUrl || '#'}
                                         download={att.file_name}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 px-2 py-1 bg-white/10 rounded hover:bg-white/20 whitespace-nowrap"
-                                        onClick={(e) => {
+                                        className="inline-flex items-start gap-3 px-3 py-2 rounded-lg w-full max-w-md"
+                                        style={{ backgroundColor: '#e9e8eb' }}
+                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#d4d3d6'}
+                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#e9e8eb'}
+                                        onClick={async (e) => {
                                           if (!att.signedUrl) {
                                             e.preventDefault();
+                                            return;
+                                          }
+                                          e.preventDefault();
+                                          try {
+                                            const response = await fetch(att.signedUrl);
+                                            const blob = await response.blob();
+                                            const url = window.URL.createObjectURL(blob);
+                                            const a = document.createElement('a');
+                                            a.href = url;
+                                            a.download = att.file_name;
+                                            document.body.appendChild(a);
+                                            a.click();
+                                            window.URL.revokeObjectURL(url);
+                                            document.body.removeChild(a);
+                                          } catch (error) {
+                                            console.error('Error downloading file:', error);
                                           }
                                         }}
-                                        title={att.file_name}
+                                        title={`Click to download ${att.file_name}`}
                                       >
-                                        <FileIcon className="w-4 h-4 flex-shrink-0" />
-                                        <span className="text-sm truncate max-w-[200px]">{att.file_name}</span>
-                                        <Download className="w-3 h-3 flex-shrink-0" />
+                                        <FileIcon className="w-12 h-12 flex-shrink-0 text-black/80" />
+                                        <div className="flex-1 min-w-0 flex flex-col gap-1">
+                                          <div className="flex flex-col">
+                                            {formatFileNameForDisplay(att.file_name).map((line, idx) => (
+                                              <span key={idx} className="text-sm font-medium text-black leading-tight">
+                                                {line}
+                                              </span>
+                                            ))}
+                                          </div>
+                                          <div className="text-xs text-black/70 flex items-center gap-1">
+                                            <span>{getFileType(att.mime_type, att.file_name)}</span>
+                                            <span>·</span>
+                                            <span>{formatFileSize(att.file_size)}</span>
+                                          </div>
+                                        </div>
                                       </a>
                       )}
                     </div>
@@ -2234,40 +2946,97 @@ export function MessagingPage() {
                             {message.content && 
                              !(message.attachments && message.attachments.length > 0 && 
                                message.attachments.some(att => att.file_name === message.content)) && (
-                              <p className="whitespace-pre-wrap break-words" style={{ whiteSpace: 'pre-wrap' }}>
-                                {message.content.split('\n').map((line, idx, arr) => (
-                                  <React.Fragment key={idx}>
-                                    {line}
-                                    {idx < arr.length - 1 && <br />}
-                                  </React.Fragment>
-                                ))}
+                              <p className="whitespace-pre-wrap m-0" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                {(() => {
+                                  // Check if the entire message is just a URL (link-only message)
+                                  const urlCheck = startsWithUrl(message.content.trim());
+                                  const isLinkOnly = urlCheck.isUrl && !urlCheck.remainingText;
+                                  
+                                  if (isLinkOnly) {
+                                    // Render as link card
+                                    return linkifyText(message.content.trim(), message.isCurrentUser, true);
+                                  } else {
+                                    // Render normally with underlined links
+                                    return wrapTextToLines(message.content, 120).split('\n').map((line, idx, arr) => (
+                                      <React.Fragment key={idx}>
+                                        {linkifyText(line, message.isCurrentUser, false)}
+                                        {idx < arr.length - 1 && <br />}
+                                      </React.Fragment>
+                                    ));
+                                  }
+                                })()}
                               </p>
                             )}
-                            {message.isCurrentUser && (canDeleteMessage(message.created_at) || canEditMessage(message.created_at)) && (
-                              <div className="flex items-center gap-1 mt-2">
-                                {canDeleteMessage(message.created_at) && (
-                                  <button
-                                    onClick={() => handleUndoSend(message.id)}
-                                    className="text-xs px-2 py-1 rounded hover:bg-white/20 opacity-75 hover:opacity-100 transition-opacity"
-                                    title="Undo send (within 2 min)"
-                                  >
-                                    Undo send
-                                  </button>
-                                )}
-                                {canEditMessage(message.created_at) && (
-                                  <button
-                                    onClick={() => handleStartEditMessage(message)}
-                                    className="text-xs px-2 py-1 rounded hover:bg-white/20 opacity-75 hover:opacity-100 transition-opacity"
-                                    title="Edit (within 10 min)"
-                                  >
-                                    Edit
-                                  </button>
-                                )}
-              </div>
+                            {hasButtons && (
+                            <div className="flex items-center justify-between gap-1 mt-2">
+                              <div className="flex items-center gap-1">
+                                {(() => {
+                                  // Check if this is a link-only message
+                                  const urlCheck = message.content ? startsWithUrl(message.content.trim()) : { isUrl: false };
+                                  const isLinkOnly = urlCheck.isUrl && !urlCheck.remainingText;
+                                  const buttonClass = isLinkOnly 
+                                    ? "text-xs px-2 py-1 rounded hover:bg-gray-200 opacity-75 hover:opacity-100 transition-opacity text-black"
+                                    : "text-xs px-2 py-1 rounded hover:bg-white/20 opacity-75 hover:opacity-100 transition-opacity";
+                                  
+                                  return (
+                                    <>
+                                      {canDeleteMessage(message.created_at) && (
+                                        <button
+                                          onClick={() => handleUndoSend(message.id)}
+                                          className={buttonClass}
+                                          title="Undo send (within 2 min)"
+                                        >
+                                          Undo send
+                                        </button>
+                                      )}
+                                      {canEditMessage(message.created_at) && !message.attachments?.length && (
+                                        <button
+                                          onClick={() => handleStartEditMessage(message)}
+                                          className={buttonClass}
+                                          title="Edit (within 10 min)"
+                                        >
+                                          Edit
+                                        </button>
+                                      )}
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                              {(() => {
+                                // Check if this is a YouTube link-only message
+                                const urlCheck = message.content ? startsWithUrl(message.content.trim()) : { isUrl: false };
+                                const isLinkOnly = urlCheck.isUrl && !urlCheck.remainingText;
+                                if (isLinkOnly && urlCheck.url) {
+                                  let youtubeUrl = urlCheck.url.trim();
+                                  if (youtubeUrl.startsWith('www.')) {
+                                    youtubeUrl = 'https://' + youtubeUrl;
+                                  } else if (!youtubeUrl.startsWith('http://') && !youtubeUrl.startsWith('https://')) {
+                                    youtubeUrl = 'https://' + youtubeUrl;
+                                  }
+                                  const embedData = getVideoEmbedUrl(youtubeUrl);
+                                  if (embedData && embedData.platform === 'youtube') {
+                                    return (
+                                      <a
+                                        href={youtubeUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-xs px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg shadow transition-colors"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        Open YouTube
+                                      </a>
+                                    );
+                                  }
+                                }
+                                return null;
+                              })()}
+                            </div>
                             )}
                           </>
                         )}
-                      </div>
+                          </div>
+                        );
+                      })()}
                       {/* Edited tag - outside the message bubble */}
                       {message.is_edited && (
                         <span className={cn(
@@ -2292,20 +3061,71 @@ export function MessagingPage() {
                       </span>
                     )}
                   </div>
-                  ))}
+                  );
+                  })}
                   <div ref={messagesEndRef} />
                 </div>
               ) : null}
-            </ScrollArea>
+              </ScrollArea>
+            </div>
 
             {/* Message Input */}
-            <div className="border-t p-4">
+            <div 
+              className={cn("border-t p-4 relative z-10")}
+              style={{ 
+                backgroundColor: isDragging ? 'rgba(117, 37, 49, 0.2)' : 'rgba(255, 255, 255, 0.75)', 
+                backdropFilter: 'blur(12px)', 
+                WebkitBackdropFilter: 'blur(12px)' 
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsDragging(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsDragging(false);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsDragging(false);
+                
+                const files = Array.from(e.dataTransfer.files);
+                if (files.length > 0) {
+                  // Filter to only accept images and allowed file types
+                  const acceptedFiles = files.filter(file => {
+                    const isImage = file.type.startsWith('image/');
+                    const isAllowedFile = file.type.includes('pdf') || 
+                                        file.type.includes('document') || 
+                                        file.type.includes('text') ||
+                                        file.name.endsWith('.pdf') ||
+                                        file.name.endsWith('.doc') ||
+                                        file.name.endsWith('.docx') ||
+                                        file.name.endsWith('.txt');
+                    return isImage || isAllowedFile;
+                  });
+                  
+                  if (acceptedFiles.length > 0) {
+                    // Append new files to existing selected files
+                    setSelectedFiles((prev) => [...prev, ...acceptedFiles]);
+                    // Focus the message input
+                    setTimeout(() => {
+                      if (messageInputRef.current) {
+                        messageInputRef.current.focus();
+                      }
+                    }, 100);
+                  }
+                }
+              }}
+            >
               <div className="max-w-4xl">
                 {selectedFiles.length > 0 && (
                   <div className="mb-2 flex flex-wrap gap-2">
                     {selectedFiles.map((file, idx) => (
                       <div key={idx} className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded text-sm">
-                        <span className="text-xs">{file.name}</span>
+                        <span className="text-xs">{truncateFileName(file.name)}</span>
                         <button
                           onClick={() => setSelectedFiles(selectedFiles.filter((_, i) => i !== idx))}
                           className="text-gray-500 hover:text-gray-700"
@@ -2316,7 +3136,7 @@ export function MessagingPage() {
                     ))}
                   </div>
                 )}
-                <div className="flex items-end gap-2">
+                <div className="flex items-center gap-2">
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -2326,24 +3146,24 @@ export function MessagingPage() {
                     accept="image/*,.pdf,.doc,.docx,.txt"
                   />
                   <Button 
+                    ref={paperclipButtonRef}
                     variant="ghost" 
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => {
+                      fileInputRef.current?.click();
+                      // Blur the button after clicking to prevent Enter key from triggering it
+                      setTimeout(() => {
+                        if (paperclipButtonRef.current) {
+                          paperclipButtonRef.current.blur();
+                        }
+                      }, 0);
+                    }}
                     disabled={uploadingFiles}
+                    className="bg-gray-200 hover:bg-gray-300"
+                    style={{ height: '40px', minHeight: '40px', width: '40px', minWidth: '40px', padding: 0 }}
                   >
                     <Paperclip className="w-4 h-4" />
                   </Button>
-                  {selectedFiles.length > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleUploadFiles}
-                      disabled={uploadingFiles}
-                    >
-                      {uploadingFiles ? 'Uploading...' : 'Upload'}
-                    </Button>
-                  )}
-                  <div className="flex-1 relative flex items-end">
+                  <div className="flex-1 relative flex items-center">
                     <textarea
                       ref={messageInputRef}
                       placeholder={
@@ -2361,7 +3181,9 @@ export function MessagingPage() {
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
-                          handleSendMessage();
+                          if (selectedFiles.length > 0 || messageInput.trim()) {
+                            handleSendMessage();
+                          }
                         }
                       }}
                       disabled={selectedConversation.type === 'dm' && (blockedByUser || isBlocked)}
@@ -2385,78 +3207,274 @@ export function MessagingPage() {
                     </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-80 p-2" align="end">
-                        <div className="grid grid-cols-8 gap-1 max-h-64 overflow-y-auto">
-                          {[
-                            '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂',
-                            '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩',
-                            '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪',
-                            '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨',
-                            '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥',
-                            '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕',
-                            '🤢', '🤮', '🤧', '🥵', '🥶', '😶‍🌫️', '😵', '😵‍💫',
-                            '🤯', '🤠', '🥳', '😎', '🤓', '🧐', '😕', '😟',
-                            '🙁', '😮', '😯', '😲', '😳', '🥺', '😦', '😧',
-                            '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣',
-                            '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠',
-                            '🤬', '😈', '👿', '💀', '☠️', '💩', '🤡', '👹',
-                            '👺', '👻', '👽', '👾', '🤖', '😺', '😸', '😹',
-                            '😻', '😼', '😽', '🙀', '😿', '😾', '❤️', '🧡',
-                            '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔',
-                            '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝',
-                            '💟', '☮️', '✝️', '☪️', '🕉️', '☸️', '✡️', '🔯',
-                            '🕎', '☯️', '☦️', '🛐', '⛎', '♈', '♉', '♊',
-                            '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒',
-                            '♓', '🆔', '⚛️', '🉑', '☢️', '☣️', '📴', '📳',
-                            '🈶', '🈚', '🈸', '🈺', '🈷️', '✴️', '🆚', '💮',
-                            '🉐', '㊙️', '㊗️', '🈴', '🈵', '🈹', '🈲', '🅰️',
-                            '🅱️', '🆎', '🆑', '🅾️', '🆘', '❌', '⭕', '🛑',
-                            '⛔', '📛', '🚫', '💯', '💢', '♨️', '🚷', '🚯',
-                            '🚳', '🚱', '🔞', '📵', '🚭', '❗', '❕', '❓',
-                            '❔', '‼️', '⁉️', '🔅', '🔆', '〽️', '⚠️', '🚸',
-                            '🔱', '⚜️', '🔰', '♻️', '✅', '🈯', '💹', '❇️',
-                            '✳️', '❎', '🌐', '💠', 'Ⓜ️', '🌀', '💤', '🏧',
-                            '🚾', '♿', '🅿️', '🈳', '🈂️', '🛂', '🛃', '🛄',
-                            '🛅', '🚹', '🚺', '🚼', '🚻', '🚮', '🎦', '📶',
-                            '🈁', '🔣', 'ℹ️', '🔤', '🔡', '🔠', '🆖', '🆗',
-                            '🆙', '🆒', '🆕', '🆓', '0️⃣', '1️⃣', '2️⃣', '3️⃣',
-                            '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟', '🔢',
-                            '▶️', '⏸️', '⏯️', '⏹️', '⏺️', '⏭️', '⏮️', '⏩',
-                            '⏪', '⏫', '⏬', '◀️', '🔼', '🔽', '➡️', '⬅️',
-                            '⬆️', '⬇️', '↗️', '↘️', '↙️', '↖️', '↕️', '↔️',
-                            '↪️', '↩️', '⤴️', '⤵️', '🔀', '🔁', '🔂', '🔄',
-                            '🔃', '🎵', '🎶', '➕', '➖', '➗', '✖️', '💲',
-                            '💱', '™️', '©️', '®️', '〰️', '➰', '➿', '🔚',
-                            '🔙', '🔛', '🔜', '🔝', '✔️', '☑️', '🔘', '⚪',
-                            '⚫', '🔴', '🔵', '🔺', '🔻', '🔸', '🔹', '🔶',
-                            '🔷', '🔳', '🔲', '▪️', '▫️', '◾', '◽', '◼️',
-                            '◻️', '🟥', '🟧', '🟨', '🟩', '🟦', '🟪', '🟫',
-                            '⬛', '⬜', '🔈', '🔇', '🔉', '🔊', '🔔', '🔕',
-                            '📣', '📢', '👁️‍🗨️', '💬', '💭', '🗯️', '♠️', '♣️',
-                            '♥️', '♦️', '🃏', '🎴', '🀄', '🕐', '🕑', '🕒',
-                            '🕓', '🕔', '🕕', '🕖', '🕗', '🕘', '🕙', '🕚',
-                            '🕛', '🕜', '🕝', '🕞', '🕟', '🕠', '🕡', '🕢',
-                            '🕣', '🕤', '🕥', '🕦', '🕧'
-                          ].map((emoji) => (
-                            <button
-                              key={emoji}
-                              type="button"
-                              onClick={() => {
-                                setMessageInput((prev) => prev + emoji);
-                                setShowEmojiPicker(false);
-                              }}
-                              className="text-2xl hover:bg-gray-100 rounded p-1 transition-colors"
-                              title={emoji}
-                            >
-                              {emoji}
-                            </button>
-                          ))}
+                        <div className="max-h-64 overflow-y-auto">
+                          {(() => {
+                            const allEmojis = [
+                              // Smileys & People
+                              '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂',
+                              '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩',
+                              '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪',
+                              '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨',
+                              '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥',
+                              '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕',
+                              '🤢', '🤮', '🤧', '🥵', '🥶', '😶‍🌫️', '😵', '😵‍💫',
+                              '🤯', '🤠', '🥳', '😎', '🤓', '🧐', '😕', '😟',
+                              '🙁', '😮', '😯', '😲', '😳', '🥺', '😦', '😧',
+                              '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣',
+                              '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠',
+                              '🤬', '😈', '👿', '💀', '☠️', '💩', '🤡', '👹',
+                              '👺', '👻', '👽', '👾', '🤖', '😺', '😸', '😹',
+                              '😻', '😼', '😽', '🙀', '😿', '😾',
+                              // People & Body
+                              '👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤌', '🤏',
+                              '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆',
+                              '🖕', '👇', '☝️', '👍', '👎', '✊', '👊', '🤛',
+                              '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✍️',
+                              '💪', '🦾', '🦿', '🦵', '🦶', '👂', '🦻', '👃',
+                              '🧠', '🫀', '🫁', '🦷', '🦴', '👀', '👁️', '👅',
+                              '👄', '💋', '🩸',
+                              // People
+                              '👶', '👧', '🧒', '👦', '👩', '🧑', '👨', '👩‍🦱',
+                              '👨‍🦱', '👩‍🦰', '👨‍🦰', '👱‍♀️', '👱', '👩‍🦳', '👨‍🦳', '👩‍🦲',
+                              '👨‍🦲', '🧔', '👵', '🧓', '👴', '👲', '👳‍♀️', '👳',
+                              '👮‍♀️', '👮', '👷‍♀️', '👷', '💂‍♀️', '💂', '🕵️‍♀️', '🕵️',
+                              '👩‍⚕️', '👨‍⚕️', '👩‍🌾', '👨‍🌾', '👩‍🍳', '👨‍🍳', '👩‍🎓', '👨‍🎓',
+                              '👩‍🎤', '👨‍🎤', '👩‍🏫', '👨‍🏫', '👩‍🏭', '👨‍🏭', '👩‍💻', '👨‍💻',
+                              '👩‍💼', '👨‍💼', '👩‍🔧', '👨‍🔧', '👩‍🔬', '👨‍🔬', '👩‍🎨', '👨‍🎨',
+                              '👩‍🚒', '👨‍🚒', '👩‍✈️', '👨‍✈️', '👩‍🚀', '👨‍🚀', '👩‍⚖️', '👨‍⚖️',
+                              '👰', '🤵', '👸', '🤴', '🦸‍♀️', '🦸', '🦹‍♀️', '🦹',
+                              '🤶', '🎅', '🧙‍♀️', '🧙', '🧝‍♀️', '🧝', '🧛‍♀️', '🧛',
+                              '🧟‍♀️', '🧟', '🧞‍♀️', '🧞', '🧜‍♀️', '🧜', '🧚‍♀️', '🧚',
+                              '👼', '🤰', '🤱', '👩‍🍼', '👨‍🍼', '🙇‍♀️', '🙇', '💁',
+                              '💁‍♂️', '🙅', '🙅‍♂️', '🙆', '🙆‍♂️', '🙋', '🙋‍♂️', '🧏',
+                              '🤦', '🤦‍♂️', '🤷', '🤷‍♂️', '👩‍🦯', '👨‍🦯', '👩‍🦼', '👨‍🦼',
+                              '👩‍🦽', '👨‍🦽', '🏃', '🏃‍♂️', '🏃‍♀️', '💃', '🕺', '🕴️',
+                              '👯', '👯‍♂️', '🧘', '🧘‍♂️', '🧘‍♀️', '🛀', '🛌',
+                              // Animals & Nature
+                              '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼',
+                              '🐨', '🐯', '🦁', '🐮', '🐷', '🐽', '🐸', '🐵',
+                              '🙈', '🙉', '🙊', '🐒', '🐔', '🐧', '🐦', '🐤',
+                              '🐣', '🐥', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗',
+                              '🐴', '🦄', '🐝', '🐛', '🦋', '🐌', '🐞', '🐜',
+                              '🦟', '🦗', '🕷️', '🕸️', '🦂', '🐢', '🐍', '🦎',
+                              '🦖', '🦕', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡',
+                              '🐠', '🐟', '🐬', '🐳', '🐋', '🦈', '🐊', '🐅',
+                              '🐆', '🦓', '🦍', '🦧', '🐘', '🦛', '🦏', '🐪',
+                              '🐫', '🦒', '🦘', '🦬', '🐃', '🐂', '🐄', '🐎',
+                              '🐖', '🐏', '🐑', '🦙', '🐐', '🦌', '🐕', '🐩',
+                              '🦮', '🐕‍🦺', '🐈', '🐈‍⬛', '🪶', '🦅', '🦆', '🦢',
+                              '🦩', '🦚', '🦜', '🦉', '🦤', '🪶', '🦃', '🦤',
+                              '🦚', '🦜', '🐓', '🐣', '🐤', '🐥', '🦆', '🦅',
+                              '🌲', '🌳', '🌴', '🌵', '🌶️', '🌾', '🌿', '☘️',
+                              '🍀', '🍁', '🍂', '🍃', '🌺', '🌻', '🌹', '🥀',
+                              '🌷', '🌼', '🌸', '🌾', '🌱', '🌿', '🍃', '🍂',
+                              '🍁', '🍄', '🌰', '🪵', '🪴', '🌍', '🌎', '🌏',
+                              '🌐', '🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗',
+                              '🌘', '🌙', '🌚', '🌛', '🌜', '🌝', '🌞', '⭐',
+                              '🌟', '💫', '✨', '☄️', '💥', '🔥', '🌈', '☀️',
+                              '⛅', '☁️', '⛈️', '🌤️', '🌦️', '🌧️', '⛈️', '🌩️',
+                              '❄️', '☃️', '⛄', '🌨️', '💧', '💦', '☔', '☂️',
+                              '🌊', '🌫️',
+                              // Food & Drink
+                              '🍏', '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇',
+                              '🍓', '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝',
+                              '🍅', '🍆', '🥑', '🥦', '🥬', '🥒', '🌶️', '🌽',
+                              '🥕', '🥔', '🍠', '🥐', '🥯', '🍞', '🥖', '🥨',
+                              '🧀', '🥚', '🍳', '🥞', '🥓', '🥩', '🍗', '🍖',
+                              '🦴', '🌭', '🍔', '🍟', '🍕', '🥪', '🥙', '🌮',
+                              '🌯', '🥗', '🥘', '🥫', '🍝', '🍜', '🍲', '🍛',
+                              '🍣', '🍱', '🥟', '🦪', '🍤', '🍙', '🍚', '🍘',
+                              '🍥', '🥠', '🥮', '🍢', '🍡', '🍧', '🍨', '🍦',
+                              '🥧', '🧁', '🍰', '🎂', '🍮', '🍭', '🍬', '🍫',
+                              '🍿', '🍩', '🍪', '🌰', '🥜', '🍯', '🥛', '🍼',
+                              '☕', '🍵', '🧃', '🥤', '🍶', '🍺', '🍻', '🥂',
+                              '🍷', '🥃', '🍸', '🍹', '🧉', '🍾', '🧊',
+                              // Travel & Places
+                              '🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑',
+                              '🚒', '🚐', '🛻', '🚚', '🚛', '🚜', '🏍️', '🛵',
+                              '🦽', '🦼', '🛴', '🚲', '🛴', '🛹', '🛼', '🚁',
+                              '✈️', '🛩️', '🛫', '🛬', '🪂', '💺', '🚀', '🚤',
+                              '⛵', '🛥️', '🛳️', '⛴️', '🚢', '⚓', '⛽', '🚧',
+                              '🚦', '🚥', '🗺️', '🗿', '🗽', '🗼', '🏰', '🏯',
+                              '🏟️', '🎡', '🎢', '🎠', '⛲', '⛱️', '🏖️', '🏝️',
+                              '🏜️', '🌋', '⛰️', '🏔️', '🗻', '🏕️', '⛺', '🛖',
+                              '🏠', '🏡', '🏘️', '🏚️', '🏗️', '🏭', '🏢', '🏬',
+                              '🏣', '🏤', '🏥', '🏦', '🏨', '🏪', '🏫', '🏩',
+                              '💒', '🏛️', '⛪', '🕌', '🛕', '🕍', '⛩️', '🕋',
+                              '⛲', '⛺', '🌁', '🌃', '🏙️', '🌄', '🌅', '🌆',
+                              '🌇', '🌉', '♨️', '🎠', '🎡', '🎢', '💈', '🎪',
+                              '🚂', '🚃', '🚄', '🚅', '🚆', '🚇', '🚈', '🚉',
+                              '🚊', '🚝', '🚞', '🚋', '🚌', '🚍', '🚎', '🚐',
+                              '🚑', '🚒', '🚓', '🚔', '🚕', '🚖', '🚗', '🚘',
+                              '🚙', '🚚', '🚛', '🚜', '🏎️', '🏍️', '🛵', '🦽',
+                              '🦼', '🛴', '🚲', '🛴', '🛹', '🛼', '🚁', '🛸',
+                              '✈️', '🛩️', '🛫', '🛬', '🪂', '💺', '🚀', '🚤',
+                              '⛵', '🛥️', '🛳️', '⛴️', '🚢', '⚓', '⛽', '🚧',
+                              '🚦', '🚥', '🗺️', '🗿', '🗽', '🗼', '🏰', '🏯',
+                              '🏟️', '🎡', '🎢', '🎠', '⛲', '⛱️', '🏖️', '🏝️',
+                              '🏜️', '🌋', '⛰️', '🏔️', '🗻', '🏕️', '⛺', '🛖',
+                              '🏠', '🏡', '🏘️', '🏚️', '🏗️', '🏭', '🏢', '🏬',
+                              '🏣', '🏤', '🏥', '🏦', '🏨', '🏪', '🏫', '🏩',
+                              '💒', '🏛️', '⛪', '🕌', '🛕', '🕍', '⛩️', '🕋',
+                              // Activities
+                              '⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉',
+                              '🥏', '🎱', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏',
+                              '🥅', '⛳', '🏹', '🎣', '🤿', '🥊', '🥋', '🎽',
+                              '🛹', '🛷', '⛸️', '🥌', '🎿', '⛷️', '🏂', '🪂',
+                              '🏋️', '🤼', '🤸', '🤺', '🤾', '🏌️', '🏇', '🧘',
+                              '🏄', '🏊', '🚣', '🧗', '🚵', '🚴', '🏆', '🥇',
+                              '🥈', '🥉', '🏅', '🎖️', '🏵️', '🎗️', '🎫', '🎟️',
+                              '🎪', '🤹', '🎭', '🩰', '🎨', '🎬', '🎤', '🎧',
+                              '🎼', '🎹', '🥁', '🎷', '🎺', '🎸', '🪗', '🎻',
+                              '🎲', '♟️', '🎯', '🎳', '🎮', '🎰', '🧩',
+                              // Objects
+                              '⌚', '📱', '📲', '💻', '⌨️', '🖥️', '🖨️', '🖱️',
+                              '🖲️', '🕹️', '🗜️', '💾', '💿', '📀', '📼', '📷',
+                              '📸', '📹', '🎥', '📽️', '🎞️', '📞', '☎️', '📟',
+                              '📠', '📺', '📻', '🎙️', '🎚️', '🎛️', '⏱️', '⏲️',
+                              '⏰', '🕰️', '⌛', '⏳', '📡', '🔋', '🔌', '💡',
+                              '🔦', '🕯️', '🧯', '🛢️', '💸', '💵', '💴', '💶',
+                              '💷', '💰', '💳', '💎', '⚖️', '🪜', '🧰', '🪛',
+                              '🔧', '🔨', '⚒️', '🛠️', '⛏️', '🪚', '🔩', '⚙️',
+                              '🪤', '🧱', '⛓️', '🧲', '🔫', '💣', '🧨', '🪓',
+                              '🔪', '🗡️', '⚔️', '🛡️', '🚬', '⚰️', '🪦', '⚱️',
+                              '🏺', '🔮', '📿', '🧿', '💈', '⚗️', '🔭', '🔬',
+                              '🕳️', '🩹', '🩺', '💊', '💉', '🩸', '🧬', '🦠',
+                              '🧫', '🧪', '🌡️', '🧹', '🪠', '🧺', '🧻', '🚽',
+                              '🚿', '🛁', '🛀', '🧼', '🪥', '🪒', '🧽', '🪣',
+                              '🧴', '🛎️', '🔑', '🗝️', '🚪', '🪑', '🛋️', '🛏️',
+                              '🛌', '🧸', '🪆', '🖼️', '🪞', '🪟', '🛍️', '🛒',
+                              '🎁', '🎈', '🎏', '🎀', '🪄', '🪅', '🪡', '🧵',
+                              '🪢', '👓', '🕶️', '🥽', '🥼', '🦺', '👔', '👕',
+                              '👖', '🧣', '🧤', '🧥', '🧦', '👗', '👘', '🥻',
+                              '🩱', '🩲', '🩳', '👙', '👚', '👛', '👜', '👝',
+                              '🛍️', '🎒', '👞', '👟', '🥾', '🥿', '👠', '👡',
+                              '🩰', '👢', '🪖', '⛑️', '🎩', '🎓', '🧢', '👒',
+                              '🎪', '🪄', '💼', '👜', '👝', '👛', '👜', '💼',
+                              '🎒', '🧳', '☂️', '🌂', '🧵', '🧶', '🪡', '🪢',
+                              '👓', '🕶️', '🥽', '🥼', '🦺', '👔', '👕', '👖',
+                              '🧣', '🧤', '🧥', '🧦', '👗', '👘', '🥻', '🩱',
+                              '🩲', '🩳', '👙', '👚', '👛', '👜', '👝', '🛍️',
+                              '🎒', '👞', '👟', '🥾', '🥿', '👠', '👡', '🩰',
+                              '👢', '🪖', '⛑️', '🎩', '🎓', '🧢', '👒', '🪖',
+                              '⛑️', '🎩', '🎓', '🧢', '👒', '🪄', '💼', '👜',
+                              // Symbols
+                              '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍',
+                              '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖',
+                              '💘', '💝', '💟', '☮️', '✝️', '☪️', '🕉️', '☸️',
+                              '✡️', '🔯', '🕎', '☯️', '☦️', '🛐', '⛎', '♈',
+                              '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐',
+                              '♑', '♒', '♓', '🆔', '⚛️', '🉑', '☢️', '☣️',
+                              '📴', '📳', '🈶', '🈚', '🈸', '🈺', '🈷️', '✴️',
+                              '🆚', '💮', '🉐', '㊙️', '㊗️', '🈴', '🈵', '🈹',
+                              '🈲', '🅰️', '🅱️', '🆎', '🆑', '🅾️', '🆘', '❌',
+                              '⭕', '🛑', '⛔', '📛', '🚫', '💯', '💢', '♨️',
+                              '🚷', '🚯', '🚳', '🚱', '🔞', '📵', '🚭', '❗',
+                              '❕', '❓', '❔', '‼️', '⁉️', '🔅', '🔆', '〽️',
+                              '⚠️', '🚸', '🔱', '⚜️', '🔰', '♻️', '✅', '🈯',
+                              '💹', '❇️', '✳️', '❎', '🌐', '💠', 'Ⓜ️', '🌀',
+                              '💤', '🏧', '🚾', '♿', '🅿️', '🈳', '🈂️', '🛂',
+                              '🛃', '🛄', '🛅', '🚹', '🚺', '🚼', '🚻', '🚮',
+                              '🎦', '📶', '🈁', '🔣', 'ℹ️', '🔤', '🔡', '🔠',
+                              '🆖', '🆗', '🆙', '🆒', '🆕', '🆓', '0️⃣', '1️⃣',
+                              '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣',
+                              '🔟', '🔢', '▶️', '⏸️', '⏯️', '⏹️', '⏺️', '⏭️',
+                              '⏮️', '⏩', '⏪', '⏫', '⏬', '◀️', '🔼', '🔽',
+                              '➡️', '⬅️', '⬆️', '⬇️', '↗️', '↘️', '↙️', '↖️',
+                              '↕️', '↔️', '↪️', '↩️', '⤴️', '⤵️', '🔀', '🔁',
+                              '🔂', '🔄', '🔃', '🎵', '🎶', '➕', '➖', '➗',
+                              '✖️', '💲', '💱', '™️', '©️', '®️', '〰️', '➰',
+                              '➿', '🔚', '🔙', '🔛', '🔜', '🔝', '✔️', '☑️',
+                              '🔘', '⚪', '⚫', '🔴', '🔵', '🔺', '🔻', '🔸',
+                              '🔹', '🔶', '🔷', '🔳', '🔲', '▪️', '▫️', '◾',
+                              '◽', '◼️', '◻️', '🟥', '🟧', '🟨', '🟩', '🟦',
+                              '🟪', '🟫', '⬛', '⬜', '🔈', '🔇', '🔉', '🔊',
+                              '🔔', '🔕', '📣', '📢', '👁️‍🗨️', '💬', '💭', '🗯️',
+                              '♠️', '♣️', '♥️', '♦️', '🃏', '🎴', '🀄', '🎯',
+                              '🎲', '🎰', '🪅', '🪄', '🪆', '🪡', '🪢', '🧵',
+                              '🧶', '🪣', '🪒', '🪥', '🪠', '🧹', '🧺', '🧻',
+                              '🪞', '🪟', '🪆', '🪄', '🪅', '🪡', '🪢', '🧵',
+                              // Flags
+                              '🏳️', '🏴', '🏁', '🚩', '🏳️‍🌈', '🏳️‍⚧️', '🇺🇳', '🇦🇫',
+                              '🇦🇽', '🇦🇱', '🇩🇿', '🇦🇸', '🇦🇩', '🇦🇴', '🇦🇮', '🇦🇶',
+                              '🇦🇬', '🇦🇷', '🇦🇲', '🇦🇼', '🇦🇺', '🇦🇹', '🇦🇿', '🇧🇸',
+                              '🇧🇭', '🇧🇩', '🇧🇧', '🇧🇾', '🇧🇪', '🇧🇿', '🇧🇯', '🇧🇲',
+                              '🇧🇹', '🇧🇴', '🇧🇦', '🇧🇼', '🇧🇷', '🇮🇴', '🇻🇬', '🇧🇳',
+                              '🇧🇬', '🇧🇫', '🇧🇮', '🇰🇭', '🇨🇲', '🇨🇦', '🇮🇨', '🇨🇻',
+                              '🇧🇶', '🇰🇾', '🇨🇫', '🇹🇩', '🇨🇱', '🇨🇳', '🇨🇽', '🇨🇨',
+                              '🇨🇴', '🇰🇲', '🇨🇬', '🇨🇩', '🇨🇰', '🇨🇷', '🇨🇮', '🇭🇷',
+                              '🇨🇺', '🇨🇼', '🇨🇾', '🇨🇿', '🇩🇰', '🇩🇯', '🇩🇲', '🇩🇴',
+                              '🇪🇨', '🇪🇬', '🇸🇻', '🇬🇶', '🇪🇷', '🇪🇪', '🇪🇹', '🇪🇺',
+                              '🇫🇰', '🇫🇴', '🇫🇯', '🇫🇮', '🇫🇷', '🇬🇫', '🇵🇫', '🇹🇫',
+                              '🇬🇦', '🇬🇲', '🇬🇪', '🇩🇪', '🇬🇭', '🇬🇮', '🇬🇷', '🇬🇱',
+                              '🇬🇩', '🇬🇵', '🇬🇺', '🇬🇹', '🇬🇬', '🇬🇳', '🇬🇼', '🇬🇾',
+                              '🇭🇹', '🇭🇳', '🇭🇰', '🇭🇺', '🇮🇸', '🇮🇳', '🇮🇩', '🇮🇷',
+                              '🇮🇶', '🇮🇪', '🇮🇲', '🇮🇱', '🇮🇹', '🇯🇲', '🇯🇵', '🇯🇪',
+                              '🇯🇴', '🇰🇿', '🇰🇪', '🇰🇮', '🇽🇰', '🇰🇼', '🇰🇬', '🇱🇦',
+                              '🇱🇻', '🇱🇧', '🇱🇸', '🇱🇷', '🇱🇾', '🇱🇮', '🇱🇹', '🇱🇺',
+                              '🇲🇴', '🇲🇰', '🇲🇬', '🇲🇼', '🇲🇾', '🇲🇻', '🇲🇱', '🇲🇹',
+                              '🇲🇭', '🇲🇶', '🇲🇷', '🇲🇺', '🇾🇹', '🇲🇽', '🇫🇲', '🇲🇩',
+                              '🇲🇨', '🇲🇳', '🇲🇪', '🇲🇸', '🇲🇦', '🇲🇿', '🇲🇲', '🇳🇦',
+                              '🇳🇷', '🇳🇵', '🇳🇱', '🇳🇨', '🇳🇿', '🇳🇮', '🇳🇪', '🇳🇬',
+                              '🇳🇺', '🇳🇫', '🇰🇵', '🇲🇵', '🇳🇴', '🇴🇲', '🇵🇰', '🇵🇼',
+                              '🇵🇸', '🇵🇦', '🇵🇬', '🇵🇾', '🇵🇪', '🇵🇭', '🇵🇳', '🇵🇱',
+                              '🇵🇹', '🇵🇷', '🇶🇦', '🇷🇪', '🇷🇴', '🇷🇺', '🇷🇼', '🇼🇸',
+                              '🇸🇲', '🇸🇦', '🇸🇳', '🇷🇸', '🇸🇨', '🇸🇱', '🇸🇬', '🇸🇽',
+                              '🇸🇰', '🇸🇮', '🇸🇧', '🇸🇴', '🇿🇦', '🇬🇸', '🇰🇷', '🇸🇸',
+                              '🇪🇸', '🇱🇰', '🇧🇱', '🇸🇭', '🇰🇳', '🇱🇨', '🇵🇲', '🇻🇨',
+                              '🇸🇩', '🇸🇷', '🇸🇿', '🇸🇪', '🇨🇭', '🇸🇾', '🇹🇼', '🇹🇯',
+                              '🇹🇿', '🇹🇭', '🇹🇱', '🇹🇬', '🇹🇰', '🇹🇴', '🇹🇹', '🇹🇳',
+                              '🇹🇷', '🇹🇲', '🇹🇨', '🇹🇻', '🇻🇮', '🇺🇬', '🇺🇦', '🇦🇪',
+                              '🇬🇧', '🇺🇸', '🇺🇾', '🇺🇿', '🇻🇺', '🇻🇦', '🇻🇪', '🇻🇳',
+                              '🇼🇫', '🇪🇭', '🇾🇪', '🇿🇲', '🇿🇼'
+                            ];
+                            
+                            // Split emojis into rows of 8
+                            const rows: string[][] = [];
+                            for (let i = 0; i < allEmojis.length; i += 8) {
+                              rows.push(allEmojis.slice(i, i + 8));
+                            }
+                            
+                            return rows.map((row, rowIndex) => (
+                              <div key={rowIndex} className="block">
+                                {row.map((emoji, colIndex) => (
+                                  <button
+                                    key={`${rowIndex}-${colIndex}`}
+                                    type="button"
+                                    onClick={() => {
+                                      setMessageInput((prev) => prev + emoji);
+                                      setShowEmojiPicker(false);
+                                    }}
+                                    className="hover:bg-gray-100 rounded transition-colors"
+                                    style={{
+                                      background: 'transparent',
+                                      border: 'none',
+                                      borderRadius: '6px',
+                                      cursor: 'pointer',
+                                      display: 'inline-block',
+                                      fontSize: '20px',
+                                      height: '32px',
+                                      lineHeight: '21px',
+                                      margin: '0 1px -1px 0',
+                                      padding: '0.25rem 0 0.2rem',
+                                      textAlign: 'center',
+                                      width: '36px',
+                                    }}
+                                    title={emoji}
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </div>
+                            ));
+                          })()}
                         </div>
                       </PopoverContent>
                     </Popover>
                   </div>
                   <Button
                     onClick={handleSendMessage}
-                    disabled={!messageInput.trim() || sendingMessage || (selectedConversation.type === 'dm' && (blockedByUser || isBlocked))}
+                    disabled={(selectedFiles.length === 0 && !messageInput.trim()) || sendingMessage || uploadingFiles || (selectedConversation.type === 'dm' && (blockedByUser || isBlocked))}
                     className="text-white"
                     style={{ backgroundColor: '#752432', height: '40px', minHeight: '40px' }}
                   >
@@ -2467,20 +3485,23 @@ export function MessagingPage() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <div
-                className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-                style={{ backgroundColor: '#F5F1E8' }}
-              >
-                <Hash className="w-8 h-8" style={{ color: '#752432' }} />
+          // Only show welcome page if user has no DMs and no groups (course messages don't count)
+          !hasDMsOrGroups ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <div
+                  className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+                  style={{ backgroundColor: '#F5F1E8' }}
+                >
+                  <Hash className="w-8 h-8" style={{ color: '#752432' }} />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Welcome to Messaging</h3>
+                <p className="text-gray-500 max-w-sm">
+                  Select a conversation from the sidebar to start messaging.
+                </p>
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Welcome to Messaging</h3>
-              <p className="text-gray-500 max-w-sm">
-                Select a conversation from the sidebar to start messaging.
-              </p>
             </div>
-          </div>
+          ) : null
         )}
       </div>
 

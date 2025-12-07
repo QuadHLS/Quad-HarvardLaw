@@ -396,21 +396,6 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Calendar button */}
-        <div className="px-2 pt-2">
-          <Link
-            to="/calendar"
-            onClick={(e) => handleNavigation(e, '/calendar')}
-            className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
-              activeSection === 'calendar' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
-            }`}
-            style={{ borderRightColor: activeSection === 'calendar' ? '#752432' : 'transparent' }}
-          >
-            <Calendar className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
-            {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Calendar</span>}
-          </Link>
-        </div>
-
         {/* Messaging button */}
         <div className="px-2 pt-2">
           <Link
@@ -423,6 +408,21 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
           >
             <MessageCircle className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
             {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Messaging</span>}
+          </Link>
+        </div>
+
+        {/* Calendar button */}
+        <div className="px-2 pt-2">
+          <Link
+            to="/calendar"
+            onClick={(e) => handleNavigation(e, '/calendar')}
+            className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
+              activeSection === 'calendar' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
+            }`}
+            style={{ borderRightColor: activeSection === 'calendar' ? '#752432' : 'transparent' }}
+          >
+            <Calendar className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
+            {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Calendar</span>}
           </Link>
         </div>
 

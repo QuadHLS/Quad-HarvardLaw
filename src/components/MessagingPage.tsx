@@ -1116,9 +1116,15 @@ export function MessagingPage() {
     if (!messageInput.trim() || !selectedConversation) return;
 
     // Check if user is blocked (only for DMs)
-    if (selectedConversation.type === 'dm' && blockedByUser) {
-      toast.error('This user has blocked you');
-      return;
+    if (selectedConversation.type === 'dm') {
+      if (blockedByUser) {
+        toast.error('This user has blocked you');
+        return;
+      }
+      if (isBlocked) {
+        toast.error('You have blocked this user');
+        return;
+      }
     }
 
     // Preserve all newlines - don't trim as it might affect newline preservation
@@ -2219,8 +2225,8 @@ export function MessagingPage() {
                     <textarea
                       ref={messageInputRef}
                       placeholder={
-                        selectedConversation.type === 'dm' && blockedByUser
-                          ? 'This user has blocked you'
+                        selectedConversation.type === 'dm' && (blockedByUser || isBlocked)
+                          ? blockedByUser ? 'This user has blocked you' : 'You have blocked this user'
                           : `Message ${selectedConversation.type === 'course' ? '#' : ''}${selectedConversation.name}`
                       }
                       value={messageInput}
@@ -2236,7 +2242,7 @@ export function MessagingPage() {
                           handleSendMessage();
                         }
                       }}
-                      disabled={selectedConversation.type === 'dm' && blockedByUser}
+                      disabled={selectedConversation.type === 'dm' && (blockedByUser || isBlocked)}
                       className="w-full px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-gray-400 disabled:opacity-50 disabled:cursor-not-allowed pr-12 resize-none overflow-y-auto"
                       style={{ 
                         minHeight: '40px',
@@ -2328,7 +2334,7 @@ export function MessagingPage() {
                   </div>
                   <Button
                     onClick={handleSendMessage}
-                    disabled={!messageInput.trim() || sendingMessage || (selectedConversation.type === 'dm' && blockedByUser)}
+                    disabled={!messageInput.trim() || sendingMessage || (selectedConversation.type === 'dm' && (blockedByUser || isBlocked))}
                     className="text-white"
                     style={{ backgroundColor: '#752432', height: '40px', minHeight: '40px' }}
                   >

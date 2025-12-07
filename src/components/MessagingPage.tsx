@@ -1331,19 +1331,16 @@ export function MessagingPage() {
     if (!selectedConversation || selectedConversation.type !== 'group' || groupMembers.length === 0) return;
     
     try {
-      const participants = groupMembers.map((user) => ({
-        conversation_id: selectedConversation.id,
-        user_id: user.id,
-        is_active: true,
-      }));
-      
-      const { error } = await supabase
-        .from('conversation_participants')
-        .upsert(participants, { onConflict: 'conversation_id,user_id' });
+      // Use RPC function to add members (bypasses RLS recursion issues)
+      const memberIds = groupMembers.map(user => user.id);
+      const { error } = await supabase.rpc('add_members_to_group', {
+        conv_id: selectedConversation.id,
+        member_user_ids: memberIds
+      });
       
       if (error) {
         console.error('Error adding members:', error);
-        toast.error('Failed to add members. You may not have permission.');
+        toast.error(error.message || 'Failed to add members. You may not have permission.');
         return;
       }
       
@@ -1351,9 +1348,9 @@ export function MessagingPage() {
       setGroupMembers([]);
       setShowAddMembersModal(false);
       fetchGroupInfo(selectedConversation.id);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error adding members:', err);
-      toast.error('Failed to add members');
+      toast.error(err.message || 'Failed to add members');
     }
   };
   
@@ -1361,23 +1358,23 @@ export function MessagingPage() {
     if (!selectedConversation || selectedConversation.type !== 'group') return;
     
     try {
-      const { error } = await supabase
-        .from('conversation_participants')
-        .update({ is_active: false, left_at: new Date().toISOString() })
-        .eq('conversation_id', selectedConversation.id)
-        .eq('user_id', userId);
+      // Use RPC function to remove member (bypasses RLS recursion issues)
+      const { error } = await supabase.rpc('remove_member_from_group', {
+        conv_id: selectedConversation.id,
+        member_user_id: userId
+      });
       
       if (error) {
         console.error('Error removing member:', error);
-        toast.error('Failed to remove member. You may not have permission.');
+        toast.error(error.message || 'Failed to remove member. You may not have permission.');
         return;
       }
       
       toast.success('Member removed successfully');
       fetchGroupInfo(selectedConversation.id);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error removing member:', err);
-      toast.error('Failed to remove member');
+      toast.error(err.message || 'Failed to remove member');
     }
   };
   
@@ -1385,21 +1382,23 @@ export function MessagingPage() {
     if (!selectedConversation || selectedConversation.type !== 'group') return;
     
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      // Use RPC function to leave group (bypasses RLS recursion issues)
+      const { error } = await supabase.rpc('leave_group_conversation', {
+        conv_id: selectedConversation.id
+      });
       
-      const { error } = await supabase
-        .from('conversation_participants')
-        .update({ is_active: false, left_at: new Date().toISOString() })
-        .eq('conversation_id', selectedConversation.id)
-        .eq('user_id', user.id);
+      if (error) {
+        console.error('Error leaving group:', error);
+        toast.error(error.message || 'Failed to leave group');
+        return;
+      }
       
-      if (error) throw error;
-      
+      toast.success('Left group successfully');
       setSelectedConversation(null);
       window.location.reload();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error leaving group:', err);
+      toast.error(err.message || 'Failed to leave group');
     }
   };
   

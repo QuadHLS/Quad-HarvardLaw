@@ -920,11 +920,19 @@ export function MessagingPage() {
       if (!user) return;
       
       // Fetch conversation details
-      const { data: conv } = await supabase
+      const { data: conv, error: convError } = await supabase
         .from('conversations')
         .select('id, name, created_by')
         .eq('id', conversationId)
         .single();
+      
+      // If conversation doesn't exist (was deleted), clear state and return
+      if (convError || !conv) {
+        setSelectedConversation(null);
+        setShowEditMembersModal(false);
+        setShowGroupSettings(false);
+        return;
+      }
       
       if (conv) {
         setEditGroupName(conv.name || '');
@@ -956,6 +964,10 @@ export function MessagingPage() {
       }
     } catch (err) {
       console.error('Error fetching group info:', err);
+      // If error fetching, clear state
+      setSelectedConversation(null);
+      setShowEditMembersModal(false);
+      setShowGroupSettings(false);
     }
   };
 
@@ -1371,6 +1383,24 @@ export function MessagingPage() {
       }
       
       toast.success('Member removed successfully');
+      
+      // Check if conversation still exists (might have been auto-deleted if < 3 members)
+      const { data: conv, error: convError } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('id', selectedConversation.id)
+        .single();
+      
+      if (convError || !conv) {
+        // Group was auto-deleted (had < 3 members)
+        setSelectedConversation(null);
+        setShowEditMembersModal(false);
+        setShowGroupSettings(false);
+        toast.info('Group was deleted (less than 3 members)');
+        return;
+      }
+      
+      // Group still exists, refresh info
       fetchGroupInfo(selectedConversation.id);
     } catch (err: any) {
       console.error('Error removing member:', err);
@@ -1394,8 +1424,23 @@ export function MessagingPage() {
       }
       
       toast.success('Left group successfully');
+      
+      // Check if conversation still exists (might have been auto-deleted if < 3 members)
+      const { data: conv, error: convError } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('id', selectedConversation.id)
+        .single();
+      
+      if (convError || !conv) {
+        // Group was auto-deleted (had < 3 members)
+        toast.info('Group was deleted (less than 3 members)');
+      }
+      
       setSelectedConversation(null);
-      window.location.reload();
+      setShowEditMembersModal(false);
+      setShowGroupSettings(false);
+      // Don't reload page, just clear the conversation
     } catch (err: any) {
       console.error('Error leaving group:', err);
       toast.error(err.message || 'Failed to leave group');

@@ -1620,7 +1620,7 @@ export function MessagingPage() {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col bg-white">
+      <div className="flex-1 flex flex-col bg-white min-h-0 min-w-0">
         {selectedConversation ? (
           <>
             {/* Chat Header */}
@@ -1764,12 +1764,12 @@ export function MessagingPage() {
             </div>
 
             {/* Messages */}
-            <ScrollArea className="flex-1">
+            <ScrollArea className="flex-1 min-h-0">
               {messagesLoading ? (
                 <div className="max-w-4xl mx-auto p-6">
                   <div className="text-center text-gray-500 py-8">Loading messages...</div>
                 </div>
-              ) : messages.length > 0 && (
+              ) : messages.length > 0 ? (
                 <div className="max-w-4xl mx-auto p-6 space-y-4">
                   {messages.map((message) => (
                     <div
@@ -1922,7 +1922,7 @@ export function MessagingPage() {
                   ))}
                   <div ref={messagesEndRef} />
                 </div>
-              )}
+              ) : null}
             </ScrollArea>
 
             {/* Message Input */}

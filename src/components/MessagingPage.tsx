@@ -2731,6 +2731,7 @@ export function MessagingPage() {
                 <div className="p-6 space-y-4" style={{ paddingTop: 'calc(73px + 1.5rem)', paddingBottom: 'calc(100px + 1.5rem)' }}>
                   {messages.map((message) => {
                     const hasButtons = message.isCurrentUser && (canDeleteMessage(message.created_at) || canEditMessage(message.created_at));
+                    
                     return (
                   <div
                     key={message.id}
@@ -2739,11 +2740,13 @@ export function MessagingPage() {
                         message.isCurrentUser ? 'flex-row-reverse items-start justify-end' : 'flex-row items-end justify-start'
                     )}
                       style={{
-                        transform: showAllTimestamps && message.isCurrentUser ? 'translateX(-60px)' : 'translateX(0)',
+                        transform: showAllTimestamps 
+                          ? (message.isCurrentUser ? 'translateX(-60px)' : 'translateX(60px)')
+                          : 'translateX(0)',
                         transition: 'transform 0.3s ease-out'
                       }}
                   >
-                    {!message.isCurrentUser && (
+                    {!message.isCurrentUser && selectedConversation?.type !== 'dm' && (
                       <Avatar className="w-9 h-9 flex-shrink-0">
                         <AvatarFallback className="text-white" style={{ backgroundColor: '#752432' }}>
                           {message.senderName
@@ -2779,6 +2782,12 @@ export function MessagingPage() {
                         const hasOnlyFiles = hasFileAttachments && !hasTextContent && !hasOnlyImages;
                         const shouldShowBubble = (hasTextContent || (!hasFileAttachments && !hasOnlyImages)) && !hasOnlyFiles && !isLinkOnly;
                         
+                        // Determine border radius
+                        const getBorderRadius = () => {
+                          if (!shouldShowBubble) return {};
+                          return { borderRadius: '24px' };
+                        };
+                        
                         return (
                           <div
                             className={cn(
@@ -2791,7 +2800,7 @@ export function MessagingPage() {
                             style={{
                               ...(shouldShowBubble && message.isCurrentUser ? { backgroundColor: '#752432' } : {}),
                               ...(shouldShowBubble && !message.isCurrentUser ? { backgroundColor: '#e9e8eb' } : {}),
-                              ...(shouldShowBubble ? { borderRadius: '24px' } : {})
+                              ...getBorderRadius()
                             }}
                           >
                         {editingMessageId === message.id ? (
@@ -3034,6 +3043,20 @@ export function MessagingPage() {
                             )}
                           </>
                         )}
+                        {/* Timestamp positioned at middle of text bubble when revealed via two-finger swipe */}
+                        {showAllTimestamps && (
+                          <span 
+                            className="text-xs text-gray-500 absolute top-1/2 -translate-y-1/2 whitespace-nowrap pointer-events-none z-10 transition-opacity duration-200"
+                            style={{
+                              opacity: 1,
+                              right: message.isCurrentUser ? '-70px' : 'auto',
+                              // For non-current user messages in group/course chats, account for avatar (36px) + gap (12px) = 48px
+                              left: message.isCurrentUser ? 'auto' : (!message.isCurrentUser && selectedConversation?.type !== 'dm' ? '-118px' : '-70px')
+                            }}
+                          >
+                            {message.timestamp}
+                          </span>
+                        )}
                           </div>
                         );
                       })()}
@@ -3047,19 +3070,6 @@ export function MessagingPage() {
                         </span>
                       )}
                     </div>
-                    {/* Timestamp on right side when revealed via two-finger swipe - positioned relative to message row */}
-                    {showAllTimestamps && (
-                      <span 
-                        className="text-xs text-gray-500 absolute top-1/2 -translate-y-1/2 whitespace-nowrap pointer-events-none z-10 transition-opacity duration-200"
-                        style={{
-                          opacity: 1,
-                          right: '0px',
-                          transform: message.isCurrentUser ? 'translateX(60px) translateY(-50%)' : 'translateY(-50%)'
-                        }}
-                      >
-                        {message.timestamp}
-                      </span>
-                    )}
                   </div>
                   );
                   })}

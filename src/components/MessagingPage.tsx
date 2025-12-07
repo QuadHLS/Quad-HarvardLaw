@@ -288,35 +288,35 @@ export function MessagingPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Create group conversation
-      const { data: newConv, error: convError } = await supabase
+      // Create group conversation using SECURITY DEFINER function to bypass RLS
+      const memberIds = selectedUsers.map(u => u.id);
+      const { data: convId, error: convError } = await supabase.rpc('create_group_conversation', {
+        group_name: groupName.trim(),
+        member_user_ids: memberIds
+      });
+
+      if (convError) {
+        console.error('Error creating group via function:', convError);
+        throw convError;
+      }
+      if (!convId) {
+        throw new Error('Failed to create conversation');
+      }
+
+      // Fetch the created conversation to get its name
+      const { data: newConv, error: fetchError } = await supabase
         .from('conversations')
-        .insert({
-          type: 'group',
-          name: groupName.trim(),
-          created_by: user.id,
-        })
         .select('id, name, type')
+        .eq('id', convId)
         .single();
 
-      if (convError) throw convError;
-      if (!newConv) throw new Error('Failed to create conversation');
-
-      // Add creator and selected users as participants
-      const participants = [
-        { conversation_id: newConv.id, user_id: user.id, is_active: true },
-        ...selectedUsers.map(u => ({
-          conversation_id: newConv.id,
-          user_id: u.id,
-          is_active: true,
-        })),
-      ];
-
-      const { error: partError } = await supabase
-        .from('conversation_participants')
-        .insert(participants);
-
-      if (partError) throw partError;
+      if (fetchError) {
+        console.error('Error fetching created conversation:', fetchError);
+        throw fetchError;
+      }
+      if (!newConv) {
+        throw new Error('Failed to fetch created conversation');
+      }
 
       // Add to conversations list
       const newConversation: Conversation = {

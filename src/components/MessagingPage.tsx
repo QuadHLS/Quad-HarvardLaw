@@ -842,6 +842,9 @@ export function MessagingPage() {
       setIsBlocked(true);
       toast.success('User blocked');
       
+      // Refresh blocking status to ensure state is up to date
+      await checkBlockingStatus(userId);
+      
       // Refresh conversations to hide blocked DM (without page reload)
       await fetchConversations();
     } catch (err) {
@@ -866,6 +869,9 @@ export function MessagingPage() {
       
       setIsBlocked(false);
       toast.success('User unblocked');
+      
+      // Refresh blocking status to ensure state is up to date
+      await checkBlockingStatus(userId);
       
       // Refresh conversations (without page reload)
       await fetchConversations();
@@ -1115,15 +1121,46 @@ export function MessagingPage() {
   const handleSendMessage = async () => {
     if (!messageInput.trim() || !selectedConversation) return;
 
-    // Check if user is blocked (only for DMs)
-    if (selectedConversation.type === 'dm') {
-      if (blockedByUser) {
-        toast.error('This user has blocked you');
-        return;
-      }
-      if (isBlocked) {
-        toast.error('You have blocked this user');
-        return;
+    // Check if user is blocked (only for DMs) - check both directions
+    if (selectedConversation.type === 'dm' && selectedConversation.userId) {
+      // Re-check blocking status before sending to ensure it's up to date
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        console.log('Checking blocking status:', {
+          currentUserId: user.id,
+          otherUserId: selectedConversation.userId
+        });
+
+        // Check if current user blocked the other user
+        const { data: iBlockedThem, error: error1 } = await supabase
+          .from('user_blocks')
+          .select('id')
+          .eq('blocker_id', user.id)
+          .eq('blocked_id', selectedConversation.userId)
+          .maybeSingle();
+
+        console.log('I blocked them?', iBlockedThem, error1);
+
+        // Check if other user blocked current user
+        const { data: theyBlockedMe, error: error2 } = await supabase
+          .from('user_blocks')
+          .select('id')
+          .eq('blocker_id', selectedConversation.userId)
+          .eq('blocked_id', user.id)
+          .maybeSingle();
+
+        console.log('They blocked me?', theyBlockedMe, error2);
+
+        if (theyBlockedMe) {
+          console.log('Blocked by user - preventing send');
+          toast.error('This user has blocked you');
+          return;
+        }
+        if (iBlockedThem) {
+          console.log('I blocked user - preventing send');
+          toast.error('You have blocked this user');
+          return;
+        }
       }
     }
 

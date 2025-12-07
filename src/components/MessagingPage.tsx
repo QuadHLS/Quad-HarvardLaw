@@ -235,17 +235,22 @@ export function MessagingPage() {
   }, [groupUserSearch, searchUsersForGroup]);
 
   // Close search results when clicking outside
+  const searchContainerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      if (!target.closest('.search-container')) {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(target)
+      ) {
         setShowSearchResults(false);
       }
     };
 
     if (showSearchResults) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+      // Use 'click' instead of 'mousedown' so button onClick fires first
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
     }
   }, [showSearchResults]);
 
@@ -339,27 +344,43 @@ export function MessagingPage() {
 
   // Handle clicking on a user from search results
   const handleSelectUser = async (user: SearchUser) => {
+    console.log('handleSelectUser called for user:', user.full_name);
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
-      if (!currentUser) return;
+      if (!currentUser) {
+        console.error('No current user found');
+        return;
+      }
+      
+      console.log('Current user:', currentUser.id);
 
       // Check if DM conversation already exists between these two users
-      const { data: existingConvs } = await supabase
+      const { data: existingConvs, error: convsError } = await supabase
         .from('conversations')
         .select('id')
         .eq('type', 'dm');
+
+      if (convsError) {
+        console.error('Error fetching existing conversations:', convsError);
+        throw convsError;
+      }
 
       let conversationId: string | null = null;
 
       if (existingConvs && existingConvs.length > 0) {
         // Check each DM conversation to see if both users are participants
         for (const conv of existingConvs) {
-          const { data: participants } = await supabase
+          const { data: participants, error: partError } = await supabase
             .from('conversation_participants')
             .select('user_id')
             .eq('conversation_id', conv.id)
             .in('user_id', [currentUser.id, user.id])
             .eq('is_active', true);
+
+          if (partError) {
+            console.error('Error checking participants:', partError);
+            continue;
+          }
 
           if (participants && participants.length === 2) {
             // Both users are participants - this is the existing DM
@@ -370,25 +391,21 @@ export function MessagingPage() {
       }
 
       if (!conversationId) {
-        // Create new DM conversation
-        const { data: newConv, error: convError } = await supabase
-          .from('conversations')
-          .insert({
-            type: 'dm',
-            created_by: currentUser.id,
-          })
-          .select('id')
-          .single();
+        // Create new DM conversation using SECURITY DEFINER function to bypass RLS
+        console.log('Creating new DM conversation with function for user:', user.id);
+        const { data: convId, error: convError } = await supabase.rpc('create_dm_conversation', {
+          other_user_id: user.id
+        });
 
-        if (convError) throw convError;
-        if (!newConv?.id) throw new Error('Failed to create conversation');
-        conversationId = newConv.id;
-
-        // Add both users as participants
-        await supabase.from('conversation_participants').insert([
-          { conversation_id: conversationId, user_id: currentUser.id, is_active: true },
-          { conversation_id: conversationId, user_id: user.id, is_active: true },
-        ]);
+        if (convError) {
+          console.error('Error creating conversation via function:', convError);
+          throw convError;
+        }
+        if (!convId) {
+          throw new Error('Failed to create conversation');
+        }
+        conversationId = convId;
+        console.log('Created conversation ID:', conversationId);
       }
 
       if (!conversationId) {
@@ -404,19 +421,35 @@ export function MessagingPage() {
         userId: user.id,
       };
 
+      console.log('Conversation ID:', conversationId);
+      console.log('New conversation object:', newConversation);
+      
       // Add to conversations list if not already there (shows on left side immediately)
       setConversations((prev) => {
         const exists = prev.some((c) => c.id === conversationId);
-        if (exists) return prev;
-        return [newConversation, ...prev];
+        if (exists) {
+          // If it exists, update it with the latest info
+          const updated = prev.map((c) => (c.id === conversationId ? newConversation : c));
+          console.log('Updated existing conversation in list');
+          return updated;
+        }
+        const updated = [newConversation, ...prev];
+        console.log('Added new conversation to list. Total conversations:', updated.length);
+        return updated;
       });
 
       // Select the conversation
       setSelectedConversation(newConversation);
+      console.log('Selected conversation:', newConversation);
       setSearchTerm('');
       setShowSearchResults(false);
+      
+      // Ensure DMs section is expanded
+      setExpandedSections((prev) => ({ ...prev, dms: true }));
+      console.log('DM section expanded');
     } catch (err) {
       console.error('Error creating DM:', err);
+      alert('Failed to create conversation. Please try again.');
     }
   };
 
@@ -787,6 +820,77 @@ export function MessagingPage() {
             }, 100);
             return updated;
           });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${selectedConversation.id}`,
+        },
+        async (payload: { new: { id: string; sender_id: string; content: string | null; created_at: string; is_edited: boolean | null; edited_at: string | null; deleted_at: string | null } }) => {
+          const updatedMessage = payload.new;
+
+          // If message was soft-deleted, remove it from UI
+          if (updatedMessage.deleted_at) {
+            setMessages((prev) => prev.filter((m) => m.id !== updatedMessage.id));
+            return;
+          }
+
+          // Fetch attachments for the updated message
+          const { data: attachments } = await supabase
+            .from('message_attachments')
+            .select('id, attachment_type, file_name, file_path, file_size, mime_type, thumbnail_url')
+            .eq('message_id', updatedMessage.id);
+
+          // Generate signed URLs for attachments
+          const attachmentsWithUrls: MessageAttachment[] = await Promise.all(
+            (attachments || []).map(async (att: MessageAttachment) => {
+              const bucket = att.attachment_type === 'image' ? 'message-images' : 'message-files';
+              try {
+                const { data, error } = await supabase.storage
+                  .from(bucket)
+                  .createSignedUrl(att.file_path, 3600);
+                
+                if (!error && data?.signedUrl) {
+                  return { ...att, signedUrl: data.signedUrl };
+                }
+              } catch (err) {
+                console.error('Error creating signed URL:', err);
+              }
+              return att;
+            })
+          );
+
+          // Update the message in the UI
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === updatedMessage.id
+                ? {
+                    ...m,
+                    content: updatedMessage.content || '',
+                    is_edited: updatedMessage.is_edited || false,
+                    edited_at: updatedMessage.edited_at || undefined,
+                    attachments: attachmentsWithUrls,
+                  }
+                : m
+            )
+          );
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${selectedConversation.id}`,
+        },
+        (payload: { old: { id: string } }) => {
+          // Remove deleted message from UI (hard delete - undo send)
+          setMessages((prev) => prev.filter((m) => m.id !== payload.old.id));
         }
       )
       .subscribe();
@@ -1328,7 +1432,7 @@ export function MessagingPage() {
         {/* Workspace Header */}
         <div className="p-4 border-b border-white/10 relative">
           <h1 className="text-white font-semibold mb-2">Search Users</h1>
-          <div className="relative search-container">
+          <div className="relative search-container" ref={searchContainerRef}>
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60 w-4 h-4" />
             <Input
               placeholder="Search users..."
@@ -1347,7 +1451,10 @@ export function MessagingPage() {
                   searchResults.map((user) => (
                     <button
                       key={user.id}
-                      onClick={() => handleSelectUser(user)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectUser(user);
+                      }}
                       className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-100 transition-colors text-left"
                     >
                       <Avatar className="w-8 h-8">

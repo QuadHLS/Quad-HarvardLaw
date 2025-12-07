@@ -16,7 +16,6 @@ import {
   X as XIcon,
   Settings,
   Edit,
-  Trash2,
   Ban,
   Unlock,
   File as FileIcon,
@@ -102,7 +101,7 @@ export function MessagingPage() {
     groups: true,
     courses: true,
   });
-  
+
   // Create group modal state
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
   const [groupName, setGroupName] = useState('');
@@ -117,6 +116,8 @@ export function MessagingPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const groupMembersListRef = useRef<HTMLDivElement>(null);
+  const groupMembersContainerRef = useRef<HTMLDivElement>(null);
   
   // Blocking state
   const [isBlocked, setIsBlocked] = useState(false);
@@ -127,10 +128,12 @@ export function MessagingPage() {
   const [showEditGroupModal, setShowEditGroupModal] = useState(false);
   const [editGroupName, setEditGroupName] = useState('');
   const [showAddMembersModal, setShowAddMembersModal] = useState(false);
+  const [showEditMembersModal, setShowEditMembersModal] = useState(false);
   const [groupMembers, setGroupMembers] = useState<SearchUser[]>([]);
   const [groupParticipants, setGroupParticipants] = useState<SearchUser[]>([]);
   const [isGroupCreator, setIsGroupCreator] = useState(false);
   const [memberCount, setMemberCount] = useState<number | null>(null);
+  const [showGroupMembersList, setShowGroupMembersList] = useState(false);
   
   // Message editing state
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -259,6 +262,35 @@ export function MessagingPage() {
       return () => document.removeEventListener('click', handleClickOutside);
     }
   }, [showSearchResults]);
+
+  // Close group members list when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (
+        groupMembersListRef.current &&
+        groupMembersContainerRef.current &&
+        !groupMembersListRef.current.contains(target) &&
+        !groupMembersContainerRef.current.contains(target)
+      ) {
+        setShowGroupMembersList(false);
+      }
+    };
+    if (showGroupMembersList) {
+      // Use a small delay to allow the button click to toggle first
+      setTimeout(() => {
+        document.addEventListener('click', handleClickOutside);
+      }, 0);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [showGroupMembersList]);
+
+  // Refresh group info when Edit Members modal opens
+  useEffect(() => {
+    if (showEditMembersModal && selectedConversation?.type === 'group' && selectedConversation?.id) {
+      fetchGroupInfo(selectedConversation.id);
+    }
+  }, [showEditMembersModal, selectedConversation?.id]);
 
   // Handle adding user to group (for create modal)
   const handleAddUserToGroup = (user: SearchUser) => {
@@ -421,7 +453,7 @@ export function MessagingPage() {
       // Create conversation object and add to list immediately (for current session)
       const newConversation: Conversation = {
         id: conversationId,
-        type: 'dm',
+      type: 'dm',
         name: user.full_name,
         unreadCount: 0,
         userId: user.id,
@@ -1167,7 +1199,7 @@ export function MessagingPage() {
     // Preserve all newlines - don't trim as it might affect newline preservation
     // Only check if content is not empty
     const content = messageInput;
-    setMessageInput('');
+      setMessageInput('');
     // Reset textarea height after sending
     if (messageInputRef.current) {
       messageInputRef.current.style.height = 'auto';
@@ -1309,13 +1341,19 @@ export function MessagingPage() {
         .from('conversation_participants')
         .upsert(participants, { onConflict: 'conversation_id,user_id' });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error adding members:', error);
+        toast.error('Failed to add members. You may not have permission.');
+        return;
+      }
       
+      toast.success(`${groupMembers.length} ${groupMembers.length === 1 ? 'member' : 'members'} added successfully`);
       setGroupMembers([]);
       setShowAddMembersModal(false);
       fetchGroupInfo(selectedConversation.id);
     } catch (err) {
       console.error('Error adding members:', err);
+      toast.error('Failed to add members');
     }
   };
   
@@ -1329,11 +1367,17 @@ export function MessagingPage() {
         .eq('conversation_id', selectedConversation.id)
         .eq('user_id', userId);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error removing member:', error);
+        toast.error('Failed to remove member. You may not have permission.');
+        return;
+      }
       
+      toast.success('Member removed successfully');
       fetchGroupInfo(selectedConversation.id);
     } catch (err) {
       console.error('Error removing member:', err);
+      toast.error('Failed to remove member');
     }
   };
   
@@ -1356,26 +1400,6 @@ export function MessagingPage() {
       window.location.reload();
     } catch (err) {
       console.error('Error leaving group:', err);
-    }
-  };
-  
-  const handleDeleteGroup = async () => {
-    if (!selectedConversation || selectedConversation.type !== 'group' || !isGroupCreator) return;
-    
-    if (!confirm('Are you sure you want to delete this group? This action cannot be undone.')) return;
-    
-    try {
-      const { error } = await supabase
-        .from('conversations')
-        .delete()
-        .eq('id', selectedConversation.id);
-      
-      if (error) throw error;
-      
-      setSelectedConversation(null);
-      window.location.reload();
-    } catch (err) {
-      console.error('Error deleting group:', err);
     }
   };
   
@@ -1852,9 +1876,55 @@ export function MessagingPage() {
                       <h2 className="font-medium text-gray-900">{selectedConversation.name}</h2>
                     )}
                     {(selectedConversation.type === 'course' || selectedConversation.type === 'group') && memberCount !== null && (
-                      <p className="text-sm text-gray-500">
-                        {memberCount} {memberCount === 1 ? 'member' : 'members'}
-                      </p>
+                      <div ref={groupMembersContainerRef} className="relative">
+                        {selectedConversation.type === 'group' ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowGroupMembersList(!showGroupMembersList);
+                            }}
+                            className="text-sm text-gray-500 hover:text-gray-700 cursor-pointer text-left"
+                          >
+                            {memberCount} {memberCount === 1 ? 'member' : 'members'}
+                          </button>
+                        ) : (
+                          <p className="text-sm text-gray-500">
+                            {memberCount} {memberCount === 1 ? 'member' : 'members'}
+                          </p>
+                        )}
+                        {/* Group Members List Modal */}
+                        {selectedConversation.type === 'group' && showGroupMembersList && groupParticipants.length > 0 && (
+                          <div 
+                            ref={groupMembersListRef}
+                            className="absolute left-0 top-full mt-2 w-64 bg-white rounded-md shadow-lg z-10 border p-2 max-h-96 overflow-y-auto"
+                          >
+                            <div className="font-medium text-sm mb-2">Group Members</div>
+                            {groupParticipants.map((user) => (
+                              <div key={user.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded">
+                                <Avatar className="w-8 h-8">
+                                  <AvatarFallback className="text-white text-xs" style={{ backgroundColor: '#752432' }}>
+                                    {user.full_name
+                                      .split(' ')
+                                      .map((n) => n[0])
+                                      .join('')
+                                      .slice(0, 2)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="text-sm text-gray-700 flex-1">{user.full_name}</span>
+                                {isGroupCreator && user.id !== currentUserProfile?.id && (
+                                  <button
+                                    onClick={() => handleRemoveMemberFromGroup(user.id)}
+                                    className="text-gray-400 hover:text-red-500 transition-colors"
+                                    title="Remove member"
+                                  >
+                                    <XIcon className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     )}
                     {selectedConversation.participants && selectedConversation.type === 'dm' && (
                       <p className="text-sm text-gray-500">{selectedConversation.participants[0]}</p>
@@ -1911,42 +1981,28 @@ export function MessagingPage() {
                               className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
                             >
                               <Edit className="w-4 h-4" />
-                              Edit Group Name
+                              Group Name
                             </button>
                             <button
                               onClick={() => {
-                                setShowAddMembersModal(true);
+                                setShowEditMembersModal(true);
                                 setShowGroupSettings(false);
                               }}
                               className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
                             >
-                              <Plus className="w-4 h-4" />
-                              Add Members
+                              <Users className="w-4 h-4" />
+                              Edit Members
                             </button>
-                            {isGroupCreator && (
-                              <button
-                                onClick={() => {
-                                  handleDeleteGroup();
-                                  setShowGroupSettings(false);
-                                }}
-                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                                Delete Group
-                              </button>
-                            )}
-                            {!isGroupCreator && (
-                              <button
-                                onClick={() => {
-                                  handleLeaveGroup();
-                                  setShowGroupSettings(false);
-                                }}
-                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                              >
-                                <XIcon className="w-4 h-4" />
-                                Leave Group
-                              </button>
-                            )}
+                            <button
+                              onClick={() => {
+                                handleLeaveGroup();
+                                setShowGroupSettings(false);
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                            >
+                              <XIcon className="w-4 h-4" />
+                              Leave Group
+                            </button>
                           </div>
                         </div>
                       )}
@@ -1985,17 +2041,17 @@ export function MessagingPage() {
               ) : messages.length > 0 ? (
                 <div className="p-6 space-y-4">
                   {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={cn(
+                  <div
+                    key={message.id}
+                    className={cn(
                         'flex gap-3 relative w-full',
                         message.isCurrentUser ? 'flex-row-reverse items-start justify-end' : 'flex-row items-end justify-start'
-                      )}
+                    )}
                       style={{
                         transform: showAllTimestamps && message.isCurrentUser ? 'translateX(-60px)' : 'translateX(0)',
                         transition: 'transform 0.3s ease-out'
                       }}
-                    >
+                  >
                     {!message.isCurrentUser && (
                       <Avatar className="w-9 h-9 flex-shrink-0">
                         <AvatarFallback className="text-white" style={{ backgroundColor: '#752432' }}>
@@ -2077,7 +2133,7 @@ export function MessagingPage() {
                                 <XIcon className="w-3 h-3 mr-1" />
                                 Cancel
                               </Button>
-                            </div>
+                      </div>
                           </div>
                         ) : (
                           <>
@@ -2141,10 +2197,10 @@ export function MessagingPage() {
                                         <span className="text-sm truncate max-w-[200px]">{att.file_name}</span>
                                         <Download className="w-3 h-3 flex-shrink-0" />
                                       </a>
-                                    )}
-                                  </div>
+                      )}
+                    </div>
                                 ))}
-                              </div>
+                  </div>
                             )}
                             {message.content && 
                              !(message.attachments && message.attachments.length > 0 && 
@@ -2178,7 +2234,7 @@ export function MessagingPage() {
                                     Edit
                                   </button>
                                 )}
-                              </div>
+              </div>
                             )}
                           </>
                         )}
@@ -2296,8 +2352,8 @@ export function MessagingPage() {
                           size="sm" 
                           className="absolute right-1 bottom-2"
                         >
-                          <Smile className="w-4 h-4" />
-                        </Button>
+                      <Smile className="w-4 h-4" />
+                    </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-80 p-2" align="end">
                         <div className="grid grid-cols-8 gap-1 max-h-64 overflow-y-auto">
@@ -2485,7 +2541,6 @@ export function MessagingPage() {
                     <span className="text-sm text-gray-700 font-medium flex-1">
                       {currentUserProfile.full_name || 'You'}
                     </span>
-                    <Badge className="bg-gray-200 text-gray-700 text-xs">Creator</Badge>
                   </div>
                 )}
 
@@ -2671,35 +2726,143 @@ export function MessagingPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Group Members List Modal */}
-      {selectedConversation?.type === 'group' && groupParticipants.length > 0 && (
-        <div className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg z-10 border p-2 max-h-96 overflow-y-auto">
-          <div className="font-medium text-sm mb-2">Group Members</div>
-          {groupParticipants.map((user) => (
-            <div key={user.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded">
-              <Avatar className="w-8 h-8">
-                <AvatarFallback className="text-white text-xs" style={{ backgroundColor: '#752432' }}>
-                  {user.full_name
-                    .split(' ')
-                    .map((n) => n[0])
-                    .join('')
-                    .slice(0, 2)}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-sm text-gray-700 flex-1">{user.full_name}</span>
-              {isGroupCreator && user.id !== currentUserProfile?.id && (
-                <button
-                  onClick={() => handleRemoveMemberFromGroup(user.id)}
-                  className="text-gray-400 hover:text-red-500 transition-colors"
-                  title="Remove member"
-                >
-                  <XIcon className="w-4 h-4" />
-                </button>
+      {/* Edit Members Modal */}
+      <Dialog open={showEditMembersModal} onOpenChange={setShowEditMembersModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Members</DialogTitle>
+            <DialogDescription>
+              Add or remove members from this group chat.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            {/* Current Members */}
+            {groupParticipants.length > 0 && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Current Members</label>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {groupParticipants.map((user) => (
+                    <div key={user.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                      <Avatar className="w-8 h-8">
+                        <AvatarFallback className="text-white text-xs" style={{ backgroundColor: '#752432' }}>
+                          {user.full_name
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')
+                            .slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm text-gray-700 font-medium flex-1">{user.full_name}</span>
+                      {isGroupCreator && user.id !== currentUserProfile?.id && (
+                        <button
+                          onClick={() => handleRemoveMemberFromGroup(user.id)}
+                          className="text-gray-400 hover:text-red-500 transition-colors"
+                          title="Remove member"
+                        >
+                          <XIcon className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Add New Members */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Add Members</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  placeholder="Search users to add..."
+                  value={groupUserSearch}
+                  onChange={(e) => setGroupUserSearch(e.target.value)}
+                  className="pl-9"
+                />
+                {groupUserSearch.trim() && (groupSearchResults.length > 0 || groupSearchLoading) && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 max-h-48 overflow-y-auto z-50">
+                    {groupSearchLoading ? (
+                      <div className="p-4 text-center text-gray-500 text-sm">Searching...</div>
+                    ) : (
+                      groupSearchResults
+                        .filter((user) => !groupParticipants.some((p) => p.id === user.id) && !groupMembers.some((m) => m.id === user.id))
+                        .map((user) => (
+                          <button
+                            key={user.id}
+                            onClick={() => handleAddUserToGroupForExisting(user)}
+                            className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-100 transition-colors text-left"
+                          >
+                            <Avatar className="w-8 h-8">
+                              <AvatarFallback className="text-white text-xs" style={{ backgroundColor: '#752432' }}>
+                                {user.full_name
+                                  .split(' ')
+                                  .map((n) => n[0])
+                                  .join('')
+                                  .slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm text-gray-900 font-medium">{user.full_name}</span>
+                          </button>
+                        ))
+                    )}
+                  </div>
+                )}
+              </div>
+              {groupMembers.length > 0 && (
+                <div className="mt-2 space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Selected to Add</label>
+                  {groupMembers.map((user) => (
+                    <div key={user.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                      <Avatar className="w-8 h-8">
+                        <AvatarFallback className="text-white text-xs" style={{ backgroundColor: '#752432' }}>
+                          {user.full_name
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')
+                            .slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm text-gray-700 font-medium flex-1">{user.full_name}</span>
+                      <button
+                        onClick={() => setGroupMembers(groupMembers.filter((u) => u.id !== user.id))}
+                        className="text-gray-400 hover:text-red-500 transition-colors"
+                      >
+                        <XIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowEditMembersModal(false);
+              setGroupMembers([]);
+              setGroupUserSearch('');
+              setGroupSearchResults([]);
+            }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (groupMembers.length > 0) {
+                  await handleAddMembersToGroup();
+                }
+                setShowEditMembersModal(false);
+                setGroupMembers([]);
+                setGroupUserSearch('');
+                setGroupSearchResults([]);
+              }}
+              disabled={groupMembers.length === 0}
+              className="text-white"
+              style={{ backgroundColor: '#752432' }}
+            >
+              {groupMembers.length > 0 ? 'Add Members' : 'Done'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

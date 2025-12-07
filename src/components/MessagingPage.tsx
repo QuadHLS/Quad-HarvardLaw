@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { toast } from 'sonner';
 import {
   Search,
   Send,
@@ -114,6 +115,8 @@ export function MessagingPage() {
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement>(null);
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   
   // Blocking state
   const [isBlocked, setIsBlocked] = useState(false);
@@ -132,6 +135,9 @@ export function MessagingPage() {
   // Message editing state
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editMessageContent, setEditMessageContent] = useState('');
+  
+  // Timestamp reveal state (for two-finger swipe)
+  const [showAllTimestamps, setShowAllTimestamps] = useState(false);
   
   // File upload state
   const [uploadingFiles, setUploadingFiles] = useState(false);
@@ -566,10 +572,17 @@ export function MessagingPage() {
 
       setMessages(transformedMessages);
       
-      // Scroll to bottom after messages load
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
+      // Set scroll position to bottom immediately after messages load (no animation)
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          // Find the ScrollArea viewport element that contains messages and set scroll to bottom
+          const messagesContainer = messagesEndRef.current?.closest('[data-slot="scroll-area"]');
+          const viewport = messagesContainer?.querySelector('[data-slot="scroll-area-viewport"]') as HTMLElement;
+          if (viewport) {
+            viewport.scrollTop = viewport.scrollHeight;
+          }
+        });
+      });
     } catch (err) {
       console.error('Error fetching messages:', err);
     } finally {
@@ -619,6 +632,169 @@ export function MessagingPage() {
     loadConversationData();
   }, [selectedConversation?.id, selectedConversation?.type, selectedConversation?.userId, fetchMessages]);
   
+  // Set scroll position to bottom when messages change or conversation is selected (no animation)
+  useEffect(() => {
+    if (selectedConversation?.id && messages.length > 0 && !messagesLoading) {
+      // Use requestAnimationFrame to set scroll position immediately after DOM update
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          // Find the ScrollArea viewport element that contains messages and set scroll to bottom
+          const messagesContainer = messagesEndRef.current?.closest('[data-slot="scroll-area"]');
+          const viewport = messagesContainer?.querySelector('[data-slot="scroll-area-viewport"]') as HTMLElement;
+          if (viewport) {
+            viewport.scrollTop = viewport.scrollHeight;
+          }
+        });
+      });
+    }
+  }, [messages, selectedConversation?.id, messagesLoading]);
+
+  // Set initial height for edit textarea when editing starts
+  useEffect(() => {
+    if (editingMessageId && editTextareaRef.current) {
+      // Use setTimeout to ensure DOM is updated
+      setTimeout(() => {
+        if (editTextareaRef.current) {
+          editTextareaRef.current.style.height = 'auto';
+          editTextareaRef.current.style.height = `${Math.min(editTextareaRef.current.scrollHeight, 200)}px`;
+        }
+      }, 10);
+    }
+  }, [editingMessageId, editMessageContent]);
+  
+  // Fetch conversations (extracted to reusable function)
+  const fetchConversations = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Fetch conversation IDs where user is a participant
+      const { data: participants, error: partError } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', user.id)
+        .eq('is_active', true);
+
+      if (partError) {
+        console.error('Error fetching conversations:', partError);
+        return;
+      }
+
+      if (!participants || participants.length === 0) {
+        setConversations([]);
+        return;
+      }
+
+      const conversationIds = participants.map((p: { conversation_id: string }) => p.conversation_id);
+
+      // Fetch conversation details
+      const { data: convsData, error: convsError } = await supabase
+        .from('conversations')
+        .select('id, type, name, course_id, last_message_at, created_at')
+        .in('id', conversationIds)
+        .order('last_message_at', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false });
+
+      if (convsError) {
+        console.error('Error fetching conversation details:', convsError);
+        return;
+      }
+
+      if (!convsData) {
+        setConversations([]);
+        return;
+      }
+
+      // Fetch blocked users to filter out blocked DMs
+      const { data: blocksData } = await supabase
+        .from('user_blocks')
+        .select('blocked_id')
+        .eq('blocker_id', user.id);
+
+      const blockedIds = new Set(blocksData?.map((b: { blocked_id: string }) => b.blocked_id) || []);
+
+      // Fetch last messages and other user info for each conversation
+      const convs: Conversation[] = await Promise.all(
+        convsData.map(async (conv: { id: string; type: string; name: string | null; course_id: string | null; last_message_at: string | null; created_at: string }) => {
+          if (conv.type === 'dm') {
+            // Get the other user's info
+            const { data: otherPart } = await supabase
+              .from('conversation_participants')
+              .select('user_id')
+              .eq('conversation_id', conv.id)
+              .neq('user_id', user.id)
+              .eq('is_active', true)
+              .limit(1)
+              .maybeSingle();
+
+            if (!otherPart) return null;
+
+            // Skip if blocked
+            if (blockedIds.has(otherPart.user_id)) {
+              return null;
+            }
+
+            const { data: otherUser } = await supabase
+              .from('profiles')
+              .select('id, full_name, avatar_url')
+              .eq('id', otherPart.user_id)
+              .maybeSingle();
+
+            if (!otherUser) return null;
+
+            // Get last message - only show DM if it has messages
+            const { data: lastMessage } = await supabase
+              .from('messages')
+              .select('content, created_at')
+              .eq('conversation_id', conv.id)
+              .is('deleted_at', null)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            // Only return DM if it has at least one message
+            if (!lastMessage) return null;
+
+            return {
+              id: conv.id,
+              type: 'dm' as const,
+              name: otherUser.full_name || 'Unknown User',
+              lastMessage: lastMessage.content,
+              lastMessageTime: new Date(lastMessage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              unreadCount: 0,
+              userId: otherUser.id,
+            };
+          }
+
+          // For group and course conversations
+          // Fetch last message for display
+          const { data: lastMessage } = await supabase
+            .from('messages')
+            .select('content, created_at')
+            .eq('conversation_id', conv.id)
+            .is('deleted_at', null)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          return {
+            id: conv.id,
+            type: conv.type as 'group' | 'course',
+            name: conv.name || 'Unnamed',
+            lastMessage: lastMessage?.content,
+            lastMessageTime: lastMessage ? new Date(lastMessage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined,
+            unreadCount: 0,
+          };
+        })
+      );
+
+      const filteredConvs = convs.filter((c): c is Conversation => c !== null);
+      setConversations(filteredConvs);
+    } catch (err) {
+      console.error('Error fetching conversations:', err);
+    }
+  }, []);
+
   // Check blocking status
   const checkBlockingStatus = async (otherUserId: string) => {
     try {
@@ -664,10 +840,13 @@ export function MessagingPage() {
       if (error) throw error;
       
       setIsBlocked(true);
-      // Refresh conversations to hide blocked DM
-      window.location.reload();
+      toast.success('User blocked');
+      
+      // Refresh conversations to hide blocked DM (without page reload)
+      await fetchConversations();
     } catch (err) {
       console.error('Error blocking user:', err);
+      toast.error('Failed to block user');
     }
   };
   
@@ -686,10 +865,13 @@ export function MessagingPage() {
       if (error) throw error;
       
       setIsBlocked(false);
-      // Refresh conversations
-      window.location.reload();
+      toast.success('User unblocked');
+      
+      // Refresh conversations (without page reload)
+      await fetchConversations();
     } catch (err) {
       console.error('Error unblocking user:', err);
+      toast.error('Failed to unblock user');
     }
   };
   
@@ -816,7 +998,13 @@ export function MessagingPage() {
             const updated = [...prev, transformedMessage];
             // Scroll to bottom when new message arrives
             setTimeout(() => {
-              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+              const messagesContainer = messagesEndRef.current?.closest('[data-slot="scroll-area"]');
+              const viewport = messagesContainer?.querySelector('[data-slot="scroll-area-viewport"]') as HTMLElement;
+              if (viewport) {
+                viewport.scrollTop = viewport.scrollHeight;
+              } else {
+                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+              }
             }, 100);
             return updated;
           });
@@ -910,8 +1098,20 @@ export function MessagingPage() {
   const handleSendMessage = async () => {
     if (!messageInput.trim() || !selectedConversation) return;
 
-    const content = messageInput.trim();
+    // Check if user is blocked (only for DMs)
+    if (selectedConversation.type === 'dm' && blockedByUser) {
+      toast.error('This user has blocked you');
+      return;
+    }
+
+    // Preserve all newlines - don't trim as it might affect newline preservation
+    // Only check if content is not empty
+    const content = messageInput;
     setMessageInput('');
+    // Reset textarea height after sending
+    if (messageInputRef.current) {
+      messageInputRef.current.style.height = 'auto';
+    }
     setSendingMessage(true);
 
     try {
@@ -978,7 +1178,13 @@ export function MessagingPage() {
           const updated = [...prev, transformedMessage];
           // Scroll to bottom after sending
           setTimeout(() => {
-            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            const messagesContainer = messagesEndRef.current?.closest('[data-slot="scroll-area"]');
+            const viewport = messagesContainer?.querySelector('[data-slot="scroll-area-viewport"]') as HTMLElement;
+            if (viewport) {
+              viewport.scrollTop = viewport.scrollHeight;
+            } else {
+              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }
           }, 100);
           return updated;
         });
@@ -1191,12 +1397,13 @@ export function MessagingPage() {
   };
   
   const handleSaveEdit = async () => {
-    if (!editingMessageId || !editMessageContent.trim()) return;
+    // Check if message has any non-whitespace content (preserving newlines)
+    if (!editingMessageId || !editMessageContent || !editMessageContent.trim()) return;
     
     try {
       const { data, error } = await supabase.rpc('edit_message', {
         message_uuid: editingMessageId,
-        new_content: editMessageContent.trim(),
+        new_content: editMessageContent, // Preserve newlines, don't trim
         attachment_ids_to_keep: [],
       });
       
@@ -1222,27 +1429,53 @@ export function MessagingPage() {
           }
         }
         
+        // Update message in local state instead of reloading
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === editingMessageId
+              ? {
+                  ...m,
+                  content: editMessageContent, // Preserve newlines, don't trim
+                  is_edited: true,
+                  edited_at: new Date().toISOString(),
+                  // Remove attachments if they were deleted (attachment_ids_to_keep is empty)
+                  attachments: [],
+                }
+              : m
+          )
+        );
+        
         setEditingMessageId(null);
         setEditMessageContent('');
-        fetchMessages(selectedConversation!.id);
+        toast.success('Message edited');
       }
     } catch (err) {
       console.error('Error editing message:', err);
+      toast.error('Failed to edit message');
     }
   };
   
-  // Undo send function
+  // Undo send function (Delete message)
   const handleUndoSend = async (messageId: string) => {
     try {
       // Get message attachments before deleting
       const message = messages.find((m) => m.id === messageId);
+      if (!message) {
+        console.error('Message not found');
+        return;
+      }
+      
       const attachments = message?.attachments || [];
       
       const { data, error } = await supabase.rpc('undo_send_message', {
         message_uuid: messageId,
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error calling undo_send_message:', error);
+        toast.error('Failed to delete message');
+        throw error;
+      }
       
       if (data) {
         // Delete attachments from storage
@@ -1258,18 +1491,31 @@ export function MessagingPage() {
           }
         }
         
+        // Remove message from UI
         setMessages((prev) => prev.filter((m) => m.id !== messageId));
+        toast.success('Message deleted');
+      } else {
+        // Function returned false - message might be outside time window or not found
+        toast.error('Unable to delete message. It may be outside the 2-minute window.');
       }
     } catch (err) {
       console.error('Error undoing send:', err);
+      toast.error('Failed to delete message');
     }
   };
   
-  // Check if message can be undone (within 10 seconds)
-  const canUndoSend = (createdAt: string): boolean => {
+  // Check if message can be deleted (within 2 minutes)
+  const canDeleteMessage = (createdAt: string): boolean => {
     const now = new Date().getTime();
     const created = new Date(createdAt).getTime();
-    return (now - created) / 1000 <= 10;
+    return (now - created) / 1000 <= 120; // 2 minutes
+  };
+
+  // Check if message can be edited (within 10 minutes)
+  const canEditMessage = (createdAt: string): boolean => {
+    const now = new Date().getTime();
+    const created = new Date(createdAt).getTime();
+    return (now - created) / 1000 <= 600; // 10 minutes
   };
 
   // Fetch current user profile on mount
@@ -1298,121 +1544,8 @@ export function MessagingPage() {
 
   // Fetch existing conversations on mount
   useEffect(() => {
-    const fetchConversations = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        // Fetch conversation IDs where user is a participant
-        const { data: participants, error: partError } = await supabase
-          .from('conversation_participants')
-          .select('conversation_id')
-          .eq('user_id', user.id)
-          .eq('is_active', true);
-
-        if (partError) {
-          console.error('Error fetching conversations:', partError);
-          return;
-        }
-
-        if (!participants || participants.length === 0) return;
-
-        const conversationIds = participants.map((p: { conversation_id: string }) => p.conversation_id);
-
-        // Fetch conversation details
-        const { data: convsData, error: convsError } = await supabase
-          .from('conversations')
-          .select('id, type, name, course_id, last_message_at, created_at')
-          .in('id', conversationIds)
-          .order('last_message_at', { ascending: false, nullsFirst: false })
-          .order('created_at', { ascending: false });
-
-        if (convsError) {
-          console.error('Error fetching conversation details:', convsError);
-          return;
-        }
-
-        if (!convsData) return;
-
-        // Fetch last messages and other user info for each conversation
-        const convs: Conversation[] = await Promise.all(
-          convsData.map(async (conv: { id: string; type: string; name: string | null; course_id: string | null; last_message_at: string | null; created_at: string }) => {
-            if (conv.type === 'dm') {
-              // Get the other user's info
-              const { data: otherPart } = await supabase
-                .from('conversation_participants')
-                .select('user_id')
-                .eq('conversation_id', conv.id)
-                .neq('user_id', user.id)
-                .eq('is_active', true)
-                .limit(1)
-                .maybeSingle();
-
-              if (!otherPart) return null;
-
-              const { data: otherUser } = await supabase
-                .from('profiles')
-                .select('id, full_name, avatar_url')
-                .eq('id', otherPart.user_id)
-                .maybeSingle();
-
-              if (!otherUser) return null;
-
-              // Get last message - only show DM if it has messages
-              const { data: lastMessage } = await supabase
-                .from('messages')
-                .select('content, created_at')
-                .eq('conversation_id', conv.id)
-                .is('deleted_at', null)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-
-              // Only return DM if it has at least one message
-              if (!lastMessage) return null;
-
-              return {
-                id: conv.id,
-                type: 'dm' as const,
-                name: otherUser.full_name || 'Unknown User',
-                lastMessage: lastMessage.content,
-                lastMessageTime: new Date(lastMessage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                unreadCount: 0,
-                userId: otherUser.id,
-              };
-            }
-
-            // For group and course conversations
-            // Fetch last message for display
-            const { data: lastMessage } = await supabase
-              .from('messages')
-              .select('content, created_at')
-              .eq('conversation_id', conv.id)
-              .is('deleted_at', null)
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .maybeSingle();
-
-            return {
-              id: conv.id,
-              type: conv.type as 'group' | 'course',
-              name: conv.name || 'Unnamed',
-              lastMessage: lastMessage?.content,
-              lastMessageTime: lastMessage ? new Date(lastMessage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined,
-                unreadCount: 0,
-            };
-          })
-        );
-
-        const filteredConvs = convs.filter((c): c is Conversation => c !== null);
-        setConversations(filteredConvs);
-      } catch (err) {
-        console.error('Error fetching conversations:', err);
-      }
-    };
-
     fetchConversations();
-  }, []);
+  }, [fetchConversations]);
 
   const getDMs = () => conversations.filter((c) => c.type === 'dm');
   const getGroups = () => conversations.filter((c) => c.type === 'group');
@@ -1764,20 +1897,44 @@ export function MessagingPage() {
             </div>
 
             {/* Messages */}
-            <ScrollArea className="flex-1 min-h-0">
+            <ScrollArea 
+              className="flex-1 min-h-0"
+              onWheel={(e) => {
+                // Detect two-finger horizontal swipe (trackpad gesture)
+                // Check for horizontal scroll with significant deltaX
+                // On trackpads, two-finger swipe generates wheel events with deltaX
+                const isHorizontalSwipe = Math.abs(e.deltaX) > Math.abs(e.deltaY) * 2;
+                const hasSignificantHorizontalMovement = Math.abs(e.deltaX) > 30;
+                
+                if (isHorizontalSwipe && hasSignificantHorizontalMovement) {
+                  // Swipe right (positive deltaX) - show timestamps
+                  if (e.deltaX > 0) {
+                    setShowAllTimestamps(true);
+                    // Auto-hide after 3 seconds
+                    setTimeout(() => {
+                      setShowAllTimestamps(false);
+                    }, 3000);
+                  }
+                }
+              }}
+            >
               {messagesLoading ? (
                 <div className="max-w-4xl mx-auto p-6">
                   <div className="text-center text-gray-500 py-8">Loading messages...</div>
                 </div>
               ) : messages.length > 0 ? (
-                <div className="max-w-4xl mx-auto p-6 space-y-4">
+                <div className="p-6 space-y-4">
                   {messages.map((message) => (
                     <div
                       key={message.id}
                       className={cn(
-                        'flex gap-3',
-                        message.isCurrentUser ? 'flex-row-reverse' : 'flex-row'
+                        'flex gap-3 relative w-full',
+                        message.isCurrentUser ? 'flex-row-reverse items-start justify-end' : 'flex-row items-end justify-start'
                       )}
+                      style={{
+                        transform: showAllTimestamps && message.isCurrentUser ? 'translateX(-60px)' : 'translateX(0)',
+                        transition: 'transform 0.3s ease-out'
+                      }}
                     >
                     {!message.isCurrentUser && (
                       <Avatar className="w-9 h-9 flex-shrink-0">
@@ -1792,29 +1949,44 @@ export function MessagingPage() {
                     )}
                     <div
                       className={cn(
-                        'flex-1 flex flex-col',
-                        message.isCurrentUser ? 'items-end' : 'items-start'
+                        'flex flex-col relative flex-1',
+                        message.isCurrentUser ? 'items-end max-w-[70%]' : 'items-start max-w-[70%]'
                       )}
                     >
                       {!message.isCurrentUser && (
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-medium text-sm">{message.senderName}</span>
-                          <span className="text-xs text-gray-500">{message.timestamp}</span>
                         </div>
                       )}
                       <div
                         className={cn(
-                          'px-4 py-2 rounded-lg max-w-2xl relative group',
+                          'px-4 py-1.5 max-w-2xl relative group',
                           message.isCurrentUser ? 'text-white' : 'bg-gray-100 text-gray-900'
                         )}
-                        style={message.isCurrentUser ? { backgroundColor: '#752432' } : {}}
+                        style={{
+                          ...(message.isCurrentUser ? { backgroundColor: '#752432' } : {}),
+                          borderRadius: '24px'
+                        }}
                       >
                         {editingMessageId === message.id ? (
                           <div className="space-y-2">
-                            <Input
+                            <textarea
+                              ref={editTextareaRef}
                               value={editMessageContent}
-                              onChange={(e) => setEditMessageContent(e.target.value)}
-                              className="bg-white text-gray-900"
+                              onChange={(e) => {
+                                setEditMessageContent(e.target.value);
+                                // Auto-resize textarea
+                                const textarea = e.target;
+                                textarea.style.height = 'auto';
+                                textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+                              }}
+                              className="w-full px-3 py-2 rounded-md border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-gray-400 resize-none overflow-y-auto"
+                              style={{ 
+                                minHeight: '40px',
+                                maxHeight: '200px',
+                                lineHeight: '1.5'
+                              }}
+                              rows={1}
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter' && !e.shiftKey) {
                                   e.preventDefault();
@@ -1851,35 +2023,62 @@ export function MessagingPage() {
                           <>
                             {/* Attachments */}
                             {message.attachments && message.attachments.length > 0 && (
-                              <div className="space-y-2 mb-2">
+                              <div className="space-y-2">
                                 {message.attachments.map((att) => (
-                                  <div key={att.id} className="relative">
+                                  <div key={att.id} className="relative inline-flex items-center">
                                     {att.attachment_type === 'image' ? (
-                                      <img
-                                        src={att.signedUrl || ''}
-                                        alt={att.file_name}
-                                        className="max-w-xs max-h-64 rounded-lg cursor-pointer object-contain"
-                                        onClick={() => {
-                                          if (att.signedUrl) {
-                                            window.open(att.signedUrl, '_blank');
-                                          }
-                                        }}
-                                      />
+                                      <div className="flex flex-col items-start gap-2 w-full">
+                                        <img
+                                          src={att.signedUrl || ''}
+                                          alt={att.file_name}
+                                          className="max-w-xs max-h-64 rounded-lg object-contain"
+                                        />
+                                        <a
+                                          href={att.signedUrl || '#'}
+                                          download={att.file_name}
+                                          className="w-full p-2 bg-white/10 rounded hover:bg-white/20 flex items-center justify-center"
+                                          onClick={async (e) => {
+                                            if (!att.signedUrl) {
+                                              e.preventDefault();
+                                              return;
+                                            }
+                                            e.preventDefault();
+                                            try {
+                                              const response = await fetch(att.signedUrl);
+                                              const blob = await response.blob();
+                                              const url = window.URL.createObjectURL(blob);
+                                              const a = document.createElement('a');
+                                              a.href = url;
+                                              a.download = att.file_name;
+                                              document.body.appendChild(a);
+                                              a.click();
+                                              window.URL.revokeObjectURL(url);
+                                              document.body.removeChild(a);
+                                            } catch (error) {
+                                              console.error('Error downloading image:', error);
+                                            }
+                                          }}
+                                          title={`Download ${att.file_name}`}
+                                        >
+                                          <Download className="w-4 h-4" />
+                                        </a>
+                                      </div>
                                     ) : (
                                       <a
                                         href={att.signedUrl || '#'}
                                         download={att.file_name}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="flex items-center gap-2 p-2 bg-white/10 rounded hover:bg-white/20"
+                                        className="inline-flex items-center gap-2 px-2 py-1 bg-white/10 rounded hover:bg-white/20 whitespace-nowrap"
                                         onClick={(e) => {
                                           if (!att.signedUrl) {
                                             e.preventDefault();
                                           }
                                         }}
+                                        title={att.file_name}
                                       >
-                                        <FileIcon className="w-4 h-4" />
-                                        <span className="text-sm truncate">{att.file_name}</span>
+                                        <FileIcon className="w-4 h-4 flex-shrink-0" />
+                                        <span className="text-sm truncate max-w-[200px]">{att.file_name}</span>
                                         <Download className="w-3 h-3 flex-shrink-0" />
                                       </a>
                                     )}
@@ -1887,37 +2086,66 @@ export function MessagingPage() {
                                 ))}
                               </div>
                             )}
-                            {message.content && (
-                              <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                            {message.content && 
+                             !(message.attachments && message.attachments.length > 0 && 
+                               message.attachments.some(att => att.file_name === message.content)) && (
+                              <p className="whitespace-pre-wrap break-words" style={{ whiteSpace: 'pre-wrap' }}>
+                                {message.content.split('\n').map((line, idx, arr) => (
+                                  <React.Fragment key={idx}>
+                                    {line}
+                                    {idx < arr.length - 1 && <br />}
+                                  </React.Fragment>
+                                ))}
+                              </p>
                             )}
-                            {message.is_edited && (
-                              <span className="text-xs opacity-70 italic mt-1 block">edited</span>
+                            {message.isCurrentUser && (canDeleteMessage(message.created_at) || canEditMessage(message.created_at)) && (
+                              <div className="flex items-center gap-1 mt-2">
+                                {canDeleteMessage(message.created_at) && (
+                                  <button
+                                    onClick={() => handleUndoSend(message.id)}
+                                    className="text-xs px-2 py-1 rounded hover:bg-white/20 opacity-75 hover:opacity-100 transition-opacity"
+                                    title="Undo send (within 2 min)"
+                                  >
+                                    Undo send
+                                  </button>
+                                )}
+                                {canEditMessage(message.created_at) && (
+                                  <button
+                                    onClick={() => handleStartEditMessage(message)}
+                                    className="text-xs px-2 py-1 rounded hover:bg-white/20 opacity-75 hover:opacity-100 transition-opacity"
+                                    title="Edit (within 10 min)"
+                                  >
+                                    Edit
+                                  </button>
+                                )}
+                              </div>
                             )}
-                            <div className="flex items-center gap-2 mt-1">
-                              {message.isCurrentUser && canUndoSend(message.created_at) && (
-                                <button
-                                  onClick={() => handleUndoSend(message.id)}
-                                  className="text-xs opacity-75 hover:opacity-100 underline"
-                                >
-                                  Undo
-                                </button>
-                              )}
-                              {message.isCurrentUser && !canUndoSend(message.created_at) && (
-                                <button
-                                  onClick={() => handleStartEditMessage(message)}
-                                  className="text-xs opacity-0 group-hover:opacity-75 hover:opacity-100"
-                                >
-                                  <Edit className="w-3 h-3" />
-                                </button>
-                              )}
-                            </div>
                           </>
                         )}
                       </div>
-                      {message.isCurrentUser && (
-                        <span className="text-xs text-gray-500 mt-1">{message.timestamp}</span>
+                      {/* Edited tag - outside the message bubble */}
+                      {message.is_edited && (
+                        <span className={cn(
+                          "text-xs opacity-70 italic mt-1",
+                          message.isCurrentUser ? "text-right" : "text-left"
+                        )}>
+                          edited
+                        </span>
                       )}
                     </div>
+                    {/* Timestamp on right side when revealed via two-finger swipe - positioned relative to message row */}
+                    {showAllTimestamps && (
+                      <span 
+                        className="text-xs text-gray-500 absolute top-1/2 -translate-y-1/2 whitespace-nowrap pointer-events-none z-10 transition-opacity duration-200"
+                        style={{
+                          opacity: 1,
+                          right: '0px',
+                          transform: message.isCurrentUser ? 'translateX(60px) translateY(-50%)' : 'translateY(-50%)'
+                        }}
+                      >
+                        {message.timestamp}
+                      </span>
+                    )}
                   </div>
                   ))}
                   <div ref={messagesEndRef} />
@@ -1943,7 +2171,7 @@ export function MessagingPage() {
                     ))}
                   </div>
                 )}
-                <div className="flex items-center gap-2">
+                <div className="flex items-end gap-2">
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -1970,13 +2198,35 @@ export function MessagingPage() {
                       {uploadingFiles ? 'Uploading...' : 'Upload'}
                     </Button>
                   )}
-                  <div className="flex-1 relative">
-                    <Input
-                      placeholder={`Message ${selectedConversation.type === 'course' ? '#' : ''}${selectedConversation.name}`}
+                  <div className="flex-1 relative flex items-end">
+                    <textarea
+                      ref={messageInputRef}
+                      placeholder={
+                        selectedConversation.type === 'dm' && blockedByUser
+                          ? 'This user has blocked you'
+                          : `Message ${selectedConversation.type === 'course' ? '#' : ''}${selectedConversation.name}`
+                      }
                       value={messageInput}
-                      onChange={(e) => setMessageInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                      className="pr-12 resize-none"
+                      onChange={(e) => {
+                        setMessageInput(e.target.value);
+                        // Auto-resize textarea
+                        e.target.style.height = 'auto';
+                        e.target.style.height = `${Math.min(e.target.scrollHeight, 200)}px`;
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
+                      disabled={selectedConversation.type === 'dm' && blockedByUser}
+                      className="w-full px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-gray-400 disabled:opacity-50 disabled:cursor-not-allowed pr-12 resize-none overflow-y-auto"
+                      style={{ 
+                        minHeight: '40px',
+                        maxHeight: '200px',
+                        lineHeight: '1.5'
+                      }}
+                      rows={1}
                     />
                     <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
                       <PopoverTrigger asChild>
@@ -1984,7 +2234,7 @@ export function MessagingPage() {
                           type="button"
                           variant="ghost" 
                           size="sm" 
-                          className="absolute right-1 top-1/2 transform -translate-y-1/2"
+                          className="absolute right-1 bottom-2"
                         >
                           <Smile className="w-4 h-4" />
                         </Button>
@@ -2061,9 +2311,9 @@ export function MessagingPage() {
                   </div>
                   <Button
                     onClick={handleSendMessage}
-                    disabled={!messageInput.trim() || sendingMessage}
-                    className="text-white h-9"
-                    style={{ backgroundColor: '#752432' }}
+                    disabled={!messageInput.trim() || sendingMessage || (selectedConversation.type === 'dm' && blockedByUser)}
+                    className="text-white"
+                    style={{ backgroundColor: '#752432', height: '40px', minHeight: '40px' }}
                   >
                     <Send className="w-4 h-4" />
                   </Button>

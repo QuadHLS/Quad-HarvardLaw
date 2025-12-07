@@ -1393,6 +1393,8 @@ export function MessagingPage() {
       
       if (convError || !conv) {
         // Group was auto-deleted (had < 3 members)
+        // Remove from conversations list
+        setConversations((prev) => prev.filter((c) => c.id !== selectedConversation.id));
         setSelectedConversation(null);
         setShowEditMembersModal(false);
         setShowGroupSettings(false);
@@ -1434,6 +1436,8 @@ export function MessagingPage() {
       
       if (convError || !conv) {
         // Group was auto-deleted (had < 3 members)
+        // Remove from conversations list
+        setConversations((prev) => prev.filter((c) => c.id !== selectedConversation.id));
         toast.info('Group was deleted (less than 3 members)');
       }
       
@@ -1955,7 +1959,7 @@ export function MessagingPage() {
                                   </AvatarFallback>
                                 </Avatar>
                                 <span className="text-sm text-gray-700 flex-1">{user.full_name}</span>
-                                {isGroupCreator && user.id !== currentUserProfile?.id && (
+                                {user.id !== currentUserProfile?.id && (
                                   <button
                                     onClick={() => handleRemoveMemberFromGroup(user.id)}
                                     className="text-gray-400 hover:text-red-500 transition-colors"
@@ -2797,7 +2801,7 @@ export function MessagingPage() {
                         </AvatarFallback>
                       </Avatar>
                       <span className="text-sm text-gray-700 font-medium flex-1">{user.full_name}</span>
-                      {isGroupCreator && user.id !== currentUserProfile?.id && (
+                      {user.id !== currentUserProfile?.id && (
                         <button
                           onClick={() => handleRemoveMemberFromGroup(user.id)}
                           className="text-gray-400 hover:text-red-500 transition-colors"

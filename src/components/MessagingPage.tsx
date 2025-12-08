@@ -2728,7 +2728,7 @@ export function MessagingPage() {
                   <div className="text-center text-gray-500 py-8">Loading messages...</div>
                 </div>
               ) : messages.length > 0 ? (
-                <div className="p-6 space-y-2" style={{ paddingTop: 'calc(73px + 1.5rem)', paddingBottom: 'calc(100px + 1.5rem)' }}>
+                <div className="p-6 space-y-1" style={{ paddingTop: 'calc(73px + 1.5rem)', paddingBottom: 'calc(100px + 1.5rem)' }}>
                   {messages.map((message) => {
                     const hasButtons = message.isCurrentUser && (canDeleteMessage(message.created_at) || canEditMessage(message.created_at));
                     
@@ -2760,7 +2760,7 @@ export function MessagingPage() {
                     <div
                       className={cn(
                         'flex flex-col relative flex-1',
-                        message.isCurrentUser ? 'items-end max-w-[70%]' : 'items-start max-w-[70%]'
+                        message.isCurrentUser ? 'items-end max-w-[55%]' : 'items-start max-w-[55%]'
                       )}
                     >
                       {!message.isCurrentUser && selectedConversation?.type !== 'dm' && (
@@ -2791,8 +2791,8 @@ export function MessagingPage() {
                         return (
                           <div
                             className={cn(
-                              'max-w-2xl relative group',
-                              shouldShowBubble && 'px-4 py-2',
+                              'max-w-xl relative group',
+                              shouldShowBubble && 'px-4 py-1',
                               shouldShowBubble && (message.isCurrentUser ? 'text-white' : 'text-gray-900')
                             )}
                             style={{

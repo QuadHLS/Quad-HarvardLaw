@@ -862,9 +862,9 @@ function AppContent({ user }: { user: any }) {
           clearTimeout(hideTimer);
         };
       } else {
-        // No animation requested - skip immediately
+        // No animation requested - skip immediately and allow data fetching
         setMinLoadingTimeElapsed(true);
-        setIsFadingOut(false);
+        setIsFadingOut(true); // Set to true to allow data fetching even without animation
         sessionStorage.removeItem('playLoginAnimation');
         sessionStorage.removeItem('playLoginAnimationSetAt');
       }
@@ -872,6 +872,10 @@ function AppContent({ user }: { user: any }) {
       // Reset timer when there is no authenticated user
       setMinLoadingTimeElapsed(false);
       setIsFadingOut(false);
+      
+      // Reset fetch flags so data can be re-fetched on next login
+      fetchedOutlinesOnceRef.current = false;
+      fetchedExamsOnceRef.current = false;
 
       // Only clear animation flags if the previous state had a user (i.e., an actual logout)
       if (previousUserRef.current) {

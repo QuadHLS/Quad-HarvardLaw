@@ -159,6 +159,7 @@ export function MessagingPage() {
   const [typingUsers, setTypingUsers] = useState<Map<string, { userId: string; userName: string; timestamp: number }>>(new Map());
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const typingClearTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   // Search users for group creation
   const searchUsersForGroup = useCallback(async (query: string) => {
@@ -1221,6 +1222,13 @@ export function MessagingPage() {
           // Don't show typing indicator for current user
           if (userId === user.id) return;
 
+          // Clear any existing timeout for this user
+          const existingTimeout = typingClearTimeoutsRef.current.get(userId);
+          if (existingTimeout) {
+            clearTimeout(existingTimeout);
+            typingClearTimeoutsRef.current.delete(userId);
+          }
+
           // Update typing users map
           setTypingUsers((prev) => {
             const newMap = new Map(prev);
@@ -1233,13 +1241,17 @@ export function MessagingPage() {
           });
 
           // Clear typing indicator after 3 seconds of no updates
-          setTimeout(() => {
+          // This timeout will be cleared if a new typing event comes in
+          const timeoutId = setTimeout(() => {
             setTypingUsers((prev) => {
               const newMap = new Map(prev);
               newMap.delete(userId);
               return newMap;
             });
-          }, 3000);
+            typingClearTimeoutsRef.current.delete(userId);
+          }, 3000) as unknown as NodeJS.Timeout;
+          
+          typingClearTimeoutsRef.current.set(userId, timeoutId);
         })
         .subscribe((status: string) => {
           if (status === 'SUBSCRIBED') {
@@ -1255,16 +1267,21 @@ export function MessagingPage() {
         supabase.removeChannel(typingChannelRef.current);
         typingChannelRef.current = null;
       }
+      // Clear all typing timeouts
+      typingClearTimeoutsRef.current.forEach((timeout) => {
+        clearTimeout(timeout);
+      });
+      typingClearTimeoutsRef.current.clear();
       setTypingUsers(new Map());
     };
   }, [selectedConversation?.id]);
 
-  // Typing indicator: Send typing events
+  // Typing indicator: Send typing events (debounced)
   useEffect(() => {
     if (!selectedConversation?.id) {
-      // Clear interval when no conversation is selected
+      // Clear timeout when no conversation is selected
       if (typingTimeoutRef.current) {
-        clearInterval(typingTimeoutRef.current);
+        clearTimeout(typingTimeoutRef.current);
         typingTimeoutRef.current = null;
       }
       return;
@@ -1273,17 +1290,6 @@ export function MessagingPage() {
     const sendTypingEvent = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-
-      // Check if input is still not empty before sending
-      const currentInput = messageInputRef.current?.value?.trim() || '';
-      if (!currentInput) {
-        // Input is empty, clear interval and stop sending
-        if (typingTimeoutRef.current) {
-          clearInterval(typingTimeoutRef.current);
-          typingTimeoutRef.current = null;
-        }
-        return;
-      }
 
       // Use the existing channel or create a temporary one
       // Supabase allows sending before subscription (uses HTTP)
@@ -1310,26 +1316,29 @@ export function MessagingPage() {
       }
     };
 
-    // Clear any existing interval first
+    // Clear any existing timeout
     if (typingTimeoutRef.current) {
-      clearInterval(typingTimeoutRef.current);
+      clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = null;
     }
 
-    // Only set up interval if input is not empty
+    // Only send typing event if input is not empty
     if (messageInput.trim()) {
-      // Send typing event immediately
+      // Send typing event immediately when user types
       sendTypingEvent();
       
-      // Set up interval to send typing events every 2 seconds while typing
-      typingTimeoutRef.current = setInterval(() => {
-        sendTypingEvent();
+      // Set timeout to stop sending after 2 seconds of no typing
+      // If user types again within 2 seconds, this timeout will be cleared and reset
+      typingTimeoutRef.current = setTimeout(() => {
+        // Timeout expired - user stopped typing
+        // No need to send a "stopped typing" event, the receiving side will clear after 3 seconds
+        typingTimeoutRef.current = null;
       }, 2000) as unknown as NodeJS.Timeout;
     }
 
     return () => {
       if (typingTimeoutRef.current) {
-        clearInterval(typingTimeoutRef.current);
+        clearTimeout(typingTimeoutRef.current);
         typingTimeoutRef.current = null;
       }
     };

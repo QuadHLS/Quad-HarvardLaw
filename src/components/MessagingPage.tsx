@@ -2792,7 +2792,7 @@ export function MessagingPage() {
                           <div
                             className={cn(
                               'max-w-xl relative group',
-                              shouldShowBubble && 'px-4 py-1',
+                              shouldShowBubble && 'px-4 py-1.5 flex flex-col',
                               shouldShowBubble && (message.isCurrentUser ? 'text-white' : 'text-gray-900')
                             )}
                             style={{
@@ -2953,7 +2953,7 @@ export function MessagingPage() {
                             {message.content && 
                              !(message.attachments && message.attachments.length > 0 && 
                                message.attachments.some(att => att.file_name === message.content)) && (
-                              <p className="whitespace-pre-wrap m-0" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                              <p className="whitespace-pre-wrap m-0 leading-tight" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: '1.4' }}>
                                 {(() => {
                                   // Check if the entire message is just a URL (link-only message)
                                   const urlCheck = startsWithUrl(message.content.trim());

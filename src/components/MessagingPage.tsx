@@ -154,6 +154,11 @@ export function MessagingPage() {
   
   // Emoji picker state
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  
+  // Typing indicator state
+  const [typingUsers, setTypingUsers] = useState<Map<string, { userId: string; userName: string; timestamp: number }>>(new Map());
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   // Search users for group creation
   const searchUsersForGroup = useCallback(async (query: string) => {
@@ -1183,6 +1188,142 @@ export function MessagingPage() {
     };
   }, [selectedConversation?.id]);
 
+  // Typing indicator: Setup channel and listen for typing events
+  useEffect(() => {
+    if (!selectedConversation?.id) {
+      setTypingUsers(new Map());
+      if (typingChannelRef.current) {
+        supabase.removeChannel(typingChannelRef.current);
+        typingChannelRef.current = null;
+      }
+      return;
+    }
+
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const setupTypingSubscription = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Create channel for typing events (use same channel for sending and receiving)
+      channel = supabase
+        .channel(`typing:${selectedConversation.id}`, {
+          config: {
+            broadcast: { self: false } // Don't receive our own typing events
+          }
+        })
+        .on('broadcast', { event: 'typing' }, (payload: { payload: { userId: string; userName: string; conversationId: string } }) => {
+          const { userId, userName, conversationId } = payload.payload;
+          
+          // Verify this event is for the current conversation
+          if (conversationId !== selectedConversation.id) return;
+          
+          // Don't show typing indicator for current user
+          if (userId === user.id) return;
+
+          // Update typing users map
+          setTypingUsers((prev) => {
+            const newMap = new Map(prev);
+            newMap.set(userId, {
+              userId,
+              userName,
+              timestamp: Date.now(),
+            });
+            return newMap;
+          });
+
+          // Clear typing indicator after 3 seconds of no updates
+          setTimeout(() => {
+            setTypingUsers((prev) => {
+              const newMap = new Map(prev);
+              newMap.delete(userId);
+              return newMap;
+            });
+          }, 3000);
+        })
+        .subscribe((status: string) => {
+          if (status === 'SUBSCRIBED') {
+            typingChannelRef.current = channel;
+          }
+        });
+    };
+
+    setupTypingSubscription();
+
+    return () => {
+      if (typingChannelRef.current) {
+        supabase.removeChannel(typingChannelRef.current);
+        typingChannelRef.current = null;
+      }
+      setTypingUsers(new Map());
+    };
+  }, [selectedConversation?.id]);
+
+  // Typing indicator: Send typing events
+  useEffect(() => {
+    if (!selectedConversation?.id) return;
+
+    const sendTypingEvent = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Use the existing channel or create a temporary one
+      // Supabase allows sending before subscription (uses HTTP)
+      const channel = typingChannelRef.current || supabase.channel(`typing:${selectedConversation.id}`, {
+        config: {
+          broadcast: { self: false }
+        }
+      });
+
+      // Send typing event via broadcast (works even if not subscribed - uses HTTP)
+      await channel.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: {
+          userId: user.id,
+          userName: currentUserProfile?.full_name || 'You',
+          conversationId: selectedConversation.id,
+        },
+      });
+
+      // Clean up temporary channel if we created one
+      if (channel !== typingChannelRef.current) {
+        supabase.removeChannel(channel);
+      }
+    };
+
+    // Clear any existing interval
+    if (typingTimeoutRef.current) {
+      clearInterval(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+
+    if (messageInput.trim()) {
+      // Send typing event immediately
+      sendTypingEvent();
+      
+      // Set up interval to send typing events every 2 seconds while typing
+      typingTimeoutRef.current = setInterval(() => {
+        if (messageInput.trim()) {
+          sendTypingEvent();
+        } else {
+          // Clear interval if input is empty
+          if (typingTimeoutRef.current) {
+            clearInterval(typingTimeoutRef.current);
+            typingTimeoutRef.current = null;
+          }
+        }
+      }, 2000) as unknown as NodeJS.Timeout;
+    }
+
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearInterval(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+    };
+  }, [messageInput, selectedConversation?.id, currentUserProfile]);
+
   const toggleSection = (section: 'dms' | 'groups' | 'courses') => {
     setExpandedSections((prev) => ({
       ...prev,
@@ -1244,6 +1385,11 @@ export function MessagingPage() {
     // Reset textarea height after sending
     if (messageInputRef.current) {
       messageInputRef.current.style.height = 'auto';
+    }
+    // Clear typing indicator timeout when sending message
+    if (typingTimeoutRef.current) {
+      clearInterval(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
     }
     setSendingMessage(true);
 
@@ -1922,6 +2068,227 @@ export function MessagingPage() {
   useEffect(() => {
     fetchConversations();
   }, [fetchConversations]);
+
+  // Subscribe to real-time conversation updates
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const setupSubscription = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      channel = supabase
+        .channel('conversations-updates', {
+          config: {
+            broadcast: { self: true }
+          }
+        })
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'conversations',
+          },
+          async (payload: { new: { id: string; last_message_at: string | null } }) => {
+            // When last_message_at is updated, refresh conversations list
+            if (payload.new.last_message_at) {
+              await fetchConversations();
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'conversations',
+          },
+          async (payload: { new: { id: string } }) => {
+            // When a new conversation is created, check if current user is a participant
+            const { data: participant } = await supabase
+              .from('conversation_participants')
+              .select('user_id')
+              .eq('conversation_id', payload.new.id)
+              .eq('user_id', user.id)
+              .eq('is_active', true)
+              .maybeSingle();
+            
+            if (participant) {
+              // Current user is a participant, refresh conversations list
+              await fetchConversations();
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'conversation_participants',
+          },
+          async (payload: { new: { user_id: string; is_active: boolean } }) => {
+            // When a user is added to a conversation, refresh if it's the current user
+            if (payload.new.user_id === user.id && payload.new.is_active) {
+              await fetchConversations();
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'conversation_participants',
+          },
+          async (payload: { new: { user_id: string }; old?: { user_id: string } }) => {
+            // When a participant's status changes (e.g., left conversation)
+            if (payload.new.user_id === user.id || payload.old?.user_id === user.id) {
+              await fetchConversations();
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'DELETE',
+            schema: 'public',
+            table: 'conversation_participants',
+          },
+          async (payload: { old: { user_id: string } }) => {
+            // When a participant is removed (hard delete), refresh if it's the current user
+            if (payload.old.user_id === user.id) {
+              await fetchConversations();
+            }
+          }
+        )
+        .subscribe((status: string, err?: Error) => {
+          if (status === 'CHANNEL_ERROR') {
+            console.error('Realtime conversations channel error:', err);
+          } else if (status === 'TIMED_OUT') {
+            console.error('Realtime conversations subscription timed out');
+          }
+        });
+    };
+
+    setupSubscription();
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [fetchConversations]);
+
+  // Subscribe to real-time user_blocks changes
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const setupSubscription = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      channel = supabase
+        .channel('user-blocks-updates', {
+          config: {
+            broadcast: { self: true }
+          }
+        })
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'user_blocks',
+          },
+          async (payload: { new: { blocker_id: string; blocked_id: string } }) => {
+            // When a block is created, refresh conversations if it affects the current user
+            if (payload.new.blocker_id === user.id || payload.new.blocked_id === user.id) {
+              await fetchConversations();
+              
+              // If viewing a DM with the blocked/blocker user, refresh blocking status
+              const currentConv = selectedConversation;
+              if (currentConv?.type === 'dm' && currentConv?.userId) {
+                if (currentConv.userId === payload.new.blocked_id || 
+                    currentConv.userId === payload.new.blocker_id) {
+                  // Refresh blocking status for the current conversation
+                  const { data: iBlockedThem } = await supabase
+                    .from('user_blocks')
+                    .select('id')
+                    .eq('blocker_id', user.id)
+                    .eq('blocked_id', currentConv.userId)
+                    .maybeSingle();
+                  
+                  const { data: theyBlockedMe } = await supabase
+                    .from('user_blocks')
+                    .select('id')
+                    .eq('blocker_id', currentConv.userId)
+                    .eq('blocked_id', user.id)
+                    .maybeSingle();
+                  
+                  setIsBlocked(!!iBlockedThem);
+                  setBlockedByUser(!!theyBlockedMe);
+                }
+              }
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'DELETE',
+            schema: 'public',
+            table: 'user_blocks',
+          },
+          async (payload: { old: { blocker_id: string; blocked_id: string } }) => {
+            // When a block is removed (unblock), refresh conversations if it affects the current user
+            if (payload.old.blocker_id === user.id || payload.old.blocked_id === user.id) {
+              await fetchConversations();
+              
+              // If viewing a DM with the unblocked user, refresh blocking status
+              const currentConv = selectedConversation;
+              if (currentConv?.type === 'dm' && currentConv?.userId) {
+                if (currentConv.userId === payload.old.blocked_id || 
+                    currentConv.userId === payload.old.blocker_id) {
+                  // Refresh blocking status for the current conversation
+                  const { data: iBlockedThem } = await supabase
+                    .from('user_blocks')
+                    .select('id')
+                    .eq('blocker_id', user.id)
+                    .eq('blocked_id', currentConv.userId)
+                    .maybeSingle();
+                  
+                  const { data: theyBlockedMe } = await supabase
+                    .from('user_blocks')
+                    .select('id')
+                    .eq('blocker_id', currentConv.userId)
+                    .eq('blocked_id', user.id)
+                    .maybeSingle();
+                  
+                  setIsBlocked(!!iBlockedThem);
+                  setBlockedByUser(!!theyBlockedMe);
+                }
+              }
+            }
+          }
+        )
+        .subscribe((status: string, err?: Error) => {
+          if (status === 'CHANNEL_ERROR') {
+            console.error('Realtime user_blocks channel error:', err);
+          } else if (status === 'TIMED_OUT') {
+            console.error('Realtime user_blocks subscription timed out');
+          }
+        });
+    };
+
+    setupSubscription();
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [fetchConversations, selectedConversation]);
 
   // Auto-select the most recent conversation when conversations are loaded
   useEffect(() => {
@@ -3175,6 +3542,21 @@ export function MessagingPage() {
                       </React.Fragment>
                   );
                   })}
+                  {/* Typing indicator */}
+                  {typingUsers.size > 0 && (
+                    <div className="flex items-center gap-3 px-4 py-2">
+                      <div className="typing-indicator">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </div>
+                      <span className="text-sm text-gray-500">
+                        {Array.from(typingUsers.values()).length === 1
+                          ? `${Array.from(typingUsers.values())[0].userName} is typing...`
+                          : `${Array.from(typingUsers.values()).length} people are typing...`}
+                      </span>
+                    </div>
+                  )}
                   <div ref={messagesEndRef} />
                 </div>
               ) : null}

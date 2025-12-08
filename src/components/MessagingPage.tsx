@@ -115,12 +115,22 @@ export function MessagingPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const groupMembersListRef = useRef<HTMLDivElement>(null);
   const groupMembersContainerRef = useRef<HTMLDivElement>(null);
   const blockMenuRef = useRef<HTMLDivElement>(null);
+  const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  // Simple function to set scroll position to bottom
+  const setScrollToBottom = useCallback(() => {
+    const messagesContainer = messagesEndRef.current?.closest('[data-slot="scroll-area"]');
+    const viewport = messagesContainer?.querySelector('[data-slot="scroll-area-viewport"]') as HTMLElement;
+    if (viewport) {
+      viewport.scrollTop = viewport.scrollHeight;
+    }
+  }, []);
   
   // Blocking state
   const [isBlocked, setIsBlocked] = useState(false);
@@ -310,6 +320,96 @@ export function MessagingPage() {
       return () => document.removeEventListener('click', handleClickOutside);
     }
   }, [showBlockMenu]);
+
+  // Set up presence tracking for online status
+  useEffect(() => {
+    let presenceChannel: ReturnType<typeof supabase.channel> | null = null;
+
+    const setupPresence = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Create a global presence channel for all users
+      presenceChannel = supabase.channel('online-users', {
+        config: {
+          presence: {
+            key: user.id,
+          },
+        },
+      });
+
+      // Track current user as online
+      presenceChannel
+        .on('presence', { event: 'sync' }, () => {
+          const state = presenceChannel?.presenceState();
+          if (!state) return;
+          
+          const onlineUserIds = new Set<string>();
+          
+          // Extract user IDs from presence state
+          // State structure: { [key: string]: Array<{ user_id?: string, ... }> }
+          Object.values(state).forEach((presences) => {
+            const presenceArray = presences as Array<{ user_id?: string }>;
+            if (Array.isArray(presenceArray)) {
+              presenceArray.forEach((presence) => {
+                if (presence?.user_id) {
+                  onlineUserIds.add(presence.user_id);
+                }
+              });
+            }
+          });
+          
+          setOnlineUsers(onlineUserIds);
+        })
+        .on('presence', { event: 'join' }, ({ newPresences }: { newPresences: Array<{ user_id?: string }> }) => {
+          setOnlineUsers((prev) => {
+            const updated = new Set(prev);
+            if (Array.isArray(newPresences)) {
+              newPresences.forEach((presence: { user_id?: string }) => {
+                if (presence?.user_id) {
+                  updated.add(presence.user_id);
+                }
+              });
+            }
+            return updated;
+          });
+        })
+        .on('presence', { event: 'leave' }, ({ leftPresences }: { leftPresences: Array<{ user_id?: string }> }) => {
+          setOnlineUsers((prev) => {
+            const updated = new Set(prev);
+            if (Array.isArray(leftPresences)) {
+              leftPresences.forEach((presence: { user_id?: string }) => {
+                if (presence?.user_id) {
+                  updated.delete(presence.user_id);
+                }
+              });
+            }
+            return updated;
+          });
+        })
+        .subscribe(async (status: string) => {
+          if (status === 'SUBSCRIBED' && presenceChannel) {
+            // Track current user as online
+            await presenceChannel.track({
+              user_id: user.id,
+              online_at: new Date().toISOString(),
+            });
+            presenceChannelRef.current = presenceChannel;
+          }
+        });
+    };
+
+    setupPresence();
+
+    // Cleanup function
+    return () => {
+      if (presenceChannelRef.current) {
+        presenceChannelRef.current.untrack();
+        supabase.removeChannel(presenceChannelRef.current);
+        presenceChannelRef.current = null;
+      }
+    };
+  }, []);
 
   // Reset Create Group modal state when it opens
   useEffect(() => {
@@ -634,17 +734,7 @@ export function MessagingPage() {
 
       setMessages(transformedMessages);
       
-      // Set scroll position to bottom immediately after messages load (no animation)
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          // Find the ScrollArea viewport element that contains messages and set scroll to bottom
-          const messagesContainer = messagesEndRef.current?.closest('[data-slot="scroll-area"]');
-          const viewport = messagesContainer?.querySelector('[data-slot="scroll-area-viewport"]') as HTMLElement;
-          if (viewport) {
-            viewport.scrollTop = viewport.scrollHeight;
-          }
-        });
-      });
+      // Scroll position will be set by useLayoutEffect when messages render
     } catch (err) {
       console.error('Error fetching messages:', err);
     } finally {
@@ -694,22 +784,17 @@ export function MessagingPage() {
     loadConversationData();
   }, [selectedConversation?.id, selectedConversation?.type, selectedConversation?.userId, fetchMessages]);
   
-  // Set scroll position to bottom when messages change or conversation is selected (no animation)
+  // Simple: Set scroll position to bottom when messages finish loading
   useEffect(() => {
     if (selectedConversation?.id && messages.length > 0 && !messagesLoading) {
-      // Use requestAnimationFrame to set scroll position immediately after DOM update
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          // Find the ScrollArea viewport element that contains messages and set scroll to bottom
-          const messagesContainer = messagesEndRef.current?.closest('[data-slot="scroll-area"]');
-          const viewport = messagesContainer?.querySelector('[data-slot="scroll-area-viewport"]') as HTMLElement;
-          if (viewport) {
-            viewport.scrollTop = viewport.scrollHeight;
-          }
-        });
-      });
+      // Set scroll to bottom - try multiple times to ensure it works
+      setScrollToBottom();
+      setTimeout(() => setScrollToBottom(), 10);
+      setTimeout(() => setScrollToBottom(), 50);
+      setTimeout(() => setScrollToBottom(), 100);
+      setTimeout(() => setScrollToBottom(), 200);
     }
-  }, [messages, selectedConversation?.id, messagesLoading]);
+  }, [messages.length, messagesLoading, setScrollToBottom, selectedConversation?.id]);
 
   // Set initial height for edit textarea when editing starts
   useEffect(() => {
@@ -2860,6 +2945,21 @@ export function MessagingPage() {
                     >
                       <AtSign className="w-4 h-4" />
                       <span className="flex-1 text-left truncate">{conv.name}</span>
+                      {conv.userId && (
+                        <div
+                          className="w-3 h-3 rounded-full flex-shrink-0"
+                          style={{
+                            backgroundColor: onlineUsers.has(conv.userId) 
+                              ? '#43a25a' 
+                              : 'transparent',
+                            border: onlineUsers.has(conv.userId) 
+                              ? 'none' 
+                              : '3px solid #9ca3af',
+                            boxSizing: 'border-box'
+                          }}
+                          title={onlineUsers.has(conv.userId) ? 'Online' : 'Offline'}
+                        />
+                      )}
                       {conv.unreadCount > 0 && (
                         <Badge className="bg-white text-[#752432] px-1.5 py-0 text-xs h-5">
                           {conv.unreadCount}
@@ -2986,15 +3086,32 @@ export function MessagingPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 flex-1">
                   {selectedConversation.type === 'dm' ? (
-                    <Avatar className="w-9 h-9">
-                      <AvatarFallback className="text-white" style={{ backgroundColor: '#752432' }}>
-                        {selectedConversation.name
-                          .split(' ')
-                          .map((n) => n[0])
-                          .join('')
-                          .slice(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <div className="relative">
+                      <Avatar className="w-9 h-9">
+                        <AvatarFallback className="text-white" style={{ backgroundColor: '#752432' }}>
+                          {selectedConversation.name
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')
+                            .slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                      {selectedConversation.userId && (
+                        <div
+                          className="absolute bottom-0 right-0 w-3 h-3 rounded-full flex-shrink-0"
+                          style={{
+                            backgroundColor: onlineUsers.has(selectedConversation.userId) 
+                              ? '#43a25a' 
+                              : '#121214',
+                            border: onlineUsers.has(selectedConversation.userId) 
+                              ? 'none' 
+                              : '3px solid #9ca3af',
+                            boxSizing: 'border-box'
+                          }}
+                          title={onlineUsers.has(selectedConversation.userId) ? 'Online' : 'Offline'}
+                        />
+                      )}
+                    </div>
                   ) : selectedConversation.type === 'group' ? (
                     <div
                       className="w-9 h-9 rounded bg-white border-2 flex items-center justify-center"

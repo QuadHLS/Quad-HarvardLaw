@@ -2728,7 +2728,7 @@ export function MessagingPage() {
                   <div className="text-center text-gray-500 py-8">Loading messages...</div>
                 </div>
               ) : messages.length > 0 ? (
-                <div className="p-6 space-y-1" style={{ paddingTop: 'calc(73px + 1.5rem)', paddingBottom: 'calc(100px + 1.5rem)' }}>
+                <div className="p-6 space-y-1 imessage" style={{ paddingTop: 'calc(73px + 1.5rem)', paddingBottom: 'calc(100px + 1.5rem)' }}>
                   {messages.map((message, index) => {
                     const hasButtons = message.isCurrentUser && (canDeleteMessage(message.created_at) || canEditMessage(message.created_at));
                     
@@ -2749,6 +2749,20 @@ export function MessagingPage() {
                       prevMessage.senderId !== message.senderId || 
                       prevMessage.isCurrentUser !== message.isCurrentUser ||
                       timeDiffMs > TWO_MINUTES_MS;
+                    
+                    // Check if this is the last message in a consecutive group from the same sender
+                    const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
+                    let nextTimeDiffMs = 0;
+                    if (nextMessage) {
+                      const currentTime = new Date(message.created_at).getTime();
+                      const nextTime = new Date(nextMessage.created_at).getTime();
+                      nextTimeDiffMs = nextTime - currentTime;
+                    }
+                    
+                    const isLastInGroup = !nextMessage ||
+                      nextMessage.senderId !== message.senderId ||
+                      nextMessage.isCurrentUser !== message.isCurrentUser ||
+                      nextTimeDiffMs > TWO_MINUTES_MS;
                     
                     // Only show avatar and name for group chats when it's the first message in a group
                     const shouldShowSenderInfo = !message.isCurrentUser && 
@@ -2805,27 +2819,14 @@ export function MessagingPage() {
                         // Check if message is link-only (should not have bubble)
                         const urlCheck = message.content ? startsWithUrl(message.content.trim()) : { isUrl: false };
                         const isLinkOnly = urlCheck.isUrl && !urlCheck.remainingText;
-                        const hasOnlyFiles = hasFileAttachments && !hasTextContent && !hasOnlyImages;
-                        const shouldShowBubble = (hasTextContent || (!hasFileAttachments && !hasOnlyImages)) && !hasOnlyFiles && !isLinkOnly;
-                        
-                        // Determine border radius
-                        const getBorderRadius = () => {
-                          if (!shouldShowBubble) return {};
-                          return { borderRadius: '24px' };
-                        };
+                        // Show bubble for any text message that's not link-only
+                        const shouldShowBubble = hasTextContent && !isLinkOnly;
                         
                         return (
                           <div
                             className={cn(
-                              'max-w-xl relative group',
-                              shouldShowBubble && 'px-4 py-1.5 flex flex-col',
-                              shouldShowBubble && (message.isCurrentUser ? 'text-white' : 'text-gray-900')
+                              'max-w-xl relative group flex flex-col'
                             )}
-                            style={{
-                              ...(shouldShowBubble && message.isCurrentUser ? { backgroundColor: '#752432' } : {}),
-                              ...(shouldShowBubble && !message.isCurrentUser ? { backgroundColor: '#e9e8eb' } : {}),
-                              ...getBorderRadius()
-                            }}
                           >
                         {editingMessageId === message.id ? (
                           <div className="space-y-2">
@@ -2979,7 +2980,25 @@ export function MessagingPage() {
                             {message.content && 
                              !(message.attachments && message.attachments.length > 0 && 
                                message.attachments.some(att => att.file_name === message.content)) && (
-                              <p className="whitespace-pre-wrap m-0 leading-tight" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: '1.4' }}>
+                              <p 
+                                className={cn(
+                                  "whitespace-pre-wrap m-0 leading-tight",
+                                  shouldShowBubble && isLastInGroup ? (message.isCurrentUser ? "from-me" : "from-them") : ""
+                                )}
+                                style={{ 
+                                  whiteSpace: 'pre-wrap', 
+                                  wordBreak: 'break-word', 
+                                  lineHeight: '1.4',
+                                  ...(shouldShowBubble && !isLastInGroup ? {
+                                    borderRadius: '1.15rem',
+                                    padding: '0.5rem .875rem',
+                                    backgroundColor: message.isCurrentUser ? '#752432' : '#e9e8eb',
+                                    color: message.isCurrentUser ? '#fff' : '#000',
+                                    display: 'inline-block',
+                                    maxWidth: '100%'
+                                  } : {})
+                                }}
+                              >
                                 {(() => {
                                   // Check if the entire message is just a URL (link-only message)
                                   const urlCheck = startsWithUrl(message.content.trim());

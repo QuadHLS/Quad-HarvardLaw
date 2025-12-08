@@ -6928,3 +6928,80 @@ html {
   -webkit-transform: none;
   transform: none;
 }
+
+/* iMessage tail effect styles */
+.imessage p {
+  word-wrap: break-word;
+}
+
+.imessage p.from-me,
+.imessage p.from-them {
+  border-radius: 1.15rem !important;
+  padding: 0.5rem .875rem !important;
+  position: relative !important;
+  max-width: 100% !important;
+  display: inline-block !important;
+  margin: 0 !important;
+}
+
+/* ---- FROM ME (maroon bubble + right tail) ---- */
+.imessage p.from-me {
+  background-color: #752432 !important;
+  color: #fff !important;
+}
+
+.imessage p.from-me::before,
+.imessage p.from-me::after {
+  content: "";
+  position: absolute;
+  bottom: -0.1rem;
+  height: 1rem;
+}
+
+/* maroon tail */
+.imessage p.from-me::before {
+  border-bottom-left-radius: 0.8rem 0.7rem;
+  border-right: 1rem solid #752432;
+  right: -0.35rem;
+  transform: translate(0, -0.1rem);
+}
+
+/* white cutout */
+.imessage p.from-me::after {
+  background-color: #FEFBF6;
+  border-bottom-left-radius: 0.5rem;
+  right: -40px;
+  transform: translate(-30px, -2px);
+  width: 10px;
+}
+
+/* ---- FROM THEM (gray bubble + left tail) ---- */
+.imessage p.from-them {
+  background-color: #e9e8eb !important;
+  color: #000 !important;
+}
+
+.imessage p.from-them::before,
+.imessage p.from-them::after {
+  content: "";
+  position: absolute;
+  bottom: -0.1rem;
+  height: 1rem;
+}
+
+/* gray tail */
+.imessage p.from-them::before {
+  border-bottom-right-radius: 0.8rem 0.7rem;
+  border-left: 1rem solid #e9e8eb;
+  left: -0.35rem;
+  transform: translate(0, -0.1rem);
+}
+
+/* white cutout */
+.imessage p.from-them::after {
+  background-color: #FEFBF6;
+  border-bottom-right-radius: 0.5rem;
+  left: 20px;
+  transform: translate(-30px, -2px);
+  width: 10px;
+}

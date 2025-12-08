@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
+import { useAuth } from '../contexts/AuthContext';
 import {
   Search,
   Send,
@@ -90,6 +91,7 @@ interface MessageAttachment {
 }
 
 export function MessagingPage() {
+  const { onlineUsers } = useAuth();
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messageInput, setMessageInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -115,14 +117,12 @@ export function MessagingPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
-  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const groupMembersListRef = useRef<HTMLDivElement>(null);
   const groupMembersContainerRef = useRef<HTMLDivElement>(null);
   const blockMenuRef = useRef<HTMLDivElement>(null);
-  const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   // Simple function to set scroll position to bottom
   const setScrollToBottom = useCallback(() => {
     const messagesContainer = messagesEndRef.current?.closest('[data-slot="scroll-area"]');
@@ -321,95 +321,6 @@ export function MessagingPage() {
     }
   }, [showBlockMenu]);
 
-  // Set up presence tracking for online status
-  useEffect(() => {
-    let presenceChannel: ReturnType<typeof supabase.channel> | null = null;
-
-    const setupPresence = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Create a global presence channel for all users
-      presenceChannel = supabase.channel('online-users', {
-        config: {
-          presence: {
-            key: user.id,
-          },
-        },
-      });
-
-      // Track current user as online
-      presenceChannel
-        .on('presence', { event: 'sync' }, () => {
-          const state = presenceChannel?.presenceState();
-          if (!state) return;
-          
-          const onlineUserIds = new Set<string>();
-          
-          // Extract user IDs from presence state
-          // State structure: { [key: string]: Array<{ user_id?: string, ... }> }
-          Object.values(state).forEach((presences) => {
-            const presenceArray = presences as Array<{ user_id?: string }>;
-            if (Array.isArray(presenceArray)) {
-              presenceArray.forEach((presence) => {
-                if (presence?.user_id) {
-                  onlineUserIds.add(presence.user_id);
-                }
-              });
-            }
-          });
-          
-          setOnlineUsers(onlineUserIds);
-        })
-        .on('presence', { event: 'join' }, ({ newPresences }: { newPresences: Array<{ user_id?: string }> }) => {
-          setOnlineUsers((prev) => {
-            const updated = new Set(prev);
-            if (Array.isArray(newPresences)) {
-              newPresences.forEach((presence: { user_id?: string }) => {
-                if (presence?.user_id) {
-                  updated.add(presence.user_id);
-                }
-              });
-            }
-            return updated;
-          });
-        })
-        .on('presence', { event: 'leave' }, ({ leftPresences }: { leftPresences: Array<{ user_id?: string }> }) => {
-          setOnlineUsers((prev) => {
-            const updated = new Set(prev);
-            if (Array.isArray(leftPresences)) {
-              leftPresences.forEach((presence: { user_id?: string }) => {
-                if (presence?.user_id) {
-                  updated.delete(presence.user_id);
-                }
-              });
-            }
-            return updated;
-          });
-        })
-        .subscribe(async (status: string) => {
-          if (status === 'SUBSCRIBED' && presenceChannel) {
-            // Track current user as online
-            await presenceChannel.track({
-              user_id: user.id,
-              online_at: new Date().toISOString(),
-            });
-            presenceChannelRef.current = presenceChannel;
-          }
-        });
-    };
-
-    setupPresence();
-
-    // Cleanup function
-    return () => {
-      if (presenceChannelRef.current) {
-        presenceChannelRef.current.untrack();
-        supabase.removeChannel(presenceChannelRef.current);
-        presenceChannelRef.current = null;
-      }
-    };
-  }, []);
 
   // Reset Create Group modal state when it opens
   useEffect(() => {
@@ -3102,7 +3013,7 @@ export function MessagingPage() {
                           style={{
                             backgroundColor: onlineUsers.has(selectedConversation.userId) 
                               ? '#43a25a' 
-                              : '#121214',
+                              : '#752432',
                             border: onlineUsers.has(selectedConversation.userId) 
                               ? 'none' 
                               : '3px solid #9ca3af',
@@ -3125,44 +3036,64 @@ export function MessagingPage() {
                     {(selectedConversation.type === 'course' || selectedConversation.type === 'group') && memberCount !== null && (
                       <div ref={groupMembersContainerRef} className="relative">
                         {selectedConversation.type === 'group' ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowGroupMembersList(!showGroupMembersList);
+                          <div
+                            onMouseEnter={() => {
+                              if (groupParticipants.length > 0) {
+                                setShowGroupMembersList(true);
+                              }
                             }}
-                            className="text-sm text-gray-500 hover:text-gray-700 cursor-pointer whitespace-nowrap"
+                            className="relative"
                           >
-                            {memberCount} {memberCount === 1 ? 'member' : 'members'}
-                          </button>
+                            <button
+                              className="text-sm text-gray-500 hover:text-gray-700 cursor-pointer whitespace-nowrap"
+                            >
+                              {memberCount} {memberCount === 1 ? 'member' : 'members'}
+                            </button>
+                            {/* Group Members List Modal */}
+                            {showGroupMembersList && groupParticipants.length > 0 && (
+                              <div 
+                                ref={groupMembersListRef}
+                                className="absolute left-0 top-full mt-2 w-64 bg-white rounded-md shadow-lg z-10 border overflow-hidden"
+                              >
+                                <div className="font-medium text-sm mb-2 p-2 border-b">Group Members</div>
+                                <div className="max-h-48 overflow-y-auto">
+                                  {groupParticipants.map((user) => (
+                                    <div key={user.id} className="flex items-center gap-2 p-2 hover:bg-gray-50">
+                                      <div className="relative">
+                                        <Avatar className="w-8 h-8 flex-shrink-0">
+                                          <AvatarFallback className="text-white text-xs" style={{ backgroundColor: '#752432' }}>
+                                            {user.full_name
+                                              .split(' ')
+                                              .map((n) => n[0])
+                                              .join('')
+                                              .slice(0, 2)}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <div
+                                          className="absolute bottom-0 right-0 w-3 h-3 rounded-full flex-shrink-0"
+                                          style={{
+                                            backgroundColor: onlineUsers.has(user.id) 
+                                              ? '#43a25a' 
+                                              : '#752432',
+                                            border: onlineUsers.has(user.id) 
+                                              ? 'none' 
+                                              : '3px solid #9ca3af',
+                                            boxSizing: 'border-box'
+                                          }}
+                                          title={onlineUsers.has(user.id) ? 'Online' : 'Offline'}
+                                        />
+                                      </div>
+                                      <span className="text-sm text-gray-700 flex-1 truncate">{user.full_name}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         ) : (
                           <p className="text-sm text-gray-500 whitespace-nowrap">
                             {memberCount} {memberCount === 1 ? 'member' : 'members'}
                           </p>
-                        )}
-                        {/* Group Members List Modal */}
-                        {selectedConversation.type === 'group' && showGroupMembersList && groupParticipants.length > 0 && (
-                          <div 
-                            ref={groupMembersListRef}
-                            className="absolute left-0 top-full mt-2 w-64 bg-white rounded-md shadow-lg z-10 border overflow-hidden"
-                          >
-                            <div className="font-medium text-sm mb-2 p-2 border-b">Group Members</div>
-                            <div className="max-h-48 overflow-y-auto">
-                              {groupParticipants.map((user) => (
-                                <div key={user.id} className="flex items-center gap-2 p-2 hover:bg-gray-50">
-                                  <Avatar className="w-8 h-8 flex-shrink-0">
-                                    <AvatarFallback className="text-white text-xs" style={{ backgroundColor: '#752432' }}>
-                                      {user.full_name
-                                        .split(' ')
-                                        .map((n) => n[0])
-                                        .join('')
-                                        .slice(0, 2)}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <span className="text-sm text-gray-700 flex-1 truncate">{user.full_name}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
                         )}
                       </div>
                     )}

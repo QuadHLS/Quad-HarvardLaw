@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { User, Session, AuthError } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 
@@ -6,6 +6,7 @@ interface AuthContextType {
   user: User | null
   session: Session | null
   loading: boolean
+  onlineUsers: Set<string>
   signUp: (email: string, password: string, metadata?: any) => Promise<{ error: AuthError | null }>
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>
   signInWithGoogle: () => Promise<{ error: AuthError | null }>
@@ -33,6 +34,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
+  const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
   useEffect(() => {
     // Only clear animation flag if it's stale (e.g., page reload long after login)
@@ -104,6 +107,103 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     return () => subscription.unsubscribe()
   }, [])
+
+  // Global presence tracking for all logged-in users
+  useEffect(() => {
+    if (!user) {
+      // Clean up presence tracking when user logs out
+      if (presenceChannelRef.current) {
+        presenceChannelRef.current.untrack();
+        supabase.removeChannel(presenceChannelRef.current);
+        presenceChannelRef.current = null;
+      }
+      setOnlineUsers(new Set());
+      return;
+    }
+
+    let presenceChannel: ReturnType<typeof supabase.channel> | null = null;
+
+    const setupPresence = async () => {
+      // Create a global presence channel for all users
+      presenceChannel = supabase.channel('online-users', {
+        config: {
+          presence: {
+            key: user.id,
+          },
+        },
+      });
+
+      // Track current user as online
+      presenceChannel
+        .on('presence', { event: 'sync' }, () => {
+          const state = presenceChannel?.presenceState();
+          if (!state) return;
+          
+          const onlineUserIds = new Set<string>();
+          
+          // Extract user IDs from presence state
+          Object.values(state).forEach((presences) => {
+            const presenceArray = presences as Array<{ user_id?: string }>;
+            if (Array.isArray(presenceArray)) {
+              presenceArray.forEach((presence) => {
+                if (presence?.user_id) {
+                  onlineUserIds.add(presence.user_id);
+                }
+              });
+            }
+          });
+          
+          setOnlineUsers(onlineUserIds);
+        })
+        .on('presence', { event: 'join' }, ({ newPresences }: { newPresences: Array<{ user_id?: string }> }) => {
+          setOnlineUsers((prev) => {
+            const updated = new Set(prev);
+            if (Array.isArray(newPresences)) {
+              newPresences.forEach((presence: { user_id?: string }) => {
+                if (presence?.user_id) {
+                  updated.add(presence.user_id);
+                }
+              });
+            }
+            return updated;
+          });
+        })
+        .on('presence', { event: 'leave' }, ({ leftPresences }: { leftPresences: Array<{ user_id?: string }> }) => {
+          setOnlineUsers((prev) => {
+            const updated = new Set(prev);
+            if (Array.isArray(leftPresences)) {
+              leftPresences.forEach((presence: { user_id?: string }) => {
+                if (presence?.user_id) {
+                  updated.delete(presence.user_id);
+                }
+              });
+            }
+            return updated;
+          });
+        })
+        .subscribe(async (status: string) => {
+          if (status === 'SUBSCRIBED' && presenceChannel) {
+            // Track current user as online
+            await presenceChannel.track({
+              user_id: user.id,
+              online_at: new Date().toISOString(),
+            });
+            presenceChannelRef.current = presenceChannel;
+          }
+        });
+    };
+
+    setupPresence();
+
+    // Cleanup function
+    return () => {
+      if (presenceChannelRef.current) {
+        presenceChannelRef.current.untrack();
+        supabase.removeChannel(presenceChannelRef.current);
+        presenceChannelRef.current = null;
+      }
+    };
+  }, [user])
 
   const signUp = async (email: string, password: string, metadata?: any) => {
     const { error } = await supabase.auth.signUp({
@@ -227,6 +327,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     session,
     loading,
+    onlineUsers,
     signUp,
     signIn,
     signInWithGoogle,

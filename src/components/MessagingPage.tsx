@@ -2729,15 +2729,38 @@ export function MessagingPage() {
                 </div>
               ) : messages.length > 0 ? (
                 <div className="p-6 space-y-1" style={{ paddingTop: 'calc(73px + 1.5rem)', paddingBottom: 'calc(100px + 1.5rem)' }}>
-                  {messages.map((message) => {
+                  {messages.map((message, index) => {
                     const hasButtons = message.isCurrentUser && (canDeleteMessage(message.created_at) || canEditMessage(message.created_at));
+                    
+                    // Check if this is the first message in a consecutive group from the same sender
+                    const prevMessage = index > 0 ? messages[index - 1] : null;
+                    
+                    // Calculate time difference if previous message exists
+                    let timeDiffMs = 0;
+                    if (prevMessage) {
+                      const prevTime = new Date(prevMessage.created_at).getTime();
+                      const currentTime = new Date(message.created_at).getTime();
+                      timeDiffMs = currentTime - prevTime;
+                    }
+                    
+                    // Group messages only if they're from the same sender AND sent within 2 minutes (120000 ms)
+                    const TWO_MINUTES_MS = 2 * 60 * 1000;
+                    const isFirstInGroup = !prevMessage || 
+                      prevMessage.senderId !== message.senderId || 
+                      prevMessage.isCurrentUser !== message.isCurrentUser ||
+                      timeDiffMs > TWO_MINUTES_MS;
+                    
+                    // Only show avatar and name for group chats when it's the first message in a group
+                    const shouldShowSenderInfo = !message.isCurrentUser && 
+                      selectedConversation?.type !== 'dm' && 
+                      isFirstInGroup;
                     
                     return (
                   <div
                     key={message.id}
                     className={cn(
                         'flex gap-3 relative w-full',
-                        message.isCurrentUser ? 'flex-row-reverse items-start justify-end' : 'flex-row items-end justify-start'
+                        message.isCurrentUser ? 'flex-row-reverse items-start justify-end' : 'flex-row items-start justify-start'
                     )}
                       style={{
                         transform: showAllTimestamps 
@@ -2746,7 +2769,7 @@ export function MessagingPage() {
                         transition: 'transform 0.3s ease-out'
                       }}
                   >
-                    {!message.isCurrentUser && selectedConversation?.type !== 'dm' && (
+                    {shouldShowSenderInfo && (
                       <Avatar className="w-9 h-9 flex-shrink-0">
                         <AvatarFallback className="text-white" style={{ backgroundColor: '#752432' }}>
                           {message.senderName
@@ -2757,13 +2780,16 @@ export function MessagingPage() {
                         </AvatarFallback>
                       </Avatar>
                     )}
+                    {!shouldShowSenderInfo && !message.isCurrentUser && selectedConversation?.type !== 'dm' && (
+                      <div className="w-9 flex-shrink-0"></div>
+                    )}
                     <div
                       className={cn(
                         'flex flex-col relative flex-1',
                         message.isCurrentUser ? 'items-end max-w-[55%]' : 'items-start max-w-[55%]'
                       )}
                     >
-                      {!message.isCurrentUser && selectedConversation?.type !== 'dm' && (
+                      {shouldShowSenderInfo && (
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-medium text-sm">{message.senderName}</span>
                         </div>

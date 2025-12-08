@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import {
@@ -91,7 +90,6 @@ interface MessageAttachment {
 }
 
 export function MessagingPage() {
-  const navigate = useNavigate();
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messageInput, setMessageInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -1482,14 +1480,6 @@ export function MessagingPage() {
       setSendingMessage(false);
     }
   };
-
-  const handleNavigateToLandingPage = () => {
-    if (!selectedConversation) return;
-
-    if (selectedConversation.type === 'course') {
-      navigate(`/course/${selectedConversation.name}`);
-    }
-  };
   
   // Group management functions
   const handleEditGroupName = async () => {
@@ -1758,7 +1748,7 @@ export function MessagingPage() {
             }, 100);
           }
           return updated;
-        });
+          });
       }
       
       setSelectedFiles([]);
@@ -2133,19 +2123,84 @@ export function MessagingPage() {
     return null;
   };
 
+  // Format date like iMessage: "Today 12:29 PM", "Tuesday 12:29 PM", or "Sun, Nov 30 at 9:00 PM"
+  // Returns JSX with bold text before time (except "at")
+  const formatDayTimestamp = (dateString: string): React.ReactNode => {
+    const date = new Date(dateString);
+    const now = new Date();
+    
+    // Get start of today
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    // Get start of the message's day
+    const messageDayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    
+    // Calculate days difference
+    const daysDiff = Math.floor((todayStart.getTime() - messageDayStart.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Format time
+    const timeOptions: Intl.DateTimeFormatOptions = { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    };
+    const timeStr = date.toLocaleTimeString('en-US', timeOptions);
+    
+    if (daysDiff === 0) {
+      // Today
+      return <><span className="font-semibold">Today</span> {timeStr}</>;
+    } else if (daysDiff === 1) {
+      // Yesterday
+      return <><span className="font-semibold">Yesterday</span> {timeStr}</>;
+    } else if (daysDiff < 7) {
+      // This week - show day name
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      return <><span className="font-semibold">{dayNames[date.getDay()]}</span> {timeStr}</>;
+    } else {
+      // Older - show "Sun, Nov 30 at 9:00 PM"
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const datePart = `${dayNames[date.getDay()]}, ${monthNames[date.getMonth()]} ${date.getDate()}`;
+      return <><span className="font-semibold">{datePart}</span> at {timeStr}</>;
+    }
+  };
+
   // Check if text starts with a URL
   const startsWithUrl = (text: string): { isUrl: boolean; url?: string; remainingText?: string } => {
     if (!text || !text.trim()) return { isUrl: false };
     
     const trimmed = text.trim();
     // URL regex pattern - matches http, https, www, and common domains at start
-    const urlRegex = /^(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}[^\s]*)/;
+    // Stop at commas, semicolons, and other punctuation that aren't valid in URLs
+    const urlRegex = /^(https?:\/\/[^\s,;.]+(?:\.[^\s,;.]+)*(?:\/[^\s,;]*)?|www\.[^\s,;.]+(?:\.[^\s,;.]+)*(?:\/[^\s,;]*)?|[a-zA-Z0-9-]+\.[a-zA-Z]{3,}(?:\/[^\s,;]*)?(?:\?[^\s,;]*)?(?:#[^\s,;]*)?)/;
     const match = trimmed.match(urlRegex);
     
     if (match) {
-      const url = match[0];
-      const remainingText = trimmed.substring(url.length).trim();
-      return { isUrl: true, url, remainingText: remainingText || undefined };
+      let url = match[0];
+      // Add https:// if it starts with www. or doesn't have protocol
+      if (url.startsWith('www.')) {
+        url = 'https://' + url;
+      } else if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+      }
+      
+      // Validate that it's actually a valid URL and has a valid hostname
+      try {
+        const urlObj = new URL(url);
+        // Check if hostname looks like a real domain (has at least one dot and valid TLD)
+        const hostname = urlObj.hostname;
+        if (!hostname.includes('.') || hostname.split('.').pop()!.length < 2) {
+          return { isUrl: false };
+        }
+        // Reject if hostname has invalid characters or looks like random text
+        if (!/^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/.test(hostname)) {
+          return { isUrl: false };
+        }
+        const remainingText = trimmed.substring(match[0].length).trim();
+        return { isUrl: true, url: match[0], remainingText: remainingText || undefined };
+      } catch {
+        // Not a valid URL, return false
+        return { isUrl: false };
+      }
     }
     
     return { isUrl: false };
@@ -2228,18 +2283,14 @@ export function MessagingPage() {
     }
     
     // Otherwise, show links as underlined text
-    const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}[^\s]*)/g;
+    // Stop at commas, semicolons, and other punctuation that aren't valid in URLs
+    const urlRegex = /(https?:\/\/[^\s,;.]+(?:\.[^\s,;.]+)*(?:\/[^\s,;]*)?|www\.[^\s,;.]+(?:\.[^\s,;.]+)*(?:\/[^\s,;]*)?|[a-zA-Z0-9-]+\.[a-zA-Z]{3,}(?:\/[^\s,;]*)?(?:\?[^\s,;]*)?(?:#[^\s,;]*)?)/g;
     const parts: React.ReactNode[] = [];
     let lastIndex = 0;
     let match;
     
     while ((match = urlRegex.exec(text)) !== null) {
-      // Add text before the URL
-      if (match.index > lastIndex) {
-        parts.push(text.substring(lastIndex, match.index));
-      }
-      
-      // Prepare the URL
+      // Prepare the URL for validation
       let url = match[0];
       // Add https:// if it starts with www. or doesn't have protocol
       if (url.startsWith('www.')) {
@@ -2248,25 +2299,47 @@ export function MessagingPage() {
         url = 'https://' + url;
       }
       
-      // Add the URL as underlined text link
-      parts.push(
-        <a
-          key={match.index}
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={cn(
-            "underline break-all decoration-solid",
-            isCurrentUser ? "text-white/90 hover:text-white underline decoration-white/90" : "text-blue-600 hover:text-blue-800 underline decoration-blue-600"
-          )}
-          style={{ textDecoration: 'underline' }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {match[0]}
-        </a>
-      );
-      
-      lastIndex = match.index + match[0].length;
+      // Validate that it's actually a valid URL and has a valid hostname
+      try {
+        const urlObj = new URL(url);
+        // Check if hostname looks like a real domain (has at least one dot and valid TLD)
+        const hostname = urlObj.hostname;
+        if (!hostname.includes('.') || hostname.split('.').pop()!.length < 2) {
+          continue;
+        }
+        // Reject if hostname has invalid characters or looks like random text
+        if (!/^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/.test(hostname)) {
+          continue;
+        }
+        
+        // Add text before the URL
+        if (match.index > lastIndex) {
+          parts.push(text.substring(lastIndex, match.index));
+        }
+        
+        // Add the URL as underlined text link
+        parts.push(
+          <a
+            key={match.index}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              "underline break-all decoration-solid",
+              isCurrentUser ? "text-white/90 hover:text-white underline decoration-white/90" : "text-black hover:text-gray-800 underline decoration-black"
+            )}
+            style={{ textDecoration: 'underline' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {match[0]}
+          </a>
+        );
+        
+        lastIndex = match.index + match[0].length;
+      } catch {
+        // Not a valid URL, skip it and continue
+        // Don't update lastIndex so we don't skip the text
+      }
     }
     
     // Add remaining text after the last URL
@@ -2543,19 +2616,8 @@ export function MessagingPage() {
                       <Users className="w-5 h-5" style={{ color: '#752432' }} />
                     </div>
                   ) : null}
-                  <div>
-                    {selectedConversation.type === 'course' ? (
-                      <button
-                        onClick={handleNavigateToLandingPage}
-                        className="hover:underline cursor-pointer text-left"
-                      >
-                        <h2 className="font-medium text-gray-900">
-                          {selectedConversation.name}
-                        </h2>
-                      </button>
-                    ) : (
+                  <div className="flex items-center gap-2">
                       <h2 className="font-medium text-gray-900">{selectedConversation.name}</h2>
-                    )}
                     {(selectedConversation.type === 'course' || selectedConversation.type === 'group') && memberCount !== null && (
                       <div ref={groupMembersContainerRef} className="relative">
                         {selectedConversation.type === 'group' ? (
@@ -2564,12 +2626,12 @@ export function MessagingPage() {
                               e.stopPropagation();
                               setShowGroupMembersList(!showGroupMembersList);
                             }}
-                            className="text-sm text-gray-500 hover:text-gray-700 cursor-pointer text-left"
+                            className="text-sm text-gray-500 hover:text-gray-700 cursor-pointer whitespace-nowrap"
                           >
                             {memberCount} {memberCount === 1 ? 'member' : 'members'}
                           </button>
                         ) : (
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-gray-500 whitespace-nowrap">
                             {memberCount} {memberCount === 1 ? 'member' : 'members'}
                           </p>
                         )}
@@ -2611,14 +2673,14 @@ export function MessagingPage() {
                 <div className="flex items-center gap-2">
                   {selectedConversation.type === 'dm' && selectedConversation.userId && (
                     <div className="relative" ref={blockMenuRef}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
+                        <Button
+                          variant="ghost"
+                          size="sm"
                         onClick={() => setShowBlockMenu(!showBlockMenu)}
-                        className="text-gray-600 hover:text-gray-900"
-                      >
+                          className="text-gray-600 hover:text-gray-900"
+                        >
                         <MoreVertical className="w-4 h-4" />
-                      </Button>
+                        </Button>
                       {showBlockMenu && (
                         <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-20 min-w-[120px]">
                           {isBlocked ? (
@@ -2641,9 +2703,9 @@ export function MessagingPage() {
                               className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center gap-2"
                             >
                               <Ban className="w-4 h-4" />
-                              Block
+                          Block
                             </button>
-                          )}
+                      )}
                         </div>
                       )}
                     </div>
@@ -2702,14 +2764,14 @@ export function MessagingPage() {
 
             {/* Messages */}
             <div className="flex-1 min-h-0 relative z-0" style={{ marginTop: '-73px', marginBottom: '-100px' }}>
-              <ScrollArea 
+            <ScrollArea 
                 className="h-full"
               onWheel={(e) => {
                 // Detect two-finger horizontal swipe (trackpad gesture)
                 // Check for horizontal scroll with significant deltaX
                 // On trackpads, two-finger swipe generates wheel events with deltaX
-                const isHorizontalSwipe = Math.abs(e.deltaX) > Math.abs(e.deltaY) * 2;
-                const hasSignificantHorizontalMovement = Math.abs(e.deltaX) > 15;
+                const isHorizontalSwipe = Math.abs(e.deltaX) > Math.abs(e.deltaY) * 1.2;
+                const hasSignificantHorizontalMovement = Math.abs(e.deltaX) > 8;
                 
                 if (isHorizontalSwipe && hasSignificantHorizontalMovement) {
                   // Swipe right (positive deltaX) - show timestamps
@@ -2743,6 +2805,19 @@ export function MessagingPage() {
                       timeDiffMs = currentTime - prevTime;
                     }
                     
+                    // Show timestamp if there's been more than 1 hour since the previous message
+                    // OR if this is the first message of a new day
+                    // This applies regardless of who sent the messages (same person or different person)
+                    const ONE_HOUR_MS = 60 * 60 * 1000;
+                    const isNewDay = prevMessage ? (() => {
+                      const prevDate = new Date(prevMessage.created_at);
+                      const currentDate = new Date(message.created_at);
+                      return prevDate.getDate() !== currentDate.getDate() ||
+                             prevDate.getMonth() !== currentDate.getMonth() ||
+                             prevDate.getFullYear() !== currentDate.getFullYear();
+                    })() : false;
+                    const shouldShowDayTimestamp = !prevMessage || timeDiffMs > ONE_HOUR_MS || isNewDay;
+                    
                     // Group messages only if they're from the same sender AND sent within 2 minutes (120000 ms)
                     const TWO_MINUTES_MS = 2 * 60 * 1000;
                     const isFirstInGroup = !prevMessage || 
@@ -2764,37 +2839,51 @@ export function MessagingPage() {
                       nextMessage.isCurrentUser !== message.isCurrentUser ||
                       nextTimeDiffMs > TWO_MINUTES_MS;
                     
-                    // Only show avatar and name for group chats when it's the first message in a group
-                    const shouldShowSenderInfo = !message.isCurrentUser && 
+                    // Show avatar on last message, name on first message for group chats
+                    const shouldShowAvatar = !message.isCurrentUser && 
+                      selectedConversation?.type !== 'dm' && 
+                      isLastInGroup;
+                    const shouldShowName = !message.isCurrentUser && 
                       selectedConversation?.type !== 'dm' && 
                       isFirstInGroup;
                     
                     return (
+                      <React.Fragment key={message.id}>
+                        {shouldShowDayTimestamp && (
+                          <div className="flex justify-center my-4">
+                            <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded-full">
+                              {formatDayTimestamp(message.created_at)}
+                            </span>
+                          </div>
+                        )}
                   <div
-                    key={message.id}
                     className={cn(
                         'flex gap-3 relative w-full',
-                        message.isCurrentUser ? 'flex-row-reverse items-start justify-end' : 'flex-row items-start justify-start'
+                        message.isCurrentUser ? 'flex-row-reverse justify-end' : 'flex-row justify-start',
+                        'items-start'
                     )}
                       style={{
                         transform: showAllTimestamps 
                           ? (message.isCurrentUser ? 'translateX(-60px)' : 'translateX(60px)')
                           : 'translateX(0)',
-                        transition: 'transform 0.3s ease-out'
+                        transition: 'transform 0.3s ease-out',
+                        marginTop: shouldShowName ? '0.75rem' : undefined
                       }}
                   >
-                    {shouldShowSenderInfo && (
-                      <Avatar className="w-9 h-9 flex-shrink-0">
-                        <AvatarFallback className="text-white" style={{ backgroundColor: '#752432' }}>
-                          {message.senderName
-                            .split(' ')
-                            .map((n) => n[0])
-                            .join('')
-                            .slice(0, 2)}
-                        </AvatarFallback>
-                      </Avatar>
+                    {shouldShowAvatar && (
+                      <div className="flex flex-col" style={{ alignSelf: 'flex-end', marginBottom: message.is_edited ? '1.25rem' : '0' }}>
+                        <Avatar className="w-9 h-9 flex-shrink-0">
+                          <AvatarFallback className="text-white" style={{ backgroundColor: '#752432' }}>
+                            {message.senderName
+                              .split(' ')
+                              .map((n) => n[0])
+                              .join('')
+                              .slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
                     )}
-                    {!shouldShowSenderInfo && !message.isCurrentUser && selectedConversation?.type !== 'dm' && (
+                    {!shouldShowAvatar && !message.isCurrentUser && selectedConversation?.type !== 'dm' && (
                       <div className="w-9 flex-shrink-0"></div>
                     )}
                     <div
@@ -2803,11 +2892,12 @@ export function MessagingPage() {
                         message.isCurrentUser ? 'items-end max-w-[55%]' : 'items-start max-w-[55%]'
                       )}
                     >
-                      {shouldShowSenderInfo && (
-                        <div className="flex items-center gap-2 mb-1">
+                      {shouldShowName && (
+                        <div className="flex items-center gap-2 mb-1" style={{ marginLeft: '0.5rem' }}>
                           <span className="font-medium text-sm">{message.senderName}</span>
                         </div>
                       )}
+                      <div className="flex flex-col">
                       {(() => {
                         const hasFileAttachments = message.attachments?.some(att => att.attachment_type === 'file') ?? false;
                         const hasOnlyImages = (message.attachments?.length ?? 0) > 0 && 
@@ -2823,11 +2913,11 @@ export function MessagingPage() {
                         const shouldShowBubble = hasTextContent && !isLinkOnly;
                         
                         return (
-                          <div
-                            className={cn(
+                      <div
+                        className={cn(
                               'max-w-xl relative group flex flex-col'
-                            )}
-                          >
+                        )}
+                      >
                         {editingMessageId === message.id ? (
                           <div className="space-y-2">
                             <textarea
@@ -3010,10 +3100,10 @@ export function MessagingPage() {
                                   } else {
                                     // Render normally with underlined links
                                     return wrapTextToLines(message.content, 120).split('\n').map((line, idx, arr) => (
-                                      <React.Fragment key={idx}>
+                                  <React.Fragment key={idx}>
                                         {linkifyText(line, message.isCurrentUser, false)}
-                                        {idx < arr.length - 1 && <br />}
-                                      </React.Fragment>
+                                    {idx < arr.length - 1 && <br />}
+                                  </React.Fragment>
                                     ));
                                   }
                                 })()}
@@ -3044,32 +3134,33 @@ export function MessagingPage() {
                           "flex items-center gap-2 mt-1",
                           message.isCurrentUser ? "justify-end" : "justify-start"
                         )}>
-                          {canDeleteMessage(message.created_at) && (
-                            <button
-                              onClick={() => handleUndoSend(message.id)}
+                                {canDeleteMessage(message.created_at) && (
+                                  <button
+                                    onClick={() => handleUndoSend(message.id)}
                               className="text-xs underline cursor-pointer"
-                              title="Undo send (within 2 min)"
+                                    title="Undo send (within 2 min)"
                               style={{color: '#000000' }}
                               onMouseEnter={(e) => e.currentTarget.style.color = '#333333'}
                               onMouseLeave={(e) => e.currentTarget.style.color = '#000000'}
-                            >
+                                  >
                               Undo Send
-                            </button>
-                          )}
+                                  </button>
+                                )}
                           {canEditMessage(message.created_at) && !message.attachments?.length && (
-                            <button
-                              onClick={() => handleStartEditMessage(message)}
+                                  <button
+                                    onClick={() => handleStartEditMessage(message)}
                               className="text-xs underline cursor-pointer"
-                              title="Edit (within 10 min)"
+                                    title="Edit (within 10 min)"
                               style={{color: '#000000' }}
                               onMouseEnter={(e) => e.currentTarget.style.color = '#333333'}
                               onMouseLeave={(e) => e.currentTarget.style.color = '#000000'}
-                            >
-                              Edit
-                            </button>
-                          )}
-                        </div>
-                      )}
+                                  >
+                                    Edit
+                                  </button>
+                                )}
+              </div>
+                            )}
+                      </div>
                       {/* Edited tag - outside the message bubble */}
                       {message.is_edited && (
                         <span className={cn(
@@ -3081,12 +3172,13 @@ export function MessagingPage() {
                       )}
                     </div>
                   </div>
+                      </React.Fragment>
                   );
                   })}
                   <div ref={messagesEndRef} />
                 </div>
               ) : null}
-              </ScrollArea>
+            </ScrollArea>
             </div>
 
             {/* Message Input */}
@@ -3189,7 +3281,7 @@ export function MessagingPage() {
                       placeholder={
                         selectedConversation.type === 'dm' && (blockedByUser || isBlocked)
                           ? blockedByUser ? 'This user has blocked you' : 'You have blocked this user'
-                          : `Message ${selectedConversation.type === 'course' ? '#' : ''}${selectedConversation.name}`
+                          : `Message ${selectedConversation.name}`
                       }
                       value={messageInput}
                       onChange={(e) => {
@@ -3202,7 +3294,7 @@ export function MessagingPage() {
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
                           if (selectedFiles.length > 0 || messageInput.trim()) {
-                            handleSendMessage();
+                          handleSendMessage();
                           }
                         }
                       }}
@@ -3231,19 +3323,19 @@ export function MessagingPage() {
                           {(() => {
                             const allEmojis = [
                               // Smileys & People
-                              '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂',
-                              '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩',
-                              '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪',
-                              '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨',
-                              '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥',
-                              '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕',
-                              '🤢', '🤮', '🤧', '🥵', '🥶', '😶‍🌫️', '😵', '😵‍💫',
-                              '🤯', '🤠', '🥳', '😎', '🤓', '🧐', '😕', '😟',
-                              '🙁', '😮', '😯', '😲', '😳', '🥺', '😦', '😧',
-                              '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣',
-                              '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠',
-                              '🤬', '😈', '👿', '💀', '☠️', '💩', '🤡', '👹',
-                              '👺', '👻', '👽', '👾', '🤖', '😺', '😸', '😹',
+                            '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂',
+                            '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩',
+                            '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪',
+                            '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨',
+                            '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥',
+                            '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕',
+                            '🤢', '🤮', '🤧', '🥵', '🥶', '😶‍🌫️', '😵', '😵‍💫',
+                            '🤯', '🤠', '🥳', '😎', '🤓', '🧐', '😕', '😟',
+                            '🙁', '😮', '😯', '😲', '😳', '🥺', '😦', '😧',
+                            '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣',
+                            '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠',
+                            '🤬', '😈', '👿', '💀', '☠️', '💩', '🤡', '👹',
+                            '👺', '👻', '👽', '👾', '🤖', '😺', '😸', '😹',
                               '😻', '😼', '😽', '🙀', '😿', '😾',
                               // People & Body
                               '👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤌', '🤏',
@@ -3458,13 +3550,13 @@ export function MessagingPage() {
                             return rows.map((row, rowIndex) => (
                               <div key={rowIndex} className="block">
                                 {row.map((emoji, colIndex) => (
-                                  <button
+                            <button
                                     key={`${rowIndex}-${colIndex}`}
-                                    type="button"
-                                    onClick={() => {
-                                      setMessageInput((prev) => prev + emoji);
-                                      setShowEmojiPicker(false);
-                                    }}
+                              type="button"
+                              onClick={() => {
+                                setMessageInput((prev) => prev + emoji);
+                                setShowEmojiPicker(false);
+                              }}
                                     className="hover:bg-gray-100 rounded transition-colors"
                                     style={{
                                       background: 'transparent',
@@ -3480,11 +3572,11 @@ export function MessagingPage() {
                                       textAlign: 'center',
                                       width: '36px',
                                     }}
-                                    title={emoji}
-                                  >
-                                    {emoji}
-                                  </button>
-                                ))}
+                              title={emoji}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
                               </div>
                             ));
                           })()}
@@ -3507,20 +3599,20 @@ export function MessagingPage() {
         ) : (
           // Only show welcome page if user has no DMs and no groups (course messages don't count)
           !hasDMsOrGroups ? (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <div
-                  className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-                  style={{ backgroundColor: '#F5F1E8' }}
-                >
-                  <Hash className="w-8 h-8" style={{ color: '#752432' }} />
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Welcome to Messaging</h3>
-                <p className="text-gray-500 max-w-sm">
-                  Select a conversation from the sidebar to start messaging.
-                </p>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <div
+                className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+                style={{ backgroundColor: '#F5F1E8' }}
+              >
+                <Hash className="w-8 h-8" style={{ color: '#752432' }} />
               </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Welcome to Messaging</h3>
+              <p className="text-gray-500 max-w-sm">
+                Select a conversation from the sidebar to start messaging.
+              </p>
             </div>
+          </div>
           ) : null
         )}
       </div>

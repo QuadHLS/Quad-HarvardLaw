@@ -2728,7 +2728,7 @@ export function MessagingPage() {
                   <div className="text-center text-gray-500 py-8">Loading messages...</div>
                 </div>
               ) : messages.length > 0 ? (
-                <div className="p-6 space-y-4" style={{ paddingTop: 'calc(73px + 1.5rem)', paddingBottom: 'calc(100px + 1.5rem)' }}>
+                <div className="p-6 space-y-2" style={{ paddingTop: 'calc(73px + 1.5rem)', paddingBottom: 'calc(100px + 1.5rem)' }}>
                   {messages.map((message) => {
                     const hasButtons = message.isCurrentUser && (canDeleteMessage(message.created_at) || canEditMessage(message.created_at));
                     
@@ -3004,9 +3004,9 @@ export function MessagingPage() {
                               onClick={() => handleUndoSend(message.id)}
                               className="text-xs underline cursor-pointer"
                               title="Undo send (within 2 min)"
-                              style={{ fontWeight: 'bold', color: '#752424' }}
-                              onMouseEnter={(e) => e.currentTarget.style.color = '#5a1c1c'}
-                              onMouseLeave={(e) => e.currentTarget.style.color = '#752424'}
+                              style={{color: '#000000' }}
+                              onMouseEnter={(e) => e.currentTarget.style.color = '#333333'}
+                              onMouseLeave={(e) => e.currentTarget.style.color = '#000000'}
                             >
                               Undo Send
                             </button>
@@ -3016,9 +3016,9 @@ export function MessagingPage() {
                               onClick={() => handleStartEditMessage(message)}
                               className="text-xs underline cursor-pointer"
                               title="Edit (within 10 min)"
-                              style={{ fontWeight: 'bold', color: '#752424' }}
-                              onMouseEnter={(e) => e.currentTarget.style.color = '#5a1c1c'}
-                              onMouseLeave={(e) => e.currentTarget.style.color = '#752424'}
+                              style={{color: '#000000' }}
+                              onMouseEnter={(e) => e.currentTarget.style.color = '#333333'}
+                              onMouseLeave={(e) => e.currentTarget.style.color = '#000000'}
                             >
                               Edit
                             </button>

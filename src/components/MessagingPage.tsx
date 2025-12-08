@@ -1261,11 +1261,29 @@ export function MessagingPage() {
 
   // Typing indicator: Send typing events
   useEffect(() => {
-    if (!selectedConversation?.id) return;
+    if (!selectedConversation?.id) {
+      // Clear interval when no conversation is selected
+      if (typingTimeoutRef.current) {
+        clearInterval(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+      return;
+    }
 
     const sendTypingEvent = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      // Check if input is still not empty before sending
+      const currentInput = messageInputRef.current?.value?.trim() || '';
+      if (!currentInput) {
+        // Input is empty, clear interval and stop sending
+        if (typingTimeoutRef.current) {
+          clearInterval(typingTimeoutRef.current);
+          typingTimeoutRef.current = null;
+        }
+        return;
+      }
 
       // Use the existing channel or create a temporary one
       // Supabase allows sending before subscription (uses HTTP)
@@ -1292,27 +1310,20 @@ export function MessagingPage() {
       }
     };
 
-    // Clear any existing interval
+    // Clear any existing interval first
     if (typingTimeoutRef.current) {
       clearInterval(typingTimeoutRef.current);
       typingTimeoutRef.current = null;
     }
 
+    // Only set up interval if input is not empty
     if (messageInput.trim()) {
       // Send typing event immediately
       sendTypingEvent();
       
       // Set up interval to send typing events every 2 seconds while typing
       typingTimeoutRef.current = setInterval(() => {
-        if (messageInput.trim()) {
-          sendTypingEvent();
-        } else {
-          // Clear interval if input is empty
-          if (typingTimeoutRef.current) {
-            clearInterval(typingTimeoutRef.current);
-            typingTimeoutRef.current = null;
-          }
-        }
+        sendTypingEvent();
       }, 2000) as unknown as NodeJS.Timeout;
     }
 
@@ -3437,44 +3448,66 @@ export function MessagingPage() {
                             {message.content && 
                              !(message.attachments && message.attachments.length > 0 && 
                                message.attachments.some(att => att.file_name === message.content)) && (
-                              <p 
-                                className={cn(
-                                  "whitespace-pre-wrap m-0 leading-tight",
-                                  shouldShowBubble && isLastInGroup ? (message.isCurrentUser ? "from-me" : "from-them") : ""
-                                )}
-                                style={{ 
-                                  whiteSpace: 'pre-wrap', 
-                                  wordBreak: 'break-word', 
-                                  lineHeight: '1.4',
-                                  ...(shouldShowBubble && !isLastInGroup ? {
-                                    borderRadius: '1.15rem',
-                                    padding: '0.5rem .875rem',
-                                    backgroundColor: message.isCurrentUser ? '#752432' : '#e9e8eb',
-                                    color: message.isCurrentUser ? '#fff' : '#000',
-                                    display: 'inline-block',
-                                    maxWidth: '100%'
-                                  } : {})
-                                }}
-                              >
-                                {(() => {
-                                  // Check if the entire message is just a URL (link-only message)
-                                  const urlCheck = startsWithUrl(message.content.trim());
-                                  const isLinkOnly = urlCheck.isUrl && !urlCheck.remainingText;
-                                  
-                                  if (isLinkOnly) {
-                                    // Render as link card
-                                    return linkifyText(message.content.trim(), message.isCurrentUser, true);
-                                  } else {
-                                    // Render normally with underlined links
-                                    return wrapTextToLines(message.content, 120).split('\n').map((line, idx, arr) => (
-                                  <React.Fragment key={idx}>
-                                        {linkifyText(line, message.isCurrentUser, false)}
-                                    {idx < arr.length - 1 && <br />}
-                                  </React.Fragment>
-                                    ));
-                                  }
-                                })()}
-                              </p>
+                              (() => {
+                                // Check if the entire message is just a URL (link-only message)
+                                const urlCheck = startsWithUrl(message.content.trim());
+                                const isLinkOnly = urlCheck.isUrl && !urlCheck.remainingText;
+                                
+                                if (isLinkOnly) {
+                                  // Render as link card (div) - cannot be inside <p>
+                                  return (
+                                    <div 
+                                      className={cn(
+                                        "m-0 leading-tight",
+                                        shouldShowBubble && isLastInGroup ? (message.isCurrentUser ? "from-me" : "from-them") : ""
+                                      )}
+                                      style={{ 
+                                        lineHeight: '1.4',
+                                        ...(shouldShowBubble && !isLastInGroup ? {
+                                          borderRadius: '1.15rem',
+                                          padding: '0.5rem .875rem',
+                                          backgroundColor: message.isCurrentUser ? '#752432' : '#e9e8eb',
+                                          color: message.isCurrentUser ? '#fff' : '#000',
+                                          display: 'inline-block',
+                                          maxWidth: '100%'
+                                        } : {})
+                                      }}
+                                    >
+                                      {linkifyText(message.content.trim(), message.isCurrentUser, true)}
+                                    </div>
+                                  );
+                                } else {
+                                  // Render normally with underlined links inside <p>
+                                  return (
+                                    <p 
+                                      className={cn(
+                                        "whitespace-pre-wrap m-0 leading-tight",
+                                        shouldShowBubble && isLastInGroup ? (message.isCurrentUser ? "from-me" : "from-them") : ""
+                                      )}
+                                      style={{ 
+                                        whiteSpace: 'pre-wrap', 
+                                        wordBreak: 'break-word', 
+                                        lineHeight: '1.4',
+                                        ...(shouldShowBubble && !isLastInGroup ? {
+                                          borderRadius: '1.15rem',
+                                          padding: '0.5rem .875rem',
+                                          backgroundColor: message.isCurrentUser ? '#752432' : '#e9e8eb',
+                                          color: message.isCurrentUser ? '#fff' : '#000',
+                                          display: 'inline-block',
+                                          maxWidth: '100%'
+                                        } : {})
+                                      }}
+                                    >
+                                      {wrapTextToLines(message.content, 120).split('\n').map((line, idx, arr) => (
+                                        <React.Fragment key={idx}>
+                                          {linkifyText(line, message.isCurrentUser, false)}
+                                          {idx < arr.length - 1 && <br />}
+                                        </React.Fragment>
+                                      ))}
+                                    </p>
+                                  );
+                                }
+                              })()
                             )}
                           </>
                         )}
@@ -3544,17 +3577,12 @@ export function MessagingPage() {
                   })}
                   {/* Typing indicator */}
                   {typingUsers.size > 0 && (
-                    <div className="flex items-center gap-3 px-4 py-2">
+                    <div className="flex flex-row justify-start items-start px-4 py-2">
                       <div className="typing-indicator">
                         <span></span>
                         <span></span>
                         <span></span>
                       </div>
-                      <span className="text-sm text-gray-500">
-                        {Array.from(typingUsers.values()).length === 1
-                          ? `${Array.from(typingUsers.values())[0].userName} is typing...`
-                          : `${Array.from(typingUsers.values()).length} people are typing...`}
-                      </span>
                     </div>
                   )}
                   <div ref={messagesEndRef} />

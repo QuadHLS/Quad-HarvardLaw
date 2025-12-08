@@ -2709,7 +2709,7 @@ export function MessagingPage() {
                 // Check for horizontal scroll with significant deltaX
                 // On trackpads, two-finger swipe generates wheel events with deltaX
                 const isHorizontalSwipe = Math.abs(e.deltaX) > Math.abs(e.deltaY) * 2;
-                const hasSignificantHorizontalMovement = Math.abs(e.deltaX) > 30;
+                const hasSignificantHorizontalMovement = Math.abs(e.deltaX) > 15;
                 
                 if (isHorizontalSwipe && hasSignificantHorizontalMovement) {
                   // Swipe right (positive deltaX) - show timestamps
@@ -2792,9 +2792,7 @@ export function MessagingPage() {
                           <div
                             className={cn(
                               'max-w-2xl relative group',
-                              shouldShowBubble && 'px-4',
-                              shouldShowBubble && hasButtons && 'pt-2 pb-2',
-                              shouldShowBubble && !hasButtons && 'py-2',
+                              shouldShowBubble && 'px-4 py-2',
                               shouldShowBubble && (message.isCurrentUser ? 'text-white' : 'text-gray-900')
                             )}
                             style={{
@@ -2976,71 +2974,6 @@ export function MessagingPage() {
                                 })()}
                               </p>
                             )}
-                            {hasButtons && (
-                            <div className="flex items-center justify-between gap-1 mt-2">
-                              <div className="flex items-center gap-1">
-                                {(() => {
-                                  // Check if this is a link-only message
-                                  const urlCheck = message.content ? startsWithUrl(message.content.trim()) : { isUrl: false };
-                                  const isLinkOnly = urlCheck.isUrl && !urlCheck.remainingText;
-                                  const buttonClass = isLinkOnly 
-                                    ? "text-xs px-2 py-1 rounded hover:bg-gray-200 opacity-75 hover:opacity-100 transition-opacity text-black"
-                                    : "text-xs px-2 py-1 rounded hover:bg-white/20 opacity-75 hover:opacity-100 transition-opacity";
-                                  
-                                  return (
-                                    <>
-                                      {canDeleteMessage(message.created_at) && (
-                                        <button
-                                          onClick={() => handleUndoSend(message.id)}
-                                          className={buttonClass}
-                                          title="Undo send (within 2 min)"
-                                        >
-                                          Undo send
-                                        </button>
-                                      )}
-                                      {canEditMessage(message.created_at) && !message.attachments?.length && (
-                                        <button
-                                          onClick={() => handleStartEditMessage(message)}
-                                          className={buttonClass}
-                                          title="Edit (within 10 min)"
-                                        >
-                                          Edit
-                                        </button>
-                                      )}
-                                    </>
-                                  );
-                                })()}
-                              </div>
-                              {(() => {
-                                // Check if this is a YouTube link-only message
-                                const urlCheck = message.content ? startsWithUrl(message.content.trim()) : { isUrl: false };
-                                const isLinkOnly = urlCheck.isUrl && !urlCheck.remainingText;
-                                if (isLinkOnly && urlCheck.url) {
-                                  let youtubeUrl = urlCheck.url.trim();
-                                  if (youtubeUrl.startsWith('www.')) {
-                                    youtubeUrl = 'https://' + youtubeUrl;
-                                  } else if (!youtubeUrl.startsWith('http://') && !youtubeUrl.startsWith('https://')) {
-                                    youtubeUrl = 'https://' + youtubeUrl;
-                                  }
-                                  const embedData = getVideoEmbedUrl(youtubeUrl);
-                                  if (embedData && embedData.platform === 'youtube') {
-                                    return (
-                                      <a
-                                        href={youtubeUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-xs px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg shadow transition-colors"
-                                        onClick={(e) => e.stopPropagation()}
-                                      >
-                                        Open YouTube
-                                      </a>
-                                    );
-                                  }
-                                }
-                                return null;
-                              })()}
-                            </div>
-                            )}
                           </>
                         )}
                         {/* Timestamp positioned at middle of text bubble when revealed via two-finger swipe */}
@@ -3060,6 +2993,38 @@ export function MessagingPage() {
                           </div>
                         );
                       })()}
+                      {/* Undo Send and Edit buttons - below the message bubble */}
+                      {hasButtons && (
+                        <div className={cn(
+                          "flex items-center gap-2 mt-1",
+                          message.isCurrentUser ? "justify-end" : "justify-start"
+                        )}>
+                          {canDeleteMessage(message.created_at) && (
+                            <button
+                              onClick={() => handleUndoSend(message.id)}
+                              className="text-xs underline cursor-pointer"
+                              title="Undo send (within 2 min)"
+                              style={{ fontWeight: 'bold', color: '#752424' }}
+                              onMouseEnter={(e) => e.currentTarget.style.color = '#5a1c1c'}
+                              onMouseLeave={(e) => e.currentTarget.style.color = '#752424'}
+                            >
+                              Undo Send
+                            </button>
+                          )}
+                          {canEditMessage(message.created_at) && !message.attachments?.length && (
+                            <button
+                              onClick={() => handleStartEditMessage(message)}
+                              className="text-xs underline cursor-pointer"
+                              title="Edit (within 10 min)"
+                              style={{ fontWeight: 'bold', color: '#752424' }}
+                              onMouseEnter={(e) => e.currentTarget.style.color = '#5a1c1c'}
+                              onMouseLeave={(e) => e.currentTarget.style.color = '#752424'}
+                            >
+                              Edit
+                            </button>
+                          )}
+                        </div>
+                      )}
                       {/* Edited tag - outside the message bubble */}
                       {message.is_edited && (
                         <span className={cn(

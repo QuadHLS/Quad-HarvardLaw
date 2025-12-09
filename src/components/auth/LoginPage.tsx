@@ -210,14 +210,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             </div>
 
             {/* Footer Links */}
-            <div className="mt-6 pt-6 border-t border-gray-200 relative">
+            <div className="mt-4 pt-6 pb-4 border-t border-gray-200 relative">
               <div className="flex items-center justify-center">
                 <a
                   href="/QUADPRIVACYPOLICY.html"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm hover:underline absolute"
-                  style={{ color: '#752432', right: '50%', transform: 'translateX(-24px)' }}
+                  style={{ color: '#000000', right: '50%', transform: 'translateX(-24px)' }}
                 >
                   Privacy Policy
                 </a>
@@ -227,7 +227,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm hover:underline absolute"
-                  style={{ color: '#752432', left: '50%', transform: 'translateX(24px)' }}
+                  style={{ color: '#000000', left: '50%', transform: 'translateX(24px)' }}
                 >
                   Terms of Service
                 </a>

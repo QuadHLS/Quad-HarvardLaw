@@ -396,8 +396,8 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Messaging button */}
-        <div className="px-2 pt-2">
+        {/* Messaging button - Hidden */}
+        {/* <div className="px-2 pt-2">
           <Link
             to="/messaging"
             onClick={(e) => handleNavigation(e, '/messaging')}
@@ -409,10 +409,10 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
             <MessageCircle className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
             {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Messaging</span>}
           </Link>
-        </div>
+        </div> */}
 
-        {/* Calendar button */}
-        <div className="px-2 pt-2">
+        {/* Calendar button - Hidden */}
+        {/* <div className="px-2 pt-2">
           <Link
             to="/calendar"
             onClick={(e) => handleNavigation(e, '/calendar')}
@@ -424,7 +424,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
             <Calendar className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
             {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Calendar</span>}
           </Link>
-        </div>
+        </div> */}
 
         {/* Feedback button */}
         <div className="px-2 pt-2">

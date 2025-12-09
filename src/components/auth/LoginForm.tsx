@@ -162,7 +162,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           </div>
           <div className="relative flex justify-center text-xs uppercase">
             <span className="bg-transparent px-2 text-white/60">
-              Or continue with
+              Or continue with Google
             </span>
           </div>
         </div>

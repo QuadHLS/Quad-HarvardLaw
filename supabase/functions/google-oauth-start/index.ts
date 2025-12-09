@@ -122,7 +122,7 @@ Deno.serve(async (req: Request) => {
     
     // Build Google OAuth URL
     const redirectUri = `${baseUrl}/functions/v1/google-oauth-callback`;
-    const scope = 'https://www.googleapis.com/auth/calendar.readonly';
+    const scope = 'https://www.googleapis.com/auth/calendar.events.readonly';
     
     const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     authUrl.searchParams.set('client_id', googleClientId);

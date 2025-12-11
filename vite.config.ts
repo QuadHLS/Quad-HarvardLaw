@@ -11,6 +11,7 @@ export default defineConfig({
   plugins: [
     react(),
     deferCSS(), // Defer non-critical CSS to prevent render blocking
+    removeRadixPreload(), // Remove Radix UI modulepreload to prevent eager loading
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'script-defer', // Defer service worker registration to not block critical path

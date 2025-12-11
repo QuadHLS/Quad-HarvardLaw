@@ -11,11 +11,13 @@ export function deferCSS(): Plugin {
   return {
     name: 'defer-css',
     apply: 'build',
-    buildEnd() {
-      // After build, modify the HTML to defer CSS
+    closeBundle() {
+      // After all bundles are closed, modify the HTML to defer CSS
+      // Use closeBundle to run after Vite's HTML plugin
       const htmlPath = join(process.cwd(), 'build', 'index.html');
       try {
         let html = readFileSync(htmlPath, 'utf-8');
+        let modified = false;
         
         // Transform CSS link tags to load asynchronously
         // Match: <link rel="stylesheet" ... href="/assets/...css">
@@ -42,6 +44,8 @@ export function deferCSS(): Plugin {
               return match;
             }
             
+            modified = true;
+            
             // Transform to preload + onload pattern
             const newAttrs = attrs
               .replace(/rel=["']stylesheet["']/, 'rel="preload" as="style"')
@@ -51,9 +55,12 @@ export function deferCSS(): Plugin {
           }
         );
         
-        writeFileSync(htmlPath, html, 'utf-8');
+        if (modified) {
+          writeFileSync(htmlPath, html, 'utf-8');
+          console.log('✅ Deferred CSS loading in index.html');
+        }
       } catch (error) {
-        console.warn('Failed to defer CSS:', error);
+        console.warn('⚠️ Failed to defer CSS:', error);
       }
     },
   };

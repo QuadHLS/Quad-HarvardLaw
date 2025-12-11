@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   CheckCircle2,
   Circle,
@@ -19,7 +19,6 @@ import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Calendar as CalendarComponent } from './ui/calendar';
-import { AddTodoDialog } from './AddTodoDialog';
 import { PomodoroTimer } from './PomodoroTimer';
 import { supabase } from '../lib/supabase';
 import { Feed } from './FeedComponent';
@@ -228,21 +227,19 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
   const [newTodoCategory, setNewTodoCategory] = useState<'today' | 'this-week'>('today');
   const [showAddTodo, setShowAddTodo] = useState(false);
   const [selectedDueDate, setSelectedDueDate] = useState<Date | undefined>(undefined);
-  const [radixUIPreloaded, setRadixUIPreloaded] = useState(false);
-
-  // Preload Radix UI chunk when user hovers over Add button or when dialog is about to open
-  useEffect(() => {
-    if (showAddTodo && !radixUIPreloaded) {
-      // Eagerly load Radix UI dependencies before lazy component loads
-      Promise.all([
-        import('./ui/dialog'),
-        import('./ui/popover')
-      ]).then(() => {
-        setRadixUIPreloaded(true);
-      }).catch(() => {});
-    }
-  }, [showAddTodo, radixUIPreloaded]);
   const [todoCollapsed, setTodoCollapsed] = useState(false);
+  const [AddTodoDialogComponent, setAddTodoDialogComponent] = useState<React.ComponentType<any> | null>(null);
+
+  // Dynamically load AddTodoDialog when dialog opens to defer Radix UI bundle
+  useEffect(() => {
+    if (showAddTodo && !AddTodoDialogComponent) {
+      import('./AddTodoDialog').then(module => {
+        setAddTodoDialogComponent(() => module.AddTodoDialog);
+      }).catch(() => {
+        console.error('Failed to load AddTodoDialog');
+      });
+    }
+  }, [showAddTodo, AddTodoDialogComponent]);
   const [showPomodoro, setShowPomodoro] = useState(false);
 
   // Load todos from profile on mount
@@ -522,10 +519,10 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
         </div>
       </div>
 
-      {/* Add Todo Dialog - Conditionally rendered to defer Radix UI bundle loading */}
+      {/* Add Todo Dialog - Dynamically loaded to defer Radix UI bundle */}
       {/* Radix UI chunk only loads when dialog is opened (showAddTodo = true) */}
-      {showAddTodo && (
-        <AddTodoDialog
+      {showAddTodo && AddTodoDialogComponent && (
+        <AddTodoDialogComponent
           open={showAddTodo}
           onOpenChange={setShowAddTodo}
           newTodoText={newTodoText}

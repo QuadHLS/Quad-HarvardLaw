@@ -2745,6 +2745,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                     src={postPhotoUrls.get(selectedPost.id) || ''}
                     alt="Post"
                     className="rounded-lg"
+                    loading="lazy"
+                    decoding="async"
                     style={{
                       maxWidth: '100%',
                       maxHeight: '450px',
@@ -3726,6 +3728,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       src={postPhotoUrls.get(post.id) || ''}
                       alt="Post"
                       className="rounded-lg"
+                      loading="lazy"
+                      decoding="async"
                       style={{
                         maxWidth: '100%',
                         maxHeight: '450px',

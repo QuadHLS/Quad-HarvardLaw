@@ -5,6 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 import { visualizer } from 'rollup-plugin-visualizer';
 import path from 'path';
 import { deferCSS } from './vite-plugin-defer-css';
+import { removeRadixPreload } from './vite-plugin-remove-radix-preload';
 
 export default defineConfig({
   plugins: [

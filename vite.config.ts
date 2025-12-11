@@ -118,6 +118,7 @@ export default defineConfig({
   build: {
     target: 'esnext',
     outDir: 'build',
+    modulePreload: false, // disable modulepreload to avoid auto-loading lazy deps
     minify: 'terser',
     sourcemap: 'hidden', // Generate source maps but don't expose them in production (security)
     cssCodeSplit: true, // Split CSS into separate files for better caching

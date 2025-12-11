@@ -64,6 +64,7 @@
             "vite-plugin-pwa": "^1.2.0"
       },
       "scripts": {
+    "analyze:bundle": "node scripts/analyze-bundle.js",
             "dev": "vite",
             "build": "vite build",
             "analyze": "ANALYZE=true vite build"

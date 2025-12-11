@@ -11,10 +11,11 @@ export function removeRadixPreload(): Plugin {
     name: 'remove-radix-preload',
     apply: 'build',
     enforce: 'post', // Run after other plugins (including HTML plugin)
-    writeBundle(_, bundle) {
+    writeBundle() {
       // Use writeBundle to run after Vite's HTML plugin writes the file
       // Same hook as deferCSS plugin which works
-      const htmlPath = join(process.cwd(), 'build', 'index.html');
+      const buildDir = join(process.cwd(), 'build');
+      const htmlPath = join(buildDir, 'index.html');
       try {
         let html = readFileSync(htmlPath, 'utf-8');
         const originalHtml = html;
@@ -26,24 +27,36 @@ export function removeRadixPreload(): Plugin {
           ''
         );
         
-        // Also remove Radix UI from the main bundle's dependency map if present
-        // Find the index.js file and remove radix-ui from __vite__mapDeps
-        const indexFile = Object.keys(bundle).find(key => key.startsWith('assets/index-') && key.endsWith('.js'));
-        if (indexFile && bundle[indexFile]) {
-          const indexContent = bundle[indexFile].source.toString();
-          // Remove radix-ui from the dependency map array
-          const updatedContent = indexContent.replace(
-            /(__vite__mapDeps=\([^)]*\[)([^\]]*radix-ui[^\]]*)([^\]]*\])([^)]*\))/g,
-            (match, start, radixPart, rest, end) => {
-              // Remove radix-ui entry from the array
-              const cleaned = radixPart.replace(/["'][^"']*radix-ui[^"']*["'],?\s*/g, '');
+        // Also remove Radix UI from the main bundle file
+        // Find the index.js file and remove radix-ui references
+        const fs = require('fs');
+        const assetsDir = join(buildDir, 'assets');
+        const indexFiles = fs.readdirSync(assetsDir).filter((f: string) => f.startsWith('index-') && f.endsWith('.js'));
+        
+        if (indexFiles.length > 0) {
+          const indexFilePath = join(assetsDir, indexFiles[0]);
+          let indexContent = readFileSync(indexFilePath, 'utf-8');
+          const originalContent = indexContent;
+          
+          // Remove radix-ui from __vite__mapDeps array
+          indexContent = indexContent.replace(
+            /(__vite__mapDeps=\([^)]*\[)([^\]]*)([^\]]*\])([^)]*\))/g,
+            (match: string, start: string, arrayContent: string, rest: string, end: string) => {
+              // Remove any radix-ui entries from the array
+              const cleaned = arrayContent.replace(/["'][^"']*radix-ui[^"']*["'],?\s*/g, '');
               return start + cleaned + rest + end;
             }
           );
           
-          if (updatedContent !== indexContent) {
-            bundle[indexFile].source = Buffer.from(updatedContent);
-            console.log('✅ Removed Radix UI from dependency map in index.js');
+          // Remove the import statement for radix-ui
+          indexContent = indexContent.replace(
+            /import\{[^}]*\}from["']\.\/radix-ui-[^"']*["'];?/g,
+            ''
+          );
+          
+          if (indexContent !== originalContent) {
+            writeFileSync(indexFilePath, indexContent, 'utf-8');
+            console.log('✅ Removed Radix UI imports and dependency map from index.js');
           }
         }
         

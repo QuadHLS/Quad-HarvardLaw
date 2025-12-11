@@ -128,7 +128,13 @@ export default defineConfig({
             return 'pdfjs';
           }
           
-          // Group all Radix UI components together (they share dependencies)
+          // Exclude react-slot from Radix UI chunk (it's tiny and used by Button in initial bundle)
+          // This prevents entire Radix UI bundle from being preloaded on initial load
+          if (id.includes('@radix-ui/react-slot')) {
+            return null; // Keep in main bundle (it's only ~2KB)
+          }
+          
+          // Group all other Radix UI components together (they share dependencies)
           // Splitting them individually breaks shared module resolution
           if (id.includes('@radix-ui')) {
             return 'radix-ui';

@@ -20,12 +20,17 @@ export function deferCSS(): Plugin {
         // Transform CSS link tags to load asynchronously
         // Match: <link rel="stylesheet" ... href="/assets/...css">
         html = html.replace(
-          /<link([^>]*rel=["']stylesheet["'][^>]*href=["']([^"']*\.css[^"']*)["'][^>]*)>/gi,
-          (match, attrs, href) => {
+          /<link([^>]*rel=["']stylesheet["'][^>]*)>/gi,
+          (match, attrs) => {
             // Skip if already has media="print" or onload (already deferred)
             if (attrs.includes('media="print"') || attrs.includes('onload=')) {
               return match;
             }
+            
+            // Extract href from attributes
+            const hrefMatch = attrs.match(/href=["']([^"']+)["']/);
+            if (!hrefMatch) return match;
+            const href = hrefMatch[1];
             
             // Skip if it's a Google Fonts stylesheet (already handled in index.html)
             if (href.includes('fonts.googleapis.com') || href.includes('fonts.gstatic.com')) {
@@ -33,7 +38,7 @@ export function deferCSS(): Plugin {
             }
             
             // Only defer our own CSS files (from /assets/)
-            if (!href.startsWith('/assets/')) {
+            if (!href.startsWith('/assets/') || !href.endsWith('.css')) {
               return match;
             }
             

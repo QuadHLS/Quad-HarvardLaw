@@ -18,8 +18,6 @@ import {
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Calendar as CalendarComponent } from './ui/calendar';
-import { PomodoroTimer } from './PomodoroTimer';
 import { supabase } from '../lib/supabase';
 import { Feed } from './FeedComponent';
 
@@ -229,6 +227,7 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
   const [selectedDueDate, setSelectedDueDate] = useState<Date | undefined>(undefined);
   const [todoCollapsed, setTodoCollapsed] = useState(false);
   const [AddTodoDialogComponent, setAddTodoDialogComponent] = useState<React.ComponentType<any> | null>(null);
+  const [PomodoroTimerComponent, setPomodoroTimerComponent] = useState<React.ComponentType<any> | null>(null);
 
   // Dynamically load AddTodoDialog when dialog opens to defer Radix UI bundle
   useEffect(() => {
@@ -240,6 +239,18 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
       });
     }
   }, [showAddTodo, AddTodoDialogComponent]);
+
+  // Dynamically load PomodoroTimer when shown to defer Radix UI bundle (Select, Collapsible)
+  useEffect(() => {
+    if (showPomodoro && !PomodoroTimerComponent) {
+      import('./PomodoroTimer').then(module => {
+        setPomodoroTimerComponent(() => module.PomodoroTimer);
+      }).catch(() => {
+        console.error('Failed to load PomodoroTimer');
+      });
+    }
+  }, [showPomodoro, PomodoroTimerComponent]);
+
   const [showPomodoro, setShowPomodoro] = useState(false);
 
   // Load todos from profile on mount
@@ -515,7 +526,9 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
           className="transition-opacity duration-1000 ease-out"
           style={{ opacity: showPomodoro ? 1 : 0 }}
         >
-          <PomodoroTimer onStateChange={onPomodoroStateChange} />
+          {showPomodoro && PomodoroTimerComponent && (
+            <PomodoroTimerComponent onStateChange={onPomodoroStateChange} />
+          )}
         </div>
       </div>
 

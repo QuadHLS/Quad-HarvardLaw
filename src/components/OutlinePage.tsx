@@ -912,21 +912,6 @@ export function OutlinePage({
       return () => observer.disconnect();
     }, [outline.id]);
 
-    // Early return for limit errors
-    if (limitError) {
-      return (
-        <div className="h-full flex items-center justify-center">
-          <div className="text-center p-8">
-            <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <FileText className="w-8 h-8 text-red-400" />
-            </div>
-            <h3 className="text-lg font-semibold text-white mb-2">Preview Unavailable</h3>
-            <p className="text-gray-300 mb-6">{limitError}</p>
-          </div>
-        </div>
-      );
-    }
-
     useEffect(() => {
       const getUrl = async () => {
         if (!isVisibleRef.current) return;
@@ -1001,6 +986,21 @@ export function OutlinePage({
 
       getUrl();
     }, [outline.id, outline.file_path, outline.file_name, outline.file_type, bucketName]);
+
+    // Early return for limit errors
+    if (limitError) {
+      return (
+        <div className="h-full flex items-center justify-center">
+          <div className="text-center p-8">
+            <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FileText className="w-8 h-8 text-red-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-white mb-2">Preview Unavailable</h3>
+            <p className="text-gray-300 mb-6">{limitError}</p>
+          </div>
+        </div>
+      );
+    }
 
     const fileType = outline.file_type?.toLowerCase() || 'pdf';
 

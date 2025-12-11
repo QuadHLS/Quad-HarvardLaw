@@ -18,9 +18,12 @@ import {
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { lazy, Suspense } from 'react';
 import { Calendar as CalendarComponent } from './ui/calendar';
+
+// Lazy load Dialog and Popover to defer Radix UI bundle loading until user interaction
+// This prevents loading the entire Radix UI bundle (2.1s CPU time) on initial page load
+const AddTodoDialog = lazy(() => import('./AddTodoDialog').then(module => ({ default: module.AddTodoDialog })));
 import { PomodoroTimer } from './PomodoroTimer';
 import { supabase } from '../lib/supabase';
 import { Feed } from './FeedComponent';
@@ -509,98 +512,23 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
         </div>
       </div>
 
-      {/* Add Todo Dialog */}
-      <Dialog open={showAddTodo} onOpenChange={setShowAddTodo}>
-        <DialogContent 
-          className="max-w-sm border border-gray-200 bg-white"
-          style={{ backgroundColor: 'rgb(255, 255, 255)' }}
-        >
-          <DialogHeader>
-            <DialogTitle>Add New Task</DialogTitle>
-            <DialogDescription>
-              Create a new task and assign it to today or in the future.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Input
-              placeholder="Enter task description..."
-              value={newTodoText}
-              onChange={(e) => setNewTodoText(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && addTodo()}
-            />
-            <div className="flex gap-2">
-              <Button
-                variant={newTodoCategory === 'today' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => {
-                  setNewTodoCategory('today');
-                  setSelectedDueDate(undefined);
-                }}
-                className={newTodoCategory === 'today' ? 'bg-[#752432] hover:bg-[#752432]/90' : ''}
-              >
-                Today
-              </Button>
-              <Button
-                variant={newTodoCategory === 'this-week' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setNewTodoCategory('this-week')}
-                className={newTodoCategory === 'this-week' ? 'bg-[#752432] hover:bg-[#752432]/90' : ''}
-              >
-                In the Future
-              </Button>
-            </div>
-            
-            {/* Date Picker for This Week */}
-            {newTodoCategory === 'this-week' && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Due Date</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-between text-left font-normal"
-                    >
-                      {selectedDueDate ? (
-                        formatDueDate(`${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][selectedDueDate.getMonth()]} ${selectedDueDate.getDate()}`)
-                      ) : (
-                        <span className="text-gray-500">Select due date</span>
-                      )}
-                      <CalendarIcon className="w-4 h-4" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={selectedDueDate}
-                      onSelect={setSelectedDueDate}
-                      disabled={(date: Date) => date < new Date()}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-          </div>
-        )}
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowAddTodo(false);
-                  setNewTodoText('');
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={addTodo}
-                disabled={!newTodoText.trim()}
-                className="bg-[#752432] hover:bg-[#752432]/90"
-              >
-                Add Task
-              </Button>
-      </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Add Todo Dialog - Lazy loaded to defer Radix UI bundle */}
+      {showAddTodo && (
+        <Suspense fallback={null}>
+          <AddTodoDialog
+            open={showAddTodo}
+            onOpenChange={setShowAddTodo}
+            newTodoText={newTodoText}
+            setNewTodoText={setNewTodoText}
+            newTodoCategory={newTodoCategory}
+            setNewTodoCategory={setNewTodoCategory}
+            selectedDueDate={selectedDueDate}
+            setSelectedDueDate={setSelectedDueDate}
+            addTodo={addTodo}
+            formatDueDate={formatDueDate}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

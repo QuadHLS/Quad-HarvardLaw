@@ -4,6 +4,7 @@ import { ExpandableText } from './ui/expandable-text';
 import { ConfirmationPopup } from './ui/confirmation-popup';
 import { getStorageUrl } from '../utils/storage';
 import { VirtualizedList } from './ui/VirtualizedList';
+import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 
 // Interfaces
 interface PollOption {
@@ -409,6 +410,150 @@ const DialogDescription = ({ children }: { children: React.ReactNode }) => (
 //     {children}
 //   </button>
 // );
+
+// Lazy-loaded YouTube iframe component - only loads when visible
+const LazyVideoEmbed = React.memo(({ 
+  embedUrl, 
+  platform, 
+  isVertical, 
+  isInstagram 
+}: { 
+  embedUrl: string; 
+  platform: 'youtube' | 'tiktok' | 'instagram';
+  isVertical: boolean;
+  isInstagram: boolean;
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isVisible = useIntersectionObserver(containerRef, { 
+    rootMargin: '200px',
+    triggerOnce: true 
+  });
+
+  const scale = isInstagram ? 0.75 : 0.85;
+  const width = isInstagram ? '133.33%' : '117.65%';
+  const height = isInstagram ? '133.33%' : '117.65%';
+
+  return (
+    <div 
+      ref={containerRef}
+      className="relative overflow-hidden rounded-lg" 
+      style={isVertical 
+        ? { 
+            maxHeight: '600px', 
+            maxWidth: isInstagram ? '75%' : '65%',
+            width: isInstagram ? '75%' : '65%',
+            aspectRatio: '9/16',
+            margin: '0 auto'
+          } 
+        : { paddingBottom: '56.25%', minHeight: '200px', width: '100%' }
+      }
+    >
+      {isVisible ? (
+        <iframe
+          src={embedUrl}
+          title={`${platform} video player`}
+          frameBorder="0"
+          scrolling="no"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+          className={isVertical ? "rounded-lg" : "absolute top-0 left-0 w-full h-full rounded-lg"}
+          style={isVertical 
+            ? { 
+                border: 'none', 
+                overflow: 'hidden',
+                transform: `translate(-50%, -50%) scale(${scale})`,
+                transformOrigin: 'center center',
+                width: width,
+                height: height,
+                position: 'absolute',
+                left: '50%',
+                top: '50%'
+              }
+            : { border: 'none', overflow: 'hidden' }
+          }
+        />
+      ) : (
+        <div className="absolute inset-0 bg-gray-100 rounded-lg flex items-center justify-center">
+          <div className="text-gray-400 text-sm">Loading video...</div>
+        </div>
+      )}
+    </div>
+  );
+});
+
+LazyVideoEmbed.displayName = 'LazyVideoEmbed';
+
+// Lazy-loaded video embed for thread view (different styling)
+const LazyVideoEmbedThread = React.memo(({ 
+  embedUrl, 
+  platform, 
+  isVertical, 
+  isInstagram 
+}: { 
+  embedUrl: string; 
+  platform: 'youtube' | 'tiktok' | 'instagram';
+  isVertical: boolean;
+  isInstagram: boolean;
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isVisible = useIntersectionObserver(containerRef, { 
+    rootMargin: '100px',
+    triggerOnce: true 
+  });
+
+  const scale = isInstagram ? 0.65 : 0.90;
+  const width = isInstagram ? '153.85%' : '111.11%';
+  const height = isInstagram ? '153.85%' : '111.11%';
+
+  return (
+    <div 
+      ref={containerRef}
+      className="relative overflow-hidden rounded-lg" 
+      style={isVertical 
+        ? { 
+            maxHeight: '600px', 
+            maxWidth: '45%',
+            width: '45%',
+            aspectRatio: '9/16',
+            margin: '0 auto'
+          } 
+        : { paddingBottom: '56.25%', minHeight: '200px', width: '100%' }
+      }
+    >
+      {isVisible ? (
+        <iframe
+          src={embedUrl}
+          title={`${platform} video player`}
+          frameBorder="0"
+          scrolling="no"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+          className={isVertical ? "rounded-lg" : "absolute top-0 left-0 w-full h-full rounded-lg"}
+          style={isVertical 
+            ? { 
+                border: 'none', 
+                overflow: 'hidden',
+                transform: `translate(-50%, -50%) scale(${scale})`,
+                transformOrigin: 'center center',
+                width: width,
+                height: height,
+                position: 'absolute',
+                left: '50%',
+                top: '50%'
+              }
+            : { border: 'none', overflow: 'hidden' }
+          }
+        />
+      ) : (
+        <div className="absolute inset-0 bg-gray-100 rounded-lg flex items-center justify-center">
+          <div className="text-gray-400 text-sm">Loading video...</div>
+        </div>
+      )}
+    </div>
+  );
+});
+
+LazyVideoEmbedThread.displayName = 'LazyVideoEmbedThread';
 
 // Helper function to convert video URLs (YouTube, YouTube Shorts, TikTok, Instagram) to embed format
 const getVideoEmbedUrl = (url: string | null | undefined): { embedUrl: string; platform: 'youtube' | 'tiktok' | 'instagram' } | null => {
@@ -2626,7 +2771,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 </div>
               )}
 
-              {/* Video Embed in Thread View */}
+              {/* Video Embed in Thread View - Lazy Loaded */}
               {selectedPost.vid_link && (
                 <div className="mb-4 mt-4">
                   {(() => {
@@ -2636,12 +2781,21 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                     }
                     const isVertical = embedData.platform === 'tiktok' || embedData.platform === 'instagram';
                     const isInstagram = embedData.platform === 'instagram';
-                    // Use different scales to make the actual content appear the same size
+                    // Use different scales for thread view
                     const scale = isInstagram ? 0.65 : 0.90;
                     const width = isInstagram ? '153.85%' : '111.11%';
                     const height = isInstagram ? '153.85%' : '111.11%';
+                    
+                    // Thread view always loads (user clicked to view), but we can still lazy load
+                    const threadContainerRef = useRef<HTMLDivElement>(null);
+                    const isThreadVisible = useIntersectionObserver(threadContainerRef, { 
+                      rootMargin: '100px',
+                      triggerOnce: true 
+                    });
+                    
                     return (
                       <div 
+                        ref={threadContainerRef}
                         className="relative overflow-hidden rounded-lg" 
                         style={isVertical 
                           ? { 
@@ -2654,29 +2808,35 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                           : { paddingBottom: '56.25%', minHeight: '200px', width: '100%' }
                         }
                       >
-                        <iframe
-                          src={embedData.embedUrl}
-                          title={`${embedData.platform} video player`}
-                          frameBorder="0"
-                          scrolling="no"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                          allowFullScreen
-                          className={isVertical ? "rounded-lg" : "absolute top-0 left-0 w-full h-full rounded-lg"}
-                          style={isVertical 
-                            ? { 
-                                border: 'none', 
-                                overflow: 'hidden',
-                                transform: `translate(-50%, -50%) scale(${scale})`,
-                                transformOrigin: 'center center',
-                                width: width,
-                                height: height,
-                                position: 'absolute',
-                                left: '50%',
-                                top: '50%'
-                              }
-                            : { border: 'none', overflow: 'hidden' }
-                          }
-                        />
+                        {isThreadVisible ? (
+                          <iframe
+                            src={embedData.embedUrl}
+                            title={`${embedData.platform} video player`}
+                            frameBorder="0"
+                            scrolling="no"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allowFullScreen
+                            className={isVertical ? "rounded-lg" : "absolute top-0 left-0 w-full h-full rounded-lg"}
+                            style={isVertical 
+                              ? { 
+                                  border: 'none', 
+                                  overflow: 'hidden',
+                                  transform: `translate(-50%, -50%) scale(${scale})`,
+                                  transformOrigin: 'center center',
+                                  width: width,
+                                  height: height,
+                                  position: 'absolute',
+                                  left: '50%',
+                                  top: '50%'
+                                }
+                              : { border: 'none', overflow: 'hidden' }
+                            }
+                          />
+                        ) : (
+                          <div className="absolute inset-0 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <div className="text-gray-400 text-sm">Loading video...</div>
+                          </div>
+                        )}
                       </div>
                     );
                   })()}
@@ -3641,7 +3801,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                   </div>
                 )}
 
-                {/* Video Embed (YouTube, TikTok, Instagram) */}
+                {/* Video Embed (YouTube, TikTok, Instagram) - Lazy Loaded */}
                 {post.vid_link && (
                   <div className="mb-3 mt-3">
                     {(() => {
@@ -3657,47 +3817,13 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       }
                       const isVertical = embedData.platform === 'tiktok' || embedData.platform === 'instagram';
                       const isInstagram = embedData.platform === 'instagram';
-                      const scale = isInstagram ? 0.75 : 0.85;
-                      const width = isInstagram ? '133.33%' : '117.65%';
-                      const height = isInstagram ? '133.33%' : '117.65%';
                       return (
-                        <div 
-                          className="relative overflow-hidden rounded-lg" 
-                          style={isVertical 
-                            ? { 
-                                maxHeight: '600px', 
-                                maxWidth: isInstagram ? '75%' : '65%',
-                                width: isInstagram ? '75%' : '65%',
-                                aspectRatio: '9/16',
-                                margin: '0 auto'
-                              } 
-                            : { paddingBottom: '56.25%', minHeight: '200px', width: '100%' }
-                          }
-                        >
-                          <iframe
-                            src={embedData.embedUrl}
-                            title={`${embedData.platform} video player`}
-                            frameBorder="0"
-                            scrolling="no"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                            allowFullScreen
-                            className={isVertical ? "rounded-lg" : "absolute top-0 left-0 w-full h-full rounded-lg"}
-                            style={isVertical 
-                              ? { 
-                                  border: 'none', 
-                                  overflow: 'hidden',
-                                  transform: `translate(-50%, -50%) scale(${scale})`,
-                                  transformOrigin: 'center center',
-                                  width: width,
-                                  height: height,
-                                  position: 'absolute',
-                                  left: '50%',
-                                  top: '50%'
-                                }
-                              : { border: 'none', overflow: 'hidden' }
-                            }
-                          />
-                        </div>
+                        <LazyVideoEmbed
+                          embedUrl={embedData.embedUrl}
+                          platform={embedData.platform}
+                          isVertical={isVertical}
+                          isInstagram={isInstagram}
+                        />
                       );
                     })()}
                   </div>

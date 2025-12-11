@@ -18,12 +18,8 @@ import {
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { lazy, Suspense } from 'react';
 import { Calendar as CalendarComponent } from './ui/calendar';
-
-// Lazy load Dialog and Popover to defer Radix UI bundle loading until user interaction
-// This prevents loading the entire Radix UI bundle (2.1s CPU time) on initial page load
-const AddTodoDialog = lazy(() => import('./AddTodoDialog').then(module => ({ default: module.AddTodoDialog })));
+import { AddTodoDialog } from './AddTodoDialog';
 import { PomodoroTimer } from './PomodoroTimer';
 import { supabase } from '../lib/supabase';
 import { Feed } from './FeedComponent';
@@ -232,6 +228,20 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
   const [newTodoCategory, setNewTodoCategory] = useState<'today' | 'this-week'>('today');
   const [showAddTodo, setShowAddTodo] = useState(false);
   const [selectedDueDate, setSelectedDueDate] = useState<Date | undefined>(undefined);
+  const [radixUIPreloaded, setRadixUIPreloaded] = useState(false);
+
+  // Preload Radix UI chunk when user hovers over Add button or when dialog is about to open
+  useEffect(() => {
+    if (showAddTodo && !radixUIPreloaded) {
+      // Eagerly load Radix UI dependencies before lazy component loads
+      Promise.all([
+        import('./ui/dialog'),
+        import('./ui/popover')
+      ]).then(() => {
+        setRadixUIPreloaded(true);
+      }).catch(() => {});
+    }
+  }, [showAddTodo, radixUIPreloaded]);
   const [todoCollapsed, setTodoCollapsed] = useState(false);
   const [showPomodoro, setShowPomodoro] = useState(false);
 
@@ -512,22 +522,21 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
         </div>
       </div>
 
-      {/* Add Todo Dialog - Lazy loaded to defer Radix UI bundle */}
+      {/* Add Todo Dialog - Conditionally rendered to defer Radix UI bundle loading */}
+      {/* Radix UI chunk only loads when dialog is opened (showAddTodo = true) */}
       {showAddTodo && (
-        <Suspense fallback={null}>
-          <AddTodoDialog
-            open={showAddTodo}
-            onOpenChange={setShowAddTodo}
-            newTodoText={newTodoText}
-            setNewTodoText={setNewTodoText}
-            newTodoCategory={newTodoCategory}
-            setNewTodoCategory={setNewTodoCategory}
-            selectedDueDate={selectedDueDate}
-            setSelectedDueDate={setSelectedDueDate}
-            addTodo={addTodo}
-            formatDueDate={formatDueDate}
-          />
-        </Suspense>
+        <AddTodoDialog
+          open={showAddTodo}
+          onOpenChange={setShowAddTodo}
+          newTodoText={newTodoText}
+          setNewTodoText={setNewTodoText}
+          newTodoCategory={newTodoCategory}
+          setNewTodoCategory={setNewTodoCategory}
+          selectedDueDate={selectedDueDate}
+          setSelectedDueDate={setSelectedDueDate}
+          addTodo={addTodo}
+          formatDueDate={formatDueDate}
+        />
       )}
     </div>
   );

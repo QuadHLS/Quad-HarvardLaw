@@ -118,23 +118,49 @@ export default defineConfig({
     },
     rollupOptions: {
       output: {
-        manualChunks: {
+        manualChunks: (id) => {
           // Split PDF.js into separate chunk (only loaded when needed)
-          'pdfjs': ['pdfjs-dist'],
-          // Split large UI libraries
-          'radix-ui': [
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-dropdown-menu',
-            '@radix-ui/react-select',
-            '@radix-ui/react-tabs',
-            '@radix-ui/react-popover',
-          ],
+          if (id.includes('pdfjs-dist')) {
+            return 'pdfjs';
+          }
+          
+          // Split Radix UI into smaller chunks by component
+          if (id.includes('@radix-ui/react-dialog')) {
+            return 'radix-dialog';
+          }
+          if (id.includes('@radix-ui/react-select')) {
+            return 'radix-select';
+          }
+          if (id.includes('@radix-ui/react-tabs')) {
+            return 'radix-tabs';
+          }
+          if (id.includes('@radix-ui/react-popover')) {
+            return 'radix-popover';
+          }
+          if (id.includes('@radix-ui/react-dropdown-menu')) {
+            return 'radix-dropdown';
+          }
+          if (id.includes('@radix-ui')) {
+            return 'radix-other';
+          }
+          
           // Split Supabase client
-          'supabase': ['@supabase/supabase-js'],
+          if (id.includes('@supabase/supabase-js')) {
+            return 'supabase';
+          }
+          
           // Split React Query
-          'react-query': ['@tanstack/react-query'],
+          if (id.includes('@tanstack/react-query')) {
+            return 'react-query';
+          }
+          
           // Split other large dependencies
-          'vendor': ['react-router-dom', 'framer-motion'],
+          if (id.includes('react-router-dom') || id.includes('framer-motion')) {
+            return 'vendor';
+          }
+          
+          // Default: no manual chunk (goes to main bundle)
+          return null;
         },
       },
     },

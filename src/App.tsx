@@ -974,7 +974,14 @@ function AppContent({ user }: { user: any }) {
       <Toaster position="top-right" />
 
       {/* Main Content */}
-      <main className={`flex-1 overflow-hidden ${sidebarCollapsed ? 'ml-16' : 'ml-40'}`} style={{ transition: 'margin-left 300ms ease' }}>
+      <main 
+        className="flex-1 overflow-hidden" 
+        style={{ 
+          marginLeft: sidebarCollapsed ? '4rem' : '10rem',
+          transition: 'margin-left 300ms ease',
+          willChange: 'margin-left'
+        }}
+      >
         <Suspense fallback={<PageLoadingFallback />}>
           <Routes>
           <Route path="/" element={

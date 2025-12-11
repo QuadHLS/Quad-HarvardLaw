@@ -168,11 +168,12 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
             <img 
               src="/QUAD.svg" 
               alt="Quad Logo" 
-              className="w-auto object-contain h-12 relative z-20"
+              className="object-contain relative z-20"
               width={48}
               height={48}
+              style={{ width: '48px', height: '48px' }}
               loading="eager"
-              fetchPriority="high"
+              fetchpriority="high"
               id="sidebar-quad-logo"
               data-quad-logo="sidebar"
             />

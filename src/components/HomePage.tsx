@@ -230,26 +230,30 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
   const [AddTodoDialogComponent, setAddTodoDialogComponent] = useState<React.ComponentType<any> | null>(null);
   const [PomodoroTimerComponent, setPomodoroTimerComponent] = useState<React.ComponentType<any> | null>(null);
 
-  // Dynamically load AddTodoDialog when dialog opens to defer Radix UI bundle
-  useEffect(() => {
-    if (showAddTodo && !AddTodoDialogComponent) {
-      import('./AddTodoDialog').then(module => {
+  // Lazy-load dialogs only when user opens them (prevents Radix chunk on initial load)
+  const loadAddTodoDialog = useCallback(async () => {
+    if (!AddTodoDialogComponent) {
+      try {
+        const module = await import('./AddTodoDialog');
         setAddTodoDialogComponent(() => module.AddTodoDialog);
-      }).catch(() => {
-        console.error('Failed to load AddTodoDialog');
-      });
+      } catch (err) {
+        console.error('Failed to load AddTodoDialog', err);
+      }
     }
-  }, [showAddTodo, AddTodoDialogComponent]);
+    setShowAddTodo(true);
+  }, [AddTodoDialogComponent]);
 
-  // Dynamically load PomodoroTimer when shown to defer Radix UI bundle (Select, Collapsible)
-  useEffect(() => {
-    if (showPomodoro && !PomodoroTimerComponent) {
-      import('./PomodoroTimer').then(module => {
+  const togglePomodoro = useCallback(async () => {
+    const nextState = !showPomodoro;
+    if (nextState && !PomodoroTimerComponent) {
+      try {
+        const module = await import('./PomodoroTimer');
         setPomodoroTimerComponent(() => module.PomodoroTimer);
-      }).catch(() => {
-        console.error('Failed to load PomodoroTimer');
-      });
+      } catch (err) {
+        console.error('Failed to load PomodoroTimer', err);
+      }
     }
+    setShowPomodoro(nextState);
   }, [showPomodoro, PomodoroTimerComponent]);
 
   // Load todos from profile on mount
@@ -384,10 +388,10 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
               <h2 className="font-semibold text-gray-900">To Do</h2>
         </div>
             <div className="flex items-center gap-1">
-        <Button
+              <Button
                 variant="ghost"
-          size="sm"
-                onClick={() => setShowPomodoro(!showPomodoro)}
+                size="sm"
+                onClick={() => void togglePomodoro()}
                 className="h-6 w-6 p-0 text-[#752432] hover:bg-[#752432]/10 border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200"
                 style={{ backgroundColor: '#fffcf7' }}
               >
@@ -396,7 +400,7 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
               <Button
           variant="ghost"
                 size="sm"
-                onClick={() => setShowAddTodo(true)}
+                onClick={() => void loadAddTodoDialog()}
                 className="h-6 px-2 text-[#752432] hover:bg-[#752432]/10 flex items-center gap-1 border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200"
                 style={{ backgroundColor: '#fffcf7' }}
               >

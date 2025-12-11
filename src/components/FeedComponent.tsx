@@ -1308,10 +1308,26 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     if (user) {
       // Small payload first to unblock LCP/TBT, then full load in background
       fetchPosts(true, 10);
-      const bg = setTimeout(() => {
-        fetchPosts(false);
-      }, 1500);
-      return () => clearTimeout(bg);
+      // Defer heavy fetch to idle/late to avoid TBT/LCP impact
+      let cancelled = false;
+      const runDeferred = () => {
+        if (!cancelled) {
+          fetchPosts(false);
+        }
+      };
+      // Use requestIdleCallback if available, fallback to a longer timeout
+      const idleId = (window as any).requestIdleCallback
+        ? (window as any).requestIdleCallback(runDeferred, { timeout: 4000 })
+        : window.setTimeout(runDeferred, 3000);
+
+      return () => {
+        cancelled = true;
+        if ((window as any).cancelIdleCallback && idleId) {
+          (window as any).cancelIdleCallback(idleId);
+        } else {
+          clearTimeout(idleId);
+        }
+      };
     }
   }, [feedMode, user, fetchPosts]);
 

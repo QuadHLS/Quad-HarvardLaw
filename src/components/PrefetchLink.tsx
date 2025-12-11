@@ -30,6 +30,17 @@ export function PrefetchLink({
   onClick,
   ...linkProps
 }: PrefetchLinkProps) {
+  // Perf run: disable prefetch to avoid pulling lazy chunks early
+  return (
+    <Link
+      to={to}
+      onClick={onClick}
+      {...linkProps}
+    >
+      {children}
+    </Link>
+  );
+
   const location = useLocation();
   const prefetchedRef = useRef(false);
   const dataPrefetchedRef = useRef(false);

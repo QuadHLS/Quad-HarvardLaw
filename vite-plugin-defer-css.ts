@@ -11,9 +11,10 @@ export function deferCSS(): Plugin {
   return {
     name: 'defer-css',
     apply: 'build',
-    closeBundle() {
-      // After all bundles are closed, modify the HTML to defer CSS
-      // Use closeBundle to run after Vite's HTML plugin
+    enforce: 'post', // Run after other plugins (including HTML plugin)
+    writeBundle() {
+      // After all bundles are written, modify the HTML to defer CSS
+      // Use writeBundle to run after Vite's HTML plugin writes the file
       const htmlPath = join(process.cwd(), 'build', 'index.html');
       try {
         let html = readFileSync(htmlPath, 'utf-8');

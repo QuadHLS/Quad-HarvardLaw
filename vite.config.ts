@@ -7,12 +7,15 @@ import path from 'path';
 import { deferCSS } from './vite-plugin-defer-css';
 import { removeRadixPreload } from './vite-plugin-remove-radix-preload';
 
+// Gate PWA to avoid SW prefetch during perf runs. Enable by setting VITE_ENABLE_PWA=true
+const enablePWA = process.env.VITE_ENABLE_PWA === 'true';
+
 export default defineConfig({
   plugins: [
     react(),
     deferCSS(), // Defer non-critical CSS to prevent render blocking
     removeRadixPreload(), // Remove Radix UI modulepreload to prevent eager loading
-    VitePWA({
+    enablePWA && VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'script-defer', // Defer service worker registration to not block critical path
       includeAssets: ['QUAD.svg', 'QUAD.png', 'robots.txt', 'sitemap.xml'],

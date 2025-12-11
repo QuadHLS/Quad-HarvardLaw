@@ -1,12 +1,14 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react'
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { User, Session, AuthError } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+
+// Separate context for online users (only MessagingPage uses this)
+const OnlineUsersContext = createContext<Set<string>>(new Set())
 
 interface AuthContextType {
   user: User | null
   session: Session | null
   loading: boolean
-  onlineUsers: Set<string>
   signUp: (email: string, password: string, metadata?: any) => Promise<{ error: AuthError | null }>
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>
   signInWithGoogle: () => Promise<{ error: AuthError | null }>
@@ -34,8 +36,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
-  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
+  
+  // Global presence tracking (tracks users across entire website)
+  const onlineUsersRef = useRef<Set<string>>(new Set())
+  const [onlineUsersVersion, setOnlineUsersVersion] = useState(0)
   const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+
+  // Helper function to check if two Sets are different and update if needed
+  const updateOnlineUsersIfChanged = useCallback((newUsers: Set<string>) => {
+    const current = onlineUsersRef.current
+    // Only update if sizes differ or if any ID is missing
+    if (current.size !== newUsers.size || 
+        !Array.from(current).every(id => newUsers.has(id))) {
+      onlineUsersRef.current = newUsers
+      setOnlineUsersVersion(prev => prev + 1)
+    }
+  }, [])
 
   useEffect(() => {
     // Only clear animation flag if it's stale (e.g., page reload long after login)
@@ -108,7 +124,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return () => subscription.unsubscribe()
   }, [])
 
-  // Global presence tracking for all logged-in users
+  // Global presence tracking for all logged-in users (tracks across entire website)
   useEffect(() => {
     if (!user) {
       // Clean up presence tracking when user logs out
@@ -117,7 +133,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         supabase.removeChannel(presenceChannelRef.current);
         presenceChannelRef.current = null;
       }
-      setOnlineUsers(new Set());
+      updateOnlineUsersIfChanged(new Set())
       return;
     }
 
@@ -153,36 +169,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }
           });
           
-          setOnlineUsers(onlineUserIds);
+          // Only update if actually changed
+          updateOnlineUsersIfChanged(onlineUserIds)
         })
         .on('presence', { event: 'join' }, ({ newPresences }: { newPresences: Array<{ user_id?: string }> }) => {
-          setOnlineUsers((prev) => {
-            const updated = new Set(prev);
-            if (Array.isArray(newPresences)) {
-              newPresences.forEach((presence: { user_id?: string }) => {
-                if (presence?.user_id) {
-                  updated.add(presence.user_id);
-                }
-              });
-            }
-            return updated;
-          });
+          const updated = new Set(onlineUsersRef.current);
+          if (Array.isArray(newPresences)) {
+            newPresences.forEach((presence: { user_id?: string }) => {
+              if (presence?.user_id) {
+                updated.add(presence.user_id);
+              }
+            });
+          }
+          // Only update if actually changed
+          updateOnlineUsersIfChanged(updated)
         })
         .on('presence', { event: 'leave' }, ({ leftPresences }: { leftPresences: Array<{ user_id?: string }> }) => {
-          setOnlineUsers((prev) => {
-            const updated = new Set(prev);
-            if (Array.isArray(leftPresences)) {
-              leftPresences.forEach((presence: { user_id?: string }) => {
-                if (presence?.user_id) {
-                  updated.delete(presence.user_id);
-                }
-              });
-            }
-            return updated;
-          });
+          const updated = new Set(onlineUsersRef.current);
+          if (Array.isArray(leftPresences)) {
+            leftPresences.forEach((presence: { user_id?: string }) => {
+              if (presence?.user_id) {
+                updated.delete(presence.user_id);
+              }
+            });
+          }
+          // Only update if actually changed
+          updateOnlineUsersIfChanged(updated)
         })
         .subscribe(async (status: string) => {
-          if (status === 'SUBSCRIBED' && presenceChannel) {
+          if (status === 'SUBSCRIBED' && presenceChannel && user) {
             // Track current user as online
             await presenceChannel.track({
               user_id: user.id,
@@ -203,9 +218,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         presenceChannelRef.current = null;
       }
     };
-  }, [user])
+  }, [user, updateOnlineUsersIfChanged])
 
-  const signUp = async (email: string, password: string, metadata?: any) => {
+  // Memoize auth functions to prevent unnecessary re-renders
+  const signUp = useCallback(async (email: string, password: string, metadata?: any) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -214,9 +230,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     })
     return { error }
-  }
+  }, [])
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -228,9 +244,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
 
     return { error }
-  }
+  }, [])
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = useCallback(async () => {
     try {
       sessionStorage.setItem('playLoginAnimation', 'true');
       sessionStorage.setItem('playLoginAnimationSetAt', Date.now().toString());
@@ -264,9 +280,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       sessionStorage.removeItem('playLoginAnimationSetAt');
       return { error: { message: 'An unexpected error occurred during Google login. Please try again.' } }
     }
-  }
+  }, [])
 
-  const signInWithMicrosoft = async () => {
+  const signInWithMicrosoft = useCallback(async () => {
     try {
       sessionStorage.setItem('playLoginAnimation', 'true');
       sessionStorage.setItem('playLoginAnimationSetAt', Date.now().toString());
@@ -300,34 +316,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       sessionStorage.removeItem('playLoginAnimationSetAt');
       return { error: { message: 'An unexpected error occurred during Microsoft login. Please try again.' } }
     }
-  }
+  }, [])
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     sessionStorage.removeItem('playLoginAnimation');
     sessionStorage.removeItem('playLoginAnimationSetAt');
     const { error } = await supabase.auth.signOut()
     return { error }
-  }
+  }, [])
 
-  const resetPassword = async (email: string) => {
+  const resetPassword = useCallback(async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`
     })
     return { error }
-  }
+  }, [])
 
-  const updatePassword = async (password: string) => {
+  const updatePassword = useCallback(async (password: string) => {
     const { error } = await supabase.auth.updateUser({
       password: password
     })
     return { error }
-  }
+  }, [])
 
-  const value = {
+  // Memoize the context value to prevent unnecessary re-renders
+  // Only recreate when user, session, or loading changes
+  const value = useMemo(() => ({
     user,
     session,
     loading,
-    onlineUsers,
     signUp,
     signIn,
     signInWithGoogle,
@@ -335,7 +352,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signOut,
     resetPassword,
     updatePassword,
-  }
+  }), [user, session, loading, signUp, signIn, signInWithGoogle, signInWithMicrosoft, signOut, resetPassword, updatePassword])
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  // Memoize onlineUsers value (only updates when version changes, not on every presence event)
+  const onlineUsersValue = useMemo(() => onlineUsersRef.current, [onlineUsersVersion])
+
+  return (
+    <AuthContext.Provider value={value}>
+      <OnlineUsersContext.Provider value={onlineUsersValue}>
+        {children}
+      </OnlineUsersContext.Provider>
+    </AuthContext.Provider>
+  )
+}
+
+// Hook for accessing online users (only MessagingPage should use this)
+export const useOnlineUsers = () => {
+  return useContext(OnlineUsersContext)
 }

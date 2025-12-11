@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
-import { useAuth } from '../contexts/AuthContext';
+import { useOnlineUsers } from '../contexts/AuthContext';
 import {
   Search,
   Send,
@@ -91,7 +91,9 @@ interface MessageAttachment {
 }
 
 export function MessagingPage() {
-  const { onlineUsers } = useAuth();
+  // Get online users from global tracking (tracks users across entire website)
+  const onlineUsers = useOnlineUsers();
+
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messageInput, setMessageInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');

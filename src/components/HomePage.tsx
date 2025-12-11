@@ -234,7 +234,8 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
   const loadAddTodoDialog = useCallback(async () => {
     if (!AddTodoDialogComponent) {
       try {
-        const module = await import('./AddTodoDialog');
+        // @vite-ignore to avoid auto-preload of the chunk
+        const module = await import(/* @vite-ignore */ './AddTodoDialog');
         setAddTodoDialogComponent(() => module.AddTodoDialog);
       } catch (err) {
         console.error('Failed to load AddTodoDialog', err);
@@ -247,7 +248,8 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
     const nextState = !showPomodoro;
     if (nextState && !PomodoroTimerComponent) {
       try {
-        const module = await import('./PomodoroTimer');
+        // @vite-ignore to avoid auto-preload of the chunk
+        const module = await import(/* @vite-ignore */ './PomodoroTimer');
         setPomodoroTimerComponent(() => module.PomodoroTimer);
       } catch (err) {
         console.error('Failed to load PomodoroTimer', err);

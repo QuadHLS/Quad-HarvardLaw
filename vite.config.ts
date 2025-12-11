@@ -38,6 +38,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+        // Avoid pre-caching Radix UI chunk to prevent eager execution on load
+        globIgnores: ['**/radix-ui-*.js'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB (to handle large images)
         runtimeCaching: [
           {

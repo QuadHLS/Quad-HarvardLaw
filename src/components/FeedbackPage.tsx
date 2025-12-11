@@ -82,7 +82,7 @@ export function FeedbackPage() {
       {/* Logo */}
       <div className="max-w-4xl mx-auto px-8 pb-6" style={{ paddingTop: '40px' }}>
         <div className="flex justify-center">
-          <img src="/QUAD.svg" alt="Quad Logo" className="h-auto" style={{ width: '110px' }} />
+          <img src="/QUAD.svg" alt="Quad Logo" className="h-auto" width={110} height={85} loading="eager" style={{ width: '110px' }} />
         </div>
       </div>
 
@@ -116,7 +116,7 @@ export function FeedbackPage() {
                   e.currentTarget.style.backgroundColor = 'white';
                 }}
               >
-                <img src="/LI-In-Bug.png" alt="LinkedIn" className="h-6 w-auto" />
+                <img src="/LI-In-Bug.png" alt="LinkedIn" className="h-6 w-auto" width={24} height={24} loading="lazy" />
                 Connect on LinkedIn
               </a>
             </div>

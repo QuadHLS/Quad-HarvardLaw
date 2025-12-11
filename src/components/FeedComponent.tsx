@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback, useRef, startTransition } from 'react';
+import React, { useState, useEffect, useCallback, useRef, startTransition, Suspense, lazy } from 'react';
 import { supabase } from '../lib/supabase';
 import { ExpandableText } from './ui/expandable-text';
 import { ConfirmationPopup } from './ui/confirmation-popup';
 import { getStorageUrl } from '../utils/storage';
+import { VirtualizedList } from './ui/VirtualizedList';
 
 // Interfaces
 interface PollOption {
@@ -67,6 +68,7 @@ interface Comment {
   isLiked?: boolean;
   replies?: Comment[];
   isClubAccount?: boolean; // Flag to indicate if author is a club account (no profile page)
+  _optimistic?: boolean; // Flag to identify optimistic (temporary) comments
 }
 
 // Course interface matching the structure from profiles.classes
@@ -155,8 +157,8 @@ const X = ({ className }: { className?: string }) => (
   </svg>
 );
 
-// ProfileBubble component
-const ProfileBubble = ({ userName, size = "md", borderColor = "#752432", isAnonymous = false, userId, onProfileClick }: { 
+// ProfileBubble component (memoized for performance)
+const ProfileBubble = React.memo(({ userName, size = "md", borderColor = "#752432", isAnonymous = false, userId, onProfileClick }: { 
   userName: string; 
   size?: "sm" | "md" | "lg"; 
   borderColor?: string; 
@@ -206,7 +208,9 @@ const ProfileBubble = ({ userName, size = "md", borderColor = "#752432", isAnony
       )}
     </div>
   );
-};
+});
+
+ProfileBubble.displayName = 'ProfileBubble';
 
 // Card component
 const Card = ({ children, className = "", style = {}, onClick, onMouseEnter, onMouseLeave }: { 
@@ -1113,7 +1117,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       try {
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('full_name')
+          .select('full_name, class_year')
           .eq('id', user.id)
           .single();
 
@@ -1793,17 +1797,17 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   //     ));
   // };
 
-  const handlePostClick = (postId: string) => {
+  const handlePostClick = useCallback((postId: string) => {
     setSelectedPostThread(postId);
     onPostClick?.(postId);
-  };
+  }, [onPostClick]);
 
-  const handleBackToFeed = () => {
+  const handleBackToFeed = useCallback(() => {
     setSelectedPostThread(null);
     setIsThreadPostHovered(false);
     setHoveredPostId(null);
     setReplyingTo(null);
-  };
+  }, []);
 
 
   const addComment = async (postId: string) => {
@@ -1814,29 +1818,72 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { error } = await supabase
+      const isAnonymous = commentAnonymously[postId] || false;
+      const tempId = `temp-comment-${Date.now()}-${Math.random()}`;
+
+      // Create optimistic comment object
+      const optimisticComment: Comment = {
+        id: tempId,
+        post_id: postId,
+        author_id: user.id,
+        content: commentText.trim(),
+        is_anonymous: isAnonymous,
+        created_at: new Date().toISOString(),
+        likes_count: 0,
+        isLiked: false,
+        author: isAnonymous
+          ? { name: 'Anonymous User', year: '' }
+          : (userProfile?.full_name ? { name: userProfile.full_name, year: userProfile.class_year || '' } : undefined),
+        replies: [],
+        _optimistic: true // Mark as optimistic for identification
+      };
+
+      // Add optimistic comment immediately
+      setComments(prev => ({
+        ...prev,
+        [postId]: [...(prev[postId] || []), optimisticComment]
+      }));
+
+      // Clear input immediately
+      setNewComment(prev => ({ ...prev, [postId]: '' }));
+      setCommentAnonymously(prev => ({ ...prev, [postId]: false }));
+
+      // Sync with server in background
+      const { data, error } = await supabase
         .from('comments')
         .insert({
           post_id: postId,
           author_id: user.id,
           content: commentText.trim(),
-          is_anonymous: commentAnonymously[postId] || false
-        });
+          is_anonymous: isAnonymous
+        })
+        .select()
+        .single();
 
       if (error) {
+        // Remove optimistic comment on error
+        setComments(prev => ({
+          ...prev,
+          [postId]: (prev[postId] || []).filter(c => c.id !== tempId)
+        }));
         console.error('Error adding comment:', error?.message || "Unknown error");
+        // TODO: Show error toast to user
         return;
       }
 
-    setNewComment(prev => ({ ...prev, [postId]: '' }));
-    setCommentAnonymously(prev => ({ ...prev, [postId]: false }));
-
-      // Refresh comments to get the new comment
+      // Replace optimistic comment with real one
+      // We'll fetch comments to get the full data with author info
       await fetchComments(postId);
       
       // Note: Comment count is automatically updated via realtime subscription
     } catch (error) {
+      // Remove optimistic comment on error (filter by optimistic flag)
+      setComments(prev => ({
+        ...prev,
+        [postId]: (prev[postId] || []).filter(c => !c._optimistic)
+      }));
       console.error('Error in addComment:', error instanceof Error ? error.message : "Unknown error");
+      // TODO: Show error toast to user
     }
   };
 
@@ -1849,31 +1896,94 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { error } = await supabase
+      const isAnonymous = replyAnonymously[key] || false;
+      const tempId = `temp-reply-${Date.now()}-${Math.random()}`;
+
+      // Create optimistic reply object
+      const optimisticReply: Comment = {
+        id: tempId,
+        post_id: postId,
+        parent_comment_id: commentId,
+        author_id: user.id,
+        content: text.trim(),
+        is_anonymous: isAnonymous,
+        created_at: new Date().toISOString(),
+        likes_count: 0,
+        isLiked: false,
+        author: isAnonymous
+          ? { name: 'Anonymous User', year: '' }
+          : (userProfile?.full_name ? { name: userProfile.full_name, year: userProfile.class_year || '' } : undefined),
+        _optimistic: true // Mark as optimistic for identification
+      };
+
+      // Add optimistic reply immediately to the parent comment's replies
+      setComments(prev => ({
+        ...prev,
+        [postId]: (prev[postId] || []).map(comment =>
+          comment.id === commentId
+            ? {
+                ...comment,
+                replies: [...(comment.replies || []), optimisticReply]
+              }
+            : comment
+        )
+      }));
+
+      // Clear input immediately
+      setReplyText(prev => ({ ...prev, [key]: '' }));
+      setReplyAnonymously(prev => ({ ...prev, [key]: false }));
+      setReplyingTo(null);
+
+      // Sync with server in background
+      const { data, error } = await supabase
         .from('comments')
         .insert({
           post_id: postId,
           parent_comment_id: commentId,
           author_id: user.id,
           content: text.trim(),
-          is_anonymous: replyAnonymously[key] || false
-        });
+          is_anonymous: isAnonymous
+        })
+        .select()
+        .single();
 
       if (error) {
+        // Remove optimistic reply on error
+        setComments(prev => ({
+          ...prev,
+          [postId]: (prev[postId] || []).map(comment =>
+            comment.id === commentId
+              ? {
+                  ...comment,
+                  replies: (comment.replies || []).filter(r => r.id !== tempId)
+                }
+              : comment
+          )
+        }));
         console.error('Error adding reply:', error?.message || "Unknown error");
+        // TODO: Show error toast to user
         return;
       }
 
-    setReplyText(prev => ({ ...prev, [key]: '' }));
-    setReplyAnonymously(prev => ({ ...prev, [key]: false }));
-    setReplyingTo(null);
-
-      // Refresh comments to get the new reply
+      // Replace optimistic reply with real one by fetching comments
       await fetchComments(postId);
       
       // Note: Comment count is automatically updated via realtime subscription
     } catch (error) {
+      // Remove optimistic reply on error (filter by optimistic flag)
+      setComments(prev => ({
+        ...prev,
+        [postId]: (prev[postId] || []).map(comment =>
+          comment.id === commentId
+            ? {
+                ...comment,
+                replies: (comment.replies || []).filter(r => !r._optimistic)
+              }
+            : comment
+        )
+      }));
       console.error('Error in addReply:', error instanceof Error ? error.message : "Unknown error");
+      // TODO: Show error toast to user
     }
   };
 
@@ -2777,9 +2887,16 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
           {/* Comments */}
           {loadingComments.has(selectedPost.id) ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="w-8 h-8 border-2 border-[#752432] border-t-transparent rounded-full animate-spin"></div>
-              <span className="ml-3 text-gray-600">Loading comments...</span>
+            <div className="space-y-4 py-4">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="flex items-start gap-3 ml-8">
+                  <div className="h-8 w-8 bg-gray-200 rounded-full animate-pulse"></div>
+                  <div className="flex-1">
+                    <div className="h-4 w-24 bg-gray-200 rounded-md animate-pulse mb-2"></div>
+                    <div className="h-4 w-full bg-gray-200 rounded-md animate-pulse"></div>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <div className="space-y-4">
@@ -3731,7 +3848,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 </div>
               </div>
             </Card>
-          ))}
+            ))}
         </div>
         )}
       </div>

@@ -221,6 +221,7 @@ interface CourseComment {
   };
   isLiked?: boolean;
   replies?: CourseComment[];
+  _optimistic?: boolean; // Flag to identify optimistic (temporary) comments
 }
 
 interface CoursePost {
@@ -654,27 +655,66 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
     if (!content || !user) return;
 
     try {
-      const { error } = await supabase
+      const isAnonymous = commentAnonymously[postId] || false;
+      const tempId = `temp-comment-${Date.now()}-${Math.random()}`;
+
+      // Create optimistic comment object
+      const optimisticComment: CourseComment = {
+        id: tempId,
+        post_id: postId,
+        author_id: user.id,
+        content: content,
+        is_anonymous: isAnonymous,
+        created_at: new Date().toISOString(),
+        likes_count: 0,
+        isLiked: false,
+        author: isAnonymous
+          ? { name: 'Anonymous User', year: '' }
+          : (userProfile?.full_name ? { name: userProfile.full_name, year: userProfile.class_year || '' } : undefined),
+        replies: [],
+        _optimistic: true // Mark as optimistic for identification
+      };
+
+      // Add optimistic comment immediately
+      setComments(prev => ({
+        ...prev,
+        [postId]: [...(prev[postId] || []), optimisticComment]
+      }));
+
+      // Clear input immediately
+      setNewComment(prev => ({ ...prev, [postId]: '' }));
+      setCommentAnonymously(prev => ({ ...prev, [postId]: false }));
+
+      // Sync with server in background
+      const { data, error } = await supabase
         .from('comments')
         .insert({
           post_id: postId,
           author_id: user.id,
           content: content,
-          is_anonymous: commentAnonymously[postId] || false
-        });
+          is_anonymous: isAnonymous
+        })
+        .select()
+        .single();
 
       if (error) {
+        // Remove optimistic comment on error
+        setComments(prev => ({
+          ...prev,
+          [postId]: (prev[postId] || []).filter(c => c.id !== tempId)
+        }));
         console.error('Error adding comment:', error?.message || "Unknown error");
         return;
       }
 
-      // Clear the input
-      setNewComment(prev => ({ ...prev, [postId]: '' }));
-      setCommentAnonymously(prev => ({ ...prev, [postId]: false }));
-
-      // Refresh comments
+      // Replace optimistic comment with real one
       await fetchComments(postId);
     } catch (error) {
+      // Remove optimistic comment on error
+      setComments(prev => ({
+        ...prev,
+        [postId]: (prev[postId] || []).filter(c => !c._optimistic)
+      }));
       console.error('Error adding comment:', error instanceof Error ? error.message : "Unknown error");
     }
   };
@@ -685,29 +725,89 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
     if (!content || !user) return;
 
     try {
-      const { error } = await supabase
+      const isAnonymous = replyAnonymously[`${postId}:${parentCommentId}`] || false;
+      const tempId = `temp-reply-${Date.now()}-${Math.random()}`;
+
+      // Create optimistic reply object
+      const optimisticReply: CourseComment = {
+        id: tempId,
+        post_id: postId,
+        parent_comment_id: parentCommentId,
+        author_id: user.id,
+        content: content,
+        is_anonymous: isAnonymous,
+        created_at: new Date().toISOString(),
+        likes_count: 0,
+        isLiked: false,
+        author: isAnonymous
+          ? { name: 'Anonymous User', year: '' }
+          : (userProfile?.full_name ? { name: userProfile.full_name, year: userProfile.class_year || '' } : undefined),
+        _optimistic: true // Mark as optimistic for identification
+      };
+
+      // Add optimistic reply immediately to the parent comment's replies
+      setComments(prev => ({
+        ...prev,
+        [postId]: (prev[postId] || []).map(comment =>
+          comment.id === parentCommentId
+            ? {
+                ...comment,
+                replies: [...(comment.replies || []), optimisticReply]
+              }
+            : comment
+        )
+      }));
+
+      // Clear input immediately
+      setReplyText(prev => ({ ...prev, [`${postId}:${parentCommentId}`]: '' }));
+      setReplyAnonymously(prev => ({ ...prev, [`${postId}:${parentCommentId}`]: false }));
+      setReplyingTo(null);
+
+      // Sync with server in background
+      const { data, error } = await supabase
         .from('comments')
         .insert({
           post_id: postId,
           parent_comment_id: parentCommentId,
           author_id: user.id,
           content: content,
-          is_anonymous: replyAnonymously[`${postId}:${parentCommentId}`] || false
-        });
+          is_anonymous: isAnonymous
+        })
+        .select()
+        .single();
 
       if (error) {
+        // Remove optimistic reply on error
+        setComments(prev => ({
+          ...prev,
+          [postId]: (prev[postId] || []).map(comment =>
+            comment.id === parentCommentId
+              ? {
+                  ...comment,
+                  replies: (comment.replies || []).filter(r => r.id !== tempId)
+                }
+              : comment
+          )
+        }));
         console.error('Error adding reply:', error?.message || "Unknown error");
         return;
       }
 
-      // Clear the input
-      setReplyText(prev => ({ ...prev, [`${postId}:${parentCommentId}`]: '' }));
-      setReplyAnonymously(prev => ({ ...prev, [`${postId}:${parentCommentId}`]: false }));
-      setReplyingTo(null);
-
-      // Refresh comments
+      // Replace optimistic reply with real one
       await fetchComments(postId);
     } catch (error) {
+      // Remove optimistic reply on error
+      setComments(prev => ({
+        ...prev,
+        [postId]: (prev[postId] || []).map(comment =>
+          comment.id === parentCommentId
+            ? {
+                ...comment,
+                replies: (comment.replies || []).filter(r => !r._optimistic)
+              }
+            : comment
+        )
+      }));
       console.error('Error adding reply:', error instanceof Error ? error.message : "Unknown error");
     }
   };
@@ -3789,7 +3889,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                <img src="/text_picture_icon.svg" alt="Text and Picture" className="h-5 w-auto object-contain" />
+                <img src="/text_picture_icon.svg" alt="Text and Picture" className="h-5 w-auto object-contain" width={20} height={20} loading="lazy" />
                 <span>Text and Picture</span>
               </button>
               <button
@@ -3806,10 +3906,10 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                <img src="/yt_icon_red_digital.png" alt="YouTube" className="h-6 w-auto object-contain" />
-                <img src="/Youtube_shorts_icon.svg" alt="YouTube Shorts" className="h-5 w-auto object-contain" />
-                <img src="/TikTok_Icon_Black_Circle.png" alt="TikTok" className="h-5 w-auto object-contain" />
-                <img src="/Instagram_Glyph_Gradient.png" alt="Instagram" className="h-5 w-auto object-contain" />
+                <img src="/yt_icon_red_digital.png" alt="YouTube" className="h-6 w-auto object-contain" width={24} height={24} loading="lazy" />
+                <img src="/Youtube_shorts_icon.svg" alt="YouTube Shorts" className="h-5 w-auto object-contain" width={20} height={20} loading="lazy" />
+                <img src="/TikTok_Icon_Black_Circle.png" alt="TikTok" className="h-5 w-auto object-contain" width={20} height={20} loading="lazy" />
+                <img src="/Instagram_Glyph_Gradient.png" alt="Instagram" className="h-5 w-auto object-contain" width={20} height={20} loading="lazy" />
               </button>
               <button
                 onClick={() => {
@@ -3826,7 +3926,7 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                <img src="/poll_icon.svg" alt="Poll" className="h-5 w-auto object-contain align-middle" />
+                <img src="/poll_icon.svg" alt="Poll" className="h-5 w-auto object-contain align-middle" width={20} height={20} loading="lazy" />
                 <span className="align-middle">Poll</span>
               </button>
             </div>

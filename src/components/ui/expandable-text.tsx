@@ -8,7 +8,7 @@ interface ExpandableTextProps {
   buttonColor?: string;
 }
 
-export function ExpandableText({ text, maxLines = 10, className = '', buttonColor }: ExpandableTextProps) {
+export const ExpandableText = React.memo(function ExpandableText({ text, maxLines = 10, className = '', buttonColor }: ExpandableTextProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const lines = formatTextWithLineBreaks(text);
   const hasMore = lines.length > maxLines;
@@ -60,5 +60,5 @@ export function ExpandableText({ text, maxLines = 10, className = '', buttonColo
       </button>
     </>
   );
-}
+});
 

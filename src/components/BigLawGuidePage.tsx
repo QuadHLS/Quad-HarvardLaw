@@ -180,19 +180,20 @@ export function BigLawGuidePage() {
                   <div className="p-8">
                     {/* Firm Images */}
                     <div className="flex flex-col items-center">
-                      {images.map((imagePath, index) => (
-                        <div key={index} className="max-w-2xl w-full">
-                          <img
-                            src={imagePath}
-                            alt={`${firm.name} ${index + 1}`}
-                            className="w-full h-auto object-contain"
-                            onError={(e) => {
-                              // Hide image if it doesn't exist
-                              e.currentTarget.style.display = 'none';
-                            }}
-                          />
-                        </div>
-                      ))}
+                      {images.map((imagePath, index) => {
+                        return (
+                          <div key={index} className="max-w-2xl w-full mb-4">
+                            <img
+                              src={imagePath}
+                              alt={`${firm.name} ${index + 1}`}
+                              className="w-full h-auto object-contain"
+                              width={800}
+                              height={600}
+                              loading="lazy"
+                            />
+                          </div>
+                        );
+                      })}
                     </div>
                     
                     {firm.content && (

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, FileText, Star, Beer, User, Archive, BookOpen, CalendarDays, Mail, Users, Briefcase, Lightbulb } from 'lucide-react';
+import { Home, FileText, Star, Beer, User, Archive, BookOpen, CalendarDays, Mail, Users, Briefcase, Lightbulb, MessageCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
+import { PrefetchLink } from './PrefetchLink';
 
 interface NavigationSidebarProps {
   isCollapsed: boolean;
@@ -21,7 +22,9 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
     if (path.startsWith('/exams')) return 'exams';
     if (path.startsWith('/reviews')) return 'reviews';
     if (path.startsWith('/planner')) return 'planner';
+    if (path.startsWith('/calendar')) return 'calendar';
     if (path.startsWith('/directory')) return 'directory';
+    if (path.startsWith('/messaging')) return 'messaging';
     if (path.startsWith('/club/') || path.startsWith('/clubs')) return 'clubs';
     if (path.startsWith('/barreview')) return 'barreview';
     if (path.startsWith('/biglaw-guide')) return 'biglaw-guide';
@@ -166,6 +169,9 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
               src="/QUAD.svg" 
               alt="Quad Logo" 
               className="w-auto object-contain h-12 relative z-20"
+              width={48}
+              height={48}
+              loading="eager"
               id="sidebar-quad-logo"
               data-quad-logo="sidebar"
             />
@@ -191,7 +197,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
           </Link>
 
           {/* Planner */}
-          <Link
+          <PrefetchLink
             to="/planner"
             onClick={(e) => handleNavigation(e, '/planner')}
             className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
@@ -205,10 +211,10 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
             {!isCollapsedOverride && showText && (
               <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Registration Planner</span>
             )}
-          </Link>
+          </PrefetchLink>
 
           {/* Directory */}
-          <Link
+          <PrefetchLink
             to="/directory"
             onClick={(e) => handleNavigation(e, '/directory')}
             className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
@@ -218,7 +224,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
           >
             <Users className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
             {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Directory</span>}
-          </Link>
+          </PrefetchLink>
 
           {/* Clubs - Hidden for now */}
           {/* <Link
@@ -253,7 +259,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
                 const Icon = item.icon;
                 const isActive = activeSection === item.id;
                 return showSubItems[index] ? (
-                  <Link
+                  <PrefetchLink
                     key={item.id}
                     to={`/${item.id}`}
                     onClick={(e) => handleNavigation(e, `/${item.id}`)}
@@ -266,14 +272,14 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
                       <Icon className="w-4 h-4" style={{ color: '#752432' }} />
                     </div>
                     <span className="font-medium text-xs transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">{item.label}</span>
-                  </Link>
+                  </PrefetchLink>
                 ) : null;
               })}
             </div>
           )}
 
           {/* Big Law Guide */}
-          <Link
+          <PrefetchLink
             to="/biglaw-guide"
             onClick={(e) => handleNavigation(e, '/biglaw-guide')}
             className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
@@ -283,10 +289,10 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
           >
             <Briefcase className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
             {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Big Law Guide</span>}
-          </Link>
+          </PrefetchLink>
 
           {/* Quadle */}
-          <Link
+          <PrefetchLink
             to="/quadle"
             className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
               activeSection === 'quadle' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
@@ -295,10 +301,10 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
           >
             <Lightbulb className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
             {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Quadle</span>}
-          </Link>
+          </PrefetchLink>
 
           {/* Bar Review */}
-          <Link
+          <PrefetchLink
             to="/barreview"
             onClick={(e) => handleNavigation(e, '/barreview')}
             className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 transition-transform duration-500 ease-out ${
@@ -313,15 +319,45 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
               <Beer className="w-5 h-5" style={{ color: '#752432' }} />
             </div>
             {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Bar Review</span>}
-          </Link>
+          </PrefetchLink>
         </div>
 
         {/* Spacer */}
         <div className="flex-1" />
 
+        {/* Messaging */}
+        <div className="px-2 pt-2">
+          <PrefetchLink
+            to="/messaging"
+            onClick={(e) => handleNavigation(e, '/messaging')}
+            className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
+              activeSection === 'messaging' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
+            }`}
+            style={{ borderRightColor: activeSection === 'messaging' ? '#752432' : 'transparent' }}
+          >
+            <MessageCircle className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
+            {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Messaging</span>}
+          </PrefetchLink>
+        </div>
+
+        {/* Calendar */}
+        <div className="px-2 pt-2">
+          <PrefetchLink
+            to="/calendar"
+            onClick={(e) => handleNavigation(e, '/calendar')}
+            className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
+              activeSection === 'calendar' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
+            }`}
+            style={{ borderRightColor: activeSection === 'calendar' ? '#752432' : 'transparent' }}
+          >
+            <CalendarDays className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
+            {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Calendar</span>}
+          </PrefetchLink>
+        </div>
+
         {/* Feedback button */}
         <div className="px-2 pt-2">
-          <Link
+          <PrefetchLink
             to="/feedback"
             onClick={(e) => handleNavigation(e, '/feedback')}
             className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
@@ -331,7 +367,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
           >
             <Mail className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
             {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Feedback</span>}
-          </Link>
+          </PrefetchLink>
         </div>
 
         {/* Profile bottom */}

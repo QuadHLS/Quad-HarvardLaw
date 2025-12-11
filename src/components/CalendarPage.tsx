@@ -3450,6 +3450,9 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                       src="/Google_Calendar_icon_(2020).svg.png" 
                       alt="Google Calendar" 
                       className="max-w-full max-h-full object-contain"
+                      width={40}
+                      height={40}
+                      loading="lazy"
                       style={{ width: 'auto', height: 'auto' }}
                     />
                   </div>
@@ -3484,6 +3487,9 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                     <img 
                       src="/Logo_Canvas_Red_Vertical-768x593.png" 
                       alt="Canvas" 
+                      width={40}
+                      height={40}
+                      loading="lazy"
                       style={{ width: '40px', height: 'auto', transform: 'scale(1.50)', transformOrigin: 'center' }}
                     />
                   </div>

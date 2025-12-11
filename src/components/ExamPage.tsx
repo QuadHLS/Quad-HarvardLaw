@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { VirtualizedList } from './ui/VirtualizedList';
 import { 
   Download,
   Bookmark,
@@ -680,7 +681,8 @@ export function ExamPage({
     savedTagsFilter.length !== 2 ? 1 : 0 // Only count if not both Attack and Outline selected (default state)
   ].reduce((sum, count) => sum + count, 0);
 
-  const ExamListItem = ({ exam, activeTab }: { exam: Outline, activeTab?: string }) => (
+  // Memoized ExamListItem to prevent unnecessary re-renders
+  const ExamListItem = React.memo(({ exam, activeTab }: { exam: Outline, activeTab?: string }) => (
     <div 
       className={`group cursor-pointer transition-all duration-200 hover:bg-[#F5F1E8] border-l-4 ${
         previewExam?.id === exam.id ? 'bg-[#F5F1E8] shadow-sm' : 'bg-[#FFFBF8]'
@@ -752,9 +754,15 @@ export function ExamPage({
         </div>
       </div>
     </div>
-  );
+  ), (prevProps, nextProps) => {
+    // Custom comparison: only re-render if exam or activeTab changed
+    return prevProps.exam.id === nextProps.exam.id && 
+           prevProps.activeTab === nextProps.activeTab &&
+           prevProps.exam === nextProps.exam;
+  });
 
-  const ExamCard = ({ exam, activeTab }: { exam: Outline, activeTab?: string }) => (
+  // Memoized ExamCard to prevent unnecessary re-renders
+  const ExamCard = React.memo(({ exam, activeTab }: { exam: Outline, activeTab?: string }) => (
     <Card 
       className={`group cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${getGradeBorderClass(exam.grade)} overflow-hidden ${
         previewExam?.id === exam.id ? 'ring-2 ring-[#752432] shadow-xl transform -translate-y-1' : ''
@@ -836,7 +844,12 @@ export function ExamPage({
         </div>
       </CardContent>
     </Card>
-  );
+  ), (prevProps, nextProps) => {
+    // Custom comparison: only re-render if exam or activeTab changed
+    return prevProps.exam.id === nextProps.exam.id && 
+           prevProps.activeTab === nextProps.activeTab &&
+           prevProps.exam === nextProps.exam;
+  });
 
   // Document Viewer Component with PDF and Word support
   const DocumentViewer = ({ exam }: { exam: Outline }) => {
@@ -1604,10 +1617,26 @@ export function ExamPage({
                                 ))}
                               </div>
                             ) : (
-                              <div className="space-y-1 border border-border rounded-lg overflow-hidden shadow-sm" style={{ backgroundColor: '#f9f5f0' }}>
-                                {sortedYearOutlines.map(exam => (
-                                  <ExamListItem key={exam.id} exam={exam} activeTab={activeTab} />
-                                ))}
+                              <div className="border border-border rounded-lg overflow-hidden shadow-sm" style={{ backgroundColor: '#f9f5f0' }}>
+                                {/* Virtualized list for better performance with many exams */}
+                                {sortedYearOutlines.length > 20 ? (
+                                  <VirtualizedList
+                                    items={sortedYearOutlines}
+                                    height={400}
+                                    itemHeight={60}
+                                    renderItem={(exam) => (
+                                      <div className="px-2 py-1">
+                                        <ExamListItem exam={exam} activeTab={activeTab} />
+                                      </div>
+                                    )}
+                                  />
+                                ) : (
+                                  <div className="space-y-1">
+                                    {sortedYearOutlines.map(exam => (
+                                      <ExamListItem key={exam.id} exam={exam} activeTab={activeTab} />
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -1697,10 +1726,26 @@ export function ExamPage({
                                 ))}
                               </div>
                             ) : (
-                              <div className="space-y-1 border border-border rounded-lg overflow-hidden shadow-sm" style={{ backgroundColor: '#f9f5f0' }}>
-                                {sortedCourseExams.map(exam => (
-                                  <ExamListItem key={exam.id} exam={exam} activeTab={activeTab} />
-                                ))}
+                              <div className="border border-border rounded-lg overflow-hidden shadow-sm" style={{ backgroundColor: '#f9f5f0' }}>
+                                {/* Virtualized list for better performance with many exams */}
+                                {sortedCourseExams.length > 20 ? (
+                                  <VirtualizedList
+                                    items={sortedCourseExams}
+                                    height={400}
+                                    itemHeight={60}
+                                    renderItem={(exam) => (
+                                      <div className="px-2 py-1">
+                                        <ExamListItem exam={exam} activeTab={activeTab} />
+                                      </div>
+                                    )}
+                                  />
+                                ) : (
+                                  <div className="space-y-1">
+                                    {sortedCourseExams.map(exam => (
+                                      <ExamListItem key={exam.id} exam={exam} activeTab={activeTab} />
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>

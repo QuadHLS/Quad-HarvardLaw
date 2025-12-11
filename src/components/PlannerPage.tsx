@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useDeferredValue, useMemo } from 'react';
 import { Search, Plus, X, Clock, MapPin, Trash2, Calendar, Save, FileText, ChevronDown, FolderOpen, Grid, List, Check } from 'lucide-react';
+import { useDebounce } from '../utils/debounce';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -315,6 +316,9 @@ interface PlannerPageProps {
 export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
   const [scheduledCourses, setScheduledCourses] = useState<ScheduledCourse[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  // Use deferred value for filtering to keep UI responsive during heavy filtering
+  const deferredSearchTerm = useDeferredValue(debouncedSearchTerm);
   // Default selection: if Fall or Winter, select Spring; if Spring, select Fall
   const [selectedTerm, setSelectedTerm] = useState<'FA' | 'WI' | 'SP'>(() => {
     const current = getCurrentTermByDate();
@@ -423,12 +427,13 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     return name;
   };
 
-  // Filter courses based on search and filters
-  const filteredCourses = courses.filter(course => {
-    const matchesSearch = searchTerm === '' || 
-      course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      course.course_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      course.faculty.toLowerCase().includes(searchTerm.toLowerCase());
+  // Filter courses based on search and filters (using deferred value for smoother UI)
+  const filteredCourses = useMemo(() => {
+    return courses.filter(course => {
+      const matchesSearch = deferredSearchTerm === '' || 
+        course.name.toLowerCase().includes(deferredSearchTerm.toLowerCase()) ||
+        course.course_number.toLowerCase().includes(deferredSearchTerm.toLowerCase()) ||
+        course.faculty.toLowerCase().includes(deferredSearchTerm.toLowerCase());
     
     // Primary filter: only show courses for the selected semester
     const matchesTerm = courseMatchesSemester(course.term, selectedTerm);
@@ -469,12 +474,10 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     // Don't show courses that are already scheduled
     const notScheduled = !scheduledCourses.some(scheduled => scheduled.id === course.id);
     
-    const result = matchesSearch && matchesTerm && matchesAreaOfInterest && 
+    return matchesSearch && matchesTerm && matchesAreaOfInterest && 
            matchesType && matchesRequirements && matchesDays && notScheduled;
-    
-    
-    return result;
-  }).sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically by course name
+    }).sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically by course name
+  }, [courses, deferredSearchTerm, selectedTerm, selectedAreaOfInterest, selectedType, selectedRequirements, selectedDays, scheduledCourses]);
 
   // Calculate totals
   const totalCredits = scheduledCourses.reduce((sum, course) => sum + course.credits, 0);

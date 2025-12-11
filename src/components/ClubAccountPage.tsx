@@ -96,6 +96,7 @@ export interface Comment {
   isLiked?: boolean;
   replies?: Comment[];
   isClubAccount?: boolean; // Flag to indicate if author is a club account (no profile page)
+  _optimistic?: boolean; // Flag to identify optimistic (temporary) comments
 }
 
 export interface ClubFormData {
@@ -3561,26 +3562,68 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
       const clubAccountId = await getClubAccountId();
       if (!clubAccountId) return;
 
-      const { error } = await supabase
+      const isAnonymous = commentAnonymously[postId] || false;
+      const tempId = `temp-comment-${Date.now()}-${Math.random()}`;
+
+      // Create optimistic comment object
+      const optimisticComment: Comment = {
+        id: tempId,
+        post_id: postId,
+        author_id: clubAccountId,
+        content: commentText.trim(),
+        is_anonymous: isAnonymous,
+        created_at: new Date().toISOString(),
+        likes_count: 0,
+        isLiked: false,
+        author: isAnonymous
+          ? { name: 'Anonymous User', year: '' }
+          : { name: clubAccountName || 'Club', year: '' }, // Club accounts don't have year
+        replies: [],
+        isClubAccount: true,
+        _optimistic: true // Mark as optimistic for identification
+      };
+
+      // Add optimistic comment immediately
+      setComments(prev => ({
+        ...prev,
+        [postId]: [...(prev[postId] || []), optimisticComment]
+      }));
+
+      // Clear input immediately
+      setNewComment(prev => ({ ...prev, [postId]: '' }));
+      setCommentAnonymously(prev => ({ ...prev, [postId]: false }));
+
+      // Sync with server in background
+      const { data, error } = await supabase
         .from('comments')
         .insert({
           post_id: postId,
           author_id: clubAccountId,
           content: commentText.trim(),
-          is_anonymous: commentAnonymously[postId] || false
-        });
+          is_anonymous: isAnonymous
+        })
+        .select()
+        .single();
 
       if (error) {
+        // Remove optimistic comment on error
+        setComments(prev => ({
+          ...prev,
+          [postId]: (prev[postId] || []).filter(c => c.id !== tempId)
+        }));
         console.error('Error adding comment:', error?.message || "Unknown error");
         return;
       }
 
-      setNewComment(prev => ({ ...prev, [postId]: '' }));
-      setCommentAnonymously(prev => ({ ...prev, [postId]: false }));
-
+      // Replace optimistic comment with real one
       await fetchComments(postId);
       await fetchPosts();
     } catch (error) {
+      // Remove optimistic comment on error
+      setComments(prev => ({
+        ...prev,
+        [postId]: (prev[postId] || []).filter(c => !c._optimistic)
+      }));
       console.error('Error in addComment:', error instanceof Error ? error.message : "Unknown error");
     }
   };
@@ -3594,28 +3637,91 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
       const clubAccountId = await getClubAccountId();
       if (!clubAccountId) return;
 
-      const { error } = await supabase
+      const isAnonymous = replyAnonymously[key] || false;
+      const tempId = `temp-reply-${Date.now()}-${Math.random()}`;
+
+      // Create optimistic reply object
+      const optimisticReply: Comment = {
+        id: tempId,
+        post_id: postId,
+        parent_comment_id: commentId,
+        author_id: clubAccountId,
+        content: text.trim(),
+        is_anonymous: isAnonymous,
+        created_at: new Date().toISOString(),
+        likes_count: 0,
+        isLiked: false,
+        author: isAnonymous
+          ? { name: 'Anonymous User', year: '' }
+          : { name: clubAccountName || 'Club', year: '' }, // Club accounts don't have year
+        isClubAccount: true,
+        _optimistic: true // Mark as optimistic for identification
+      };
+
+      // Add optimistic reply immediately to the parent comment's replies
+      setComments(prev => ({
+        ...prev,
+        [postId]: (prev[postId] || []).map(comment =>
+          comment.id === commentId
+            ? {
+                ...comment,
+                replies: [...(comment.replies || []), optimisticReply]
+              }
+            : comment
+        )
+      }));
+
+      // Clear input immediately
+      setReplyText(prev => ({ ...prev, [key]: '' }));
+      setReplyAnonymously(prev => ({ ...prev, [key]: false }));
+      setReplyingTo(null);
+
+      // Sync with server in background
+      const { data, error } = await supabase
         .from('comments')
         .insert({
           post_id: postId,
           parent_comment_id: commentId,
           author_id: clubAccountId,
           content: text.trim(),
-          is_anonymous: replyAnonymously[key] || false
-        });
+          is_anonymous: isAnonymous
+        })
+        .select()
+        .single();
 
       if (error) {
+        // Remove optimistic reply on error
+        setComments(prev => ({
+          ...prev,
+          [postId]: (prev[postId] || []).map(comment =>
+            comment.id === commentId
+              ? {
+                  ...comment,
+                  replies: (comment.replies || []).filter(r => r.id !== tempId)
+                }
+              : comment
+          )
+        }));
         console.error('Error adding reply:', error?.message || "Unknown error");
         return;
       }
 
-      setReplyText(prev => ({ ...prev, [key]: '' }));
-      setReplyAnonymously(prev => ({ ...prev, [key]: false }));
-      setReplyingTo(null);
-
+      // Replace optimistic reply with real one
       await fetchComments(postId);
       await fetchPosts();
     } catch (error) {
+      // Remove optimistic reply on error
+      setComments(prev => ({
+        ...prev,
+        [postId]: (prev[postId] || []).map(comment =>
+          comment.id === commentId
+            ? {
+                ...comment,
+                replies: (comment.replies || []).filter(r => !r._optimistic)
+              }
+            : comment
+        )
+      }));
       console.error('Error in addReply:', error instanceof Error ? error.message : "Unknown error");
     }
   };

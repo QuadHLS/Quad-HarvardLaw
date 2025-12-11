@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useDeferredValue } from 'react';
 import * as React from 'react';
 import { Star, Search, Calendar, Plus, Megaphone, FileText, Laptop, Filter } from 'lucide-react';
 import { Button } from './ui/button';
@@ -7,6 +7,7 @@ import { Card, CardContent } from './ui/card';
 import { Dialog, DialogTrigger } from './ui/dialog';
 import { supabase } from '../lib/supabase';
 import { ReviewForm } from './ReviewForm';
+import { useDebounce } from '../utils/debounce';
 
 interface Review {
   id: string;
@@ -93,6 +94,9 @@ interface ReviewFormData {
 
 export function ReviewsPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  // Use deferred value for filtering to keep UI responsive during heavy filtering
+  const deferredSearchTerm = useDeferredValue(debouncedSearchTerm);
   const [selectedProfessor, setSelectedProfessor] = useState<string | null>(null);
   const [selectedCourse, setSelectedCourse] = useState('');
   const [filterByRating, setFilterByRating] = useState(false);
@@ -409,12 +413,14 @@ export function ReviewsPage() {
     return result;
   }, [professors, courses, professorCourses, reviews]);
 
-  // Filter professors based on search
-  const filteredProfessors = professorData.filter(prof =>
-    prof.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    prof.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    prof.lastName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter professors based on search (using deferred value for smoother UI)
+  const filteredProfessors = React.useMemo(() => {
+    return professorData.filter(prof =>
+      prof.fullName.toLowerCase().includes(deferredSearchTerm.toLowerCase()) ||
+      prof.firstName.toLowerCase().includes(deferredSearchTerm.toLowerCase()) ||
+      prof.lastName.toLowerCase().includes(deferredSearchTerm.toLowerCase())
+    );
+  }, [professorData, deferredSearchTerm]);
 
   // Group filtered professors alphabetically by last name, or sort by rating if filter is active
   const groupedProfessors = React.useMemo(() => {

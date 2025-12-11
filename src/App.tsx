@@ -1,37 +1,51 @@
 /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-unused-expressions */
 // App component - main entry point
 // Trigger deployment
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, Suspense, lazy, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { NavigationSidebar } from './components/NavigationSidebar';
-import { OutlinePage } from './components/OutlinePage';
-import { ExamPage } from './components/ExamPage';
-import { ReviewsPage } from './components/ReviewsPage';
-import { PlannerPage } from './components/PlannerPage';
-import { CalendarPage } from './components/CalendarPage';
-import { HomePage } from './components/HomePage';
-import { CoursePage } from './components/CoursePage';
-import { BarReviewPage } from './components/BarReviewPage';
-import { ProfilePage } from './components/NewProfilePage';
-import { FeedbackPage } from './components/FeedbackPage';
-import { DirectoryPage } from './components/DirectoryPage';
-import { ClubsPage } from './components/ClubsPage';
-import { ClubDetailPage } from './components/ClubDetailPage';
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/auth/AuthPage';
 import { OnboardingFlow } from './components/onboarding/OnboardingFlow';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { AuthCallback } from './components/auth/AuthCallback';
-import { ClubAccountPage } from './components/ClubAccountPage';
-import { BigLawGuidePage } from './components/BigLawGuidePage';
-import { QuadlePage } from './components/QuadlePage';
-import { MessagingPage } from './components/MessagingPage';
 import { MobileComingSoon } from './components/MobileComingSoon';
 import { isPhone } from './components/ui/use-mobile';
 import { supabase } from './lib/supabase';
+import { queryClient } from './lib/queryClient';
 import type { Outline } from './types';
 import { PostLoginLoading } from './components/PostLoginLoading';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
+
+// Keep HomePage in initial bundle (likely first page)
+import { HomePage } from './components/HomePage';
+
+// Lazy-load all other pages for code splitting
+// These will be split into separate chunks and only loaded when needed
+// Using named exports, so we wrap them as default for lazy loading
+const OutlinePage = lazy(() => import('./components/OutlinePage').then(module => ({ default: module.OutlinePage })));
+const ExamPage = lazy(() => import('./components/ExamPage').then(module => ({ default: module.ExamPage })));
+const ReviewsPage = lazy(() => import('./components/ReviewsPage').then(module => ({ default: module.ReviewsPage })));
+const PlannerPage = lazy(() => import('./components/PlannerPage').then(module => ({ default: module.PlannerPage })));
+const CalendarPage = lazy(() => import('./components/CalendarPage').then(module => ({ default: module.CalendarPage })));
+const CoursePage = lazy(() => import('./components/CoursePage').then(module => ({ default: module.CoursePage })));
+const BarReviewPage = lazy(() => import('./components/BarReviewPage').then(module => ({ default: module.BarReviewPage })));
+const ProfilePage = lazy(() => import('./components/NewProfilePage').then(module => ({ default: module.ProfilePage })));
+const FeedbackPage = lazy(() => import('./components/FeedbackPage').then(module => ({ default: module.FeedbackPage })));
+const DirectoryPage = lazy(() => import('./components/DirectoryPage').then(module => ({ default: module.DirectoryPage })));
+const ClubsPage = lazy(() => import('./components/ClubsPage').then(module => ({ default: module.ClubsPage })));
+const ClubDetailPage = lazy(() => import('./components/ClubDetailPage').then(module => ({ default: module.ClubDetailPage })));
+const ClubAccountPage = lazy(() => import('./components/ClubAccountPage').then(module => ({ default: module.ClubAccountPage })));
+const BigLawGuidePage = lazy(() => import('./components/BigLawGuidePage').then(module => ({ default: module.BigLawGuidePage })));
+const QuadlePage = lazy(() => import('./components/QuadlePage').then(module => ({ default: module.QuadlePage })));
+const MessagingPage = lazy(() => import('./components/MessagingPage').then(module => ({ default: module.MessagingPage })));
+
+// Loading fallback component for Suspense boundaries - using skeleton instead of spinner
+import { PageSkeleton } from './components/ui/skeletons';
+
+const PageLoadingFallback = () => <PageSkeleton />;
 
 
 function AppContent({ user }: { user: any }) {
@@ -196,34 +210,40 @@ function AppContent({ user }: { user: any }) {
   const examSearchTerm = '';
   const examMyCourses: string[] = [];
 
-  // Filter exams based on search criteria
-  const filteredExams = exams.filter((exam) => {
-    // Require BOTH a course AND instructor selection
-    if (selectedCourseForExams === '' || selectedInstructorForExams === '') {
-      return false;
-    }
+  // Filter exams based on search criteria (memoized for performance)
+  const filteredExams = useMemo(() => {
+    return exams.filter((exam) => {
+      // Require BOTH a course AND instructor selection
+      if (selectedCourseForExams === '' || selectedInstructorForExams === '') {
+        return false;
+      }
 
-    const matchesCourse = exam.course === selectedCourseForExams;
-    const matchesInstructor = exam.instructor === selectedInstructorForExams;
-    const matchesGrade = !selectedGradeForExams || exam.grade === selectedGradeForExams;
-    const matchesYear = !selectedYearForExams || exam.year === selectedYearForExams;
+      const matchesCourse = exam.course === selectedCourseForExams;
+      const matchesInstructor = exam.instructor === selectedInstructorForExams;
+      const matchesGrade = !selectedGradeForExams || exam.grade === selectedGradeForExams;
+      const matchesYear = !selectedYearForExams || exam.year === selectedYearForExams;
 
-    // Tag filtering: 'Attack' = pages <= 25, 'Outline' = pages > 25
-    const isAttack = exam.pages <= 25;
-    const isOutline = exam.pages > 25;
-    const matchesTags =
-      selectedTagsForExams.length === 0 ||
-      (selectedTagsForExams.includes('Attack') && isAttack) ||
-      (selectedTagsForExams.includes('Outline') && isOutline);
+      // Tag filtering: 'Attack' = pages <= 25, 'Outline' = pages > 25
+      const isAttack = exam.pages <= 25;
+      const isOutline = exam.pages > 25;
+      const matchesTags =
+        selectedTagsForExams.length === 0 ||
+        (selectedTagsForExams.includes('Attack') && isAttack) ||
+        (selectedTagsForExams.includes('Outline') && isOutline);
 
-    return matchesCourse && matchesInstructor && matchesGrade && matchesYear && matchesTags;
-  });
+      return matchesCourse && matchesInstructor && matchesGrade && matchesYear && matchesTags;
+    });
+  }, [exams, selectedCourseForExams, selectedInstructorForExams, selectedGradeForExams, selectedYearForExams, selectedTagsForExams]);
 
 
-  // Load saved outlines from database
+  // Load saved outlines from database - DEFERRED: only load when "saved" tab is active
+  // This improves initial load performance by not fetching data until needed
+  const [outlineActiveTab, setOutlineActiveTab] = useState<'search' | 'saved' | 'upload'>('search');
+  
   useEffect(() => {
     const loadSavedOutlines = async () => {
-      if (!user?.id) return;
+      // Only load if user is on "saved" tab
+      if (!user?.id || outlineActiveTab !== 'saved') return;
 
       try {
         // Get user's saved outline IDs from profiles table
@@ -261,7 +281,7 @@ function AppContent({ user }: { user: any }) {
     };
 
     loadSavedOutlines();
-  }, [user?.id]);
+  }, [user?.id, activeTab]);
 
   
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
@@ -469,10 +489,12 @@ function AppContent({ user }: { user: any }) {
     fetchExams();
   }, [user, isFadingOut]); // Start fetching when fade begins
 
-  // Load saved exams from database
+  // Load saved exams from database - DEFERRED: only load when "saved" tab is active
+  // This improves initial load performance by not fetching data until needed
   useEffect(() => {
     const loadSavedExams = async () => {
-      if (!user?.id) return;
+      // Only load if user is on "saved" tab
+      if (!user?.id || activeExamTab !== 'saved') return;
 
       try {
         const { data: profile, error } = await supabase
@@ -510,7 +532,7 @@ function AppContent({ user }: { user: any }) {
     };
 
     loadSavedExams();
-  }, [user?.id, exams]);
+  }, [user?.id, activeExamTab]);
 
 
 
@@ -940,7 +962,8 @@ function AppContent({ user }: { user: any }) {
 
       {/* Main Content */}
       <div className={`flex-1 overflow-hidden ${sidebarCollapsed ? 'ml-16' : 'ml-40'}`} style={{ transition: 'margin-left 300ms ease' }}>
-        <Routes>
+        <Suspense fallback={<PageLoadingFallback />}>
+          <Routes>
           <Route path="/" element={
             <HomePage
               onNavigateToCourse={handleNavigateToCourse}
@@ -1047,16 +1070,24 @@ function AppContent({ user }: { user: any }) {
               </div>
             </div>
           } />
-        </Routes>
+          </Routes>
+        </Suspense>
       </div>
     </div>
+  );
+
+  // Wrap routes with ErrorBoundary to catch errors
+  const websiteContentWithErrorBoundary = (
+    <ErrorBoundary>
+      {websiteContent}
+    </ErrorBoundary>
   );
 
   if (shouldShowAnimation) {
     return (
       <>
         {/* Always render website content behind animation so it shows through as animation fades */}
-        {websiteContent}
+        {websiteContentWithErrorBoundary}
         <PostLoginLoading isFadingOut={isFadingOut} />
       </>
     );
@@ -1102,7 +1133,7 @@ function AppContent({ user }: { user: any }) {
     );
   }
 
-  return websiteContent;
+  return websiteContentWithErrorBoundary;
 }
 
 // App component that uses AuthContext - must be defined before App
@@ -1112,13 +1143,15 @@ function AppWithAuth() {
   return <AppContent user={user} />;
 }
 
-// Main App Component with AuthProvider and Router
+// Main App Component with QueryClientProvider, AuthProvider and Router
 export default function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <AppWithAuth />
-      </AuthProvider>
-    </Router>
+    <QueryClientProvider client={queryClient}>
+      <Router>
+        <AuthProvider>
+          <AppWithAuth />
+        </AuthProvider>
+      </Router>
+    </QueryClientProvider>
   );
 }

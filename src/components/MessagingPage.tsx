@@ -2,17 +2,13 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import { useOnlineUsers } from '../contexts/AuthContext';
+import { useDebounce } from '../utils/debounce';
 import {
   Search,
   Send,
   Hash,
-  ChevronDown,
-  ChevronRight,
   Paperclip,
   Smile,
-  AtSign,
-  Users,
-  Plus,
   X as XIcon,
   Settings,
   Edit,
@@ -23,10 +19,10 @@ import {
   Check,
   MoreVertical,
   Globe,
+  Users,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { ScrollArea } from './ui/scroll-area';
 import { cn } from './ui/utils';
@@ -43,6 +39,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from './ui/popover';
+import { ConversationList } from './messaging/ConversationList';
+
+// Lazy-load YouTube embed renderer (heavy component)
+const YouTubeEmbedRenderer = React.lazy(() => 
+  import('./messaging/YouTubeEmbedRenderer').then(module => ({ default: module.YouTubeEmbedRenderer }))
+);
 
 interface Conversation {
   id: string;
@@ -256,15 +258,19 @@ export function MessagingPage() {
     }
   }, []);
 
-  // Search users when searchTerm changes (immediate, no debounce)
-  useEffect(() => {
-    searchUsers(searchTerm);
-  }, [searchTerm, searchUsers]);
+  // Debounce search terms to reduce API calls
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const debouncedGroupUserSearch = useDebounce(groupUserSearch, 300);
 
-  // Search users for group when groupUserSearch changes (immediate, no debounce)
+  // Search users when debounced searchTerm changes
   useEffect(() => {
-    searchUsersForGroup(groupUserSearch);
-  }, [groupUserSearch, searchUsersForGroup]);
+    searchUsers(debouncedSearchTerm);
+  }, [debouncedSearchTerm, searchUsers]);
+
+  // Search users for group when debounced groupUserSearch changes
+  useEffect(() => {
+    searchUsersForGroup(debouncedGroupUserSearch);
+  }, [debouncedGroupUserSearch, searchUsersForGroup]);
 
   // Close search results when clicking outside
   const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -1406,7 +1412,7 @@ export function MessagingPage() {
     }
     // Clear typing indicator timeout when sending message
     if (typingTimeoutRef.current) {
-      clearInterval(typingTimeoutRef.current);
+      clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = null;
     }
     setSendingMessage(true);
@@ -1441,6 +1447,13 @@ export function MessagingPage() {
           return;
         }
 
+        if (!linkMessage) {
+          console.error('Error: Link message was not created');
+          setMessageInput(content);
+          setSendingMessage(false);
+          return;
+        }
+
         // Fetch sender profile for link message
         const { data: linkProfile } = await supabase
           .from('profiles')
@@ -1449,7 +1462,7 @@ export function MessagingPage() {
           .maybeSingle();
 
         // Add link message to local state optimistically
-        if (linkMessage && linkProfile) {
+        if (linkProfile) {
           const optimisticLinkMessage: Message = {
             id: linkMessage.id,
             senderId: linkMessage.sender_id,
@@ -1505,6 +1518,14 @@ export function MessagingPage() {
 
           if (textError) {
             console.error('Error sending text message:', textError);
+            setMessageInput(content);
+            setSendingMessage(false);
+            return;
+          }
+
+          if (!textMessage) {
+            console.error('Error: Text message was not created');
+            setMessageInput(content);
             setSendingMessage(false);
             return;
           }
@@ -1517,7 +1538,7 @@ export function MessagingPage() {
             .maybeSingle();
 
           // Add text message to local state optimistically
-          if (textMessage && textProfile) {
+          if (textProfile) {
             const optimisticTextMessage: Message = {
               id: textMessage.id,
               senderId: textMessage.sender_id,
@@ -2606,34 +2627,14 @@ export function MessagingPage() {
         url = 'https://' + url;
       }
       
-      // Check if it's a YouTube/video link
+      // Check if it's a YouTube/video link - lazy-load YouTube embed renderer
       const embedData = getVideoEmbedUrl(url);
       if (embedData && embedData.platform === 'youtube') {
-        // Render YouTube iframe with original aspect ratio
+        // Lazy-load YouTube embed renderer
         return [
-          <div
-            key="youtube-embed"
-            className="relative w-full"
-            style={{ maxWidth: '800px' }}
-          >
-            <div className="relative overflow-hidden rounded-lg">
-              <iframe
-                src={embedData.embedUrl}
-                title="YouTube video player"
-                frameBorder="0"
-                scrolling="no"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                className="w-full rounded-lg"
-                style={{ 
-                  border: 'none', 
-                  overflow: 'hidden',
-                  aspectRatio: '16/9',
-                  minHeight: '250px'
-                }}
-              />
-            </div>
-          </div>
+          <React.Suspense key="youtube-embed-suspense" fallback={<div className="w-full max-w-[800px] h-[250px] bg-gray-100 rounded-lg animate-pulse" />}>
+            <YouTubeEmbedRenderer url={url} isCurrentUser={isCurrentUser} />
+          </React.Suspense>
         ];
       }
       
@@ -2776,220 +2777,44 @@ export function MessagingPage() {
 
   return (
     <div className="h-screen flex" style={{ backgroundColor: '#FEFBF6' }}>
-      {/* Sidebar - Slack/Discord style */}
-      <div className="w-64 flex flex-col border-r" style={{ backgroundColor: '#752432' }}>
-        {/* Workspace Header */}
-        <div className="p-4 border-b border-white/10 relative">
-          <h1 className="text-white font-semibold mb-2">Search Users</h1>
-          <div className="relative search-container" ref={searchContainerRef}>
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60 w-4 h-4" />
-            <Input
-              placeholder="Search users..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onFocus={() => searchTerm.trim() && setShowSearchResults(true)}
-              className="pl-9 bg-white/10 border-white/20 text-white placeholder:text-white/60 focus:bg-white/20"
-            />
-            
-            {/* Search Results Dropdown */}
-            {showSearchResults && (searchResults.length > 0 || searchLoading) && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 max-h-64 overflow-y-auto z-50">
-                {searchLoading ? (
-                  <div className="p-4 text-center text-gray-500 text-sm">Searching...</div>
-                ) : (
-                  searchResults.map((user) => (
-                    <button
-                      key={user.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSelectUser(user);
-                      }}
-                      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-100 transition-colors text-left"
-                    >
-                      <Avatar className="w-8 h-8">
-                        <AvatarFallback className="text-white text-xs" style={{ backgroundColor: '#752432' }}>
-                          {user.full_name
-                            .split(' ')
-                            .map((n) => n[0])
-                            .join('')
-                            .slice(0, 2)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm text-gray-900 font-medium">{user.full_name}</span>
-                    </button>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <ScrollArea className="flex-1 min-h-0">
-          <div className="py-2">
-            {/* DMs Section */}
-            <div className="mb-4">
-              <button
-                onClick={() => toggleSection('dms')}
-                className="w-full px-4 py-1 flex items-center justify-between text-white/80 hover:text-white text-sm group"
-              >
-                <div className="flex items-center gap-2">
-                  {expandedSections.dms ? (
-                    <ChevronDown className="w-4 h-4" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4" />
-                  )}
-                  <span>Direct Messages</span>
-                </div>
-              </button>
-
-              {expandedSections.dms && (
-                <div className="mt-1">
-                  {getDMs().map((conv) => (
-                    <button
-                      key={conv.id}
-                      onClick={() => setSelectedConversation(conv)}
-                      className={cn(
-                        'w-full px-4 py-1.5 flex items-center gap-2 text-sm transition-colors',
-                        selectedConversation?.id === conv.id
-                          ? 'bg-white/20 text-white'
-                          : 'text-white/80 hover:bg-white/10 hover:text-white'
-                      )}
-                    >
-                      <AtSign className="w-4 h-4" />
-                      <span className="flex-1 text-left truncate">{conv.name}</span>
-                      {conv.userId && (
-                        <div
-                          className="w-3 h-3 rounded-full flex-shrink-0"
-                          style={{
-                            backgroundColor: onlineUsers.has(conv.userId) 
-                              ? '#43a25a' 
-                              : 'transparent',
-                            border: onlineUsers.has(conv.userId) 
-                              ? 'none' 
-                              : '3px solid #9ca3af',
-                            boxSizing: 'border-box'
-                          }}
-                          title={onlineUsers.has(conv.userId) ? 'Online' : 'Offline'}
-                        />
-                      )}
-                      {conv.unreadCount > 0 && (
-                        <Badge className="bg-white text-[#752432] px-1.5 py-0 text-xs h-5">
-                          {conv.unreadCount}
-                        </Badge>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Group Chats Section */}
-            <div className="mb-4">
-              <div className="w-full px-4 py-1 flex items-center justify-between">
-                <button
-                  onClick={() => toggleSection('groups')}
-                  className="flex-1 flex items-center gap-2 text-white/80 hover:text-white text-sm group"
-                >
-                  <div className="flex items-center gap-2">
-                    {expandedSections.groups ? (
-                      <ChevronDown className="w-4 h-4" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4" />
-                    )}
-                    <span>Group Chats</span>
-                  </div>
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowCreateGroupModal(true);
-                  }}
-                  className="text-white/60 hover:text-white transition-colors p-1"
-                  title="Create Group"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-
-              {expandedSections.groups && (
-                <div className="mt-1">
-                  {getGroups().map((conv) => (
-                    <button
-                      key={conv.id}
-                      onClick={() => setSelectedConversation(conv)}
-                      className={cn(
-                        'w-full px-4 py-1.5 flex items-center gap-2 text-sm transition-colors',
-                        selectedConversation?.id === conv.id
-                          ? 'bg-white/20 text-white'
-                          : 'text-white/80 hover:bg-white/10 hover:text-white'
-                      )}
-                    >
-                      <Users className="w-4 h-4" />
-                      <span className="flex-1 text-left truncate" title={conv.name}>{truncateName(conv.name)}</span>
-                      {conv.unreadCount > 0 && (
-                        <Badge className="bg-white text-[#752432] px-1.5 py-0 text-xs h-5">
-                          {conv.unreadCount}
-                        </Badge>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Courses Section */}
-            <div className="mb-4">
-              <button
-                onClick={() => toggleSection('courses')}
-                className="w-full px-4 py-1 flex items-center justify-between text-white/80 hover:text-white text-sm group"
-              >
-                <div className="flex items-center gap-2">
-                  {expandedSections.courses ? (
-                    <ChevronDown className="w-4 h-4" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4" />
-                  )}
-                  <span>Courses</span>
-                </div>
-              </button>
-
-              {expandedSections.courses && (
-                <div className="mt-1">
-                  {getCourses().map((conv) => (
-                    <button
-                      key={conv.id}
-                      onClick={() => setSelectedConversation(conv)}
-                      className={cn(
-                        'w-full px-4 py-1.5 flex items-center gap-2 text-sm transition-colors',
-                        selectedConversation?.id === conv.id
-                          ? 'bg-white/20 text-white'
-                          : 'text-white/80 hover:bg-white/10 hover:text-white'
-                      )}
-                    >
-                      <Hash className="w-4 h-4" />
-                      <span className="flex-1 text-left truncate" title={conv.name}>{truncateName(conv.name)}</span>
-                      {conv.unreadCount > 0 && (
-                        <Badge className="bg-white text-[#752432] px-1.5 py-0 text-xs h-5">
-                          {conv.unreadCount}
-                        </Badge>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </ScrollArea>
-      </div>
+      {/* Sidebar - Using ConversationList component */}
+      <ConversationList
+        conversations={conversations}
+        selectedConversation={selectedConversation}
+        onSelectConversation={setSelectedConversation}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        onSearchFocus={() => searchTerm.trim() && setShowSearchResults(true)}
+        searchResults={searchResults}
+        showSearchResults={showSearchResults}
+        searchLoading={searchLoading}
+        onSelectUser={handleSelectUser}
+        expandedSections={expandedSections}
+        onToggleSection={toggleSection}
+        onCreateGroup={() => setShowCreateGroupModal(true)}
+        onlineUsers={onlineUsers}
+        getDMs={getDMs}
+        getGroups={getGroups}
+        getCourses={getCourses}
+        truncateName={truncateName}
+        searchContainerRef={searchContainerRef}
+      />
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col bg-white min-h-0 min-w-0">
         {conversationsLoading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-8 h-8 border-4 border-[#752432] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading conversations...</p>
+          <div className="flex-1 flex items-center justify-center p-6">
+            <div className="w-full max-w-md space-y-4">
+              {/* Conversation list skeleton */}
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 p-3 rounded-lg">
+                  <div className="h-12 w-12 bg-gray-200 rounded-full animate-pulse"></div>
+                  <div className="flex-1">
+                    <div className="h-4 w-32 bg-gray-200 rounded-md animate-pulse mb-2"></div>
+                    <div className="h-3 w-48 bg-gray-200 rounded-md animate-pulse"></div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         ) : selectedConversation ? (
@@ -3336,10 +3161,6 @@ export function MessagingPage() {
                       )}
                       <div className="flex flex-col">
                       {(() => {
-                        const hasFileAttachments = message.attachments?.some(att => att.attachment_type === 'file') ?? false;
-                        const hasOnlyImages = (message.attachments?.length ?? 0) > 0 && 
-                          (message.attachments?.every(att => att.attachment_type === 'image') ?? false) &&
-                          !hasFileAttachments;
                         const hasTextContent = message.content && 
                           !(message.attachments && message.attachments.length > 0 && 
                             message.attachments.some(att => att.file_name === message.content));

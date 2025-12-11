@@ -32,6 +32,35 @@
       
       <!-- Favicon -->
       <link rel="icon" type="image/svg+xml" href="/QUAD.svg" />
+      
+      <!-- Performance Optimizations: Preconnect & DNS-Prefetch -->
+      <!-- Preconnect to Supabase endpoints for faster connection setup -->
+      <!-- Note: Supabase URLs are set via VITE_SUPABASE_URL env var at build time -->
+      <!-- Preconnect will be handled dynamically, but we add DNS-prefetch for common patterns -->
+      <link rel="dns-prefetch" href="https://supabase.co" />
+      
+      <!-- Preconnect to Supabase API (faster API calls) -->
+      <!-- This will work for any *.supabase.co domain -->
+      <link rel="preconnect" href="https://supabase.co" />
+      <link rel="preconnect" href="https://supabase.co" crossorigin />
+      
+      <!-- Preconnect to common CDNs used by the app -->
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+      <link rel="dns-prefetch" href="https://docs.google.com" />
+      <link rel="dns-prefetch" href="https://view.officeapps.live.com" />
+      
+      <!-- Font Optimization -->
+      <!-- Preload Roboto font (used in globals.css) -->
+      <!-- Using system fonts (ui-sans-serif) as primary, but Roboto is used for some components -->
+      <link rel="preload" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" as="style" />
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" media="print" onload="this.media='all'" />
+      <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" /></noscript>
+      
+      <!-- Prefetch likely next routes for faster navigation -->
+      <link rel="prefetch" href="/feed" />
+      <link rel="prefetch" href="/outlines" />
+      <link rel="prefetch" href="/exams" />
     </head>
 
     <body>

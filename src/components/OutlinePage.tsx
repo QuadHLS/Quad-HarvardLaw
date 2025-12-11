@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { VirtualizedList } from './ui/VirtualizedList';
 import { 
   Download,
   Bookmark,
@@ -676,7 +677,8 @@ export function OutlinePage({
     savedYearFilter && savedYearFilter !== '' ? 1 : 0
   ].reduce((sum, count) => sum + count, 0);
 
-  const OutlineListItem = ({ outline, activeTab }: { outline: Outline, activeTab?: string }) => (
+  // Memoized OutlineListItem to prevent unnecessary re-renders
+  const OutlineListItem = React.memo(({ outline, activeTab }: { outline: Outline, activeTab?: string }) => (
     <div 
       className={`group cursor-pointer transition-all duration-200 hover:bg-[#F5F1E8] border-l-4 ${
         previewOutline?.id === outline.id ? 'bg-[#F5F1E8] shadow-sm' : 'bg-[#FFFBF8]'
@@ -753,9 +755,15 @@ export function OutlinePage({
         </div>
       </div>
     </div>
-  );
+  ), (prevProps, nextProps) => {
+    // Custom comparison: only re-render if outline or activeTab changed
+    return prevProps.outline.id === nextProps.outline.id && 
+           prevProps.activeTab === nextProps.activeTab &&
+           prevProps.outline === nextProps.outline;
+  });
 
-  const OutlineCard = ({ outline, activeTab }: { outline: Outline, activeTab?: string }) => (
+  // Memoized OutlineCard to prevent unnecessary re-renders
+  const OutlineCard = React.memo(({ outline, activeTab }: { outline: Outline, activeTab?: string }) => (
     <Card 
       className={`group cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${getGradeBorderClass(outline.grade)} overflow-hidden ${
         previewOutline?.id === outline.id ? 'ring-2 ring-[#752432] shadow-xl transform -translate-y-1' : ''
@@ -842,7 +850,12 @@ export function OutlinePage({
         </div>
       </CardContent>
     </Card>
-  );
+  ), (prevProps, nextProps) => {
+    // Custom comparison: only re-render if outline or activeTab changed
+    return prevProps.outline.id === nextProps.outline.id && 
+           prevProps.activeTab === nextProps.activeTab &&
+           prevProps.outline === nextProps.outline;
+  });
 
   // Document Viewer Component with PDF and Word support
   const DocumentViewer = ({ outline }: { outline: Outline }) => {
@@ -1749,10 +1762,26 @@ export function OutlinePage({
                                 ))}
                               </div>
                             ) : (
-                              <div className="space-y-1 border border-border rounded-lg overflow-hidden shadow-sm" style={{ backgroundColor: '#f9f5f0' }}>
-                                {sortedCourseOutlines.map(outline => (
-                                  <OutlineListItem key={outline.id} outline={outline} activeTab={activeTab} />
-                                ))}
+                              <div className="border border-border rounded-lg overflow-hidden shadow-sm" style={{ backgroundColor: '#f9f5f0' }}>
+                                {/* Virtualized list for better performance with many outlines */}
+                                {sortedCourseOutlines.length > 20 ? (
+                                  <VirtualizedList
+                                    items={sortedCourseOutlines}
+                                    height={400}
+                                    itemHeight={60}
+                                    renderItem={(outline) => (
+                                      <div className="px-2 py-1">
+                                        <OutlineListItem outline={outline} activeTab={activeTab} />
+                                      </div>
+                                    )}
+                                  />
+                                ) : (
+                                  <div className="space-y-1">
+                                    {sortedCourseOutlines.map(outline => (
+                                      <OutlineListItem key={outline.id} outline={outline} activeTab={activeTab} />
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>

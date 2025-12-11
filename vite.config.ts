@@ -124,24 +124,10 @@ export default defineConfig({
             return 'pdfjs';
           }
           
-          // Split Radix UI into smaller chunks by component
-          if (id.includes('@radix-ui/react-dialog')) {
-            return 'radix-dialog';
-          }
-          if (id.includes('@radix-ui/react-select')) {
-            return 'radix-select';
-          }
-          if (id.includes('@radix-ui/react-tabs')) {
-            return 'radix-tabs';
-          }
-          if (id.includes('@radix-ui/react-popover')) {
-            return 'radix-popover';
-          }
-          if (id.includes('@radix-ui/react-dropdown-menu')) {
-            return 'radix-dropdown';
-          }
+          // Group all Radix UI components together (they share dependencies)
+          // Splitting them individually breaks shared module resolution
           if (id.includes('@radix-ui')) {
-            return 'radix-other';
+            return 'radix-ui';
           }
           
           // Split Supabase client

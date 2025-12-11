@@ -769,7 +769,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   // Cache for user profiles and course data
 
   // Database functions
-  const fetchPosts = useCallback(async (isInitialLoad: boolean = true) => {
+  const fetchPosts = useCallback(async (isInitialLoad: boolean = true, limit?: number) => {
     try {
       if (isInitialLoad) {
         setLoading(true);
@@ -817,6 +817,11 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       } else {
         // Campus feed - only posts without course_id
         query = query.is('course_id', null);
+      }
+
+      // Limit initial payload to reduce LCP/TBT; fetch rest later
+      if (limit && limit > 0) {
+        query = query.limit(limit);
       }
 
       const { data, error } = await query;
@@ -1301,7 +1306,12 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   // Load posts when component mounts, feedMode changes, or user changes
   useEffect(() => {
     if (user) {
-      fetchPosts();
+      // Small payload first to unblock LCP/TBT, then full load in background
+      fetchPosts(true, 10);
+      const bg = setTimeout(() => {
+        fetchPosts(false);
+      }, 1500);
+      return () => clearTimeout(bg);
     }
   }, [feedMode, user, fetchPosts]);
 

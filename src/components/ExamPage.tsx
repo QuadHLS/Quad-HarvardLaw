@@ -844,6 +844,9 @@ export function ExamPage({
     const [hasCheckedLimit, setHasCheckedLimit] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const isVisibleRef = useRef(false);
+    // Get document URLs for PDF (Google Docs Viewer) and DOCX (Office Online Viewer)
+    const [documentUrl, setDocumentUrl] = useState<string | null>(null);
+    const [urlLoading, setUrlLoading] = useState(true);
 
     // Check monthly usage limit before allowing preview
     useEffect(() => {
@@ -902,25 +905,6 @@ export function ExamPage({
       observer.observe(container);
       return () => observer.disconnect();
     }, [exam.id]);
-
-    // Early return for limit errors
-    if (limitError) {
-      return (
-        <div className="h-full flex items-center justify-center">
-          <div className="text-center p-8">
-            <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <FileText className="w-8 h-8 text-red-400" />
-            </div>
-            <h3 className="text-lg font-semibold text-white mb-2">Preview Unavailable</h3>
-            <p className="text-gray-300 mb-6">{limitError}</p>
-          </div>
-        </div>
-      );
-    }
-
-    // Get document URLs for PDF (Google Docs Viewer) and DOCX (Office Online Viewer)
-    const [documentUrl, setDocumentUrl] = useState<string | null>(null);
-    const [urlLoading, setUrlLoading] = useState(true);
 
     useEffect(() => {
       const getUrl = async () => {
@@ -1217,7 +1201,12 @@ export function ExamPage({
                       <BookOpen className="w-4 h-4" />
                       Course:
                     </label>
-                    <Popover open={courseComboboxOpen} onOpenChange={setCourseComboboxOpen}>
+                    <Popover open={courseComboboxOpen} onOpenChange={(open) => {
+                      setCourseComboboxOpen(open);
+                      if (open) {
+                        setPreviewExam(null);
+                      }
+                    }}>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
@@ -1263,7 +1252,12 @@ export function ExamPage({
                       <User className="w-4 h-4" />
                       Professor:
                     </label>
-                    <Popover open={professorComboboxOpen} onOpenChange={setProfessorComboboxOpen}>
+                    <Popover open={professorComboboxOpen} onOpenChange={(open) => {
+                      setProfessorComboboxOpen(open);
+                      if (open) {
+                        setPreviewExam(null);
+                      }
+                    }}>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
@@ -1313,7 +1307,15 @@ export function ExamPage({
                       <Award className="w-4 h-4" />
                       Grade:
                     </label>
-                    <Select value={selectedGrade || 'all-grades'} onValueChange={(value) => setSelectedGrade(value === 'all-grades' ? undefined : value)}>
+                    <Select 
+                      value={selectedGrade || 'all-grades'} 
+                      onValueChange={(value) => setSelectedGrade(value === 'all-grades' ? undefined : value)}
+                      onOpenChange={(open) => {
+                        if (open) {
+                          setPreviewExam(null);
+                        }
+                      }}
+                    >
                       <SelectTrigger 
                         className="bg-input-background border-border hover:bg-gray-100 transition-colors px-2"
                         style={{ width: '60px', minWidth: '60px', maxWidth: '60px' }}
@@ -1335,7 +1337,15 @@ export function ExamPage({
                       Year:
                     </label>
                     <div className="flex items-center gap-2">
-                      <Select value={selectedYear || 'all-years'} onValueChange={(value) => setSelectedYear(value === 'all-years' ? undefined : value)}>
+                      <Select 
+                        value={selectedYear || 'all-years'} 
+                        onValueChange={(value) => setSelectedYear(value === 'all-years' ? undefined : value)}
+                        onOpenChange={(open) => {
+                          if (open) {
+                            setPreviewExam(null);
+                          }
+                        }}
+                      >
                         <SelectTrigger 
                           className="bg-input-background border-border hover:bg-gray-100 transition-colors px-2"
                           style={{ width: '80px', minWidth: '80px', maxWidth: '80px' }}
@@ -1374,7 +1384,15 @@ export function ExamPage({
                       <BookOpen className="w-4 h-4" />
                       Course:
                     </label>
-                    <Select value={savedCourseFilter || 'all-courses'} onValueChange={(value) => setSavedCourseFilter(value === 'all-courses' ? '' : value)}>
+                    <Select 
+                      value={savedCourseFilter || 'all-courses'} 
+                      onValueChange={(value) => setSavedCourseFilter(value === 'all-courses' ? '' : value)}
+                      onOpenChange={(open) => {
+                        if (open) {
+                          setPreviewExam(null);
+                        }
+                      }}
+                    >
                       <SelectTrigger 
                         className="bg-input-background border-border hover:bg-gray-100 transition-colors"
                         style={{ width: '160px', minWidth: '160px', maxWidth: '160px' }}
@@ -1395,7 +1413,15 @@ export function ExamPage({
                       <Award className="w-4 h-4" />
                       Grade:
                     </label>
-                    <Select value={savedGradeFilter || 'all-grades'} onValueChange={(value) => setSavedGradeFilter(value === 'all-grades' ? undefined : value)}>
+                    <Select 
+                      value={savedGradeFilter || 'all-grades'} 
+                      onValueChange={(value) => setSavedGradeFilter(value === 'all-grades' ? undefined : value)}
+                      onOpenChange={(open) => {
+                        if (open) {
+                          setPreviewExam(null);
+                        }
+                      }}
+                    >
                       <SelectTrigger 
                         className="bg-input-background border-border hover:bg-gray-100 transition-colors px-2"
                         style={{ width: '60px', minWidth: '60px', maxWidth: '60px' }}
@@ -1417,7 +1443,15 @@ export function ExamPage({
                       Year:
                     </label>
                     <div className="flex items-center gap-2">
-                      <Select value={savedYearFilter || 'all-years'} onValueChange={(value) => setSavedYearFilter(value === 'all-years' ? undefined : value)}>
+                      <Select 
+                        value={savedYearFilter || 'all-years'} 
+                        onValueChange={(value) => setSavedYearFilter(value === 'all-years' ? undefined : value)}
+                        onOpenChange={(open) => {
+                          if (open) {
+                            setPreviewExam(null);
+                          }
+                        }}
+                      >
                         <SelectTrigger 
                           className="bg-input-background border-border hover:bg-gray-100 transition-colors px-2"
                           style={{ width: '80px', minWidth: '80px', maxWidth: '80px' }}

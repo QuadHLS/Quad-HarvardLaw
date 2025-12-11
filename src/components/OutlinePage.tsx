@@ -850,6 +850,9 @@ export function OutlinePage({
     const [hasCheckedLimit, setHasCheckedLimit] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const isVisibleRef = useRef(false);
+    // Get document URLs for PDF (Google Docs Viewer) and DOCX (Office Online Viewer)
+    const [documentUrl, setDocumentUrl] = useState<string | null>(null);
+    const [urlLoading, setUrlLoading] = useState(true);
 
     // Check monthly usage limit before allowing preview
     useEffect(() => {
@@ -923,10 +926,6 @@ export function OutlinePage({
         </div>
       );
     }
-
-    // Get document URLs for PDF (Google Docs Viewer) and DOCX (Office Online Viewer)
-    const [documentUrl, setDocumentUrl] = useState<string | null>(null);
-    const [urlLoading, setUrlLoading] = useState(true);
 
     useEffect(() => {
       const getUrl = async () => {
@@ -1224,7 +1223,12 @@ export function OutlinePage({
                       <BookOpen className="w-4 h-4" />
                       Course:
                     </label>
-                    <Popover open={courseComboboxOpen} onOpenChange={setCourseComboboxOpen}>
+                    <Popover open={courseComboboxOpen} onOpenChange={(open) => {
+                      setCourseComboboxOpen(open);
+                      if (open) {
+                        setPreviewOutline(null);
+                      }
+                    }}>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
@@ -1270,7 +1274,12 @@ export function OutlinePage({
                       <User className="w-4 h-4" />
                       Professor:
                     </label>
-                    <Popover open={professorComboboxOpen} onOpenChange={setProfessorComboboxOpen}>
+                    <Popover open={professorComboboxOpen} onOpenChange={(open) => {
+                      setProfessorComboboxOpen(open);
+                      if (open) {
+                        setPreviewOutline(null);
+                      }
+                    }}>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
@@ -1320,7 +1329,15 @@ export function OutlinePage({
                       <Award className="w-4 h-4" />
                       Grade:
                     </label>
-                    <Select value={selectedGrade || 'all-grades'} onValueChange={(value) => setSelectedGrade(value === 'all-grades' ? undefined : value)}>
+                    <Select 
+                      value={selectedGrade || 'all-grades'} 
+                      onValueChange={(value) => setSelectedGrade(value === 'all-grades' ? undefined : value)}
+                      onOpenChange={(open) => {
+                        if (open) {
+                          setPreviewOutline(null);
+                        }
+                      }}
+                    >
                       <SelectTrigger 
                         className="bg-input-background border-border hover:bg-gray-100 transition-colors px-2"
                         style={{ width: '60px', minWidth: '60px', maxWidth: '60px' }}
@@ -1341,7 +1358,15 @@ export function OutlinePage({
                       <Calendar className="w-4 h-4" />
                       Year:
                     </label>
-                    <Select value={selectedYear || 'all-years'} onValueChange={(value) => setSelectedYear(value === 'all-years' ? undefined : value)}>
+                    <Select 
+                      value={selectedYear || 'all-years'} 
+                      onValueChange={(value) => setSelectedYear(value === 'all-years' ? undefined : value)}
+                      onOpenChange={(open) => {
+                        if (open) {
+                          setPreviewOutline(null);
+                        }
+                      }}
+                    >
                       <SelectTrigger 
                         className="bg-input-background border-border hover:bg-gray-100 transition-colors px-2"
                         style={{ width: '80px', minWidth: '80px', maxWidth: '80px' }}
@@ -1413,7 +1438,15 @@ export function OutlinePage({
                       <BookOpen className="w-4 h-4" />
                       Course:
                     </label>
-                    <Select value={savedCourseFilter || 'all-courses'} onValueChange={(value) => setSavedCourseFilter(value === 'all-courses' ? '' : value)}>
+                    <Select 
+                      value={savedCourseFilter || 'all-courses'} 
+                      onValueChange={(value) => setSavedCourseFilter(value === 'all-courses' ? '' : value)}
+                      onOpenChange={(open) => {
+                        if (open) {
+                          setPreviewOutline(null);
+                        }
+                      }}
+                    >
                       <SelectTrigger 
                         className="bg-input-background border-border hover:bg-gray-100 transition-colors"
                         style={{ width: '160px', minWidth: '160px', maxWidth: '160px' }}
@@ -1434,7 +1467,15 @@ export function OutlinePage({
                       <Award className="w-4 h-4" />
                       Grade:
                     </label>
-                    <Select value={savedGradeFilter || 'all-grades'} onValueChange={(value) => setSavedGradeFilter(value === 'all-grades' ? undefined : value)}>
+                    <Select 
+                      value={savedGradeFilter || 'all-grades'} 
+                      onValueChange={(value) => setSavedGradeFilter(value === 'all-grades' ? undefined : value)}
+                      onOpenChange={(open) => {
+                        if (open) {
+                          setPreviewOutline(null);
+                        }
+                      }}
+                    >
                       <SelectTrigger 
                         className="bg-input-background border-border hover:bg-gray-100 transition-colors px-2"
                         style={{ width: '60px', minWidth: '60px', maxWidth: '60px' }}
@@ -1455,7 +1496,15 @@ export function OutlinePage({
                       <Calendar className="w-4 h-4" />
                       Year:
                     </label>
-                    <Select value={savedYearFilter || 'all-years'} onValueChange={(value) => setSavedYearFilter(value === 'all-years' ? undefined : value)}>
+                    <Select 
+                      value={savedYearFilter || 'all-years'} 
+                      onValueChange={(value) => setSavedYearFilter(value === 'all-years' ? undefined : value)}
+                      onOpenChange={(open) => {
+                        if (open) {
+                          setPreviewOutline(null);
+                        }
+                      }}
+                    >
                       <SelectTrigger 
                         className="bg-input-background border-border hover:bg-gray-100 transition-colors px-2"
                         style={{ width: '80px', minWidth: '80px', maxWidth: '80px' }}

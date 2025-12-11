@@ -10,6 +10,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: 'script-defer', // Defer service worker registration to not block critical path
       includeAssets: ['QUAD.svg', 'QUAD.png', 'robots.txt', 'sitemap.xml'],
       manifest: {
         name: 'Quad - Harvard Law Platform',
@@ -110,6 +111,7 @@ export default defineConfig({
     outDir: 'build',
     minify: 'terser',
     sourcemap: 'hidden', // Generate source maps but don't expose them in production (security)
+    cssCodeSplit: true, // Split CSS into separate files for better caching
     terserOptions: {
       compress: {
         drop_console: true, // Remove console.log, console.warn, etc. in production

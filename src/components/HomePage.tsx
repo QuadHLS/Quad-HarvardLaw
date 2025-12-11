@@ -226,6 +226,7 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
   const [showAddTodo, setShowAddTodo] = useState(false);
   const [selectedDueDate, setSelectedDueDate] = useState<Date | undefined>(undefined);
   const [todoCollapsed, setTodoCollapsed] = useState(false);
+  const [showPomodoro, setShowPomodoro] = useState(false);
   const [AddTodoDialogComponent, setAddTodoDialogComponent] = useState<React.ComponentType<any> | null>(null);
   const [PomodoroTimerComponent, setPomodoroTimerComponent] = useState<React.ComponentType<any> | null>(null);
 
@@ -250,8 +251,6 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
       });
     }
   }, [showPomodoro, PomodoroTimerComponent]);
-
-  const [showPomodoro, setShowPomodoro] = useState(false);
 
   // Load todos from profile on mount
   useEffect(() => {

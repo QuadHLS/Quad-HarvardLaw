@@ -138,6 +138,7 @@ export default defineConfig({
           
           // Group all other Radix UI components together (they share dependencies)
           // Splitting them individually breaks shared module resolution
+          // IMPORTANT: This chunk should NOT be preloaded - only load when lazy-loaded components need it
           if (id.includes('@radix-ui')) {
             return 'radix-ui';
           }

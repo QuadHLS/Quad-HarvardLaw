@@ -13,22 +13,20 @@ export function removeRadixPreload(): Plugin {
     enforce: 'post', // Run after other plugins (including HTML plugin)
     writeBundle() {
       // Use writeBundle to run after Vite's HTML plugin writes the file
+      // Same hook as deferCSS plugin which works
       const htmlPath = join(process.cwd(), 'build', 'index.html');
       try {
         let html = readFileSync(htmlPath, 'utf-8');
-        let modified = false;
+        const originalHtml = html;
 
         // Remove modulepreload links for Radix UI chunk
         // This prevents Radix UI from being preloaded on initial page load
         html = html.replace(
           /<link[^>]*rel=["']modulepreload["'][^>]*href=["'][^"']*radix-ui[^"']*["'][^>]*>/gi,
-          (match) => {
-            modified = true;
-            return ''; // Remove the link
-          }
+          ''
         );
-
-        if (modified) {
+        
+        if (html !== originalHtml) {
           writeFileSync(htmlPath, html, 'utf-8');
           console.log('✅ Removed Radix UI modulepreload from index.html');
         }

@@ -4,10 +4,12 @@ import react from '@vitejs/plugin-react-swc';
 import { VitePWA } from 'vite-plugin-pwa';
 import { visualizer } from 'rollup-plugin-visualizer';
 import path from 'path';
+import { deferCSS } from './vite-plugin-defer-css';
 
 export default defineConfig({
   plugins: [
     react(),
+    deferCSS(), // Defer non-critical CSS to prevent render blocking
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'script-defer', // Defer service worker registration to not block critical path

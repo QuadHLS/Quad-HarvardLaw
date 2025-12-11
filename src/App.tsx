@@ -404,22 +404,35 @@ function AppContent({ user }: { user: any }) {
         }
         
         // Transform database data to match Outline interface
-        const transformedOutlines = allOutlines.map((item: any): Outline => ({
-          id: item.id,
-          title: item.title,
-          file_name: item.file_name,
-          file_path: item.file_path,
-          file_type: item.file_type,
-          file_size: item.file_size,
-          course: item.course,
-          instructor: item.instructor,
-          year: item.year,
-          pages: item.pages || 0,
-          created_at: item.created_at,
-          updated_at: item.updated_at,
-          grade: item.grade || 'P', // Use database 'grade' field directly
-          type: item.pages <= 25 ? 'attack' : 'outline' // Determine type based on page count
-        }));
+        // Break up transformation to avoid blocking main thread
+        const transformedOutlines: Outline[] = [];
+        const transformBatchSize = 100;
+        
+        for (let i = 0; i < allOutlines.length; i += transformBatchSize) {
+          const batch = allOutlines.slice(i, i + transformBatchSize);
+          const transformedBatch = batch.map((item: any): Outline => ({
+            id: item.id,
+            title: item.title,
+            file_name: item.file_name,
+            file_path: item.file_path,
+            file_type: item.file_type,
+            file_size: item.file_size,
+            course: item.course,
+            instructor: item.instructor,
+            year: item.year,
+            pages: item.pages || 0,
+            created_at: item.created_at,
+            updated_at: item.updated_at,
+            grade: item.grade || 'P', // Use database 'grade' field directly
+            type: item.pages <= 25 ? 'attack' : 'outline' // Determine type based on page count
+          }));
+          transformedOutlines.push(...transformedBatch);
+          
+          // Yield to main thread every batch to prevent blocking
+          if (i + transformBatchSize < allOutlines.length) {
+            await new Promise(resolve => setTimeout(resolve, 0));
+          }
+        }
         
         setOutlines(transformedOutlines);
         fetchedOutlinesOnceRef.current = true;

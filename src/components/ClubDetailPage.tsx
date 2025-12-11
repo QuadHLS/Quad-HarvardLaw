@@ -1522,7 +1522,7 @@ export function ClubDetailPage({ clubId, onBack }: ClubDetailPageProps) {
                       />
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-semibold text-gray-900">{selectedPost.author?.name || 'Club'}</h4>
+                          <h3 className="font-semibold text-gray-900">{selectedPost.author?.name || 'Club'}</h3>
                           <span 
                             className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium text-white"
                             style={{ backgroundColor: '#752432' }}
@@ -1942,7 +1942,7 @@ export function ClubDetailPage({ clubId, onBack }: ClubDetailPageProps) {
                       />
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <h5 className="font-medium text-gray-900 text-sm">{comment.author?.name || 'User'}</h5>
+                          <h4 className="font-medium text-gray-900 text-sm">{comment.author?.name || 'User'}</h4>
                           {!comment.is_anonymous && comment.author?.year && (
                             <span className="text-xs text-gray-500">{comment.author.year}</span>
                           )}
@@ -2175,7 +2175,7 @@ export function ClubDetailPage({ clubId, onBack }: ClubDetailPageProps) {
                                 />
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2 mb-1">
-                                    <h6 className="font-medium text-gray-900 text-sm">{reply.author?.name || 'User'}</h6>
+                                    <h5 className="font-medium text-gray-900 text-sm">{reply.author?.name || 'User'}</h5>
                                     {!reply.is_anonymous && reply.author?.year && (
                                       <span className="text-xs text-gray-500">{reply.author.year}</span>
                                     )}
@@ -2453,7 +2453,7 @@ export function ClubDetailPage({ clubId, onBack }: ClubDetailPageProps) {
                     ) : clubPosts.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-12 text-gray-500">
                         <MessageSquare className="w-12 h-12 mb-4 opacity-50" />
-                        <h3 className="text-lg font-medium mb-2">No posts yet</h3>
+                        <h2 className="text-lg font-medium mb-2">No posts yet</h2>
                       </div>
                     ) : (
                       <div className="space-y-4 px-4 py-4 pt-1" style={{ paddingBottom: '40px' }}>
@@ -2506,7 +2506,7 @@ export function ClubDetailPage({ clubId, onBack }: ClubDetailPageProps) {
                               {/* Post Title */}
                               {editingPost !== post.id && (
                                 <div className="mb-3">
-                                  <h2 className="text-lg font-semibold text-gray-900 leading-tight">{post.title}</h2>
+                                  <h3 className="text-lg font-semibold text-gray-900 leading-tight">{post.title}</h3>
                                 </div>
                               )}
 
@@ -2679,7 +2679,7 @@ export function ClubDetailPage({ clubId, onBack }: ClubDetailPageProps) {
                               {/* Poll Component */}
                               {post.poll && (
                                 <div className="mb-4 p-4 rounded-lg">
-                                  <h4 className="font-medium text-gray-900 mb-3">{post.poll.question}</h4>
+                                  <h3 className="font-medium text-gray-900 mb-3">{post.poll.question}</h3>
                                   <div className="space-y-2">
                                     {post.poll.options.map((option) => {
                                       const hasVoted = post.poll!.userVotedOptionId !== undefined;
@@ -2920,7 +2920,7 @@ export function ClubDetailPage({ clubId, onBack }: ClubDetailPageProps) {
                       </div>
                         <div className="text-center mb-3">
                           <div className="flex items-center justify-center gap-2 mb-2">
-                            <h3 className="font-semibold text-gray-900">{member.name}</h3>
+                            <h4 className="font-semibold text-gray-900">{member.name}</h4>
                             {member.year && (
                               <Badge variant="outline" className="text-xs px-2 py-0.5" style={{ borderColor: '#752432', color: '#752432' }}>
                                 {member.year}
@@ -2960,7 +2960,7 @@ export function ClubDetailPage({ clubId, onBack }: ClubDetailPageProps) {
           <TabsContent value="events" className="mt-6">
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">Upcoming Events</h3>
+                <h2 className="text-lg font-semibold text-gray-900">Upcoming Events</h2>
               </div>
 
               <div className="space-y-4">
@@ -2983,7 +2983,7 @@ export function ClubDetailPage({ clubId, onBack }: ClubDetailPageProps) {
                             <Calendar className="w-8 h-8" style={{ color: accentColor }} />
                           </div>
                           <div className="flex-1">
-                            <h4 className="font-medium text-gray-900 mb-2">{event.title}</h4>
+                            <h3 className="font-medium text-gray-900 mb-2">{event.title}</h3>
                             <div className="space-y-1 text-sm text-gray-600 mb-4">
                               {event.date && (
                                 <div className="flex items-center gap-3">
@@ -3151,7 +3151,7 @@ export function ClubDetailPage({ clubId, onBack }: ClubDetailPageProps) {
 
                 {selectedEvent.longDescription && (
                   <div>
-                    <h4 className="font-medium text-gray-900 mb-3">About This Event</h4>
+                    <h3 className="font-medium text-gray-900 mb-3">About This Event</h3>
                     <p className="text-gray-700 leading-relaxed">{selectedEvent.longDescription}</p>
                   </div>
                 )}

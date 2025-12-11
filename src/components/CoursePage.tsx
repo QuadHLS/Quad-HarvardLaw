@@ -1475,16 +1475,25 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
       const postsWithPhotos = transformedPosts.filter(p => p.photo_url);
       if (postsWithPhotos.length > 0) {
         const photoUrlMap = new Map<string, string>();
-        await Promise.all(
-          postsWithPhotos.map(async (post) => {
-            if (post.photo_url) {
-              const signedUrl = await getStorageUrl(post.photo_url, 'post_picture');
-              if (signedUrl) {
-                photoUrlMap.set(post.id, signedUrl);
+        // Process photos in batches to avoid blocking main thread
+        const batchSize = 10;
+        for (let i = 0; i < postsWithPhotos.length; i += batchSize) {
+          const batch = postsWithPhotos.slice(i, i + batchSize);
+          await Promise.all(
+            batch.map(async (post) => {
+              if (post.photo_url) {
+                const signedUrl = await getStorageUrl(post.photo_url, 'post_picture');
+                if (signedUrl) {
+                  photoUrlMap.set(post.id, signedUrl);
+                }
               }
-            }
-          })
-        );
+            })
+          );
+          // Yield to main thread between batches
+          if (i + batchSize < postsWithPhotos.length) {
+            await new Promise(resolve => setTimeout(resolve, 0));
+          }
+        }
         setPostPhotoUrls(photoUrlMap);
       } else {
         setPostPhotoUrls(new Map());

@@ -172,6 +172,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
               width={48}
               height={48}
               loading="eager"
+              fetchPriority="high"
               id="sidebar-quad-logo"
               data-quad-logo="sidebar"
             />
@@ -191,6 +192,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
               activeSection === 'home' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
             }`}
             style={{ borderRightColor: activeSection === 'home' ? '#752432' : 'transparent' }}
+            aria-label={isCollapsedOverride ? 'Home' : undefined}
           >
             <Home className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
             {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Home</span>}
@@ -204,6 +206,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
               activeSection === 'planner' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
             }`}
             style={{ borderRightColor: activeSection === 'planner' ? '#752432' : 'transparent' }}
+            aria-label={isCollapsedOverride ? 'Registration Planner' : undefined}
           >
             <div className="w-5 h-5 flex-shrink-0">
               <CalendarDays className="w-5 h-5" style={{ color: '#752432' }} />
@@ -221,6 +224,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
               activeSection === 'directory' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
             }`}
             style={{ borderRightColor: activeSection === 'directory' ? '#752432' : 'transparent' }}
+            aria-label={isCollapsedOverride ? 'Directory' : undefined}
           >
             <Users className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
             {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Directory</span>}
@@ -267,6 +271,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
                       isActive ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
                     }`}
                     style={{ borderRightColor: isActive ? '#752432' : 'transparent' }}
+                    aria-label={item.label}
                   >
                     <div className="w-4 h-4 flex-shrink-0 transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">
                       <Icon className="w-4 h-4" style={{ color: '#752432' }} />
@@ -286,6 +291,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
               activeSection === 'biglaw-guide' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
             }`}
             style={{ borderRightColor: activeSection === 'biglaw-guide' ? '#752432' : 'transparent' }}
+            aria-label={isCollapsedOverride ? 'Big Law Guide' : undefined}
           >
             <Briefcase className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
             {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Big Law Guide</span>}
@@ -298,6 +304,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
               activeSection === 'quadle' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
             }`}
             style={{ borderRightColor: activeSection === 'quadle' ? '#752432' : 'transparent' }}
+            aria-label={isCollapsedOverride ? 'Quadle' : undefined}
           >
             <Lightbulb className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
             {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Quadle</span>}
@@ -314,6 +321,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
               borderRightColor: activeSection === 'barreview' ? '#752432' : 'transparent',
               transform: `translateY(${barReviewOffset}px)`
             }}
+            aria-label={isCollapsedOverride ? 'Bar Review' : undefined}
           >
             <div className="w-5 h-5 flex-shrink-0">
               <Beer className="w-5 h-5" style={{ color: '#752432' }} />
@@ -334,6 +342,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
               activeSection === 'messaging' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
             }`}
             style={{ borderRightColor: activeSection === 'messaging' ? '#752432' : 'transparent' }}
+            aria-label={isCollapsedOverride ? 'Messaging' : undefined}
           >
             <MessageCircle className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
             {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Messaging</span>}
@@ -349,6 +358,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
               activeSection === 'calendar' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
             }`}
             style={{ borderRightColor: activeSection === 'calendar' ? '#752432' : 'transparent' }}
+            aria-label={isCollapsedOverride ? 'Calendar' : undefined}
           >
             <CalendarDays className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
             {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Calendar</span>}
@@ -364,6 +374,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
               activeSection === 'feedback' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
             }`}
             style={{ borderRightColor: activeSection === 'feedback' ? '#752432' : 'transparent' }}
+            aria-label={isCollapsedOverride ? 'Feedback' : undefined}
           >
             <Mail className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
             {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Feedback</span>}
@@ -379,6 +390,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
               activeSection === 'profile' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
             }`}
             style={{ borderRightColor: activeSection === 'profile' ? '#752432' : 'transparent' }}
+            aria-label={isCollapsedOverride ? `Profile: ${userName.replace(/\.$/, '')}` : undefined}
           >
             <User className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
             {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">{userName.replace(/\.$/, '')}</span>}

@@ -411,7 +411,7 @@ export function BarReviewPage({ onNavigateToStudentProfile }: BarReviewPageProps
               <div className="text-white p-8" style={{ backgroundColor: '#0080bd' }}>
                 <div className="flex items-center justify-between h-full">
                   <div className="flex flex-col">
-                    <h2 className="text-2xl font-medium mb-3">Bar Review</h2>
+                    <h2 className="text-2xl font-medium mb-3">Bar Review Events</h2>
                     <div className="flex items-center gap-2 text-sm">
                       <Calendar className="w-4 h-4" />
                       <span>{getEventDate()}</span>

@@ -80,7 +80,7 @@ export default function DocumentPreview({
           <div className="w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
             <FileText className="w-8 h-8 text-yellow-400" />
           </div>
-          <h3 className="text-lg font-semibold text-white mb-2">Preview Not Supported</h3>
+          <h2 className="text-lg font-semibold text-white mb-2">Preview Not Supported</h2>
           <p className="text-gray-300 mb-6">This file type cannot be previewed in the browser</p>
           <DownloadLink />
         </div>
@@ -100,7 +100,7 @@ export default function DocumentPreview({
             <FileText className="w-3 h-3 text-white" />
           </div>
           <div>
-            <h3 className="text-white font-medium text-sm">{title}</h3>
+            <h2 className="text-white font-medium text-sm">{title}</h2>
             <p className="text-gray-400 text-xs">{documentType} Document</p>
           </div>
         </div>
@@ -124,7 +124,7 @@ export default function DocumentPreview({
               <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
                 <FileText className="w-8 h-8 text-red-400" />
               </div>
-              <h3 className="text-lg font-semibold text-white mb-2">Preview Unavailable</h3>
+              <h2 className="text-lg font-semibold text-white mb-2">Preview Unavailable</h2>
               <p className="text-gray-300 mb-6">{error}</p>
               <DownloadLink />
             </div>

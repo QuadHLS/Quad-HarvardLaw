@@ -1498,6 +1498,7 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
                     onClick={() => setShowChatbot(true)}
                     className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors group"
                     title="Quadly - Your AI Course Assistant"
+                    aria-label="Quadly - Your AI Course Assistant"
                   >
                     <div className="w-4 h-4 relative">
                       <svg viewBox="0 0 16 16" className="w-full h-full">

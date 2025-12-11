@@ -109,10 +109,33 @@ export default defineConfig({
     target: 'esnext',
     outDir: 'build',
     minify: 'terser',
+    sourcemap: 'hidden', // Generate source maps but don't expose them in production (security)
     terserOptions: {
       compress: {
         drop_console: true, // Remove console.log, console.warn, etc. in production
         drop_debugger: true, // Remove debugger statements
+      },
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Split PDF.js into separate chunk (only loaded when needed)
+          'pdfjs': ['pdfjs-dist'],
+          // Split large UI libraries
+          'radix-ui': [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-select',
+            '@radix-ui/react-tabs',
+            '@radix-ui/react-popover',
+          ],
+          // Split Supabase client
+          'supabase': ['@supabase/supabase-js'],
+          // Split React Query
+          'react-query': ['@tanstack/react-query'],
+          // Split other large dependencies
+          'vendor': ['react-router-dom', 'framer-motion'],
+        },
       },
     },
   },

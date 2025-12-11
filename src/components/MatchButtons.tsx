@@ -57,6 +57,8 @@ export function MatchButtons({
 
         title="How Match Works"
 
+        aria-label="How Match Works"
+
       >
 
         <HelpCircle className="w-4 h-4" />

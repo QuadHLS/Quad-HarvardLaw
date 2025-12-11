@@ -361,7 +361,7 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
         <div className="px-4 py-2 border-b border-gray-200" style={{ backgroundColor: '#F8F4ED' }}>
           <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-gray-900">To Do</h3>
+              <h2 className="font-semibold text-gray-900">To Do</h2>
         </div>
             <div className="flex items-center gap-1">
         <Button
@@ -1329,7 +1329,7 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
             <Card className="overflow-hidden relative flex-shrink-0" style={{ backgroundColor: '#FEFBF6' }}>
               <div className="px-4 py-3 border-b border-gray-200 flex-shrink-0" style={{ backgroundColor: '#F8F4ED' }}>
                 <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-gray-900">{monthNames[currentMonth]} {currentYear}</h3>
+                  <h2 className="font-semibold text-gray-900">{monthNames[currentMonth]} {currentYear}</h2>
                   <div className="flex items-center gap-2">
                     <Button 
                       variant="ghost" 
@@ -1486,9 +1486,9 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
             <Card className="p-0 overflow-hidden flex-shrink-0" style={{ backgroundColor: '#FEFBF6' }}>
               {/* Header */}
               <div className="p-4 border-b border-gray-200 flex-shrink-0" style={{ backgroundColor: '#F8F4ED' }}>
-                <h3 className="font-semibold text-gray-900">
+                <h2 className="font-semibold text-gray-900">
                   {selectedDate.toDateString() === new Date().toDateString() ? 'Today' : 'Schedule'}
-                </h3>
+                </h2>
                 <p className="text-xs text-gray-600">
                   {selectedDate.toLocaleDateString('en-US', {
                     weekday: 'long',

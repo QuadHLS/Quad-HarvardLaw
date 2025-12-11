@@ -3213,6 +3213,7 @@ export function CalendarPage({ additionalEvents = [] }: CalendarPageProps) {
                               size="sm"
                               variant="ghost"
                               className="h-6 w-6 p-0 flex-shrink-0"
+                              aria-label={addedEventIds.includes(event.id) || event.id.startsWith('custom-') ? 'Remove event' : 'Add event'}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 // If it's a user-created event, always call handleRemoveEvent to delete from database

@@ -3937,7 +3937,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                <img src="/text_picture_icon.svg" alt="Text and Picture" className="h-5 w-auto object-contain" />
+                <img src="/text_picture_icon.svg" alt="Text and Picture" className="h-5 w-auto object-contain" width={20} height={20} loading="lazy" />
                 <span>Text and Picture</span>
               </button>
               <button
@@ -3954,10 +3954,10 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                <img src="/yt_icon_red_digital.png" alt="YouTube" className="h-6 w-auto object-contain" />
-                <img src="/Youtube_shorts_icon.svg" alt="YouTube Shorts" className="h-5 w-auto object-contain" />
-                <img src="/TikTok_Icon_Black_Circle.png" alt="TikTok" className="h-5 w-auto object-contain" />
-                <img src="/Instagram_Glyph_Gradient.png" alt="Instagram" className="h-5 w-auto object-contain" />
+                <img src="/yt_icon_red_digital.png" alt="YouTube" className="h-6 w-auto object-contain" width={24} height={24} loading="lazy" />
+                <img src="/Youtube_shorts_icon.svg" alt="YouTube Shorts" className="h-5 w-auto object-contain" width={20} height={20} loading="lazy" />
+                <img src="/TikTok_Icon_Black_Circle.png" alt="TikTok" className="h-5 w-auto object-contain" width={20} height={20} loading="lazy" />
+                <img src="/Instagram_Glyph_Gradient.png" alt="Instagram" className="h-5 w-auto object-contain" width={20} height={20} loading="lazy" />
               </button>
               <button
                 onClick={() => {

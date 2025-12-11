@@ -961,7 +961,7 @@ function AppContent({ user }: { user: any }) {
       <Toaster position="top-right" />
 
       {/* Main Content */}
-      <div className={`flex-1 overflow-hidden ${sidebarCollapsed ? 'ml-16' : 'ml-40'}`} style={{ transition: 'margin-left 300ms ease' }}>
+      <main className={`flex-1 overflow-hidden ${sidebarCollapsed ? 'ml-16' : 'ml-40'}`} style={{ transition: 'margin-left 300ms ease' }}>
         <Suspense fallback={<PageLoadingFallback />}>
           <Routes>
           <Route path="/" element={
@@ -1072,7 +1072,7 @@ function AppContent({ user }: { user: any }) {
           } />
           </Routes>
         </Suspense>
-      </div>
+      </main>
     </div>
   );
 

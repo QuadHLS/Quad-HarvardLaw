@@ -14,14 +14,14 @@ export const queryClient = new QueryClient({
     queries: {
       // Cache data for 5 minutes (data stays fresh for 5 min)
       staleTime: 5 * 60 * 1000,
-      // Keep unused data in cache for 10 minutes
-      gcTime: 10 * 60 * 1000, // Previously cacheTime
+      // Keep unused data in cache for 30 minutes (longer for feed to persist across navigation)
+      gcTime: 30 * 60 * 1000, // Previously cacheTime - 30 min for feed persistence
       // Retry failed requests 1 time
       retry: 1,
       // Don't refetch on window focus (better UX - no loading spinners when switching tabs)
       // Data is still fresh for 5 minutes, so refetching is unnecessary
       refetchOnWindowFocus: false,
-      // Don't refetch on mount if data is fresh
+      // Don't refetch on mount if data is fresh (shows cached data immediately)
       refetchOnMount: false,
       // Don't refetch on reconnect if data is fresh
       refetchOnReconnect: false,

@@ -1,4 +1,4 @@
-import React, { useState, ChangeEvent, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, ChangeEvent, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Button } from './ui/button';
 import { Toaster } from './ui/sonner';
@@ -17,6 +17,9 @@ import { supabase } from '../lib/supabase';
 import { getStorageUrl, extractFilename } from '../utils/storage';
 import { ExpandableText } from './ui/expandable-text';
 import { ConfirmationPopup } from './ui/confirmation-popup';
+const EventsTab = lazy(() => import('./ClubAccountTabs/EventsTab').then(m => ({ default: m.EventsTab })));
+const MembersTab = lazy(() => import('./ClubAccountTabs/MembersTab').then(m => ({ default: m.MembersTab })));
+const FeedTab = lazy(() => import('./ClubAccountTabs/FeedTab').then(m => ({ default: m.FeedTab })));
 
 // Types
 export interface Event {
@@ -728,7 +731,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
     }
   };
 
-  const startEditing = (event: Event) => {
+  const startEditingEvent = (event: Event) => {
     // Convert old time format to new startTime/endTime format if needed
     let startTime = event.startTime || '';
     let endTime = event.endTime || '';
@@ -1497,7 +1500,7 @@ function ClubEvents({ formData, updateFormData }: { formData: ClubFormData; upda
                       )}
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => startEditing(event)}>
+                      <Button variant="outline" size="sm" onClick={() => startEditingEvent(event)}>
                         <Edit2 className="w-4 h-4" />
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => deleteEvent(event.id)}>
@@ -1714,7 +1717,7 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
     }
   };
 
-  const startEditing = async (member: Member) => {
+  const startEditingMember = async (member: Member) => {
     setEditingMember(member.id);
     
     // Convert picture filename to signed URL for display if it exists
@@ -2477,7 +2480,7 @@ function ClubMembers({ formData, updateFormData }: { formData: ClubFormData; upd
                           )}
                         </div>
                         <div className="flex gap-2">
-                          <Button variant="outline" size="sm" onClick={() => startEditing(member)}>
+                          <Button variant="outline" size="sm" onClick={() => startEditingMember(member)}>
                             <Edit2 className="w-4 h-4" />
                           </Button>
                           <Button variant="outline" size="sm" onClick={() => deleteMember(member.id)}>
@@ -3594,7 +3597,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
       setCommentAnonymously(prev => ({ ...prev, [postId]: false }));
 
       // Sync with server in background
-      const { data, error } = await supabase
+      const { data: _data, error } = await supabase
         .from('comments')
         .insert({
           post_id: postId,
@@ -3677,7 +3680,7 @@ function ClubFeedPost({ formData: _formData }: { formData: ClubFormData; updateF
       setReplyingTo(null);
 
       // Sync with server in background
-      const { data, error } = await supabase
+      const { data: _data, error } = await supabase
         .from('comments')
         .insert({
           post_id: postId,
@@ -5587,6 +5590,11 @@ export const ClubAccountPage: React.FC = () => {
   const [currentAvatarUrl, setCurrentAvatarUrl] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   
+  // RSVP state for EventsTab
+  const [rsvpDialogOpen, setRsvpDialogOpen] = useState<string | null>(null);
+  const [rsvpSearchQuery, setRsvpSearchQuery] = useState('');
+  const [rsvpNames, _setRsvpNames] = useState<Record<string, string>>({}); // Map of userId -> fullName
+  
   // Store original values to detect changes
   const [originalValues, setOriginalValues] = useState<{
     name: string;
@@ -5720,6 +5728,104 @@ export const ClubAccountPage: React.FC = () => {
 
   const updateFormData = (field: keyof ClubFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Delete event function
+  const deleteEvent = async (id: string) => {
+    try {
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        console.error('Error getting user:', userError);
+        toast.error('Failed to delete: User not authenticated');
+        return;
+      }
+
+      // Update local state first
+      const updatedEvents = formData.events.filter(event => event.id !== id);
+      updateFormData('events', updatedEvents);
+
+      // Save to database
+      const { error } = await supabase
+        .from('club_accounts')
+        .update({
+          events: updatedEvents,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error deleting event:', error?.message || "Unknown error");
+        toast.error('Failed to delete event');
+        // Revert local state on error
+        updateFormData('events', formData.events);
+        return;
+      }
+
+      toast.success('Event deleted successfully');
+    } catch (err) {
+      console.error('Unexpected error deleting event:', err instanceof Error ? err.message : "Unknown error");
+      toast.error('An unexpected error occurred while deleting');
+      // Revert local state on error
+      updateFormData('events', formData.events);
+    }
+  };
+
+  // Delete RSVP function
+  const deleteRsvp = async (eventId: string, rsvpUserId: string) => {
+    try {
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        console.error('Error getting user:', userError);
+        toast.error('Failed to delete RSVP: User not authenticated');
+        return;
+      }
+
+      // Update local state first
+      const updatedEvents = formData.events.map(event => 
+        event.id === eventId 
+          ? { ...event, rsvps: event.rsvps.filter(userId => userId !== rsvpUserId) }
+          : event
+      );
+      updateFormData('events', updatedEvents);
+
+      // Save to database
+      const { error } = await supabase
+        .from('club_accounts')
+        .update({
+          events: updatedEvents,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error deleting RSVP:', error?.message || "Unknown error");
+        toast.error('Failed to delete RSVP');
+        // Revert local state on error
+        updateFormData('events', formData.events);
+        return;
+      }
+
+      toast.success('RSVP deleted successfully');
+    } catch (err) {
+      console.error('Unexpected error deleting RSVP:', err instanceof Error ? err.message : "Unknown error");
+      toast.error('An unexpected error occurred while deleting');
+      // Revert local state on error
+      updateFormData('events', formData.events);
+    }
+  };
+
+  // Start editing event - placeholder since editing is handled in EventsTab
+  const startEditingEvent = (_event: Event) => {
+    // Editing is handled within EventsTab component
+    // This function is kept for compatibility with the component interface
+  };
+
+  // Start editing member - placeholder since editing is handled in MembersTab  
+  const startEditingMember = async (_member: Member) => {
+    // Editing is handled within MembersTab component
+    // This function is kept for compatibility with the component interface
   };
 
   // Save function for Basic Info box (picture, name, tag, description)
@@ -5952,61 +6058,86 @@ export const ClubAccountPage: React.FC = () => {
             </div>
 
             <div className={`flex-1 pr-2 ${activeTab === 'basic' ? 'overflow-hidden' : 'overflow-y-auto'}`} style={{ minHeight: 0, paddingBottom: activeTab === 'basic' ? 0 : undefined }}>
-              <TabsContent value="basic" className="overflow-hidden h-full" style={{ width: '100%', paddingBottom: 0, marginBottom: 0 }}>
-                {loading ? (
+              <Suspense
+                fallback={
                   <div className="flex items-center justify-center py-12">
-                    <p className="text-gray-600">Loading club data...</p>
+                    <p className="text-gray-600">Loading...</p>
                   </div>
-                ) : (
-                  <ClubBasicInfo 
-                    formData={formData}
-                    updateFormData={updateFormData}
-                    onSaveBasicInfo={handleSaveBasicInfo}
-                    onSaveMission={handleSaveMission}
-                    onSaveContact={handleSaveContact}
-                    savingBasicInfo={savingBasicInfo}
-                    savingMission={savingMission}
-                    savingContact={savingContact}
-                    onAvatarUploaded={(fileName) => {
-                      setCurrentAvatarUrl(fileName);
-                    }}
-                    onAvatarDeleted={() => {
-                      setCurrentAvatarUrl(null);
-                    }}
-                    currentAvatarUrl={currentAvatarUrl}
-                    uploadingAvatar={uploadingAvatar}
-                    setUploadingAvatar={setUploadingAvatar}
-                    hasBasicInfoChanges={hasBasicInfoChanges}
-                    hasMissionChanges={hasMissionChanges}
-                    hasContactChanges={hasContactChanges}
-                  />
+                }
+              >
+                {activeTab === 'basic' && (
+                  <TabsContent value="basic" className="overflow-hidden h-full" style={{ width: '100%', paddingBottom: 0, marginBottom: 0 }}>
+                    {loading ? (
+                      <div className="flex items-center justify-center py-12">
+                        <p className="text-gray-600">Loading club data...</p>
+                      </div>
+                    ) : (
+                      <ClubBasicInfo 
+                        formData={formData}
+                        updateFormData={updateFormData}
+                        onSaveBasicInfo={handleSaveBasicInfo}
+                        onSaveMission={handleSaveMission}
+                        onSaveContact={handleSaveContact}
+                        savingBasicInfo={savingBasicInfo}
+                        savingMission={savingMission}
+                        savingContact={savingContact}
+                        onAvatarUploaded={(fileName) => {
+                          setCurrentAvatarUrl(fileName);
+                        }}
+                        onAvatarDeleted={() => {
+                          setCurrentAvatarUrl(null);
+                        }}
+                        currentAvatarUrl={currentAvatarUrl}
+                        uploadingAvatar={uploadingAvatar}
+                        setUploadingAvatar={setUploadingAvatar}
+                        hasBasicInfoChanges={hasBasicInfoChanges}
+                        hasMissionChanges={hasMissionChanges}
+                        hasContactChanges={hasContactChanges}
+                      />
+                    )}
+                  </TabsContent>
                 )}
-              </TabsContent>
 
-              <TabsContent value="events" className="space-y-4">
-                <div className="max-w-2xl mx-auto">
-                  <ClubEvents
-                    formData={formData}
-                    updateFormData={updateFormData}
-                  />
-                </div>
-              </TabsContent>
+                {activeTab === 'events' && (
+                  <TabsContent value="events" className="space-y-4">
+                    <div className="max-w-2xl mx-auto">
+                      <EventsTab
+                        formData={formData}
+                        updateFormData={updateFormData}
+                        rsvpDialogOpen={rsvpDialogOpen}
+                        setRsvpDialogOpen={setRsvpDialogOpen}
+                        rsvpSearchQuery={rsvpSearchQuery}
+                        setRsvpSearchQuery={setRsvpSearchQuery}
+                        rsvpNames={rsvpNames}
+                        deleteRsvp={deleteRsvp}
+                        startEditing={startEditingEvent}
+                        deleteEvent={deleteEvent}
+                      />
+                    </div>
+                  </TabsContent>
+                )}
 
-              <TabsContent value="members" className="space-y-4">
-                <div className="max-w-2xl mx-auto">
-                  <ClubMembers
-                    formData={formData}
-                    updateFormData={updateFormData}
-                  />
-                </div>
-              </TabsContent>
+                {activeTab === 'members' && (
+                  <TabsContent value="members" className="space-y-4">
+                    <div className="max-w-2xl mx-auto">
+                      <MembersTab
+                        formData={formData}
+                        updateFormData={updateFormData}
+                        startEditing={startEditingMember}
+                      />
+                    </div>
+                  </TabsContent>
+                )}
 
-              <TabsContent value="feed" className="h-full" style={{ minHeight: 0 }}>
-                <ClubFeedPost
-                  formData={formData}
-                  updateFormData={updateFormData}
-                />
-              </TabsContent>
+                {activeTab === 'feed' && (
+                  <TabsContent value="feed" className="h-full" style={{ minHeight: 0 }}>
+                    <FeedTab
+                      formData={formData}
+                      updateFormData={updateFormData}
+                    />
+                  </TabsContent>
+                )}
+              </Suspense>
             </div>
           </Tabs>
         </div>

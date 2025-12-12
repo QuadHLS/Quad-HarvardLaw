@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { ArrowLeft, Users, Calendar, Mail, ExternalLink, MapPin, Clock, Award, Target, FileText, MessageSquare, Heart } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -11,6 +11,12 @@ import { supabase } from '../lib/supabase';
 import { getStorageUrl } from '../utils/storage';
 import { ExpandableText } from './ui/expandable-text';
 import { useAuth } from '../contexts/AuthContext';
+import { Skeleton } from './ui/skeleton';
+import { VirtualizedList } from './ui/VirtualizedList';
+
+const HomeTab = lazy(() => import('./ClubDetailTabs/HomeTab').then(m => ({ default: m.HomeTab })));
+const EventsTab = lazy(() => import('./ClubDetailTabs/EventsTab').then(m => ({ default: m.EventsTab })));
+const MembersTab = lazy(() => import('./ClubDetailTabs/MembersTab').then(m => ({ default: m.MembersTab })));
 
 // MessageCircle component (matching FeedComponent)
 const MessageCircle = ({ className }: { className?: string }) => (
@@ -377,10 +383,10 @@ export function ClubDetailPage({ clubId, onBack }: ClubDetailPageProps) {
 
   // Fetch posts for this club
   useEffect(() => {
-    if (club?.id) {
+    if (club?.id && activeTab === 'home') {
       fetchClubPosts();
     }
-  }, [club?.id, user]);
+  }, [club?.id, user, activeTab]);
 
   // Fetch user profile
   useEffect(() => {
@@ -2436,467 +2442,30 @@ export function ClubDetailPage({ clubId, onBack }: ClubDetailPageProps) {
             <TabsTrigger value="members">Members</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="home" className="mt-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 space-y-6">
-                {/* Feed Section */}
-                <Card className="border-none" style={{ backgroundColor: '#FEFBF6' }}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-xl">
-                      <FileText className="w-6 h-6" style={{ color: '#752432' }} />
-                      Feed
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="max-h-[70vh] overflow-y-auto" style={{ maxHeight: '70vh' }}>
-                    {postsLoading ? (
-                      <div className="text-center py-12 text-gray-500">Loading posts...</div>
-                    ) : clubPosts.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-12 text-gray-500">
-                        <MessageSquare className="w-12 h-12 mb-4 opacity-50" />
-                        <h2 className="text-lg font-medium mb-2">No posts yet</h2>
-                      </div>
-                    ) : (
-                      <div className="space-y-4 px-4 py-4 pt-1" style={{ paddingBottom: '40px' }}>
-                        {clubPosts.map((post) => (
-                          <div
-                            key={post.id}
-                            className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden transition-all duration-200 border-l-4 cursor-pointer"
-                            style={{ 
-                              backgroundColor: hoveredPostId === post.id ? getPostHoverColor(post.id, true) : '#FEFBF6',
-                              borderLeftColor: getPostColor(post.id, true)
-                            }}
-                            onClick={() => handlePostClick(post.id)}
-                            onMouseEnter={() => setHoveredPostId(post.id)}
-                            onMouseLeave={() => setHoveredPostId(prev => (prev === post.id ? null : prev))}
-                          >
-                            <div className="p-4">
-                              {/* Post Header */}
-                              <div className="flex items-start justify-between mb-3">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-3">
-                                    <ProfileBubble 
-                                      userName={post.author?.name || 'Club'} 
-                                      size="md" 
-                                      borderColor={getPostColor(post.id, true)}
-                                      isAnonymous={false}
-                                    />
-                                    <div>
-                                      <div className="flex items-center gap-2">
-                                        <h4 className="font-semibold text-gray-900 text-sm">
-                                          {post.author?.name || 'Club'}
-                                        </h4>
-                                        <span 
-                                          className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium text-white"
-                                          style={{ backgroundColor: '#752432' }}
-                                        >
-                                          Club
-                                        </span>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-xs text-gray-500">{formatTimestamp(post.created_at)}</span>
-                                        {post.is_edited && (
-                                          <span className="text-xs text-gray-400 italic">(edited)</span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Post Title */}
-                              {editingPost !== post.id && (
-                                <div className="mb-3">
-                                  <h3 className="text-lg font-semibold text-gray-900 leading-tight">{post.title}</h3>
-                                </div>
-                              )}
-
-                              {/* Post Content */}
-                              <div className="mb-3">
-                                {editingPost === post.id ? (
-                                  <div className="space-y-3">
-                                    <input
-                                      type="text"
-                                      value={editPostTitle}
-                                      onChange={(e) => setEditPostTitle(e.target.value)}
-                                      onClick={(e) => e.stopPropagation()}
-                                      maxLength={100}
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      placeholder="Post title..."
-                                    />
-                                    {post.post_type !== 'poll' && (
-                                      <textarea
-                                        value={editPostContent}
-                                        onChange={(e) => setEditPostContent(e.target.value)}
-                                        onClick={(e) => e.stopPropagation()}
-                                        maxLength={1000}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-24 resize-none"
-                                        placeholder="Post content..."
-                                      />
-                                    )}
-                                    <div className="flex gap-2">
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleEditPost(post.id);
-                                        }}
-                                        className="px-2 py-1 text-white rounded-md transition-colors text-xs"
-                                        style={{ 
-                                          backgroundColor: getPostColor(post.id, true)
-                                        }}
-                                        onMouseEnter={(e: React.MouseEvent) => {
-                                          (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(post.id, true)}90`;
-                                        }}
-                                        onMouseLeave={(e: React.MouseEvent) => {
-                                          (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(post.id, true);
-                                        }}
-                                      >
-                                        Save
-                                      </button>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setEditingPost(null);
-                                        }}
-                                        className="px-2 py-1 text-white rounded-md transition-colors text-xs"
-                                        style={{ 
-                                          backgroundColor: getPostColor(post.id, true)
-                                        }}
-                                        onMouseEnter={(e: React.MouseEvent) => {
-                                          (e.currentTarget as HTMLElement).style.backgroundColor = `${getPostColor(post.id, true)}90`;
-                                        }}
-                                        onMouseLeave={(e: React.MouseEvent) => {
-                                          (e.currentTarget as HTMLElement).style.backgroundColor = getPostColor(post.id, true);
-                                        }}
-                                      >
-                                        Cancel
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <ExpandableText 
-                                    text={post.content.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')}
-                                    maxLines={10}
-                                    className="text-gray-800 leading-relaxed text-sm whitespace-pre-wrap"
-                                    buttonColor={getPostColor(post.id, true)}
-                                  />
-                                )}
-                              </div>
-
-                              {/* Post Photo */}
-                              {post.photo_url && postPhotoUrls.has(post.id) && (
-                                <div className="mb-3 mt-3">
-                                  <img
-                                    src={postPhotoUrls.get(post.id) || ''}
-                                    alt="Post"
-                                    className="rounded-lg"
-                                    style={{
-                                      maxWidth: '100%',
-                                      maxHeight: '450px',
-                                      width: 'auto',
-                                      height: 'auto',
-                                      objectFit: 'contain'
-                                    }}
-                                    onError={() => {
-                                      // If signed URL expires, regenerate it
-                                      if (post.photo_url) {
-                                        getStorageUrl(post.photo_url, 'post_picture').then(url => {
-                                          if (url) {
-                                            setPostPhotoUrls(prev => {
-                                              const updatedMap = new Map(prev);
-                                              updatedMap.set(post.id, url);
-                                              return updatedMap;
-                                            });
-                                          }
-                                        });
-                                      }
-                                    }}
-                                  />
-                                </div>
-                              )}
-
-                              {/* YouTube Video */}
-                              {post.vid_link && (
-                                <div className="mb-3 mt-3">
-                                  {(() => {
-                                    const embedData = getVideoEmbedUrl(post.vid_link);
-                                    if (!embedData) {
-                                      return (
-                                        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                                          <p className="text-sm text-yellow-800">
-                                            Invalid video URL: {post.vid_link}
-                                          </p>
-                                        </div>
-                                      );
-                                    }
-                                    const isVertical = embedData.platform === 'tiktok' || embedData.platform === 'instagram';
-                                    const isInstagram = embedData.platform === 'instagram';
-                                    const scale = isInstagram ? 0.75 : 0.85;
-                                    const width = isInstagram ? '133.33%' : '117.65%';
-                                    const height = isInstagram ? '133.33%' : '117.65%';
-                                    return (
-                                      <div 
-                                        className="relative overflow-hidden rounded-lg" 
-                                        style={isVertical 
-                                          ? { 
-                                              maxHeight: '600px', 
-                                              maxWidth: isInstagram ? '75%' : '65%',
-                                              width: isInstagram ? '75%' : '65%',
-                                              aspectRatio: '9/16',
-                                              margin: '0 auto'
-                                            } 
-                                          : { paddingBottom: '56.25%', minHeight: '200px', width: '100%' }
-                                        }
-                                      >
-                                        <iframe
-                                          src={embedData.embedUrl}
-                                          title={`${embedData.platform} video player`}
-                                          frameBorder="0"
-                                          scrolling="no"
-                                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                          allowFullScreen
-                                          className={isVertical ? "rounded-lg" : "absolute top-0 left-0 w-full h-full rounded-lg"}
-                                          style={isVertical 
-                                            ? { 
-                                                border: 'none', 
-                                                overflow: 'hidden',
-                                                transform: `translate(-50%, -50%) scale(${scale})`,
-                                                transformOrigin: 'center center',
-                                                width: width,
-                                                height: height,
-                                                position: 'absolute',
-                                                left: '50%',
-                                                top: '50%'
-                                              }
-                                            : { border: 'none', overflow: 'hidden' }
-                                          }
-                                        />
-                                      </div>
-                                    );
-                                  })()}
-                                </div>
-                              )}
-
-                              {/* Poll Component */}
-                              {post.poll && (
-                                <div className="mb-4 p-4 rounded-lg">
-                                  <h3 className="font-medium text-gray-900 mb-3">{post.poll.question}</h3>
-                                  <div className="space-y-2">
-                                    {post.poll.options.map((option) => {
-                                      const hasVoted = post.poll!.userVotedOptionId !== undefined;
-                                      const percentage = hasVoted && post.poll!.totalVotes > 0 
-                                        ? (option.votes / post.poll!.totalVotes * 100) 
-                                        : 0;
-                                      const isSelected = post.poll!.userVotedOptionId === option.id;
-                                      
-                                      return (
-                                        <button
-                                          key={option.id}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleVotePoll(post.id, option.id);
-                                          }}
-                                          className={`w-full text-left p-3 rounded-lg border transition-all relative overflow-hidden ${
-                                            isSelected 
-                                              ? 'bg-gray-50'
-                                              : hasVoted
-                                              ? 'border-gray-200 bg-gray-50'
-                                              : 'border-gray-200 hover:border-gray-300 bg-white'
-                                          }`}
-                                          style={{
-                                            borderColor: isSelected ? getPostColor(post.id, true) : undefined,
-                                            backgroundColor: isSelected ? `${getPostColor(post.id, true)}0D` : undefined
-                                          }}
-                                        >
-                                          {hasVoted && (
-                                            <div 
-                                              className="absolute inset-0 transition-all duration-300"
-                                              style={{ 
-                                                width: `${percentage}%`,
-                                                backgroundColor: `${getPostColor(post.id, true)}33`
-                                              }}
-                                            />
-                                          )}
-                                          <div className="relative flex items-center justify-between">
-                                            <span className="text-sm font-medium">{option.text}</span>
-                                            {hasVoted && (
-                                              <span className="text-xs text-gray-600">
-                                                {option.votes} votes ({percentage.toFixed(1)}%)
-                                              </span>
-                                            )}
-                                          </div>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                  <div className="mt-3 text-xs text-gray-500">{`${post.poll.totalVotes} total votes`}</div>
-                                </div>
-                              )}
-
-                              {/* Post Actions */}
-                              <div className="flex items-center justify-start pt-4 mt-1 border-t border-gray-200" onMouseEnter={(e) => e.stopPropagation()} onMouseLeave={(e) => e.stopPropagation()}>
-                                <div className="flex items-center gap-4">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      togglePostLike(post.id);
-                                    }}
-                                    disabled={likingPosts.has(post.id)}
-                                    className={`flex items-center gap-1.5 text-xs font-medium transition-colors px-3 py-2 rounded-md hover:bg-gray-100 ${likingPosts.has(post.id) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    style={{
-                                      color: post.isLiked ? getPostColor(post.id, true) : '#6B7280'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      if (!post.isLiked) {
-                                        (e.currentTarget as HTMLElement).style.color = getPostColor(post.id, true);
-                                      }
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      if (!post.isLiked) {
-                                        (e.currentTarget as HTMLElement).style.color = '#6B7280';
-                                      }
-                                    }}
-                                  >
-                                    <Heart className={`w-5 h-5 ${post.isLiked ? 'fill-current' : ''}`} />
-                                    {post.likes_count}
-                                  </button>
-                                  <span className="flex items-center gap-1.5 text-xs font-medium text-gray-600">
-                                    <MessageCircle className="w-5 h-5" />
-                                    {post.comments_count}
-                                  </span>
-                                  
-                                  {/* Edit/Delete buttons for post author */}
-                                  {post.author_id === user?.id && (
-                                    <div className="flex items-center gap-2 relative z-10">
-                                      {post.post_type !== 'poll' && (
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            e.preventDefault();
-                                            if (editingPost === post.id) {
-                                              // If already editing, cancel edit mode
-                                              setEditingPost(null);
-                                            } else {
-                                              // Start edit mode
-                                              setEditingPost(post.id);
-                                              setEditPostTitle(post.title);
-                                              setEditPostContent(post.content || '');
-                                            }
-                                          }}
-                                          className="flex items-center gap-1.5 text-xs font-medium transition-colors px-3 py-2 rounded-md relative z-10"
-                                          style={{ 
-                                            pointerEvents: 'auto',
-                                            color: '#6B7280'
-                                          }}
-                                          onMouseEnter={(e) => {
-                                            e.currentTarget.style.color = getPostColor(post.id, true);
-                                          }}
-                                          onMouseLeave={(e) => {
-                                            e.currentTarget.style.color = '#6B7280';
-                                          }}
-                                        >
-                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                          </svg>
-                                          Edit
-                                        </button>
-                                      )}
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          e.preventDefault();
-                                          handleDeletePost(post.id, e);
-                                        }}
-                                        className="flex items-center gap-1.5 text-xs font-medium transition-colors px-3 py-2 rounded-md relative z-10"
-                                        style={{ 
-                                          pointerEvents: 'auto',
-                                          color: '#6B7280'
-                                        }}
-                                        onMouseEnter={(e) => {
-                                          e.currentTarget.style.color = '#DC2626';
-                                        }}
-                                        onMouseLeave={(e) => {
-                                          e.currentTarget.style.color = '#6B7280';
-                                        }}
-                                      >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
-                                        Delete
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="space-y-6">
-                <Card className="border-none" style={{ backgroundColor: '#FEFBF6' }}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Target className="w-5 h-5" style={{ color: '#752432' }} />
-                      Mission & Purpose
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {club.mission ? (
-                      <p className="text-gray-700 leading-relaxed">{club.mission}</p>
-                    ) : club.description ? (
-                      <p className="text-gray-700 leading-relaxed">{club.description}</p>
-                    ) : null}
-                  </CardContent>
-                </Card>
-
-                <Card className="border-none" style={{ backgroundColor: '#FEFBF6' }}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Mail className="w-5 h-5" style={{ color: '#752432' }} />
-                      Contact Information
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2 text-sm">
-                      {club.email && (
-                        <div>
-                          <div className="font-medium text-gray-900">Email</div>
-                          <div className="text-gray-600">{club.email}</div>
-                        </div>
-                      )}
-                      {club.website && (
-                        <div>
-                          <div className="font-medium text-gray-900">Website</div>
-                          <div className="text-gray-600 flex items-center gap-1">
-                            <a 
-                              href={club.website.startsWith('http') ? club.website : `https://${club.website}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="hover:underline"
-                            >
-                              {club.website}
-                            </a>
-                            <a 
-                              href={club.website.startsWith('http') ? club.website : `https://${club.website}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="hover:text-gray-800"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                            </a>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </TabsContent>
+          {activeTab === 'home' && (
+            <Suspense
+              fallback={
+                <div className="py-8">
+                  <Skeleton className="h-10 w-40 mb-4" />
+                  <Skeleton className="h-32 w-full mb-2" />
+                  <Skeleton className="h-32 w-full mb-2" />
+                </div>
+              }
+            >
+              <HomeTab
+                value="home"
+                clubPosts={clubPosts}
+                postsLoading={postsLoading}
+                hoveredPostId={hoveredPostId}
+                setHoveredPostId={setHoveredPostId}
+                handlePostClick={handlePostClick}
+                getPostHoverColor={getPostHoverColor}
+                getPostColor={getPostColor}
+                postPhotoUrls={postPhotoUrls}
+                club={club}
+              />
+            </Suspense>
+          )}
 
           <TabsContent value="members" className="mt-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

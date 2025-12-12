@@ -5,6 +5,7 @@ import { Input } from '../ui/input';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { cn } from '../ui/utils';
+import { VirtualizedList } from '../ui/VirtualizedList';
 
 interface Conversation {
   id: string;
@@ -71,6 +72,96 @@ export const ConversationList = React.memo(({
   truncateName,
   searchContainerRef,
 }: ConversationListProps) => {
+  const dms = getDMs();
+  const groups = getGroups();
+  const courses = getCourses();
+
+  const useVirtualDms = dms.length > 40;
+  const useVirtualGroups = groups.length > 40;
+  const useVirtualCourses = courses.length > 40;
+
+  const dmHeight = Math.min(520, Math.max(260, dms.length * 52));
+  const groupHeight = Math.min(520, Math.max(260, groups.length * 52));
+  const courseHeight = Math.min(520, Math.max(260, courses.length * 52));
+
+  const renderDmButton = (conv: Conversation) => (
+    <button
+      key={conv.id}
+      onClick={() => onSelectConversation(conv)}
+      className={cn(
+        'w-full px-4 py-1.5 flex items-center gap-2 text-sm transition-colors',
+        selectedConversation?.id === conv.id
+          ? 'bg-white/20 text-white'
+          : 'text-white/80 hover:bg-white/10 hover:text-white'
+      )}
+    >
+      <AtSign className="w-4 h-4" />
+      <span className="flex-1 text-left truncate">{conv.name}</span>
+      {conv.userId && (
+        <div
+          className="w-3 h-3 rounded-full flex-shrink-0"
+          style={{
+            backgroundColor: onlineUsers.has(conv.userId) 
+              ? '#43a25a' 
+              : 'transparent',
+            border: onlineUsers.has(conv.userId) 
+              ? 'none' 
+              : '3px solid #9ca3af',
+            boxSizing: 'border-box'
+          }}
+          title={onlineUsers.has(conv.userId) ? 'Online' : 'Offline'}
+        />
+      )}
+      {conv.unreadCount > 0 && (
+        <Badge className="bg-white text-[#752432] px-1.5 py-0 text-xs h-5">
+          {conv.unreadCount}
+        </Badge>
+      )}
+    </button>
+  );
+
+  const renderGroupButton = (conv: Conversation) => (
+    <button
+      key={conv.id}
+      onClick={() => onSelectConversation(conv)}
+      className={cn(
+        'w-full px-4 py-1.5 flex items-center gap-2 text-sm transition-colors',
+        selectedConversation?.id === conv.id
+          ? 'bg-white/20 text-white'
+          : 'text-white/80 hover:bg-white/10 hover:text-white'
+      )}
+    >
+      <Users className="w-4 h-4" />
+      <span className="flex-1 text-left truncate" title={conv.name}>{truncateName(conv.name)}</span>
+      {conv.unreadCount > 0 && (
+        <Badge className="bg-white text-[#752432] px-1.5 py-0 text-xs h-5">
+          {conv.unreadCount}
+        </Badge>
+      )}
+    </button>
+  );
+
+  const renderCourseButton = (conv: Conversation) => (
+    <button
+      key={conv.id}
+      onClick={() => onSelectConversation(conv)}
+      className={cn(
+        'w-full px-4 py-1.5 flex items-center gap-2 text-sm transition-colors',
+        selectedConversation?.id === conv.id
+          ? 'bg-white/20 text-white'
+          : 'text-white/80 hover:bg-white/10 hover:text-white'
+      )}
+    >
+      <Hash className="w-4 h-4" />
+      <span className="flex-1 text-left truncate" title={conv.name}>{truncateName(conv.name)}</span>
+      {conv.unreadCount > 0 && (
+        <Badge className="bg-white text-[#752432] px-1.5 py-0 text-xs h-5">
+          {conv.unreadCount}
+        </Badge>
+      )}
+    </button>
+  );
+
   return (
     <div className="w-64 flex flex-col border-r" style={{ backgroundColor: '#752432' }}>
       {/* Workspace Header */}
@@ -140,41 +231,17 @@ export const ConversationList = React.memo(({
 
             {expandedSections.dms && (
               <div className="mt-1">
-                {getDMs().map((conv) => (
-                  <button
-                    key={conv.id}
-                    onClick={() => onSelectConversation(conv)}
-                    className={cn(
-                      'w-full px-4 py-1.5 flex items-center gap-2 text-sm transition-colors',
-                      selectedConversation?.id === conv.id
-                        ? 'bg-white/20 text-white'
-                        : 'text-white/80 hover:bg-white/10 hover:text-white'
-                    )}
-                  >
-                    <AtSign className="w-4 h-4" />
-                    <span className="flex-1 text-left truncate">{conv.name}</span>
-                    {conv.userId && (
-                      <div
-                        className="w-3 h-3 rounded-full flex-shrink-0"
-                        style={{
-                          backgroundColor: onlineUsers.has(conv.userId) 
-                            ? '#43a25a' 
-                            : 'transparent',
-                          border: onlineUsers.has(conv.userId) 
-                            ? 'none' 
-                            : '3px solid #9ca3af',
-                          boxSizing: 'border-box'
-                        }}
-                        title={onlineUsers.has(conv.userId) ? 'Online' : 'Offline'}
-                      />
-                    )}
-                    {conv.unreadCount > 0 && (
-                      <Badge className="bg-white text-[#752432] px-1.5 py-0 text-xs h-5">
-                        {conv.unreadCount}
-                      </Badge>
-                    )}
-                  </button>
-                ))}
+              {useVirtualDms ? (
+                <VirtualizedList
+                  items={dms}
+                  itemHeight={52}
+                  height={dmHeight}
+                  overscanCount={8}
+                  renderItem={(conv) => renderDmButton(conv)}
+                />
+              ) : (
+                dms.map(renderDmButton)
+              )}
               </div>
             )}
           </div>
@@ -209,26 +276,17 @@ export const ConversationList = React.memo(({
 
             {expandedSections.groups && (
               <div className="mt-1">
-                {getGroups().map((conv) => (
-                  <button
-                    key={conv.id}
-                    onClick={() => onSelectConversation(conv)}
-                    className={cn(
-                      'w-full px-4 py-1.5 flex items-center gap-2 text-sm transition-colors',
-                      selectedConversation?.id === conv.id
-                        ? 'bg-white/20 text-white'
-                        : 'text-white/80 hover:bg-white/10 hover:text-white'
-                    )}
-                  >
-                    <Users className="w-4 h-4" />
-                    <span className="flex-1 text-left truncate" title={conv.name}>{truncateName(conv.name)}</span>
-                    {conv.unreadCount > 0 && (
-                      <Badge className="bg-white text-[#752432] px-1.5 py-0 text-xs h-5">
-                        {conv.unreadCount}
-                      </Badge>
-                    )}
-                  </button>
-                ))}
+              {useVirtualGroups ? (
+                <VirtualizedList
+                  items={groups}
+                  itemHeight={52}
+                  height={groupHeight}
+                  overscanCount={6}
+                  renderItem={(conv) => renderGroupButton(conv)}
+                />
+              ) : (
+                groups.map(renderGroupButton)
+              )}
               </div>
             )}
           </div>
@@ -251,26 +309,17 @@ export const ConversationList = React.memo(({
 
             {expandedSections.courses && (
               <div className="mt-1">
-                {getCourses().map((conv) => (
-                  <button
-                    key={conv.id}
-                    onClick={() => onSelectConversation(conv)}
-                    className={cn(
-                      'w-full px-4 py-1.5 flex items-center gap-2 text-sm transition-colors',
-                      selectedConversation?.id === conv.id
-                        ? 'bg-white/20 text-white'
-                        : 'text-white/80 hover:bg-white/10 hover:text-white'
-                    )}
-                  >
-                    <Hash className="w-4 h-4" />
-                    <span className="flex-1 text-left truncate" title={conv.name}>{truncateName(conv.name)}</span>
-                    {conv.unreadCount > 0 && (
-                      <Badge className="bg-white text-[#752432] px-1.5 py-0 text-xs h-5">
-                        {conv.unreadCount}
-                      </Badge>
-                    )}
-                  </button>
-                ))}
+              {useVirtualCourses ? (
+                <VirtualizedList
+                  items={courses}
+                  itemHeight={52}
+                  height={courseHeight}
+                  overscanCount={6}
+                  renderItem={(conv) => renderCourseButton(conv)}
+                />
+              ) : (
+                courses.map(renderCourseButton)
+              )}
               </div>
             )}
           </div>

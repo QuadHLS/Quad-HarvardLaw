@@ -5,6 +5,8 @@ import { ConfirmationPopup } from './ui/confirmation-popup';
 import { getStorageUrl } from '../utils/storage';
 import { VirtualizedList } from './ui/VirtualizedList';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
+import { useFeedPosts, queryKeys } from '../hooks/useSupabaseQueries';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Interfaces
 interface PollOption {
@@ -624,6 +626,8 @@ const getVideoEmbedUrl = (url: string | null | undefined): { embedUrl: string; p
 };
 
 export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCourses = [], onThreadViewChange, onNavigateToStudentProfile }: FeedProps) {
+  const queryClient = useQueryClient();
+  
   // State management
   const [showCreatePostDialog, setShowCreatePostDialog] = useState(false);
   const [newPost, setNewPost] = useState('');
@@ -641,11 +645,20 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
   const [isDragOverPhotoDrop, setIsDragOverPhotoDrop] = useState(false);
   // YouTube link state
   const [newYoutubeLink, setNewYoutubeLink] = useState('');
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [likingPosts, setLikingPosts] = useState<Set<string>>(new Set());
+  
+  // Use React Query for cached feed data
+  // First fetch with limit for fast initial load, then fetch full feed
+  const { data: initialFeedData, isLoading: initialLoading } = useFeedPosts(feedMode, 10);
+  const { data: fullFeedData, isLoading: fullLoading } = useFeedPosts(feedMode);
+  
+  // Use full feed data if available, otherwise use initial
+  const feedData = fullFeedData || initialFeedData;
+  const posts = feedData?.posts || [];
+  const postPhotoUrls = feedData?.photoUrls || new Map<string, string>();
+  const loading = initialLoading && !feedData; // Only show loading if we have no cached data
 
   const [newComment, setNewComment] = useState<Record<string, string>>({});
   const [commentAnonymously, setCommentAnonymously] = useState<Record<string, boolean>>({});
@@ -679,8 +692,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
   // Hover state for thread original post only
   const [isThreadPostHovered, setIsThreadPostHovered] = useState(false);
-  // Post photo URLs (signed URLs for private bucket)
-  const [postPhotoUrls, setPostPhotoUrls] = useState<Map<string, string>>(new Map());
+  // Post photo URLs are now managed by React Query cache
 
   // Real-time connection status
   const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
@@ -768,312 +780,28 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
   // Cache for user profiles and course data
 
-  // Database functions
-  const fetchPosts = useCallback(async (isInitialLoad: boolean = true, limit?: number) => {
-    try {
-      if (isInitialLoad) {
-        setLoading(true);
-      }
-      
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+  // Database functions - fetchPosts removed, now using React Query hook (useFeedPosts)
 
-      // Build query based on feed mode - use simple select first
-      let query = supabase
-        .from('posts')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (feedMode === 'my-courses') {
-        // Get user's courses from profiles table
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('classes')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        if (profile?.classes && profile.classes.length > 0) {
-          // Extract course UUIDs directly from the course objects
-          const courseIds = profile.classes.map((course: any) => course.course_id).filter(Boolean);
-
-          if (courseIds.length > 0) {
-            query = query.in('course_id', courseIds);
-          } else {
-            // No valid course IDs found
-            setPosts([]);
-            setLoading(false);
-            return;
-          }
-        } else {
-          // No classes enrolled
-          setPosts([]);
-          setLoading(false);
-          return;
-        }
-      } else {
-        // Campus feed - only posts without course_id
-        query = query.is('course_id', null);
-      }
-
-      // Limit initial payload to reduce LCP/TBT; fetch rest later
-      if (limit && limit > 0) {
-        query = query.limit(limit);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching posts:', error?.message || "Unknown error");
-        console.error('Error details:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Get all unique author IDs and course IDs for batch fetching
-      const authorIds = [...new Set((data || []).map((post: any) => post.author_id))];
-      const courseIds = [...new Set((data || []).map((post: any) => post.course_id).filter(Boolean))];
-      const postIds = (data || []).map((post: any) => post.id);
-
-      // Batch fetch all author profiles (regular users)
-      const { data: authors } = await supabase
-        .from('profiles')
-        .select('id, full_name, class_year')
-        .in('id', authorIds);
-
-      // Batch fetch all club accounts (for club posts)
-      const { data: clubAccounts } = await supabase
-        .from('club_accounts')
-        .select('id, name')
-        .in('id', authorIds);
-
-      // Batch fetch all course data from Courses table
-      const { data: courses } = await supabase
-        .from('Courses')
-        .select('id, course_name')
-        .in('id', courseIds);
-
-      // Batch fetch all user likes for posts
-      const { data: userLikes } = await supabase
-        .from('likes')
-        .select('likeable_id')
-        .eq('user_id', user.id)
-        .eq('likeable_type', 'post')
-        .in('likeable_id', postIds);
-
-      // Batch fetch all likes counts
-      const { data: likesCounts } = await supabase
-        .from('likes')
-        .select('likeable_id')
-        .eq('likeable_type', 'post')
-        .in('likeable_id', postIds);
-
-      // Batch fetch all comments counts
-      const { data: commentsCounts } = await supabase
-        .from('comments')
-        .select('post_id')
-        .in('post_id', postIds);
-
-      // Create lookup maps for faster access
-      const authorsMap = new Map(authors?.map((a: any) => [a.id, a]) || []);
-      const clubAccountsMap = new Map(clubAccounts?.map((ca: any) => [ca.id, ca]) || []);
-      const coursesMap = new Map(courses?.map((c: any) => [c.id, c]) || []);
-      const userLikesSet = new Set(userLikes?.map((l: any) => l.likeable_id) || []);
-      
-      // Count likes and comments
-      const likesCountMap = new Map();
-      const commentsCountMap = new Map();
-      
-      likesCounts?.forEach((like: any) => {
-        likesCountMap.set(like.likeable_id, (likesCountMap.get(like.likeable_id) || 0) + 1);
-      });
-      
-      commentsCounts?.forEach((comment: any) => {
-        commentsCountMap.set(comment.post_id, (commentsCountMap.get(comment.post_id) || 0) + 1);
-      });
-
-      // Get poll data for poll posts
-      const pollPostIds = (data || []).filter((post: any) => post.post_type === 'poll').map((post: any) => post.id);
-      let pollsMap = new Map();
-      let pollOptionsMap = new Map();
-      let pollVotesMap = new Map();
-
-      if (pollPostIds.length > 0) {
-        // Batch fetch polls
-        const { data: polls } = await supabase
-          .from('polls')
-          .select('*')
-          .in('post_id', pollPostIds);
-
-        if (polls && polls.length > 0) {
-          const pollIds = polls.map((p: any) => p.id);
-          pollsMap = new Map(polls.map((p: any) => [p.post_id, p]));
-
-          // Batch fetch poll options
-          const { data: pollOptions } = await supabase
-            .from('poll_options')
-            .select('*')
-            .in('poll_id', pollIds);
-
-          pollOptionsMap = new Map();
-          pollOptions?.forEach((option: any) => {
-            if (!pollOptionsMap.has(option.poll_id)) {
-              pollOptionsMap.set(option.poll_id, []);
-            }
-            pollOptionsMap.get(option.poll_id).push(option);
-          });
-
-          // Batch fetch user poll votes
-          const { data: userPollVotes } = await supabase
-            .from('poll_votes')
-          .select('poll_id, option_id')
-          .eq('user_id', user.id)
-          .in('poll_id', pollIds);
-
-          pollVotesMap = new Map(userPollVotes?.map((v: any) => [v.poll_id, v.option_id]) || []);
-
-          // Batch fetch all poll votes for counts
-          const { data: allPollVotes } = await supabase
-            .from('poll_votes')
-            .select('option_id')
-            .in('poll_id', pollIds);
-
-          // Count votes per option
-          const voteCounts = new Map();
-          allPollVotes?.forEach((vote: any) => {
-            voteCounts.set(vote.option_id, (voteCounts.get(vote.option_id) || 0) + 1);
-          });
-
-          // Update poll options with vote counts
-          pollOptionsMap.forEach((options) => {
-            options.forEach((option: any) => {
-              option.votes = voteCounts.get(option.id) || 0;
-            });
-          });
-        }
-      }
-
-      // Transform data to match UI interface
-      const transformedPosts: Post[] = (data || []).map((post: any) => {
-        const author = authorsMap.get(post.author_id);
-        const course = post.course_id ? coursesMap.get(post.course_id) : undefined;
-        const isLiked = userLikesSet.has(post.id);
-        const likesCount = likesCountMap.get(post.id) || 0;
-        const commentsCount = commentsCountMap.get(post.id) || 0;
-
-        // Handle poll data
-        let poll = undefined;
-        if (post.post_type === 'poll') {
-          const pollData = pollsMap.get(post.id);
-          if (pollData) {
-            const options = pollOptionsMap.get(pollData.id) || [];
-            const totalVotes = options.reduce((sum: number, opt: any) => sum + opt.votes, 0);
-            const userVotedOptionId = pollVotesMap.get(pollData.id);
-
-            poll = {
-              id: pollData.id,
-              question: pollData.question,
-              options: options,
-              totalVotes: totalVotes,
-              userVotedOptionId: userVotedOptionId
-            };
-          }
-        }
-
-        // Check if author is a club account or regular user
-        // A post is a club post if: 1) author_id is found in club_accounts, OR 2) course_id is null (club posts don't have course_id)
-        const clubAccount = clubAccountsMap.get(post.author_id);
-        const isClubAccount = !!clubAccount || (!post.course_id && !author); // If no course_id and no regular author found, likely a club post
-
-        return {
-          id: post.id,
-          title: post.title,
-          content: post.content,
-          author_id: post.author_id,
-          course_id: post.course_id,
-          post_type: post.post_type,
-          is_anonymous: post.is_anonymous,
-          created_at: post.created_at,
-          edited_at: post.edited_at,
-          is_edited: post.is_edited,
-          likes_count: likesCount,
-          comments_count: commentsCount,
-          photo_url: post.photo_url || null,
-          vid_link: post.vid_link || null,
-          author: isClubAccount 
-            ? {
-                // Club posts should never be anonymous, always show club name
-                name: (clubAccount && (clubAccount as any).name) ? (clubAccount as any).name : 'Club',
-                year: '' // Club accounts don't have year
-              }
-            : (author && (author as any).full_name ? {
-                name: post.is_anonymous ? `Anonymous User` : (author as any).full_name,
-                year: (author as any).class_year || ''
-              } : undefined),
-          course: course && (course as any).course_name ? { name: (course as any).course_name } : undefined,
-          isLiked: isLiked,
-          poll,
-          isClubAccount // Store flag to disable profile clicks for club accounts
-        };
-      });
-
-      setPosts(transformedPosts);
-
-      // Generate signed URLs for post photos
-      const postsWithPhotos = transformedPosts.filter(p => p.photo_url);
-      if (postsWithPhotos.length > 0) {
-        const photoUrlMap = new Map<string, string>();
-        // Process photos in batches to avoid blocking main thread
-        const batchSize = 10;
-        for (let i = 0; i < postsWithPhotos.length; i += batchSize) {
-          const batch = postsWithPhotos.slice(i, i + batchSize);
-          await Promise.all(
-            batch.map(async (post) => {
-              if (post.photo_url) {
-                const signedUrl = await getStorageUrl(post.photo_url, 'post_picture');
-                if (signedUrl) {
-                  photoUrlMap.set(post.id, signedUrl);
-                }
-              }
-            })
-          );
-          // Yield to main thread between batches
-          if (i + batchSize < postsWithPhotos.length) {
-            await new Promise(resolve => setTimeout(resolve, 0));
-          }
-        }
-        setPostPhotoUrls(photoUrlMap);
-      } else {
-        setPostPhotoUrls(new Map());
-      }
-    } catch (error) {
-      console.error('Error in fetchPosts:', error instanceof Error ? error.message : "Unknown error");
-    } finally {
-      setLoading(false);
-    }
-  }, [feedMode, user]);
-
-  // Debounced fetchPosts to prevent rapid updates
-  const debouncedFetchPosts = useCallback(() => {
+  // Invalidate cache to trigger background refetch (debounced)
+  const invalidateFeedCache = useCallback(() => {
     if (fetchPostsTimeoutRef.current) {
       clearTimeout(fetchPostsTimeoutRef.current);
     }
     
-    const timeout = setTimeout(async () => {
-      // Use the current feedMode value directly instead of relying on fetchPosts closure
-      await fetchPosts(false); // Background refresh, don't show loading screen
+    const timeout = setTimeout(() => {
+      if (user?.id) {
+        // Invalidate both limited and full feed queries
+        queryClient.invalidateQueries({ 
+          queryKey: queryKeys.feedPosts(user.id, feedMode, 10) 
+        });
+        queryClient.invalidateQueries({ 
+          queryKey: queryKeys.feedPosts(user.id, feedMode) 
+        });
+      }
     }, 150); // 150ms debounce
     
     fetchPostsTimeoutRef.current = timeout;
-  }, [fetchPosts]);
+  }, [user?.id, feedMode, queryClient]);
 
   const fetchComments = async (postId: string) => {
     try {
@@ -1303,33 +1031,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
     }
   };
 
-  // Load posts when component mounts, feedMode changes, or user changes
-  useEffect(() => {
-    if (user) {
-      // Small payload first to unblock LCP/TBT, then full load in background
-      fetchPosts(true, 10);
-      // Defer heavy fetch to idle/late to avoid TBT/LCP impact
-      let cancelled = false;
-      const runDeferred = () => {
-        if (!cancelled) {
-          fetchPosts(false);
-        }
-      };
-      // Use requestIdleCallback if available, fallback to a longer timeout
-      const idleId = (window as any).requestIdleCallback
-        ? (window as any).requestIdleCallback(runDeferred, { timeout: 4000 })
-        : window.setTimeout(runDeferred, 3000);
-
-      return () => {
-        cancelled = true;
-        if ((window as any).cancelIdleCallback && idleId) {
-          (window as any).cancelIdleCallback(idleId);
-        } else {
-          clearTimeout(idleId);
-        }
-      };
-    }
-  }, [feedMode, user, fetchPosts]);
+  // React Query handles loading automatically - no need for manual fetchPosts
+  // The hook will fetch initial data (10 posts) and then full feed in background
 
   // Real-time subscriptions
   useEffect(() => {
@@ -1381,7 +1084,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           
           // If it's a campus feed, always refresh (campus posts have course_id = null)
           if (feedMode === 'campus' && !newPost.course_id) {
-            debouncedFetchPosts();
+            invalidateFeedCache();
             return;
           }
           
@@ -1390,7 +1093,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
             // Check if the course UUID is in the user's courses
             const userCourseIds = myCourses.map(c => c.course_id);
             if (userCourseIds.includes(newPost.course_id)) {
-              debouncedFetchPosts();
+              invalidateFeedCache();
             }
           }
         }
@@ -1403,9 +1106,29 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           table: 'posts'
         },
         (payload: any) => {
-          startTransition(() => {
-            setPosts(prev => prev.filter(post => post.id !== payload.old.id));
-          });
+          // Update React Query cache directly for instant UI update
+          if (user?.id) {
+            queryClient.setQueryData(
+              queryKeys.feedPosts(user.id, feedMode),
+              (oldData: any) => {
+                if (!oldData) return oldData;
+                return {
+                  ...oldData,
+                  posts: oldData.posts.filter((post: Post) => post.id !== payload.old.id)
+                };
+              }
+            );
+            queryClient.setQueryData(
+              queryKeys.feedPosts(user.id, feedMode, 10),
+              (oldData: any) => {
+                if (!oldData) return oldData;
+                return {
+                  ...oldData,
+                  posts: oldData.posts.filter((post: Post) => post.id !== payload.old.id)
+                };
+              }
+            );
+          }
         }
       )
       .subscribe((status: any, err: any) => {
@@ -1443,7 +1166,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           }
           
           if (user && payloadUserId !== user.id) {
-            debouncedFetchPosts();
+            invalidateFeedCache();
           }
         }
       )
@@ -1464,7 +1187,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           }
           
           if (user && payloadUserId !== user.id) {
-            debouncedFetchPosts();
+            invalidateFeedCache();
           }
         }
       )
@@ -1485,14 +1208,37 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           table: 'comments'
         },
         async (payload: any) => {
-          // Update comment count for the post
-          startTransition(() => {
-            setPosts(prev => prev.map(post => 
-              post.id === payload.new.post_id 
-                ? { ...post, comments_count: post.comments_count + 1 }
-                : post
-            ));
-          });
+          // Update comment count in React Query cache
+          if (user?.id) {
+            queryClient.setQueryData(
+              queryKeys.feedPosts(user.id, feedMode),
+              (oldData: any) => {
+                if (!oldData) return oldData;
+                return {
+                  ...oldData,
+                  posts: oldData.posts.map((post: Post) => 
+                    post.id === payload.new.post_id 
+                      ? { ...post, comments_count: post.comments_count + 1 }
+                      : post
+                  )
+                };
+              }
+            );
+            queryClient.setQueryData(
+              queryKeys.feedPosts(user.id, feedMode, 10),
+              (oldData: any) => {
+                if (!oldData) return oldData;
+                return {
+                  ...oldData,
+                  posts: oldData.posts.map((post: Post) => 
+                    post.id === payload.new.post_id 
+                      ? { ...post, comments_count: post.comments_count + 1 }
+                      : post
+                  )
+                };
+              }
+            );
+          }
           
           // If comments are expanded for this post, refresh them
           // Use refs to get current state without dependency issues
@@ -1509,14 +1255,37 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           table: 'comments'
         },
         async (payload: any) => {
-          // Update comment count for the post
-          startTransition(() => {
-            setPosts(prev => prev.map(post => 
-              post.id === payload.old.post_id 
-                ? { ...post, comments_count: Math.max(0, post.comments_count - 1) }
-                : post
-            ));
-          });
+          // Update comment count in React Query cache
+          if (user?.id) {
+            queryClient.setQueryData(
+              queryKeys.feedPosts(user.id, feedMode),
+              (oldData: any) => {
+                if (!oldData) return oldData;
+                return {
+                  ...oldData,
+                  posts: oldData.posts.map((post: Post) => 
+                    post.id === payload.old.post_id 
+                      ? { ...post, comments_count: Math.max(0, post.comments_count - 1) }
+                      : post
+                  )
+                };
+              }
+            );
+            queryClient.setQueryData(
+              queryKeys.feedPosts(user.id, feedMode, 10),
+              (oldData: any) => {
+                if (!oldData) return oldData;
+                return {
+                  ...oldData,
+                  posts: oldData.posts.map((post: Post) => 
+                    post.id === payload.old.post_id 
+                      ? { ...post, comments_count: Math.max(0, post.comments_count - 1) }
+                      : post
+                  )
+                };
+              }
+            );
+          }
           
           // If comments are expanded for this post, refresh them
           // Use refs to get current state without dependency issues
@@ -1545,7 +1314,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
           // Only refresh if this poll vote is from another user (not the current user)
           const payloadUserId = payload.new?.user_id || payload.old?.user_id;
           if (user && payloadUserId && payloadUserId !== user.id) {
-            debouncedFetchPosts();
+            invalidateFeedCache();
           }
         }
       )
@@ -1582,7 +1351,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       // Clear connection timeout
       clearTimeout(connectionTimeout);
     };
-  }, [user]);
+  }, [user, feedMode, myCourses, invalidateFeedCache, queryClient]);
 
   // Add loading state for comments
   const [loadingComments, setLoadingComments] = useState<Set<string>>(new Set());
@@ -1739,7 +1508,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       setShowCreatePostDialog(false);
 
       // Refresh posts
-      await fetchPosts();
+      if (user?.id) {
+        queryClient.invalidateQueries({ 
+          queryKey: queryKeys.feedPosts(user.id, feedMode, 10) 
+        });
+        queryClient.invalidateQueries({ 
+          queryKey: queryKeys.feedPosts(user.id, feedMode) 
+        });
+      }
     } catch (error) {
       console.error('Error in handleCreatePost:', error instanceof Error ? error.message : "Unknown error");
     }
@@ -1946,18 +1722,28 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         }
       }
 
-      // Update local state immediately for better UX
-      setPosts(prevPosts => 
-        prevPosts.map(p => 
-          p.id === postId 
-            ? { 
-                ...p, 
-                isLiked: !isCurrentlyLiked,
-                likes_count: isCurrentlyLiked ? p.likes_count - 1 : p.likes_count + 1
-              }
-            : p
-        )
-      );
+      // Update React Query cache immediately for better UX (optimistic update)
+      if (user?.id) {
+        const updateCache = (queryKey: any[]) => {
+          queryClient.setQueryData(queryKey, (oldData: any) => {
+            if (!oldData) return oldData;
+            return {
+              ...oldData,
+              posts: oldData.posts.map((p: Post) => 
+                p.id === postId 
+                  ? { 
+                      ...p, 
+                      isLiked: !isCurrentlyLiked,
+                      likes_count: isCurrentlyLiked ? p.likes_count - 1 : p.likes_count + 1
+                    }
+                  : p
+              )
+            };
+          });
+        };
+        updateCache(queryKeys.feedPosts(user.id, feedMode, 10));
+        updateCache(queryKeys.feedPosts(user.id, feedMode));
+      }
     } catch (error) {
       console.error('Error in handleLike:', error instanceof Error ? error.message : "Unknown error");
     } finally {
@@ -2336,25 +2122,35 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
         return;
       }
 
-      // Update local state for poll voting
-      setPosts(prevPosts => 
-        prevPosts.map(p => 
-          p.id === postId 
-            ? { 
-                ...p, 
-                poll: p.poll ? {
-                  ...p.poll,
-                  userVotedOptionId: optionId,
-                  totalVotes: p.poll.totalVotes + 1,
-                  options: p.poll.options.map(opt => ({
-                    ...opt,
-                    votes: opt.id === optionId ? opt.votes + 1 : opt.votes
-                  }))
-                } : undefined
-              }
-            : p
-        )
-      );
+      // Update React Query cache for poll voting (optimistic update)
+      if (user?.id) {
+        const updateCache = (queryKey: any[]) => {
+          queryClient.setQueryData(queryKey, (oldData: any) => {
+            if (!oldData) return oldData;
+            return {
+              ...oldData,
+              posts: oldData.posts.map((p: Post) => 
+                p.id === postId 
+                  ? { 
+                      ...p, 
+                      poll: p.poll ? {
+                        ...p.poll,
+                        userVotedOptionId: optionId,
+                        totalVotes: p.poll.totalVotes + 1,
+                        options: p.poll.options.map(opt => ({
+                          ...opt,
+                          votes: opt.id === optionId ? opt.votes + 1 : opt.votes
+                        }))
+                      } : undefined
+                    }
+                  : p
+              )
+            };
+          });
+        };
+        updateCache(queryKeys.feedPosts(user.id, feedMode, 10));
+        updateCache(queryKeys.feedPosts(user.id, feedMode));
+      }
     } catch (error) {
       console.error('Error in handleVotePoll:', error instanceof Error ? error.message : "Unknown error");
     }
@@ -2387,7 +2183,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
       if (error) throw error;
       
       setEditingPost(null);
-      await fetchPosts(); // Refresh posts
+      if (user?.id) {
+        queryClient.invalidateQueries({ 
+          queryKey: queryKeys.feedPosts(user.id, feedMode, 10) 
+        });
+        queryClient.invalidateQueries({ 
+          queryKey: queryKeys.feedPosts(user.id, feedMode) 
+        });
+      } // Refresh posts
     } catch (error) {
       console.error('Error editing post:', error instanceof Error ? error.message : "Unknown error");
     }
@@ -2449,7 +2252,14 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
 
           if (error) throw error;
           
-          await fetchPosts(); // Refresh posts
+          if (user?.id) {
+        queryClient.invalidateQueries({ 
+          queryKey: queryKeys.feedPosts(user.id, feedMode, 10) 
+        });
+        queryClient.invalidateQueries({ 
+          queryKey: queryKeys.feedPosts(user.id, feedMode) 
+        });
+      } // Refresh posts
           
           // If we're in thread view and the deleted post is the selected one, go back to home
           if (selectedPostThread === postId) {

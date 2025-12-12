@@ -2655,7 +2655,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                           !selectedPost.is_anonymous && !selectedPost.isClubAccount && handleProfileClick(selectedPost.author_id, selectedPost.author?.name || 'Anonymous');
                         }}
                     >
-                      <h4 className="font-semibold text-gray-900">{selectedPost.isClubAccount ? (selectedPost.author?.name || 'Club') : (selectedPost.is_anonymous ? 'Anonymous' : (selectedPost.author?.name || 'Anonymous'))}</h4>
+                      <h3 className="font-semibold text-gray-900">{selectedPost.isClubAccount ? (selectedPost.author?.name || 'Club') : (selectedPost.is_anonymous ? 'Anonymous' : (selectedPost.author?.name || 'Anonymous'))}</h3>
                     </div>
                     {!selectedPost.is_anonymous && selectedPost.isClubAccount && (
                       <span 
@@ -2824,7 +2824,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
               {/* Poll in thread view */}
               {selectedPost.poll && (
                 <div className="mb-4 p-4">
-                  <h4 className="font-medium text-gray-900 mb-3">{selectedPost.poll.question}</h4>
+                  <h3 className="font-medium text-gray-900 mb-3">{selectedPost.poll.question}</h3>
                   <div className="space-y-2">
                     {selectedPost.poll.options.map((option) => {
                       const hasVoted = selectedPost.poll!.userVotedOptionId !== undefined;
@@ -3545,7 +3545,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
               }}
               className="px-3 py-1.5 text-sm font-medium rounded transition-colors text-white hover:opacity-90"
               style={{
-                backgroundColor: feedMode === 'my-courses' ? '#0080BD' : '#04913A'
+                backgroundColor: feedMode === 'my-courses' ? '#0066A3' : '#037A2E'
               }}
               aria-label="Create post"
               title="Create post"
@@ -3625,7 +3625,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       />
                       <div>
                         <div className="flex items-center gap-2">
-                          <h4 
+                          <h3 
                             className={`font-semibold text-gray-900 text-sm ${!post.is_anonymous && !post.isClubAccount ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -3633,7 +3633,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                             }}
                           >
                             {post.isClubAccount ? (post.author?.name || 'Club') : (post.is_anonymous ? 'Anonymous' : (post.author?.name || 'Anonymous'))}
-                          </h4>
+                          </h3>
                           {!post.is_anonymous && post.isClubAccount && (
                             <span 
                               className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium text-white"
@@ -3812,7 +3812,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 {/* Poll Component */}
                 {post.poll && (
                   <div className="mb-4 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-900 mb-3">{post.poll.question}</h4>
+                    <h3 className="font-medium text-gray-900 mb-3">{post.poll.question}</h3>
                     <div className="space-y-2">
                       {post.poll.options.map((option) => {
                         const hasVoted = post.poll!.userVotedOptionId !== undefined;

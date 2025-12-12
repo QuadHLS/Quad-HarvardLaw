@@ -396,6 +396,7 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
                 onClick={() => void togglePomodoro()}
                 className="h-6 w-6 p-0 text-[#752432] hover:bg-[#752432]/10 border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200"
                 style={{ backgroundColor: '#fffcf7' }}
+                aria-label="Toggle Pomodoro timer"
               >
                 <Timer className="w-3.5 h-3.5" />
               </Button>
@@ -405,6 +406,7 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
                 onClick={() => void loadAddTodoDialog()}
                 className="h-6 px-2 text-[#752432] hover:bg-[#752432]/10 flex items-center gap-1 border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200"
                 style={{ backgroundColor: '#fffcf7' }}
+                aria-label="Add new todo"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span className="text-xs font-medium">Add</span>
@@ -414,6 +416,7 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
                 size="sm"
                 onClick={() => setTodoCollapsed(!todoCollapsed)}
                 className="h-6 w-6 p-0 text-[#752432] hover:bg-[#752432]/10"
+                aria-label={todoCollapsed ? "Expand todo list" : "Collapse todo list"}
               >
                 {todoCollapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
         </Button>
@@ -470,7 +473,7 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
 
             {/* In the Future Section */}
             <div>
-              <h4 className="text-xs font-medium text-gray-600 mb-2">In the Future</h4>
+              <h3 className="text-xs font-medium text-gray-600 mb-2">In the Future</h3>
               <div className="space-y-1.5">
                 {thisWeekTodos.map((todo) => (
                   <div key={todo.id} className="flex items-center gap-2 group">

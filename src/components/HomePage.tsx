@@ -434,13 +434,14 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
           }`}>
             {/* Today Section */}
             <div>
-              <h4 className="text-xs font-medium text-gray-600 mb-2">Today</h4>
+              <h3 className="text-xs font-medium text-gray-600 mb-2">Today</h3>
               <div className="space-y-1.5">
                 {todayTodos.map((todo) => (
                   <div key={todo.id} className="flex items-center gap-2 group">
                     <button
                       onClick={() => toggleTodo(todo.id)}
                       className="flex-shrink-0"
+                      aria-label={todo.completed ? `Mark "${todo.text}" as incomplete` : `Mark "${todo.text}" as complete`}
                     >
                       {todo.completed ? (
                         <CheckSquare className="w-4 h-4 text-[#752432]" />
@@ -460,6 +461,7 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
                     <button
                       onClick={() => removeTodo(todo.id)}
                       className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500"
+                      aria-label={`Remove "${todo.text}"`}
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -480,6 +482,7 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
                     <button
                       onClick={() => toggleTodo(todo.id)}
                       className="flex-shrink-0"
+                      aria-label={todo.completed ? `Mark "${todo.text}" as incomplete` : `Mark "${todo.text}" as complete`}
                     >
                       {todo.completed ? (
                         <CheckSquare className="w-4 h-4 text-[#752432]" />
@@ -508,6 +511,7 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
                     <button
                       onClick={() => removeTodo(todo.id)}
                       className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500"
+                      aria-label={`Remove "${todo.text}"`}
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -1337,6 +1341,7 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
                       size="sm"
                       onClick={() => setSemesterProgressVisible(!semesterProgressVisible)}
                       className="h-8 w-8 p-0 text-gray-500 hover:text-[#752432] hover:bg-[#752432]/10 rounded-full"
+                      aria-label={semesterProgressVisible ? "Hide semester progress" : "Show semester progress"}
                     >
                       <GraduationCap className="w-4 h-4" />
                     </Button>

@@ -114,6 +114,10 @@ export default defineConfig({
   },
   optimizeDeps: {
     force: true,
+    // Exclude large dependencies from pre-bundling that are better code-split
+    exclude: ['framer-motion', 'pdfjs-dist'],
+    // Include only essential dependencies for faster dev startup
+    include: ['react', 'react-dom', 'react-router-dom'],
   },
   build: {
     target: 'esnext',
@@ -130,10 +134,19 @@ export default defineConfig({
     },
     rollupOptions: {
       output: {
+        // Limit chunk size to prevent overly large bundles
+        chunkSizeWarningLimit: 500, // 500KB warning threshold
+        // Optimize chunk splitting for better tree-shaking
+        experimentalMinChunkSize: 20000, // 20KB minimum chunk size
         manualChunks: (id) => {
           // Split PDF.js into separate chunk (only loaded when needed)
           if (id.includes('pdfjs-dist')) {
             return 'pdfjs';
+          }
+          
+          // Split framer-motion separately (only used in PostLoginLoading, can be lazy-loaded)
+          if (id.includes('framer-motion')) {
+            return 'framer-motion';
           }
           
           // Exclude react-slot from Radix UI chunk (it's tiny and used by Button in initial bundle)
@@ -142,11 +155,28 @@ export default defineConfig({
             return null; // Keep in main bundle (it's only ~2KB)
           }
           
-          // Group all other Radix UI components together (they share dependencies)
-          // Splitting them individually breaks shared module resolution
-          // IMPORTANT: This chunk should NOT be preloaded - only load when lazy-loaded components need it
+          // Split Radix UI into smaller chunks based on usage frequency
+          // Core components used in initial bundle (tabs, dialog, select)
+          if (id.includes('@radix-ui/react-tabs') || 
+              id.includes('@radix-ui/react-dialog') || 
+              id.includes('@radix-ui/react-select')) {
+            return 'radix-ui-core';
+          }
+          
+          // Less frequently used Radix UI components (popover, tooltip, etc.)
+          // These are often used in lazy-loaded components
+          if (id.includes('@radix-ui/react-popover') ||
+              id.includes('@radix-ui/react-tooltip') ||
+              id.includes('@radix-ui/react-hover-card') ||
+              id.includes('@radix-ui/react-dropdown-menu') ||
+              id.includes('@radix-ui/react-context-menu')) {
+            return 'radix-ui-extended';
+          }
+          
+          // Other Radix UI components (accordion, alert-dialog, etc.)
+          // Group remaining Radix components together
           if (id.includes('@radix-ui')) {
-            return 'radix-ui';
+            return 'radix-ui-other';
           }
           
           // Split Supabase client
@@ -159,9 +189,19 @@ export default defineConfig({
             return 'react-query';
           }
           
-          // Split other large dependencies
-          if (id.includes('react-router-dom') || id.includes('framer-motion')) {
-            return 'vendor';
+          // Split react-router-dom (used throughout app but can be code-split)
+          if (id.includes('react-router-dom')) {
+            return 'react-router';
+          }
+          
+          // Split large utility libraries
+          if (id.includes('jszip') || id.includes('cmdk') || id.includes('react-day-picker')) {
+            return 'vendor-utils';
+          }
+          
+          // Split sonner (toast library) - only loads when toasts are shown
+          if (id.includes('sonner')) {
+            return 'sonner';
           }
           
           // Default: no manual chunk (goes to main bundle)

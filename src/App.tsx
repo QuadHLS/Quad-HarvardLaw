@@ -973,10 +973,12 @@ function AppContent({ user }: { user: any }) {
 
       {/* Main Content */}
       <main aria-label="Main content" 
-        className="flex-1 overflow-hidden" 
+        className="flex-1 overflow-y-auto min-h-0" 
         style={{ 
           minWidth: 0,
-          position: 'relative'
+          position: 'relative',
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#752432 transparent'
         }}
       >
         <Suspense fallback={<PageLoadingFallback />}>

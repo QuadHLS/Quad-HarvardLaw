@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, FileText, Star, Beer, User, Archive, BookOpen, CalendarDays, Mail, Users, Briefcase, Lightbulb, MessageCircle } from 'lucide-react';
+import { Home, FileText, Star, Beer, User, Archive, BookOpen, CalendarDays, Mail, Users, UsersRound, Briefcase, Lightbulb, MessageCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { toast } from 'sonner';
 import { PrefetchLink } from './PrefetchLink';
 
 interface NavigationSidebarProps {
@@ -130,20 +129,9 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
     { id: 'reviews', label: 'Reviews', icon: Star },
   ];
 
-  // Check if Quadle game is active and handle navigation
+  // Navigation handler (no restrictions)
   const handleNavigation = (e: React.MouseEvent, to: string) => {
-    // Allow navigation to Quadle page itself
-    if (to === '/quadle') {
-      return; // Let Link handle it normally
-    }
-
-    const gameActive = localStorage.getItem('quadleGameActive') === 'true';
-    if (gameActive) {
-      e.preventDefault();
-      toast.error('Finish your game first', {
-        description: 'You have an active Quadle game in progress. Please finish the game before navigating to another page.',
-      });
-    }
+    // Navigation is allowed - no restrictions
   };
 
   return (
@@ -183,7 +171,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
       </div>
 
       {/* Unified Navigation - Icons always present; labels appear when expanded */}
-      <nav className="pt-2 pb-4 flex-1 flex flex-col" aria-label="Main navigation">
+      <nav className="pt-2 pb-4 flex-1 flex flex-col overflow-y-auto min-h-0" aria-label="Main navigation" style={{ scrollbarWidth: 'thin', scrollbarColor: '#752432 transparent' }}>
         <div className="space-y-2 px-2">
           {/* Home */}
           <Link
@@ -231,19 +219,6 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
             {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Directory</span>}
           </PrefetchLink>
 
-          <PrefetchLink
-            to="/clubs"
-            onClick={(e) => handleNavigation(e, '/clubs')}
-            className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
-              activeSection === 'clubs' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
-            }`}
-            style={{ borderRightColor: activeSection === 'clubs' ? '#752432' : 'transparent' }}
-            aria-label={isCollapsedOverride ? 'Clubs' : undefined}
-          >
-            <Users className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
-            {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Clubs</span>}
-          </PrefetchLink>
-
           {/* Resources - not clickable, only sub-items are */}
           <div
             className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
@@ -284,6 +259,20 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
               })}
             </div>
           )}
+
+          {/* Clubs */}
+          <PrefetchLink
+            to="/clubs"
+            onClick={(e) => handleNavigation(e, '/clubs')}
+            className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
+              activeSection === 'clubs' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
+            }`}
+            style={{ borderRightColor: activeSection === 'clubs' ? '#752432' : 'transparent' }}
+            aria-label={isCollapsedOverride ? 'Clubs' : undefined}
+          >
+            <UsersRound className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
+            {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Clubs</span>}
+          </PrefetchLink>
 
           {/* Big Law Guide */}
           <PrefetchLink

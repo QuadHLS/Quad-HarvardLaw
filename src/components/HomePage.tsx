@@ -417,12 +417,31 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
           </div>
         </div>
         <div 
-          className="overflow-hidden transition-all duration-1000 ease-out"
+          className="overflow-hidden"
           style={{ 
-            height: todoCollapsed ? '0px' : (todayTodos.length + thisWeekTodos.length) === 0 ? '120px' : `${Math.max(150, (todayTodos.length + thisWeekTodos.length) * 35 + 70)}px`
+            height: todoCollapsed ? '0px' : (() => {
+              if ((todayTodos.length + thisWeekTodos.length) === 0) return '120px';
+              // Calculate exact height: headers + todos + spacing
+              const headerHeight = 32; // h3 text + mb-2
+              const todoItemHeight = 25; // height per todo item
+              const spaceBetweenItems = 6; // space-y-1.5
+              const spaceBetweenSections = 12; // space-y-3
+              const bottomPadding = 8; // pb-1
+              
+              const todaySectionHeight = todayTodos.length > 0 
+                ? headerHeight + (todayTodos.length * todoItemHeight) + ((todayTodos.length - 1) * spaceBetweenItems)
+                : headerHeight + 20; // "No tasks" text height
+              
+              const futureSectionHeight = thisWeekTodos.length > 0
+                ? headerHeight + (thisWeekTodos.length * todoItemHeight) + ((thisWeekTodos.length - 1) * spaceBetweenItems)
+                : headerHeight + 20; // "No tasks" text height
+              
+              const totalHeight = todaySectionHeight + futureSectionHeight + spaceBetweenSections + bottomPadding;
+              return `${totalHeight}px`;
+            })()
           }}
         >
-          <div className={`px-3 pb-3 space-y-3 transition-opacity duration-1000 ${
+          <div className={`px-3 pb-1 space-y-3 ${
             todoCollapsed ? 'opacity-0' : 'opacity-100'
           }`}>
             {/* Today Section */}
@@ -1167,7 +1186,7 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
               </div>
 
               {/* My Courses Section */}
-              <div>
+              <div style={{ marginTop: '-16px' }}>
                 <MyCourses 
                   onNavigateToCourse={onNavigateToCourse}
                   courses={transformedCourses}

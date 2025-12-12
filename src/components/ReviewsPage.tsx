@@ -8,6 +8,8 @@ import { Dialog, DialogTrigger } from './ui/dialog';
 import { supabase } from '../lib/supabase';
 import { ReviewForm } from './ReviewForm';
 import { useDebounce } from '../utils/debounce';
+import { useReviews, useProfessors, useCourses, useProfessorCourses } from '../hooks/useSupabaseQueries';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface Review {
   id: string;
@@ -93,6 +95,7 @@ interface ReviewFormData {
 }
 
 export function ReviewsPage() {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   // Use deferred value for filtering to keep UI responsive during heavy filtering
@@ -106,14 +109,14 @@ export function ReviewsPage() {
   const [scrollPositions, setScrollPositions] = useState<{[key: string]: number}>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Real data state
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [professors, setProfessors] = useState<Professor[]>([]);
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [professorCourses, setProfessorCourses] = useState<ProfessorCourse[]>([]);
-  // const [professorStats, setProfessorStats] = useState<ProfessorStats[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Use React Query hooks for data fetching
+  const { data: reviews = [], isLoading: reviewsLoading } = useReviews();
+  const { data: professors = [], isLoading: professorsLoading } = useProfessors();
+  const { data: courses = [], isLoading: coursesLoading } = useCourses();
+  const { data: professorCourses = [], isLoading: professorCoursesLoading } = useProfessorCourses();
+  
+  const loading = reviewsLoading || professorsLoading || coursesLoading || professorCoursesLoading;
+  const error = null; // React Query handles errors internally
   
   // User votes state disabled
   
@@ -166,47 +169,7 @@ export function ReviewsPage() {
   //   }
   // };
 
-  // Fetch data from database
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        // Fetch all data in parallel
-        const [reviewsResult, professorsResult, coursesResult, professorCoursesResult] = await Promise.all([
-          supabase.from('reviews').select('*').order('created_at', { ascending: false }),
-          supabase.from('professors').select('*').order('name'),
-          supabase.from('courses').select('*').order('name'),
-          supabase.from('professor_courses').select('*')
-        ]);
-
-        if (reviewsResult.error) throw reviewsResult.error;
-        if (professorsResult.error) throw professorsResult.error;
-        if (coursesResult.error) throw coursesResult.error;
-        if (professorCoursesResult.error) throw professorCoursesResult.error;
-
-        const reviewsData = reviewsResult.data || [];
-        setReviews(reviewsData);
-        setProfessors(professorsResult.data || []);
-        setCourses(coursesResult.data || []);
-        setProfessorCourses(professorCoursesResult.data || []);
-        // setProfessorStats(statsResult.data || []);
-        
-        // Voting system disabled - no longer fetching user votes
-        // if (reviewsData.length > 0) {
-        //   await fetchUserVotes(reviewsData.map((r: Review) => r.id));
-        // }
-      } catch (err) {
-        console.error('Error fetching data:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
+  // Removed useEffect for data fetching - now using React Query hooks
 
   // Get courses for selected professor using professor_courses relationship (not used in current UI)
 
@@ -249,18 +212,11 @@ export function ReviewsPage() {
 
       if (error) throw error;
 
-      // Refresh all data to show the new review
-      const [reviewsResult, professorsResult, coursesResult, professorCoursesResult] = await Promise.all([
-        supabase.from('reviews').select('*').order('created_at', { ascending: false }),
-        supabase.from('professors').select('*').order('name'),
-        supabase.from('courses').select('*').order('name'),
-        supabase.from('professor_courses').select('*')
-      ]);
-
-      if (reviewsResult.data) setReviews(reviewsResult.data);
-      if (professorsResult.data) setProfessors(professorsResult.data);
-      if (coursesResult.data) setCourses(coursesResult.data);
-      if (professorCoursesResult.data) setProfessorCourses(professorCoursesResult.data);
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['reviews'] });
+      queryClient.invalidateQueries({ queryKey: ['professors'] });
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
+      queryClient.invalidateQueries({ queryKey: ['professorCourses'] });
 
       // Reset form and close modal
       setFormData({

@@ -4,21 +4,8 @@ import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-
-interface BarReviewEvent {
-  id: string;
-  venue_name: string;
-  venue_address: string;
-  venue_phone?: string;
-  description?: string;
-  map_embed_url?: string;
-  event_date: string;
-  start_time: string;
-  end_time?: string;
-  rsvp_count?: number;
-  created_at?: string;
-  updated_at?: string;
-}
+import { useBarReviewEvent, useBarReviewAttendees } from '../hooks/useSupabaseQueries';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface BarReviewPageProps {
   onNavigateToStudentProfile?: (studentName: string) => void;
@@ -26,110 +13,56 @@ interface BarReviewPageProps {
 
 export function BarReviewPage({ onNavigateToStudentProfile }: BarReviewPageProps) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [isRSVPed, setIsRSVPed] = useState(false);
   const [rsvpCount, setRsvpCount] = useState(47);
-  const [currentEvent, setCurrentEvent] = useState<BarReviewEvent | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [rsvpLoading, setRsvpLoading] = useState(false);
-  const [attendees, setAttendees] = useState<{name: string, id: string}[]>([]);
+  
+  // Use React Query hooks for data fetching
+  const { data: currentEvent, isLoading: eventLoading, error: eventError } = useBarReviewEvent();
+  const { data: attendees = [] } = useBarReviewAttendees();
+  
+  const loading = eventLoading;
+  const error = eventError ? 'Failed to load bar review events. Please try again later.' : null;
 
-  // Fetch bar review events from Supabase
+  // Fetch RSVP count and user RSVP status
   useEffect(() => {
-    const fetchBarReviewEvents = async () => {
+    const fetchRsvpData = async () => {
+      if (!currentEvent) return;
+      
       try {
-        setLoading(true);
-        setError(null);
-
-        // Get current week's event (assuming events are stored with event_date)
-        const today = new Date();
-        const startOfWeek = new Date(today);
-        startOfWeek.setDate(today.getDate() - today.getDay() + 4); // Thursday
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + 7);
-
-        // Fetch current week's event
-        const { data: currentEventData, error: currentError } = await supabase
-          .from('bar_review_events')
-          .select('*')
-          .gte('event_date', startOfWeek.toISOString().split('T')[0])
-          .lte('event_date', endOfWeek.toISOString().split('T')[0])
-          .order('event_date', { ascending: true })
-          .limit(1)
-          .maybeSingle();
-
-        if (currentError) {
-          console.error('Error fetching current event:', currentError);
-          throw currentError;
-        }
-
-        let eventData = currentEventData;
-
-        // If no current event, get the most recent event as fallback
-        if (!eventData) {
-          const { data: recentEventData, error: recentError } = await supabase
-            .from('bar_review_events')
-            .select('*')
-            .order('event_date', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (recentError) {
-            console.error('Error fetching recent event:', recentError);
-            throw recentError;
-          }
-
-          eventData = recentEventData;
-        }
-
-        if (eventData) {
-          setCurrentEvent(eventData);
+        const [rsvpCountResult, userRsvpResult] = await Promise.all([
+          // Fetch RSVP count
+          supabase
+            .from('bar_count')
+            .select('*', { count: 'exact', head: true }),
           
-          // Run all remaining queries in parallel for better performance
-          const [rsvpCountResult, userRsvpResult] = await Promise.all([
-            // Fetch RSVP count
-            supabase
-              .from('bar_count')
-              .select('*', { count: 'exact', head: true }),
-            
-            // Check if current user has RSVPed (only if user exists)
-            user ? supabase
-              .from('bar_count')
-              .select('*')
-              .eq('identity', user.id)
-              .maybeSingle() : Promise.resolve({ data: null, error: null })
-          ]);
+          // Check if current user has RSVPed (only if user exists)
+          user ? supabase
+            .from('bar_count')
+            .select('*')
+            .eq('identity', user.id)
+            .maybeSingle() : Promise.resolve({ data: null, error: null })
+        ]);
 
-          // Set RSVP count
-          if (!rsvpCountResult.error && rsvpCountResult.count !== null) {
-            setRsvpCount(rsvpCountResult.count);
-          } else {
-            setRsvpCount(0);
-          }
-
-          // Set user RSVP status
-          if (user) {
-            setIsRSVPed(!!userRsvpResult.data && !userRsvpResult.error);
-          }
+        // Set RSVP count
+        if (!rsvpCountResult.error && rsvpCountResult.count !== null) {
+          setRsvpCount(rsvpCountResult.count);
+        } else {
+          setRsvpCount(0);
         }
 
+        // Set user RSVP status
+        if (user) {
+          setIsRSVPed(!!userRsvpResult.data && !userRsvpResult.error);
+        }
       } catch (err) {
-        console.error('Error fetching bar review events:', err instanceof Error ? err.message : "Unknown error");
-        setError('Failed to load bar review events. Please try again later.');
-      } finally {
-        setLoading(false);
+        console.error('Error fetching RSVP data:', err);
       }
     };
 
-    fetchBarReviewEvents();
-  }, [user]);
-
-  // Fetch attendees when component loads
-  useEffect(() => {
-    if (currentEvent) {
-      fetchAttendees();
-    }
-  }, [currentEvent]);
+    fetchRsvpData();
+  }, [currentEvent, user]);
 
   // Fetch RSVP count from bar_count table
   const fetchRsvpCount = async () => {
@@ -145,68 +78,12 @@ export function BarReviewPage({ onNavigateToStudentProfile }: BarReviewPageProps
         setRsvpCount(0);
       }
     } catch (error) {
-      console.error('Error fetching RSVP count:', error?.message || "Unknown error");
+      console.error('Error fetching RSVP count:', error instanceof Error ? error.message : "Unknown error");
       setRsvpCount(0);
     }
   };
 
-  // Fetch attendee names from profiles table
-  const fetchAttendees = async () => {
-    try {
-      // Get all user IDs who RSVPed
-      const { data: rsvpData, error: rsvpError } = await supabase
-        .from('bar_count')
-        .select('identity');
-
-      if (rsvpError) {
-        console.error('Error fetching RSVPs:', rsvpError);
-        setAttendees([]);
-        return;
-      }
-
-      if (rsvpData && rsvpData.length > 0) {
-        // Get user IDs
-        const userIds = rsvpData.map((rsvp: { identity: string }) => rsvp.identity);
-        
-        // Fetch full names from profiles table
-        const { data: profilesData, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', userIds);
-
-        if (profilesError) {
-          console.error('Error fetching profiles:', profilesError);
-          setAttendees([]);
-          return;
-        }
-
-        // Extract names and IDs, filter out null/empty names, and sort alphabetically
-        const attendeeData = profilesData
-          ?.map((profile: { full_name: string; id: string }) => ({
-            name: profile.full_name,
-            id: profile.id
-          }))
-          .filter((attendee: { name: string; id: string }) => attendee.name && attendee.name.trim() !== '')
-          .sort((a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name)) || [];
-        
-        // If we have fewer names than RSVPs, show a message
-        if (attendeeData.length < rsvpData.length) {
-          const missingCount = rsvpData.length - attendeeData.length;
-          attendeeData.push({
-            name: `${missingCount} user${missingCount > 1 ? 's' : ''} (name not available)`,
-            id: 'unknown'
-          });
-        }
-        
-        setAttendees(attendeeData);
-      } else {
-        setAttendees([]);
-      }
-    } catch (error) {
-      console.error('Error fetching attendees:', error?.message || "Unknown error");
-      setAttendees([]);
-    }
-  };
+  // Removed fetchAttendees - now using useBarReviewAttendees hook
 
   // Fallback venue data if no event is found in database
   const fallbackVenue = {
@@ -277,8 +154,8 @@ export function BarReviewPage({ onNavigateToStudentProfile }: BarReviewPageProps
         }
 
         setIsRSVPed(true);
-        // Fetch updated attendee list and count
-        fetchAttendees();
+        // Invalidate queries to refresh data
+        queryClient.invalidateQueries({ queryKey: ['barReviewAttendees'] });
         await fetchRsvpCount();
       } else {
         
@@ -296,8 +173,8 @@ export function BarReviewPage({ onNavigateToStudentProfile }: BarReviewPageProps
         }
 
         setIsRSVPed(false);
-        // Fetch updated attendee list and count
-        fetchAttendees();
+        // Invalidate queries to refresh data
+        queryClient.invalidateQueries({ queryKey: ['barReviewAttendees'] });
         await fetchRsvpCount();
       }
     } catch (error: any) {
@@ -523,7 +400,7 @@ export function BarReviewPage({ onNavigateToStudentProfile }: BarReviewPageProps
                 }}>
                   <div className="grid grid-cols-1 gap-2 p-3">
                     {attendees.length > 0 ? (
-                      attendees.map((attendee, index) => (
+                      attendees.map((attendee: any, index: number) => (
                         <div 
                           key={index} 
                           className="text-xs text-gray-700 py-1 px-2 bg-[#f9f5f0] border border-gray-200 rounded-md hover:bg-[#f0ebe5] hover:border-gray-300 cursor-pointer transition-colors shadow-sm"

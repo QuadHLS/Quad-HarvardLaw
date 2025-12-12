@@ -26,13 +26,12 @@
  * - Textarea (./ui/textarea) - depends on: cn utility
  */
 
-import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
+import { useState, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Search, Users, Gavel, Globe2, BookOpen, UserCheck, Zap, Star, Activity } from 'lucide-react';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { Card, CardContent } from './ui/card';
-import { supabase } from '../lib/supabase';
-import { getStorageUrl } from '../utils/storage';
+import { useClubs } from '../hooks/useSupabaseQueries';
 import { Skeleton } from './ui/skeleton';
 
 interface ClubsPageProps {
@@ -55,99 +54,25 @@ export function ClubsPage({ onNavigateToClub }: ClubsPageProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'All Groups' | 'Orgs' | 'Journals' | 'SPOs' | 'My Clubs'>('All Groups');
   const [categoryFilter] = useState<string>('All');
-  const [clubs, setClubs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [avatarUrls, setAvatarUrls] = useState<Record<string, string>>({});
-
-  // Joined clubs - will be populated from member_joins arrays
-  const [joinedClubs, setJoinedClubs] = useState<Set<string>>(new Set());
-
-  // Fetch clubs from database
-  useEffect(() => {
-    const fetchClubs = async () => {
-      try {
-        setLoading(true);
-        
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
-        const currentUserId = user?.id;
-
-        const { data, error } = await supabase
-          .from('club_accounts')
-          .select('id, name, description, avatar_url, club_tag, member_joins');
-
-        if (error) {
-          console.error('Error fetching clubs:', error?.message || "Unknown error");
-          return;
-        }
-
-        if (data) {
-          // Determine which clubs the user has joined
-          const joinedSet = new Set<string>();
-          
-          // Map database data to club format
-          const mappedClubs = data.map((club: any) => {
-            // Map club_tag to category (case-insensitive)
-            const tag = club.club_tag?.toLowerCase().trim();
-            let category = 'Other';
-            if (tag === 'student practice organization') {
-              category = 'SPOs';
-            } else if (tag === 'student organization' || tag === 'student-org') {
-              category = 'Orgs';
-            } else if (tag === 'journal') {
-              category = 'Journals';
-            }
-
-            // Count members from member_joins array
-            const members = Array.isArray(club.member_joins) ? club.member_joins.length : 0;
-
-            // Check if current user is in member_joins array
-            if (currentUserId && Array.isArray(club.member_joins) && club.member_joins.includes(currentUserId)) {
-              joinedSet.add(club.id);
-            }
-
-            return {
-              id: club.id,
-              name: club.name || '',
-              description: club.description || '',
-              category: category,
-              members: members,
-              avatar_url: club.avatar_url,
-              club_tag: club.club_tag
-            };
-          });
-
-          setClubs(mappedClubs);
-          setJoinedClubs(joinedSet);
-
-          // Fetch avatar URLs for all clubs
-          const urlPromises = mappedClubs
-            .filter((club: any) => club.avatar_url)
-            .map(async (club: any) => {
-              const url = await getStorageUrl(club.avatar_url, 'Avatar');
-              return { id: club.id, url };
-            });
-
-          const urls = await Promise.all(urlPromises);
-          const urlMap: Record<string, string> = {};
-          urls.forEach(({ id, url }) => {
-            if (url) urlMap[id] = url;
-          });
-          setAvatarUrls(urlMap);
-        }
-      } catch (err) {
-        console.error('Error fetching clubs:', err instanceof Error ? err.message : "Unknown error");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchClubs();
-  }, []);
+  
+  // Use React Query hook for data fetching
+  const { data: clubsData, isLoading: loading } = useClubs();
+  const clubs = clubsData?.clubs || [];
+  const avatarUrls = clubsData?.avatarUrls || {};
+  // Ensure joinedClubs is always a Set (handles case where it might be restored as array/object from cache)
+  const joinedClubs = useMemo(() => {
+    const jc = clubsData?.joinedClubs;
+    if (!jc) return new Set<string>();
+    if (jc instanceof Set) return jc;
+    // If it's an array or object (from cache deserialization), convert to Set
+    if (Array.isArray(jc)) return new Set(jc);
+    if (typeof jc === 'object') return new Set(Object.keys(jc));
+    return new Set<string>();
+  }, [clubsData?.joinedClubs]);
 
   const filteredClubs = useMemo(() => {
     const searchLower = searchTerm.toLowerCase().trim();
-    return clubs.filter(club => {
+    return clubs.filter((club: any) => {
       const matchesSearch = searchLower === '' || 
         (club.name && club.name.toLowerCase().includes(searchLower)) ||
         (club.description && club.description.toLowerCase().includes(searchLower));
@@ -164,7 +89,7 @@ export function ClubsPage({ onNavigateToClub }: ClubsPageProps) {
   const top8ClubIds = useMemo(() => new Set(top8Clubs.map(club => club.id)), [top8Clubs]);
 
   const getSPOs = useCallback((excludeTop8: boolean = false) => {
-    return filteredClubs.filter(club => {
+    return filteredClubs.filter((club: any) => {
       const tag = club.club_tag?.toLowerCase().trim();
       const matchesTag = tag === 'student practice organization';
       if (excludeTop8 && top8ClubIds.has(club.id)) return false;
@@ -173,7 +98,7 @@ export function ClubsPage({ onNavigateToClub }: ClubsPageProps) {
   }, [filteredClubs, top8ClubIds]);
   
   const getAllOrgs = useCallback((excludeTop8: boolean = false) => {
-    return filteredClubs.filter(club => {
+    return filteredClubs.filter((club: any) => {
       const tag = club.club_tag?.toLowerCase().trim();
       const matchesTag = tag === 'student organization' || tag === 'student-org';
       if (excludeTop8 && top8ClubIds.has(club.id)) return false;
@@ -182,7 +107,7 @@ export function ClubsPage({ onNavigateToClub }: ClubsPageProps) {
   }, [filteredClubs, top8ClubIds]);
   
   const getAllJournals = useCallback((excludeTop8: boolean = false) => {
-    return filteredClubs.filter(club => {
+    return filteredClubs.filter((club: any) => {
       const tag = club.club_tag?.toLowerCase().trim();
       const matchesTag = tag === 'journal';
       if (excludeTop8 && top8ClubIds.has(club.id)) return false;
@@ -199,7 +124,7 @@ export function ClubsPage({ onNavigateToClub }: ClubsPageProps) {
   const sposExcludingTop = useMemo(() => getSPOs(true), [getSPOs]);
   const journalsAll = useMemo(() => getAllJournals(), [getAllJournals]);
   const journalsExcludingTop = useMemo(() => getAllJournals(true), [getAllJournals]);
-  const myClubs = useMemo(() => filteredClubs.filter(club => joinedClubs.has(club.id)), [filteredClubs, joinedClubs]);
+  const myClubs = useMemo(() => filteredClubs.filter((club: any) => joinedClubs.has(club.id)), [filteredClubs, joinedClubs]);
 
   const getAccentColor = (index: number) => {
     return accentColors[index % accentColors.length];

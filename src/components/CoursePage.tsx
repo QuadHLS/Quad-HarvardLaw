@@ -1535,14 +1535,16 @@ export function CoursePage({ courseName, onBack, onNavigateToStudentProfile }: C
     if (userCourse?.course_id) {
       fetchCourseStudents();
     }
-  }, [userCourse]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userCourse?.course_id]); // Only depend on course_id to avoid unnecessary refetches
 
   // Fetch posts when course data is loaded
   useEffect(() => {
     if (userCourse && !loading) {
       fetchCoursePosts();
     }
-  }, [userCourse, loading, user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userCourse?.course_id, loading, user?.id]); // Only depend on course_id and user.id
 
   // Real-time subscriptions
   useEffect(() => {

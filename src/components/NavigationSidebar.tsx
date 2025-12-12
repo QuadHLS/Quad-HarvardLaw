@@ -183,7 +183,7 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
       </div>
 
       {/* Unified Navigation - Icons always present; labels appear when expanded */}
-      <nav className="pt-2 pb-4 flex-1 flex flex-col">
+      <nav className="pt-2 pb-4 flex-1 flex flex-col" aria-label="Main navigation">
         <div className="space-y-2 px-2">
           {/* Home */}
           <Link

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Search, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { useDirectoryUsers } from '../hooks/useSupabaseQueries';
 import * as SelectPrimitive from "@radix-ui/react-select";
 import {
   CheckIcon,
@@ -195,83 +195,21 @@ interface DirectoryPageProps {
 
 export function DirectoryPage({ onNavigateToStudentProfile }: DirectoryPageProps) {
   const navigate = useNavigate();
-  const [users, setUsers] = useState<DirectoryUser[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // Use React Query hook for data fetching
+  const { data: users = [], isLoading: loading } = useDirectoryUsers();
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [yearFilter, setYearFilter] = useState<string>('all');
-
-  // Fetch users from Supabase
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, full_name, class_year, section, email')
-          .not('full_name', 'is', null)
-          .order('full_name');
-
-        if (error) {
-          console.error('Error fetching users:', error?.message || "Unknown error");
-          setLoading(false);
-          return;
-        }
-
-        if (data) {
-          const excludedEmails = [
-            '123@jd27.law.harvard.edu', 
-            'master@harvard.edu',
-            'sr1@harvard.edu',
-            'sr2@harvard.edu',
-            'sr3@harvard.edu',
-            'sr4@harvard.edu',
-            'sr5@harvard.edu',
-            'sr6@harvard.edu',
-            'sr7@harvard.edu'
-          ];
-          const directoryUsers: DirectoryUser[] = data
-            .filter((profile: any) => {
-              // Exclude specific emails
-              if (excludedEmails.includes(profile.email)) {
-                return false;
-              }
-              // Ensure full_name is not null or empty
-              const fullName = (profile.full_name || '').trim();
-              return fullName !== '';
-            })
-            .map((profile: any) => {
-              const fullName = (profile.full_name || '').trim();
-              const nameParts = fullName.split(' ');
-              const firstName = nameParts[0] || '';
-              const lastName = nameParts.slice(1).join(' ') || '';
-              return {
-                id: profile.id,
-                firstName,
-                lastName,
-                fullName,
-                classYear: profile.class_year || '',
-                section: profile.section || ''
-              };
-            });
-
-          setUsers(directoryUsers);
-        }
-      } catch (error) {
-        console.error('Error fetching users:', error?.message || "Unknown error");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUsers();
-  }, []);
 
   // Get class year badge color - all use the same crimson color
   const getClassYearColor = (_classYear: string) => {
     return '#752432'; // Same crimson as the page
   };
 
-  // Filter users based on search query and year filter
-  const filteredUsers = users.filter(user => {
+  // Filter users based on search query and year filter (memoized for performance)
+  const filteredUsers = useMemo(() => {
+    return users.filter(user => {
     // Year filter
     if (yearFilter !== 'all' && user.classYear !== yearFilter) {
       return false;
@@ -291,6 +229,7 @@ export function DirectoryPage({ onNavigateToStudentProfile }: DirectoryPageProps
       nameParts.some(part => part.toLowerCase().includes(query))
     );
   });
+  }, [users, searchQuery, yearFilter]);
 
   // Group users by first letter of full name
   const groupedUsers: { [key: string]: DirectoryUser[] } = {};

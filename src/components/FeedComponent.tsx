@@ -2579,7 +2579,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                 <div className="mb-4 mt-4">
                   <img
                     src={postPhotoUrls.get(selectedPost.id) || ''}
-                    alt="Post"
+                    alt={selectedPost.title ? `${selectedPost.title} - Post image` : 'Post image'}
                     className="rounded-lg"
                     loading="lazy"
                     decoding="async"
@@ -2589,7 +2589,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                       width: 'auto',
                       height: 'auto',
                       objectFit: 'contain',
-                      display: 'block'
+                      display: 'block',
+                      aspectRatio: 'auto'
                     }}
                     onError={() => {
                       // If signed URL expires, regenerate it
@@ -3562,7 +3563,7 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                   <div className="mb-3 mt-3">
                     <img
                       src={postPhotoUrls.get(post.id) || ''}
-                      alt="Post"
+                      alt={post.title ? `${post.title} - Post image` : 'Post image'}
                       className="rounded-lg"
                       loading="lazy"
                       decoding="async"
@@ -3571,7 +3572,8 @@ export function Feed({ onPostClick, feedMode = 'campus', onFeedModeChange, myCou
                         maxHeight: '450px',
                         width: 'auto',
                         height: 'auto',
-                        objectFit: 'contain'
+                        objectFit: 'contain',
+                        aspectRatio: 'auto'
                       }}
                       onError={() => {
                         // If signed URL expires, regenerate it

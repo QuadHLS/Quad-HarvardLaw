@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
+import { usePlannerCourses, useSavedSchedules } from '../hooks/useSupabaseQueries';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Course color mapping based on type
 const courseColors = {
@@ -185,48 +187,7 @@ interface ScheduledCourse extends PlannerCourse {
   scheduledId: string;
 }
 
-// Function to fetch real course data from Supabase
-const fetchCourses = async (): Promise<PlannerCourse[]> => {
-  try {
-    const { data, error } = await supabase
-      .from('planner')
-      .select('*')
-      .order('name', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching courses:', error?.message || "Unknown error");
-      return [];
-    }
-
-    if (!data) {
-      console.error('No data returned from Supabase');
-      return [];
-    }
-
-    // Transform the data to handle null values and format properly
-    const transformedData = data.map((course: any) => ({
-        id: course.id || '',
-        name: course.name || 'TBD',
-        course_number: course.course_number || 'TBD',
-        term: course.term || 'TBD',
-        faculty: course.faculty || 'TBD',
-        credits: course.credits || 0,
-        type: course.type || 'TBD',
-        subject_areas: course.subject_areas || 'TBD',
-        delivery_mode: course.delivery_mode || 'TBD',
-        days: course.days || 'TBD',
-        times: course.times || 'TBD',
-        location: course.location || 'TBD',
-        course_description: course.course_description || 'TBD',
-        requirements: course.requirements || 'TBD'
-    }));
-
-    return transformedData;
-  } catch (error) {
-    console.error('Error fetching courses:', error?.message || "Unknown error");
-    return [];
-  }
-};
+// Removed fetchCourses - now using usePlannerCourses hook
 const timeSlots = [
   '8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', 
   '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', '6:00 PM', '7:00 PM', '8:00 PM'
@@ -314,7 +275,43 @@ interface PlannerPageProps {
   onNavigateToReviews?: (professorName?: string) => void;
 }
 export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
-  const [scheduledCourses, setScheduledCourses] = useState<ScheduledCourse[]>([]);
+  const queryClient = useQueryClient();
+  
+  // Use React Query hooks for data fetching
+  const { data: courses = [], isLoading: coursesLoading } = usePlannerCourses();
+  const { data: savedSchedules = [], isLoading: schedulesLoading } = useSavedSchedules();
+  
+  // Load scheduledCourses from localStorage on mount
+  const [scheduledCourses, setScheduledCourses] = useState<ScheduledCourse[]>(() => {
+    try {
+      const cached = localStorage.getItem('planner-scheduled-courses');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        // Check if cache is still valid (not older than 7 days)
+        const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+        if (parsed.timestamp && Date.now() - parsed.timestamp < maxAge) {
+          return parsed.courses || [];
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to load scheduled courses from cache:', error);
+    }
+    return [];
+  });
+  
+  // Persist scheduledCourses to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      const data = {
+        timestamp: Date.now(),
+        courses: scheduledCourses,
+      };
+      localStorage.setItem('planner-scheduled-courses', JSON.stringify(data));
+    } catch (error) {
+      console.warn('Failed to save scheduled courses to cache:', error);
+    }
+  }, [scheduledCourses]);
+  
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   // Use deferred value for filtering to keep UI responsive during heavy filtering
@@ -350,65 +347,10 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
   const [selectedSemestersForSave, setSelectedSemestersForSave] = useState<('FA' | 'WI' | 'SP')[]>([]);
   // AI Assistant state
   const [showChatbot, setShowChatbot] = useState(false);
-  // Saved schedules state with mock data
-  const [savedSchedules, setSavedSchedules] = useState<SavedSchedule[]>([]);
 
 
-  // State for real course data
-  const [courses, setCourses] = useState<PlannerCourse[]>([]);
-
-
-  // Function to load saved schedules from database
-  const loadSavedSchedules = async () => {
-    try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError || !user) {
-        // User not logged in, clear saved schedules
-        setSavedSchedules([]);
-        return;
-      }
-
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('saved_schedules')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError && profileError.code === 'PGRST116') {
-        // Profile doesn't exist, no saved schedules
-        setSavedSchedules([]);
-        return;
-      } else if (profileError) {
-        console.error('Error fetching saved schedules:', profileError);
-        return;
-      }
-
-      const savedSchedules: SavedSchedule[] = profileData?.saved_schedules || [];
-      setSavedSchedules(savedSchedules);
-    } catch (error) {
-      console.error('Error loading saved schedules:', error?.message || "Unknown error");
-    }
-  };
-
-  // Fetch real course data and saved schedules on component mount
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        // Load courses
-        const fetchedCourses = await fetchCourses();
-        setCourses(fetchedCourses);
-        
-        // Load saved schedules
-        await loadSavedSchedules();
-      } catch (error) {
-        console.error('Error loading data:', error?.message || "Unknown error");
-        toast.error('Failed to load data');
-      }
-    };
-
-    loadData();
-  }, []);
+  // Removed loadSavedSchedules and useEffect - now using useSavedSchedules hook
+  // Data is automatically fetched and cached by React Query
 
 
 
@@ -968,8 +910,8 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
       return;
     }
 
-      // Update local state
-      setSavedSchedules(updatedSchedules);
+      // Optimistically update React Query cache
+      queryClient.setQueryData(['savedSchedules', user.id], updatedSchedules);
       setSaveScheduleName('');
       setSelectedSemestersForSave([]);
       setShowSaveDialog(false);
@@ -978,6 +920,11 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     } catch (error) {
       console.error('Error saving schedule:', error?.message || "Unknown error");
       toast.error('Error saving schedule');
+      // Revert cache on error
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.id) {
+        queryClient.invalidateQueries({ queryKey: ['savedSchedules', user.id] });
+      }
     }
   };
 
@@ -1002,9 +949,9 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
         return;
       }
 
-      // Update local state first
+      // Optimistic update - update cache first
       const updatedSchedules = savedSchedules.filter(schedule => schedule.id !== scheduleId);
-      setSavedSchedules(updatedSchedules);
+      queryClient.setQueryData(['savedSchedules', user.id], updatedSchedules);
 
       // Update database
       const { error: updateError } = await supabase
@@ -1017,8 +964,8 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
       if (updateError) {
         console.error('Error deleting schedule:', updateError);
         toast.error('Error deleting schedule');
-        // Revert local state on error
-        setSavedSchedules(savedSchedules);
+        // Revert cache on error
+        queryClient.invalidateQueries({ queryKey: ['savedSchedules', user.id] });
         return;
       }
 
@@ -1026,8 +973,11 @@ export function PlannerPage({ onNavigateToReviews }: PlannerPageProps = {}) {
     } catch (error) {
       console.error('Error deleting schedule:', error?.message || "Unknown error");
       toast.error('Error deleting schedule');
-      // Revert local state on error
-      setSavedSchedules(savedSchedules);
+      // Revert cache on error
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.id) {
+        queryClient.invalidateQueries({ queryKey: ['savedSchedules', user.id] });
+      }
     }
   };
 

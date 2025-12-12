@@ -42,10 +42,8 @@ const BigLawGuidePage = lazy(() => import('./components/BigLawGuidePage').then(m
 const QuadlePage = lazy(() => import('./components/QuadlePage').then(module => ({ default: module.QuadlePage })));
 const MessagingPage = lazy(() => import('./components/MessagingPage').then(module => ({ default: module.MessagingPage })));
 
-// Loading fallback component for Suspense boundaries - using skeleton instead of spinner
-import { PageSkeleton } from './components/ui/skeletons';
-
-const PageLoadingFallback = () => <PageSkeleton />;
+// No loading fallback - pages load fast enough that a loading state isn't needed
+const PageLoadingFallback = () => null;
 
 
 function AppContent({ user }: { user: any }) {
@@ -974,12 +972,11 @@ function AppContent({ user }: { user: any }) {
       <Toaster position="top-right" />
 
       {/* Main Content */}
-      <main 
+      <main aria-label="Main content" 
         className="flex-1 overflow-hidden" 
         style={{ 
-          marginLeft: sidebarCollapsed ? '4rem' : '10rem',
-          transition: 'margin-left 300ms ease',
-          willChange: 'margin-left'
+          minWidth: 0,
+          position: 'relative'
         }}
       >
         <Suspense fallback={<PageLoadingFallback />}>

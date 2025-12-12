@@ -65,7 +65,7 @@ export default function DocumentPreview({
       <a
         href={proxyUrl}
         target="_blank"
-        rel="noreferrer"
+        rel="noopener noreferrer"
         className="text-sm text-blue-400 underline hover:text-blue-300"
       >
         Open / Download

@@ -130,7 +130,7 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
           }
         }
       } catch (error) {
-        console.error('Error fetching user profile:', error?.message || "Unknown error");
+        console.error('Error fetching user profile:', error instanceof Error ? error.message : "Unknown error");
       }
     };
 
@@ -191,7 +191,7 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
           const transformedCourses = Array.from(courseMap.values());
           setApiCourses(transformedCourses);
         } catch (error) {
-          console.error('Error fetching courses:', error?.message || "Unknown error");
+          console.error('Error fetching courses:', error instanceof Error ? error.message : "Unknown error");
           setApiCourses([]);
           setAllCourseData([]);
         } finally {
@@ -396,7 +396,7 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
 
       return scheduleOptions;
     } catch (error) {
-      console.error('Error getting course details:', error?.message || "Unknown error");
+      console.error('Error getting course details:', error instanceof Error ? error.message : "Unknown error");
       setScheduleOptionsBySlot((prev) => ({ ...prev, [slotIndex]: [] }));
       return [];
     } finally {

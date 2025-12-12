@@ -134,8 +134,6 @@ export default defineConfig({
     },
     rollupOptions: {
       output: {
-        // Limit chunk size to prevent overly large bundles
-        chunkSizeWarningLimit: 500, // 500KB warning threshold
         // Optimize chunk splitting for better tree-shaking
         experimentalMinChunkSize: 20000, // 20KB minimum chunk size
         manualChunks: (id) => {

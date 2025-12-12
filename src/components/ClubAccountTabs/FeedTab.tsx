@@ -123,10 +123,10 @@ export function FeedTab({ formData, updateFormData }: FeedTabProps) {
         }));
         setPosts(transformed);
 
-        const withPhotos = transformed.filter((p) => p.photo_url);
+        const withPhotos = transformed.filter((p: Post) => p.photo_url);
         if (withPhotos.length) {
           const urls = await Promise.all(
-            withPhotos.map(async (p) => {
+            withPhotos.map(async (p: Post) => {
               const url = await getStorageUrl(p.photo_url, 'post_picture');
               return { id: p.id, url };
             })

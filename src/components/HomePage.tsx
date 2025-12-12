@@ -20,6 +20,8 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { supabase } from '../lib/supabase';
 import { Feed } from './FeedComponent';
+import { useUserProfile } from '../hooks/useSupabaseQueries';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface TodoItem {
   id: string;
@@ -219,6 +221,10 @@ interface TodoListProps {
 
 // New TodoList component
 function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
+  // Use React Query hook for user profile (cached)
+  const { data: userProfile } = useUserProfile();
+  const queryClient = useQueryClient();
+  
   // State management
   const [todos, setTodos] = useState<ToDo[]>([]);
   const [newTodoText, setNewTodoText] = useState('');
@@ -258,36 +264,20 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
     setShowPomodoro(nextState);
   }, [showPomodoro, PomodoroTimerComponent]);
 
-  // Load todos from profile on mount
+  // Load todos from cached user profile
   useEffect(() => {
-    if (user?.id) {
-      const fetchTodos = async () => {
-        try {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('todo_day, todo_week')
-            .eq('id', user.id)
-            .single();
-
-          if (profile) {
-            const todayTodos = (profile.todo_day || []).map((todo: any) => ({
-              ...todo,
-              category: 'today' as const
-            }));
-            const thisWeekTodos = (profile.todo_week || []).map((todo: any) => ({
-              ...todo,
-              category: 'this-week' as const
-            }));
-            setTodos([...todayTodos, ...thisWeekTodos]);
-          }
-        } catch (error) {
-          console.error('Error fetching todos:', error instanceof Error ? error.message : "Unknown error");
-        }
-      };
-
-      fetchTodos();
+    if (userProfile) {
+      const todayTodos = (userProfile.todo_day || []).map((todo: any) => ({
+        ...todo,
+        category: 'today' as const
+      }));
+      const thisWeekTodos = (userProfile.todo_week || []).map((todo: any) => ({
+        ...todo,
+        category: 'this-week' as const
+      }));
+      setTodos([...todayTodos, ...thisWeekTodos]);
     }
-  }, [user?.id]);
+  }, [userProfile]);
 
   // Save todos to profile whenever todos change
   const saveTodosToDatabase = async (todosToSave: ToDo[]) => {
@@ -307,6 +297,9 @@ function TodoList({ onPomodoroStateChange, user }: TodoListProps) {
       
       if (error) {
         console.error('Error saving todos:', error?.message || "Unknown error");
+      } else {
+        // Invalidate userProfile cache to refetch with updated todos
+        queryClient.invalidateQueries({ queryKey: ['profiles', user.id] });
       }
     } catch (error) {
       console.error('Error saving todos:', error instanceof Error ? error.message : "Unknown error");
@@ -693,11 +686,10 @@ interface HomePageProps {
 }
 
 export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user }: HomePageProps) {
-  const [, setUserProfile] = useState<UserProfile | null>(null);
-  const [userCourses, setUserCourses] = useState<UserCourse[]>([]);
-  const [transformedCourses, setTransformedCourses] = useState<Course[]>([]);
+  // Use React Query hook for user profile (cached)
+  const { data: userProfile, isLoading: profileLoading } = useUserProfile();
+  const userCourses = useMemo(() => (userProfile?.classes || []) as UserCourse[], [userProfile?.classes]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [loading, setLoading] = useState(true);
   const [semesterProgressVisible, setSemesterProgressVisible] = useState(false);
   const [isMonthSwitching, setIsMonthSwitching] = useState(false);
   const [feedMode, setFeedMode] = useState<'campus' | 'my-courses'>('campus');
@@ -785,45 +777,7 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
   })();
 
 
-  // Fetch user's profile and courses
-  // Start fetching immediately when animation begins (as soon as user exists)
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (!user?.id) {
-        setLoading(false);
-        return;
-      }
-      
-      // Start fetching immediately - don't wait for anything
-
-      try {
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('full_name, classes, class_year, todo_day, todo_week')
-          .eq('id', user.id)
-          .single();
-
-        if (error) {
-          console.error('Error fetching profile:', error?.message || "Unknown error");
-          setLoading(false);
-          return;
-        }
-
-
-        if (profile) {
-          setUserProfile(profile);
-          setUserCourses(profile.classes || []);
-        }
-
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching user profile:', error instanceof Error ? error.message : "Unknown error");
-        setLoading(false);
-      }
-    };
-
-    fetchUserProfile();
-  }, [user]);
+  // Profile and courses are now fetched via useUserProfile hook (cached)
 
   // Get current semester using date-based logic
   const getCurrentSemester = () => {
@@ -855,11 +809,10 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
 
   // Semester display formatting is now handled in the MyCourses component
 
-  // Transform user courses to Course format for MyCourses component
-  useEffect(() => {
+  // Transform user courses to Course format for MyCourses component (using useMemo for instant calculation from cache)
+  const transformedCourses = useMemo(() => {
     if (userCourses.length === 0) {
-      setTransformedCourses([]);
-      return;
+      return [];
     }
 
     // Helper functions
@@ -920,11 +873,8 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
     });
 
     if (selectedSemesterCourses.length === 0) {
-      setTransformedCourses([]);
-      return;
+      return [];
     }
-
-    // Helper functions defined above
 
     // Helper to get next class time
     const getNextClass = (course: UserCourse): string => {
@@ -996,9 +946,7 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
       }
     };
 
-    // getLastNames function defined above
-
-    const transformed = selectedSemesterCourses.map((course, index) => ({
+    return selectedSemesterCourses.map((course, index) => ({
       id: `${index + 1}`,
       name: formatDisplayCourseName(course.class), // Format to hide section numbers for 1L courses
       code: '', // We don't have course codes in the current data structure
@@ -1011,8 +959,6 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
       color: getCourseColor(index),
       progress: 0 // We don't track progress yet
     }));
-
-    setTransformedCourses(transformed);
   }, [userCourses, selectedSemester]);
 
 
@@ -1140,36 +1086,7 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
     return Math.max(6, Math.min(486, position)); // 6px to 486px (12 hours * 40px + 6px)
   };
 
-  // Import skeleton at top of file
-  // import { ContentSkeleton } from './ui/skeletons';
-  
-  if (loading) {
-    return (
-      <div className="h-full p-6" style={{ backgroundColor: 'var(--background-color, #f9f5f0)' }}>
-        <div className="max-w-4xl mx-auto">
-          <div className="mb-6">
-            <div className="h-8 w-48 bg-gray-200 rounded-md animate-pulse mb-4"></div>
-            <div className="h-4 w-64 bg-gray-200 rounded-md animate-pulse"></div>
-          </div>
-          <div className="space-y-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-lg p-4 border border-gray-200">
-                <div className="flex items-start gap-3">
-                  <div className="h-10 w-10 bg-gray-200 rounded-full animate-pulse"></div>
-                  <div className="flex-1">
-                    <div className="h-4 w-32 bg-gray-200 rounded-md animate-pulse mb-2"></div>
-                    <div className="h-3 w-24 bg-gray-200 rounded-md animate-pulse mb-3"></div>
-                    <div className="h-4 w-full bg-gray-200 rounded-md animate-pulse mb-2"></div>
-                    <div className="h-4 w-3/4 bg-gray-200 rounded-md animate-pulse"></div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Loading skeleton removed - page renders immediately since feed data is cached
 
   // JSON-LD structured data for SEO
   const siteJsonLd = {

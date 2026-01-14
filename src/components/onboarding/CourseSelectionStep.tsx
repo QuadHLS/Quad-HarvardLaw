@@ -379,12 +379,18 @@ export function CourseSelectionStep({ onNext, onBack, basicInfo }: CourseSelecti
         class_year: basicInfo.classYear,
         classes: selectedClasses
           .filter((selected) => selected.lawClass && selected.professor)
-          .map((selected) => ({
-            class: selected.lawClass!.name,
-            professor: selected.professor!.name,
-            schedule: selected.scheduleOption,
-            course_id: selected.scheduleOption?.id || null,
-          })),
+          .map((selected) => {
+            const classData: any = {
+              class: selected.lawClass!.name,
+              professor: selected.professor!.name,
+              schedule: selected.scheduleOption,
+            };
+            // Only include course_id if it's a valid UUID
+            if (selected.scheduleOption?.id) {
+              classData.course_id = selected.scheduleOption.id;
+            }
+            return classData;
+          }),
         classes_filled: true,
         updated_at: new Date().toISOString(),
       };

@@ -796,20 +796,27 @@ export function OnboardingStepThree({ onDone, onBack, selectedCourses, userInfo,
                            avatarUrl = fileName;
                          }
 
-                        const classesData = (skipCourses ? [] : selectedCourses).map(course => ({
-                           class: course.courseName,
-                           schedule: {
-                             days: course.days.join(' • '),
-                             times: course.time,
-                             credits: course.credits,
-                             location: course.location || 'Location TBD',
-                             semester: course.semester,
-                             instructor: course.professor,
-                             course_name: course.courseName
-                           },
-                           professor: course.professor,
-                           course_id: (course as any).course_uuid || null
-                         }));
+                        const classesData = (skipCourses ? [] : selectedCourses).map(course => {
+                           const courseUuid = (course as any).course_uuid;
+                           const classData: any = {
+                             class: course.courseName,
+                             schedule: {
+                               days: course.days.join(' • '),
+                               times: course.time,
+                               credits: course.credits,
+                               location: course.location || 'Location TBD',
+                               semester: course.semester,
+                               instructor: course.professor,
+                               course_name: course.courseName
+                             },
+                             professor: course.professor
+                           };
+                           // Only include course_id if it's a valid UUID
+                           if (courseUuid) {
+                             classData.course_id = courseUuid;
+                           }
+                           return classData;
+                         });
 
                         // Build update payload; only set avatar_url if a new file was uploaded
                         const updatePayload: any = {

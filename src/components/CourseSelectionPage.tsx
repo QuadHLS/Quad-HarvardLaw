@@ -528,12 +528,19 @@ export function CourseSelectionPage({ onBack, onComplete }: CourseSelectionPageP
         class_year: classYear,
         classes: selectedClasses
           .filter((selected) => selected.lawClass && selected.professor)
-          .map((selected) => ({
-            class: selected.lawClass!.name,
-            professor: selected.professor!.name,
-            schedule: selected.scheduleOption,
-            course_id: (selected as any).scheduleOption?.id || null,
-          })),
+          .map((selected) => {
+            const classData: any = {
+              class: selected.lawClass!.name,
+              professor: selected.professor!.name,
+              schedule: selected.scheduleOption,
+            };
+            // Only include course_id if it's a valid UUID
+            const courseId = (selected as any).scheduleOption?.id;
+            if (courseId) {
+              classData.course_id = courseId;
+            }
+            return classData;
+          }),
         classes_filled: true, // Mark that classes have been filled
         updated_at: new Date().toISOString(),
       };

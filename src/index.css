@@ -5957,13 +5957,9 @@
 
 html {
   font-size: var(--font-size);
-  height: 100%;
-  overflow: hidden;
 }
 
 body {
-  height: 100%;
-  overflow: hidden;
   margin: 0;
   padding: 0;
 }

@@ -262,18 +262,18 @@ export function NavigationSidebar({ isCollapsed: _isCollapsed, onToggleCollapsed
 
           {/* Clubs */}
           <div style={{ display: 'none' }}>
-            <PrefetchLink
-              to="/clubs"
-              onClick={(e) => handleNavigation(e, '/clubs')}
-              className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
-                activeSection === 'clubs' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
-              }`}
-              style={{ borderRightColor: activeSection === 'clubs' ? '#752432' : 'transparent' }}
-              aria-label={isCollapsedOverride ? 'Clubs' : undefined}
-            >
-              <UsersRound className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
-              {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Clubs</span>}
-            </PrefetchLink>
+          <PrefetchLink
+            to="/clubs"
+            onClick={(e) => handleNavigation(e, '/clubs')}
+            className={`w-full flex items-center rounded-md justify-start px-3 py-2 gap-2 ${
+              activeSection === 'clubs' ? 'bg-white text-gray-800 border-r-2' : 'text-gray-600 hover:text-gray-800 hover:bg-white'
+            }`}
+            style={{ borderRightColor: activeSection === 'clubs' ? '#752432' : 'transparent' }}
+            aria-label={isCollapsedOverride ? 'Clubs' : undefined}
+          >
+            <UsersRound className={`${!isCollapsedOverride ? 'mr-1.5' : ''} w-5 h-5`} style={{ color: '#752432' }} />
+            {!isCollapsedOverride && showText && <span className="font-medium text-sm transition-opacity duration-300 ease-in-out opacity-0 animate-fade-in">Clubs</span>}
+          </PrefetchLink>
           </div>
 
           {/* Big Law Guide */}

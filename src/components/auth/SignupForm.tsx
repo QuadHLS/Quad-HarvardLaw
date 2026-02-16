@@ -52,8 +52,9 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
 
     // First validate email with edge function
     try {
+      const baseUrl = import.meta.env.VITE_SUPABASE_URL;
       const response = await fetch(
-        'https://ujsnnvdbujguiejhxuds.supabase.co/functions/v1/validate-harvard-email',
+        `${baseUrl}/functions/v1/validate-harvard-email`,
         {
           method: 'POST',
           headers: {

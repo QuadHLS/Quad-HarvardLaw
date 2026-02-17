@@ -5,3 +5,20 @@ dist
 .DS_Store
 .env.local
 config.js
+
+# Dev / build artifacts
+*.log
+npm-debug.log*
+coverage/
+.vercel
+*.tsbuildinfo
+.cache
+
+# Sensitive / internal
+.cursor/
+migrations/
+docs/
+.env*
+credentials/
+secrets/
+*.pem

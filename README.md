@@ -36,19 +36,16 @@ QuadHLS was built to simplify the law school experience by centralizing academic
 
 ---
 
-## Technology Stack
+## Architecture Overview
 
-Frontend:
-- React
-- TypeScript
-- Vite
+QuadHLS is built using a modern full-stack architecture:
 
-UI and Styling:
-- Tailwind CSS
-- Radix UI
+- Client: React + TypeScript (SPA)
+- Backend: Supabase (Postgres, Auth, Realtime, Storage)
+- Database: PostgreSQL with Row Level Security (RLS)
+- Realtime: Supabase Realtime subscriptions
+- Deployment: Vercel (CI/CD connected to main branch)
 
-Backend:
-- Supabase (Postgres, Authentication, Realtime, Storage)
+The application uses a modular component architecture with typed APIs and
+strict database access controls.
 
-Deployment:
-- Vercel

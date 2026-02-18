@@ -1,5 +1,8 @@
 # QuadHLS
 
+**Website:** [quadhls.com](https://quadhls.com)  
+**Adoption:** Used by 82% of Harvard Law J.D. candidates during the school year.
+
 **Current Version:** v1.0  
 **Status:** Active Development
 

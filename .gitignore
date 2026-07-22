@@ -18,6 +18,8 @@ coverage/
 .cursor/
 migrations/
 docs/
+!docs/
+!docs/quad-hls-architecture.svg
 .env*
 !.env.example
 credentials/

@@ -33,6 +33,10 @@ Messaging, calendar integrations, and club spaces remain implemented and directl
 
 ## Architecture
 
+![QuadHLS source architecture](docs/quad-hls-architecture.svg)
+
+The diagram is a source-derived recruiter overview. It describes implementation mechanisms visible in this repository and does not certify security, privacy, scalability, hosted-schema parity, or deployment success.
+
 - **Client:** React 18, TypeScript, Vite, TanStack Query, and Radix UI
 - **Backend:** Supabase Auth, PostgreSQL, Realtime, Storage, database functions/triggers, and Edge Functions
 - **Deployment configuration:** Vercel SPA and serverless API configuration

@@ -102,7 +102,7 @@ export function FeedbackPage() {
                 You can also reach out directly on LinkedIn for more personal feedback or questions.
               </p>
               <a
-                href="https://www.linkedin.com/in/justin-li-1454b0381"
+                href="https://www.linkedin.com/in/justinjunzeli"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-4 py-2 bg-white text-[#0077B5] text-sm font-medium rounded-md border border-[#0077B5] transition-colors"

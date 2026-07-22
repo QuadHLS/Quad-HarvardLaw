@@ -236,7 +236,7 @@ export function ClubsPage({ onNavigateToClub }: ClubsPageProps) {
                   </h1>
                 </div>
                 <p className="text-gray-600 text-lg max-w-2xl">
-                  Join official Harvard Law School organizations and student groups
+                  Discover student organizations and groups shared within the QuadHLS community
                 </p>
               </div>
             </div>

@@ -1397,49 +1397,6 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
         .visibility-toggle-wrapper .switch:checked + label::before {
           background-color: #04913A !important;
         }
-        
-        .golden-quad-logo {
-          position: relative;
-          overflow: hidden;
-          background: #ffd700;
-          border-radius: 0.5rem;
-          padding: 0.25rem 0.75rem;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-          transition: 0.5s;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: fit-content;
-        }
-        
-        
-        .golden-quad-logo::before {
-          content: "";
-          position: absolute;
-          top: 0;
-          left: -100%;
-          width: 50%;
-          height: 100%;
-          background: linear-gradient(
-            90deg,
-            transparent,
-            rgba(255, 255, 255, 0.2),
-            rgba(255, 255, 255, 0.55),
-            rgba(255, 255, 255, 0.2),
-            transparent
-          );
-          animation: shimmer 2s infinite;
-          z-index: 1;
-        }
-        
-        @keyframes shimmer {
-          0% {
-            left: -100%;
-          }
-          100% {
-            left: 100%;
-          }
-        }
       `}</style>
       <div className="max-w-6xl mx-auto p-4 pb-8 space-y-6">
         {/* Back Button - Only show when viewing student profile */}
@@ -1852,14 +1809,6 @@ export function ProfilePage({ studentName, onBack, fromBarReview, fromDirectory,
                     <Badge variant="secondary" className="px-3 py-1">
                             🎓 {profileData.underGrad}
                     </Badge>
-                        )}
-                        {/* Gold Quad Logo Button for Special Users */}
-                        {profileData.email && ['justin031607@gmail.com', 'jabbey@jd26.law.harvard.edu', 'lnassif@jd26.law.harvard.edu','kw@jd67.law.harvard.edu'].includes(profileData.email.toLowerCase()) && (
-                          <div className="golden-quad-logo">
-                            <span className="text-sm font-semibold text-gray-900" style={{ position: 'relative', zIndex: 2 }}>
-                              Quadfathers
-                            </span>
-                          </div>
                         )}
                       </>
                     )}

@@ -1113,8 +1113,8 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
     "@type": "WebSite",
     "url": "https://www.quadhls.com/",
     "name": "Quad",
-    "alternateName": ["Quad HLS", "Quad for Harvard Law"],
-    "description": "Harvard Law's all-in-one platform for course outlines, exam banks, social feeds, club chats, course reviews, and study planning.",
+    "alternateName": ["Quad HLS", "QuadHLS"],
+    "description": "An independent, account-gated academic resource and community platform for law students at Harvard. Not affiliated with Harvard University.",
     "potentialAction": {
       "@type": "SearchAction",
       "target": "https://www.quadhls.com/search?q={search_term_string}",
@@ -1128,7 +1128,7 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
     "name": "Quad",
     "url": "https://www.quadhls.com/",
     "logo": "https://www.quadhls.com/QUAD.svg",
-    "description": "Harvard Law's go-to platform connecting students with course outlines, exam banks, social feeds, club chats, course reviews, and study planning tools."
+    "description": "An independent student-built platform providing academic resources and community tools for law students at Harvard. Not affiliated with Harvard University."
   };
 
   return (
@@ -1145,8 +1145,8 @@ export function HomePage({ onNavigateToCourse, onNavigateToStudentProfile, user 
       
       {/* SEO: H1 and descriptive first paragraph for Google snippets */}
       <div className="sr-only" style={{ position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', borderWidth: 0 }}>
-        <h1>Quad – Your All-in-One HLS Platform</h1>
-        <p>Quad is Harvard Law's go-to platform for course outlines, exam banks, social feeds, club chats, course reviews, and study planning. Connect with classmates, share resources, and ace your classes—all in one place!</p>
+        <h1>QuadHLS – Independent Student Resource Platform</h1>
+        <p>QuadHLS is an independent, account-gated platform for law students at Harvard to find academic resources, course context, and community tools. It is not affiliated with Harvard University or Harvard Law School.</p>
       </div>
       
       <div className="max-w-full mx-auto p-6 pb-0">

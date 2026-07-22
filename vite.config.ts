@@ -20,9 +20,9 @@ export default defineConfig({
       injectRegister: 'script-defer', // Defer service worker registration to not block critical path
       includeAssets: ['QUAD.svg', 'QUAD.png', 'robots.txt', 'sitemap.xml'],
       manifest: {
-        name: 'Quad - Harvard Law Platform',
+        name: 'QuadHLS - Independent Student Resource Platform',
         short_name: 'Quad',
-        description: 'Harvard Law\'s all-in-one platform for course outlines, exam banks, social feeds, and study planning',
+        description: 'Independent academic resource and community platform for law students at Harvard',
         theme_color: '#752432',
         background_color: '#f9f5f0',
         display: 'standalone',

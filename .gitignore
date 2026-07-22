@@ -19,6 +19,7 @@ coverage/
 migrations/
 docs/
 .env*
+!.env.example
 credentials/
 secrets/
 *.pem

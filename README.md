@@ -2,13 +2,14 @@
 
 [Live site](https://www.quadhls.com) · [Justin Li on LinkedIn](https://www.linkedin.com/in/justinjunzeli)
 
-QuadHLS is an independent, authentication-gated academic resource and community platform built for law students at Harvard. It is not owned, sponsored, commissioned, or endorsed by Harvard University or Harvard Law School.
+QuadHLS is an independent, authentication-gated academic resource and community platform built for Harvard Law students. It is not owned, sponsored, commissioned, or endorsed by Harvard University or Harvard Law School.
 
 **Observed status:** launched and online. The public site was reachable on July 17, 2026, and tracked document activity continued through July 13, 2026. The feature-development history in this repository culminated in a February 18, 2026 source snapshot; the exact deployed commit and the current maintenance or handoff arrangement have not been independently established.
 
 ## Verified Product Scale
 
 - **716 registered accounts by November 23, 2025.** This is a dated registration count, not a claim about active, unique, or currently enrolled students.
+- **842 accounts matched configured Harvard Law JD/LLM cohort domains as of July 17, 2026.** This excludes the one explicit accepted-domain test account and reflects email-domain matches, not independent verification of current enrollment or active use.
 - **7,903 indexed academic documents across 117 course labels.** The corpus contains 5,099 outlines and 2,804 exams. Partners acquired and organized legacy student-shared material, while the product also accepted new submissions; Justin integrated the corpus into the searchable catalog and preview/download workflows. This is a centralized corpus metric, not a user-upload count.
 - **20,881 document preview/download interactions from 220 conservatively filtered users** between December 11, 2025, and July 13, 2026, after removing nine test/service accounts explicitly excluded in the application source.
 - **5,367 course relationships across 750 completed profiles.** These are product onboarding relationships, not official school enrollment records.

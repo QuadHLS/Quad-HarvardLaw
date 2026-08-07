@@ -1,5 +1,6 @@
 {
   "buildCommand": "npm run build",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ':(exclude)README.md'",
   "outputDirectory": "build",
   "rewrites": [
     {
